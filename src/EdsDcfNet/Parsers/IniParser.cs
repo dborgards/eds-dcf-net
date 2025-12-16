@@ -25,6 +25,8 @@ public class IniParser
     /// <summary>
     /// Parses EDS/DCF content from a string.
     /// </summary>
+    /// <param name="content">EDS/DCF file content as string</param>
+    /// <returns>Dictionary where key is section name (lowercase) and value is key-value pairs</returns>
     public Dictionary<string, Dictionary<string, string>> ParseString(string content)
     {
         var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
@@ -86,6 +88,11 @@ public class IniParser
     /// <summary>
     /// Gets a value from a section, or returns default value if not found.
     /// </summary>
+    /// <param name="sections">Parsed sections dictionary</param>
+    /// <param name="sectionName">Name of the section</param>
+    /// <param name="key">Key to retrieve</param>
+    /// <param name="defaultValue">Default value if key not found</param>
+    /// <returns>Value from the section or default value</returns>
     public static string GetValue(
         Dictionary<string, Dictionary<string, string>> sections,
         string sectionName,
@@ -105,6 +112,9 @@ public class IniParser
     /// <summary>
     /// Checks if a section exists.
     /// </summary>
+    /// <param name="sections">Parsed sections dictionary</param>
+    /// <param name="sectionName">Name of the section to check</param>
+    /// <returns>True if section exists, false otherwise</returns>
     public static bool HasSection(
         Dictionary<string, Dictionary<string, string>> sections,
         string sectionName)
@@ -115,6 +125,9 @@ public class IniParser
     /// <summary>
     /// Gets all keys from a section.
     /// </summary>
+    /// <param name="sections">Parsed sections dictionary</param>
+    /// <param name="sectionName">Name of the section</param>
+    /// <returns>Enumerable of all keys in the section, or empty if section not found</returns>
     public static IEnumerable<string> GetKeys(
         Dictionary<string, Dictionary<string, string>> sections,
         string sectionName)
