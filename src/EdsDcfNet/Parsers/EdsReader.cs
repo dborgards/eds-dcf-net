@@ -61,9 +61,9 @@ public class EdsReader
         return eds;
     }
 
-    private Models.FileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
+    private Models.EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
-        var fileInfo = new Models.FileInfo();
+        var fileInfo = new Models.EdsFileInfo();
 
         if (!IniParser.HasSection(sections, "FileInfo"))
             return fileInfo;

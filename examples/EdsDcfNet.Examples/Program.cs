@@ -32,7 +32,7 @@ class Program
 
         var eds = new ElectronicDataSheet
         {
-            FileInfo = new FileInfo
+            EdsFileInfo = new EdsFileInfo
             {
                 FileName = "example_device.eds",
                 FileVersion = 1,
@@ -102,7 +102,7 @@ class Program
         Console.WriteLine("------------------------");
 
         // Create a sample EDS content
-        var sampleEds = @"[FileInfo]
+        var sampleEds = @"[EdsFileInfo]
 FileName=sample.eds
 FileVersion=1
 FileRevision=0
@@ -173,7 +173,7 @@ PDOMapping=1
         Console.WriteLine("Example 3: Convert EDS to DCF");
         Console.WriteLine("------------------------------");
 
-        var sampleEds = @"[FileInfo]
+        var sampleEds = @"[EdsFileInfo]
 FileName=device.eds
 FileVersion=1
 FileRevision=0

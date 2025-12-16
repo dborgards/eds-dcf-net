@@ -9,7 +9,7 @@ public class DeviceConfigurationFile
     /// <summary>
     /// File information section.
     /// </summary>
-    public FileInfo FileInfo { get; set; } = new();
+    public EdsFileInfo FileInfo { get; set; } = new();
 
     /// <summary>
     /// Device information section.

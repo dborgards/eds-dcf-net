@@ -4,7 +4,7 @@ namespace EdsDcfNet.Models;
 /// Represents the [FileInfo] section of an EDS/DCF file.
 /// Contains metadata about the file itself.
 /// </summary>
-public class FileInfo
+public class EdsFileInfo
 {
     /// <summary>
     /// File name according to OS restrictions.

@@ -90,7 +90,7 @@ public class DcfWriter
         return sb.ToString();
     }
 
-    private void WriteFileInfo(StringBuilder sb, Models.FileInfo fileInfo)
+    private void WriteFileInfo(StringBuilder sb, Models.EdsFileInfo fileInfo)
     {
         sb.AppendLine("[FileInfo]");
         WriteKeyValue(sb, "FileName", fileInfo.FileName);

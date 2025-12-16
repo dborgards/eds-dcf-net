@@ -120,7 +120,7 @@ public static class CanOpenFile
     {
         var dcf = new DeviceConfigurationFile
         {
-            FileInfo = new Models.FileInfo
+            FileInfo = new Models.EdsFileInfo
             {
                 FileName = eds.FileInfo.FileName.Replace(".eds", ".dcf", StringComparison.OrdinalIgnoreCase),
                 FileVersion = eds.FileInfo.FileVersion,
