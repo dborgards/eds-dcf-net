@@ -1,0 +1,435 @@
+namespace EdsDcfNet.Tests.Writers;
+
+using EdsDcfNet.Models;
+using EdsDcfNet.Writers;
+using FluentAssertions;
+using Xunit;
+
+public class DcfWriterTests
+{
+    private readonly DcfWriter _writer = new();
+
+    private DeviceConfigurationFile CreateMinimalDcf()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            FileInfo = new EdsFileInfo
+            {
+                FileName = "test.dcf",
+                FileVersion = 1,
+                FileRevision = 0,
+                EdsVersion = "4.0",
+                Description = "Test DCF"
+            },
+            DeviceInfo = new DeviceInfo
+            {
+                VendorName = "Test Vendor",
+                ProductName = "Test Product",
+                VendorNumber = 0x100,
+                ProductNumber = 0x1001
+            },
+            DeviceCommissioning = new DeviceCommissioning
+            {
+                NodeId = 5,
+                Baudrate = 500,
+                NodeName = "TestNode",
+                NetNumber = 1,
+                NetworkName = "TestNetwork"
+            },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        // Add minimal mandatory object
+        dcf.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        dcf.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0x191",
+            PdoMapping = false
+        };
+
+        return dcf;
+    }
+
+    #region GenerateString Tests
+
+    [Fact]
+    public void GenerateString_MinimalDcf_GeneratesValidContent()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().NotBeNullOrEmpty();
+        result.Should().Contain("[FileInfo]");
+        result.Should().Contain("[DeviceInfo]");
+        result.Should().Contain("[DeviceCommissioning]");
+    }
+
+    [Fact]
+    public void GenerateString_FileInfo_ContainsAllFields()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("FileName=test.dcf");
+        result.Should().Contain("FileVersion=1");
+        result.Should().Contain("FileRevision=0");
+        result.Should().Contain("EDSVersion=4.0");
+        result.Should().Contain("Description=Test DCF");
+    }
+
+    [Fact]
+    public void GenerateString_DeviceInfo_ContainsVendorAndProduct()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("VendorName=Test Vendor");
+        result.Should().Contain("ProductName=Test Product");
+        result.Should().Contain("VendorNumber=0x100");
+        result.Should().Contain("ProductNumber=0x1001");
+    }
+
+    [Fact]
+    public void GenerateString_DeviceCommissioning_ContainsNodeInfo()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("NodeID=5");
+        result.Should().Contain("Baudrate=500");
+        result.Should().Contain("NodeName=TestNode");
+        result.Should().Contain("NetNumber=1");
+        result.Should().Contain("NetworkName=TestNetwork");
+    }
+
+    [Fact]
+    public void GenerateString_MandatoryObjects_WritesCorrectly()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[MandatoryObjects]");
+        result.Should().Contain("SupportedObjects=1");
+        result.Should().Contain("1=0x1000");
+    }
+
+    [Fact]
+    public void GenerateString_Object_WritesAllProperties()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[1000]");
+        result.Should().Contain("ParameterName=Device Type");
+        result.Should().Contain("ObjectType=0x7");
+        result.Should().Contain("DataType=0x7");
+        result.Should().Contain("AccessType=ro");
+        result.Should().Contain("DefaultValue=0x191");
+        result.Should().Contain("PDOMapping=0");
+    }
+
+    [Fact]
+    public void GenerateString_ObjectWithSubObjects_WritesSubObjects()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.MandatoryObjects.Add(0x1018);
+        dcf.ObjectDictionary.Objects[0x1018] = new CanOpenObject
+        {
+            Index = 0x1018,
+            ParameterName = "Identity Object",
+            ObjectType = 0x9,
+            SubNumber = 2
+        };
+
+        dcf.ObjectDictionary.Objects[0x1018].SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Number of Entries",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "2",
+            PdoMapping = false
+        };
+
+        dcf.ObjectDictionary.Objects[0x1018].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "Vendor ID",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0x100",
+            PdoMapping = false
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[1018]");
+        result.Should().Contain("SubNumber=2");
+        result.Should().Contain("[1018sub0]");
+        result.Should().Contain("[1018sub1]");
+    }
+
+    [Fact]
+    public void GenerateString_Comments_WritesCorrectly()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.Comments = new Comments
+        {
+            Lines = 2
+        };
+        dcf.Comments.CommentLines[1] = "First comment";
+        dcf.Comments.CommentLines[2] = "Second comment";
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[Comments]");
+        result.Should().Contain("Lines=2");
+        result.Should().Contain("Line1=First comment");
+        result.Should().Contain("Line2=Second comment");
+    }
+
+    [Fact]
+    public void GenerateString_BaudRates_WritesAllFlags()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo.SupportedBaudRates.BaudRate_10 = true;
+        dcf.DeviceInfo.SupportedBaudRates.BaudRate_125 = true;
+        dcf.DeviceInfo.SupportedBaudRates.BaudRate_250 = true;
+        dcf.DeviceInfo.SupportedBaudRates.BaudRate_500 = true;
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("BaudRate_10=1");
+        result.Should().Contain("BaudRate_20=0");
+        result.Should().Contain("BaudRate_125=1");
+        result.Should().Contain("BaudRate_250=1");
+        result.Should().Contain("BaudRate_500=1");
+    }
+
+    [Fact]
+    public void GenerateString_AccessTypes_FormatsCorrectly()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        dcf.ObjectDictionary.OptionalObjects.Add(0x2000);
+        dcf.ObjectDictionary.Objects[0x2000] = new CanOpenObject
+        {
+            Index = 0x2000,
+            ParameterName = "RW Object",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "0",
+            PdoMapping = false
+        };
+
+        dcf.ObjectDictionary.OptionalObjects.Add(0x2001);
+        dcf.ObjectDictionary.Objects[0x2001] = new CanOpenObject
+        {
+            Index = 0x2001,
+            ParameterName = "WO Object",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.WriteOnly,
+            DefaultValue = "0",
+            PdoMapping = false
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[2000]");
+        result.Should().MatchRegex(@"\[2000\].*?AccessType=rw", System.Text.RegularExpressions.RegexOptions.Singleline);
+        result.Should().Contain("[2001]");
+        result.Should().MatchRegex(@"\[2001\].*?AccessType=wo", System.Text.RegularExpressions.RegexOptions.Singleline);
+    }
+
+    [Fact]
+    public void GenerateString_HexValues_FormatsWithPrefix()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("VendorNumber=0x100");
+        result.Should().Contain("ProductNumber=0x1001");
+        result.Should().Contain("DataType=0x7");
+    }
+
+    [Fact]
+    public void GenerateString_ParameterValue_OverridesDefaultValue()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.Objects[0x1000].ParameterValue = "0x999";
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("ParameterValue=0x999");
+    }
+
+    [Fact]
+    public void GenerateString_OptionalObjects_WritesCorrectly()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.OptionalObjects.Add(0x1008);
+        dcf.ObjectDictionary.Objects[0x1008] = new CanOpenObject
+        {
+            Index = 0x1008,
+            ParameterName = "Device Name",
+            ObjectType = 0x7,
+            DataType = 0x0009,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "TestDevice",
+            PdoMapping = false
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[OptionalObjects]");
+        result.Should().Contain("SupportedObjects=1");
+        result.Should().Contain("1=0x1008");
+        result.Should().Contain("[1008]");
+    }
+
+    [Fact]
+    public void GenerateString_ManufacturerObjects_WritesCorrectly()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.ManufacturerObjects.Add(0x2000);
+        dcf.ObjectDictionary.Objects[0x2000] = new CanOpenObject
+        {
+            Index = 0x2000,
+            ParameterName = "Custom Object",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "0",
+            PdoMapping = true
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[ManufacturerObjects]");
+        result.Should().Contain("SupportedObjects=1");
+        result.Should().Contain("1=0x2000");
+        result.Should().Contain("[2000]");
+    }
+
+    [Fact]
+    public void GenerateString_DummyUsage_WritesCorrectly()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.DummyUsage[2] = true;
+        dcf.ObjectDictionary.DummyUsage[5] = true;
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[DummyUsage]");
+        result.Should().Contain("Dummy0002=1");
+        result.Should().Contain("Dummy0005=1");
+    }
+
+    #endregion
+
+    #region WriteFile Tests
+
+    [Fact]
+    public void WriteFile_ValidPath_CreatesFile()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            // Act
+            _writer.WriteFile(dcf, tempFile);
+
+            // Assert
+            File.Exists(tempFile).Should().BeTrue();
+            var content = File.ReadAllText(tempFile);
+            content.Should().Contain("[FileInfo]");
+            content.Should().Contain("[DeviceCommissioning]");
+        }
+        finally
+        {
+            // Cleanup
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void WriteFile_InvalidPath_ThrowsDcfWriteException()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        var invalidPath = "/invalid/path/that/does/not/exist/test.dcf";
+
+        // Act
+        var act = () => _writer.WriteFile(dcf, invalidPath);
+
+        // Assert
+        act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>()
+            .WithMessage("*Failed to write DCF file*");
+    }
+
+    #endregion
+}
