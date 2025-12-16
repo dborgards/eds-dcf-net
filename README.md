@@ -1,152 +1,153 @@
 # EdsDcfNet
 
-Eine umfassende, einfach zu bedienende C# .NET-Bibliothek für CiA DS 306 - Electronic Data Sheet (EDS) und Device Configuration File (DCF) für CANopen-Geräte.
+A comprehensive, easy-to-use C# .NET library for CiA DS 306 - Electronic Data Sheet (EDS) and Device Configuration File (DCF) for CANopen devices.
 
 ## Features
 
-✨ **Einfache API** - Intuitiver, fluent API-Stil für schnelle Integration
-📖 **EDS lesen** - Vollständiges Parsen von Electronic Data Sheets
-📝 **DCF lesen & schreiben** - Device Configuration Files verarbeiten und erstellen
-🔄 **EDS zu DCF Konvertierung** - Einfache Umwandlung mit Konfigurationsparametern
-🎯 **Type-Safe** - Vollständig typisierte Modelle für alle CANopen-Objekte
-📦 **Modular** - Unterstützung für modulare Geräte (Bus-Koppler + Module)
-✅ **CiA DS 306 v1.3 konform** - Implementiert nach offizieller Spezifikation
+✨ **Simple API** - Intuitive, fluent API style for quick integration
+📖 **Read EDS** - Complete parsing of Electronic Data Sheets
+📝 **Read & Write DCF** - Process and create Device Configuration Files
+🔄 **EDS to DCF Conversion** - Easy conversion with configuration parameters
+🎯 **Type-Safe** - Fully typed models for all CANopen objects
+📦 **Modular** - Support for modular devices (bus couplers + modules)
+✅ **CiA DS 306 v1.3 Compliant** - Implemented according to official specification
 
-## Schnellstart
+## Quick Start
 
-### EDS-Datei lesen
+### Reading an EDS File
 
 ```csharp
 using EdsDcfNet;
 
-// EDS-Datei einlesen
+// Read EDS file
 var eds = CanOpenFile.ReadEds("device.eds");
 
-// Geräteinformationen ausgeben
+// Display device information
 Console.WriteLine($"Device: {eds.DeviceInfo.ProductName}");
 Console.WriteLine($"Vendor: {eds.DeviceInfo.VendorName}");
 Console.WriteLine($"Product Number: 0x{eds.DeviceInfo.ProductNumber:X}");
 ```
 
-### DCF-Datei lesen
+### Reading a DCF File
 
 ```csharp
 using EdsDcfNet;
 
-// DCF-Datei einlesen
+// Read DCF file
 var dcf = CanOpenFile.ReadDcf("configured_device.dcf");
 
 Console.WriteLine($"Node ID: {dcf.DeviceCommissioning.NodeId}");
 Console.WriteLine($"Baudrate: {dcf.DeviceCommissioning.Baudrate} kbit/s");
 ```
 
-### EDS zu DCF konvertieren
+### Converting EDS to DCF
 
 ```csharp
 using EdsDcfNet;
 
-// EDS einlesen
+// Read EDS
 var eds = CanOpenFile.ReadEds("device.eds");
 
-// Zu DCF konvertieren mit Node-ID und Baudrate
+// Convert to DCF with node ID and baudrate
 var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 2, baudrate: 500, nodeName: "MyDevice");
 
-// DCF speichern
+// Save DCF
 CanOpenFile.WriteDcf(dcf, "device_node2.dcf");
 ```
 
-### Mit Object Dictionary arbeiten
+### Working with Object Dictionary
 
 ```csharp
 using EdsDcfNet.Extensions;
 
 var dcf = CanOpenFile.ReadDcf("device.dcf");
 
-// Objekt abrufen
+// Get object
 var deviceType = dcf.ObjectDictionary.GetObject(0x1000);
 
-// Wert setzen
+// Set value
 dcf.ObjectDictionary.SetParameterValue(0x1000, "0x00000191");
 
-// PDO-Objekte durchsuchen
+// Browse PDO objects
 var tpdos = dcf.ObjectDictionary.GetPdoCommunicationParameters(transmit: true);
 ```
 
-## API-Übersicht
+## API Overview
 
-### Hauptklasse: `CanOpenFile`
+### Main Class: `CanOpenFile`
 
 ```csharp
-// EDS lesen
+// Read EDS
 ElectronicDataSheet ReadEds(string filePath)
 ElectronicDataSheet ReadEdsFromString(string content)
 
-// DCF lesen
+// Read DCF
 DeviceConfigurationFile ReadDcf(string filePath)
 DeviceConfigurationFile ReadDcfFromString(string content)
 
-// DCF schreiben
+// Write DCF
 void WriteDcf(DeviceConfigurationFile dcf, string filePath)
 string WriteDcfToString(DeviceConfigurationFile dcf)
 
-// EDS zu DCF konvertieren
+// Convert EDS to DCF
 DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
                                   ushort baudrate = 250, string? nodeName = null)
 ```
 
-## Unterstützte Features
+## Supported Features
 
-- ✅ Vollständiges EDS-Parsing
-- ✅ Vollständiges DCF-Parsing und Schreiben
-- ✅ Alle Object Types (VAR, ARRAY, RECORD)
-- ✅ Sub-Objekte und Sub-Indizes
+- ✅ Complete EDS parsing
+- ✅ Complete DCF parsing and writing
+- ✅ All Object Types (VAR, ARRAY, RECORD)
+- ✅ Sub-objects and sub-indexes
 - ✅ Compact Storage (CompactSubObj, CompactPDO)
 - ✅ Object Links
-- ✅ Modulares Gerätekonzept
-- ✅ Hexadezimale, Dezimale und Oktale Zahlen
-- ✅ Kommentare und zusätzliche Sektionen
+- ✅ Modular device concept
+- ✅ Hexadecimal, decimal, and octal numbers
+- ✅ $NODEID formula evaluation (e.g., $NODEID+0x200)
+- ✅ Comments and additional sections
 
-## Beispiele
+## Examples
 
-Vollständige Beispiele finden Sie im `examples/EdsDcfNet.Examples`-Projekt.
+Complete examples can be found in the `examples/EdsDcfNet.Examples` project.
 
-## Projektstruktur
+## Project Structure
 
 ```
 eds-dcf-net/
 ├── src/
-│   └── EdsDcfNet/              # Hauptbibliothek
-│       ├── Models/             # Datenmodelle
-│       ├── Parsers/            # EDS/DCF Parser
-│       ├── Writers/            # DCF Writer
-│       ├── Utilities/          # Helper-Klassen
-│       ├── Exceptions/         # Custom Exceptions
-│       └── Extensions/         # Extension Methods
+│   └── EdsDcfNet/              # Main library
+│       ├── Models/             # Data models
+│       ├── Parsers/            # EDS/DCF parsers
+│       ├── Writers/            # DCF writer
+│       ├── Utilities/          # Helper classes
+│       ├── Exceptions/         # Custom exceptions
+│       └── Extensions/         # Extension methods
 ├── examples/
-│   └── EdsDcfNet.Examples/     # Beispielanwendung
+│   └── EdsDcfNet.Examples/     # Example application
 └── docs/
-    └── cia/                    # CiA DS 306 Spezifikation
+    └── cia/                    # CiA DS 306 specification
 ```
 
-## Anforderungen
+## Requirements
 
-- .NET 10.0 oder höher
+- .NET 10.0 or higher
 - C# 12.0
 
-## Lizenz
+## License
 
-MIT License - siehe [LICENSE](LICENSE) Datei
+MIT License - see [LICENSE](LICENSE) file
 
-## Spezifikation
+## Specification
 
-Basiert auf **CiA DS 306 Version 1.3** (01. Januar 2005)
+Based on **CiA DS 306 Version 1.3** (January 1, 2005)
 "Electronic data sheet specification for CANopen"
 
 ## Support
 
-Bei Fragen oder Problemen:
+For questions or issues:
 - GitHub Issues: https://github.com/dborgards/eds-dcf-net/issues
 
 ---
 
-**EdsDcfNet** - Professionelle CANopen EDS/DCF-Verarbeitung in C# .NET
+**EdsDcfNet** - Professional CANopen EDS/DCF processing in C# .NET
