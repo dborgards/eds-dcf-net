@@ -61,7 +61,7 @@ public class EdsReader
         return eds;
     }
 
-    private Models.EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
+    internal Models.EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
         var fileInfo = new Models.EdsFileInfo();
 
@@ -83,7 +83,7 @@ public class EdsReader
         return fileInfo;
     }
 
-    private DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
+    internal DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
         var deviceInfo = new DeviceInfo();
 

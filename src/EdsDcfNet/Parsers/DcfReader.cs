@@ -96,9 +96,7 @@ public class DcfReader
     private DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
         // Use the same parser as EDS reader
-        return _edsReader.GetType()
-            .GetMethod("ParseDeviceInfo", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .Invoke(_edsReader, new object[] { sections }) as DeviceInfo ?? new DeviceInfo();
+        return _edsReader.ParseDeviceInfo(sections);
     }
 
     private DeviceCommissioning ParseDeviceCommissioning(Dictionary<string, Dictionary<string, string>> sections)

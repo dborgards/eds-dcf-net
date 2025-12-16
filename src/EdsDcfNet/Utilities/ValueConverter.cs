@@ -10,7 +10,9 @@ public static class ValueConverter
     /// <summary>
     /// Parses an integer value from string (supports decimal, hexadecimal, and octal).
     /// </summary>
-    public static uint ParseInteger(string value)
+    /// <param name="value">String value to parse</param>
+    /// <param name="nodeId">Optional node ID for evaluating $NODEID formulas</param>
+    public static uint ParseInteger(string value, byte? nodeId = null)
     {
         value = value.Trim();
 
@@ -20,9 +22,15 @@ public static class ValueConverter
         // Handle $NODEID formula
         if (value.StartsWith("$NODEID", StringComparison.OrdinalIgnoreCase))
         {
-            // For now, return 0 as a placeholder
-            // In real usage, this should be replaced with actual node ID
-            return 0;
+            if (!nodeId.HasValue)
+            {
+                throw new NotSupportedException(
+                    $"Cannot evaluate $NODEID formula '{value}' without a node ID context. " +
+                    "This typically occurs when parsing EDS files where the node ID is not yet known. " +
+                    "For DCF files with configured node IDs, ensure the node ID is provided during parsing.");
+            }
+
+            return EvaluateNodeIdFormula(value, nodeId.Value);
         }
 
         // Hexadecimal (0x prefix)
@@ -159,5 +167,44 @@ public static class ValueConverter
     public static string FormatBoolean(bool value)
     {
         return value ? "1" : "0";
+    }
+
+    /// <summary>
+    /// Evaluates a $NODEID formula with the given node ID.
+    /// Supports formulas like "$NODEID", "$NODEID+0x200", "$NODEID+512", etc.
+    /// </summary>
+    private static uint EvaluateNodeIdFormula(string formula, byte nodeId)
+    {
+        formula = formula.Trim();
+
+        // Replace $NODEID with the actual node ID value
+        var expression = formula.Replace("$NODEID", nodeId.ToString(), StringComparison.OrdinalIgnoreCase);
+
+        // Handle simple addition (e.g., "5+0x200" or "5+512")
+        if (expression.Contains('+'))
+        {
+            var parts = expression.Split('+');
+            if (parts.Length == 2)
+            {
+                var left = ParseInteger(parts[0].Trim());
+                var right = ParseInteger(parts[1].Trim());
+                return left + right;
+            }
+        }
+
+        // Handle simple subtraction (e.g., "5-0x100")
+        if (expression.Contains('-') && !expression.StartsWith('-'))
+        {
+            var parts = expression.Split('-');
+            if (parts.Length == 2)
+            {
+                var left = ParseInteger(parts[0].Trim());
+                var right = ParseInteger(parts[1].Trim());
+                return left - right;
+            }
+        }
+
+        // If no operator, just return the node ID
+        return nodeId;
     }
 }
