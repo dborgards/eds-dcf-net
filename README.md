@@ -5,11 +5,17 @@ A comprehensive, easy-to-use C# .NET library for CiA DS 306 - Electronic Data Sh
 ## Features
 
 ✨ **Simple API** - Intuitive, fluent API style for quick integration
+
 📖 **Read EDS** - Complete parsing of Electronic Data Sheets
+
 📝 **Read & Write DCF** - Process and create Device Configuration Files
+
 🔄 **EDS to DCF Conversion** - Easy conversion with configuration parameters
+
 🎯 **Type-Safe** - Fully typed models for all CANopen objects
+
 📦 **Modular** - Support for modular devices (bus couplers + modules)
+
 ✅ **CiA DS 306 v1.3 Compliant** - Implemented according to official specification
 
 ## Quick Start
