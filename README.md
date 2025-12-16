@@ -130,7 +130,7 @@ eds-dcf-net/
 
 ## Anforderungen
 
-- .NET 8.0 oder höher
+- .NET 10.0 oder höher
 - C# 12.0
 
 ## Lizenz
