@@ -231,11 +231,11 @@ SupportedObjects=0
         result.DeviceInfo.SimpleBootUpMaster.Should().BeFalse();
         result.DeviceInfo.SimpleBootUpSlave.Should().BeTrue();
         result.DeviceInfo.Granularity.Should().Be(8);
-        result.DeviceInfo.DynamicChannelsSupported.Should().BeFalse();
+        result.DeviceInfo.DynamicChannelsSupported.Should().Be(0);
         result.DeviceInfo.GroupMessaging.Should().BeFalse();
-        result.DeviceInfo.NrOfRXPDO.Should().Be(4);
-        result.DeviceInfo.NrOfTXPDO.Should().Be(4);
-        result.DeviceInfo.LSS_Supported.Should().BeFalse();
+        result.DeviceInfo.NrOfRxPdo.Should().Be(4);
+        result.DeviceInfo.NrOfTxPdo.Should().Be(4);
+        result.DeviceInfo.LssSupported.Should().BeFalse();
     }
 
     [Fact]
@@ -265,14 +265,14 @@ SupportedObjects=0
         var result = _reader.ReadString(content);
 
         // Assert
-        result.DeviceInfo.SupportedBaudRates.BaudRate_10.Should().BeTrue();
-        result.DeviceInfo.SupportedBaudRates.BaudRate_20.Should().BeFalse();
-        result.DeviceInfo.SupportedBaudRates.BaudRate_50.Should().BeTrue();
-        result.DeviceInfo.SupportedBaudRates.BaudRate_125.Should().BeTrue();
-        result.DeviceInfo.SupportedBaudRates.BaudRate_250.Should().BeTrue();
-        result.DeviceInfo.SupportedBaudRates.BaudRate_500.Should().BeTrue();
-        result.DeviceInfo.SupportedBaudRates.BaudRate_800.Should().BeFalse();
-        result.DeviceInfo.SupportedBaudRates.BaudRate_1000.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate10.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate20.Should().BeFalse();
+        result.DeviceInfo.SupportedBaudRates.BaudRate50.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate125.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate250.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate500.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate800.Should().BeFalse();
+        result.DeviceInfo.SupportedBaudRates.BaudRate1000.Should().BeTrue();
     }
 
     #endregion
@@ -576,7 +576,7 @@ Line3=Third comment line
 
         // Assert
         result.Comments.Should().NotBeNull();
-        result.Comments.Lines.Should().Be(3);
+        result.Comments!.Lines.Should().Be(3);
         result.Comments.CommentLines.Should().HaveCount(3);
         result.Comments.CommentLines[1].Should().Be("First comment line");
         result.Comments.CommentLines[2].Should().Be("Second comment line");
@@ -619,7 +619,8 @@ Line3=Third comment line
         result.ObjectDictionary.Objects[0x1001].ParameterName.Should().Be("Error Register");
 
         // Assert - Comments
-        result.Comments.Lines.Should().Be(3);
+        result.Comments.Should().NotBeNull();
+        result.Comments!.Lines.Should().Be(3);
         result.Comments.CommentLines[1].Should().Contain("Sample EDS file");
     }
 

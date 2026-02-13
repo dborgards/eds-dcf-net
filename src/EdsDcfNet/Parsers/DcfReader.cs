@@ -470,7 +470,7 @@ public class DcfReader
             return true;
 
         // Check for sub-object sections
-        if (sectionName.Contains("sub", StringComparison.OrdinalIgnoreCase))
+        if (sectionName.IndexOf("sub", StringComparison.OrdinalIgnoreCase) >= 0)
             return true;
 
         // Check for value and denotation sections

@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Writers;
 
+using System.Globalization;
 using System.Text;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
@@ -94,8 +95,8 @@ public class DcfWriter
     {
         sb.AppendLine("[FileInfo]");
         WriteKeyValue(sb, "FileName", fileInfo.FileName);
-        WriteKeyValue(sb, "FileVersion", fileInfo.FileVersion.ToString());
-        WriteKeyValue(sb, "FileRevision", fileInfo.FileRevision.ToString());
+        WriteKeyValue(sb, "FileVersion", fileInfo.FileVersion.ToString(CultureInfo.InvariantCulture));
+        WriteKeyValue(sb, "FileRevision", fileInfo.FileRevision.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "EDSVersion", fileInfo.EdsVersion);
         WriteKeyValue(sb, "Description", fileInfo.Description);
         WriteKeyValue(sb, "CreationTime", fileInfo.CreationTime);
@@ -134,11 +135,11 @@ public class DcfWriter
 
         WriteKeyValue(sb, "SimpleBootUpMaster", ValueConverter.FormatBoolean(deviceInfo.SimpleBootUpMaster));
         WriteKeyValue(sb, "SimpleBootUpSlave", ValueConverter.FormatBoolean(deviceInfo.SimpleBootUpSlave));
-        WriteKeyValue(sb, "Granularity", deviceInfo.Granularity.ToString());
-        WriteKeyValue(sb, "DynamicChannelsSupported", deviceInfo.DynamicChannelsSupported.ToString());
+        WriteKeyValue(sb, "Granularity", deviceInfo.Granularity.ToString(CultureInfo.InvariantCulture));
+        WriteKeyValue(sb, "DynamicChannelsSupported", deviceInfo.DynamicChannelsSupported.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "GroupMessaging", ValueConverter.FormatBoolean(deviceInfo.GroupMessaging));
-        WriteKeyValue(sb, "NrOfRXPDO", deviceInfo.NrOfRxPdo.ToString());
-        WriteKeyValue(sb, "NrOfTXPDO", deviceInfo.NrOfTxPdo.ToString());
+        WriteKeyValue(sb, "NrOfRXPDO", deviceInfo.NrOfRxPdo.ToString(CultureInfo.InvariantCulture));
+        WriteKeyValue(sb, "NrOfTXPDO", deviceInfo.NrOfTxPdo.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "LSS_Supported", ValueConverter.FormatBoolean(deviceInfo.LssSupported));
 
         if (deviceInfo.CompactPdo > 0)
@@ -152,16 +153,16 @@ public class DcfWriter
     private void WriteDeviceCommissioning(StringBuilder sb, DeviceCommissioning dc)
     {
         sb.AppendLine("[DeviceCommissioning]");
-        WriteKeyValue(sb, "NodeID", dc.NodeId.ToString());
+        WriteKeyValue(sb, "NodeID", dc.NodeId.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "NodeName", dc.NodeName);
-        WriteKeyValue(sb, "Baudrate", dc.Baudrate.ToString());
-        WriteKeyValue(sb, "NetNumber", dc.NetNumber.ToString());
+        WriteKeyValue(sb, "Baudrate", dc.Baudrate.ToString(CultureInfo.InvariantCulture));
+        WriteKeyValue(sb, "NetNumber", dc.NetNumber.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "NetworkName", dc.NetworkName);
         WriteKeyValue(sb, "CANopenManager", ValueConverter.FormatBoolean(dc.CANopenManager));
 
         if (dc.LssSerialNumber.HasValue)
         {
-            WriteKeyValue(sb, "LSS_SerialNumber", dc.LssSerialNumber.Value.ToString());
+            WriteKeyValue(sb, "LSS_SerialNumber", dc.LssSerialNumber.Value.ToString(CultureInfo.InvariantCulture));
         }
 
         sb.AppendLine();
@@ -185,11 +186,11 @@ public class DcfWriter
         if (objDict.MandatoryObjects.Any())
         {
             sb.AppendLine("[MandatoryObjects]");
-            WriteKeyValue(sb, "SupportedObjects", objDict.MandatoryObjects.Count.ToString());
+            WriteKeyValue(sb, "SupportedObjects", objDict.MandatoryObjects.Count.ToString(CultureInfo.InvariantCulture));
 
             for (int i = 0; i < objDict.MandatoryObjects.Count; i++)
             {
-                WriteKeyValue(sb, (i + 1).ToString(), ValueConverter.FormatInteger(objDict.MandatoryObjects[i]));
+                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(objDict.MandatoryObjects[i]));
             }
 
             sb.AppendLine();
@@ -199,11 +200,11 @@ public class DcfWriter
         if (objDict.OptionalObjects.Any())
         {
             sb.AppendLine("[OptionalObjects]");
-            WriteKeyValue(sb, "SupportedObjects", objDict.OptionalObjects.Count.ToString());
+            WriteKeyValue(sb, "SupportedObjects", objDict.OptionalObjects.Count.ToString(CultureInfo.InvariantCulture));
 
             for (int i = 0; i < objDict.OptionalObjects.Count; i++)
             {
-                WriteKeyValue(sb, (i + 1).ToString(), ValueConverter.FormatInteger(objDict.OptionalObjects[i]));
+                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(objDict.OptionalObjects[i]));
             }
 
             sb.AppendLine();
@@ -213,11 +214,11 @@ public class DcfWriter
         if (objDict.ManufacturerObjects.Any())
         {
             sb.AppendLine("[ManufacturerObjects]");
-            WriteKeyValue(sb, "SupportedObjects", objDict.ManufacturerObjects.Count.ToString());
+            WriteKeyValue(sb, "SupportedObjects", objDict.ManufacturerObjects.Count.ToString(CultureInfo.InvariantCulture));
 
             for (int i = 0; i < objDict.ManufacturerObjects.Count; i++)
             {
-                WriteKeyValue(sb, (i + 1).ToString(), ValueConverter.FormatInteger(objDict.ManufacturerObjects[i]));
+                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(objDict.ManufacturerObjects[i]));
             }
 
             sb.AppendLine();
@@ -240,15 +241,11 @@ public class DcfWriter
 
         if (obj.SubNumber.HasValue && obj.SubNumber.Value > 0)
         {
-            WriteKeyValue(sb, "SubNumber", obj.SubNumber.Value.ToString());
+            WriteKeyValue(sb, "SubNumber", obj.SubNumber.Value.ToString(CultureInfo.InvariantCulture));
         }
 
         WriteKeyValue(sb, "ParameterName", obj.ParameterName);
-
-        if (obj.ObjectType != 0x7) // Only write if not default VAR
-        {
-            WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(obj.ObjectType));
-        }
+        WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(obj.ObjectType));
 
         if (obj.DataType.HasValue)
         {
@@ -281,7 +278,7 @@ public class DcfWriter
 
         if (obj.CompactSubObj.HasValue && obj.CompactSubObj.Value > 0)
         {
-            WriteKeyValue(sb, "CompactSubObj", obj.CompactSubObj.Value.ToString());
+            WriteKeyValue(sb, "CompactSubObj", obj.CompactSubObj.Value.ToString(CultureInfo.InvariantCulture));
         }
 
         // DCF-specific fields
@@ -320,11 +317,11 @@ public class DcfWriter
         if (obj.ObjectLinks.Any())
         {
             sb.AppendLine($"[{obj.Index:X}ObjectLinks]");
-            WriteKeyValue(sb, "ObjectLinks", obj.ObjectLinks.Count.ToString());
+            WriteKeyValue(sb, "ObjectLinks", obj.ObjectLinks.Count.ToString(CultureInfo.InvariantCulture));
 
             for (int i = 0; i < obj.ObjectLinks.Count; i++)
             {
-                WriteKeyValue(sb, (i + 1).ToString(), ValueConverter.FormatInteger(obj.ObjectLinks[i]));
+                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(obj.ObjectLinks[i]));
             }
 
             sb.AppendLine();
@@ -379,7 +376,7 @@ public class DcfWriter
     private void WriteSupportedModules(StringBuilder sb, List<ModuleInfo> modules)
     {
         sb.AppendLine("[SupportedModules]");
-        WriteKeyValue(sb, "NrOfEntries", modules.Count.ToString());
+        WriteKeyValue(sb, "NrOfEntries", modules.Count.ToString(CultureInfo.InvariantCulture));
         sb.AppendLine();
 
         foreach (var module in modules)
@@ -392,19 +389,19 @@ public class DcfWriter
     {
         sb.AppendLine($"[M{module.ModuleNumber}ModuleInfo]");
         WriteKeyValue(sb, "ProductName", module.ProductName);
-        WriteKeyValue(sb, "ProductVersion", module.ProductVersion.ToString());
-        WriteKeyValue(sb, "ProductRevision", module.ProductRevision.ToString());
+        WriteKeyValue(sb, "ProductVersion", module.ProductVersion.ToString(CultureInfo.InvariantCulture));
+        WriteKeyValue(sb, "ProductRevision", module.ProductRevision.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "OrderCode", module.OrderCode);
         sb.AppendLine();
 
         if (module.FixedObjects.Any())
         {
             sb.AppendLine($"[M{module.ModuleNumber}FixedObjects]");
-            WriteKeyValue(sb, "NrOfEntries", module.FixedObjects.Count.ToString());
+            WriteKeyValue(sb, "NrOfEntries", module.FixedObjects.Count.ToString(CultureInfo.InvariantCulture));
 
             for (int i = 0; i < module.FixedObjects.Count; i++)
             {
-                WriteKeyValue(sb, (i + 1).ToString(), ValueConverter.FormatInteger(module.FixedObjects[i]));
+                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(module.FixedObjects[i]));
             }
 
             sb.AppendLine();
@@ -414,11 +411,11 @@ public class DcfWriter
     private void WriteConnectedModules(StringBuilder sb, List<int> connectedModules)
     {
         sb.AppendLine("[ConnectedModules]");
-        WriteKeyValue(sb, "NrOfEntries", connectedModules.Count.ToString());
+        WriteKeyValue(sb, "NrOfEntries", connectedModules.Count.ToString(CultureInfo.InvariantCulture));
 
         for (int i = 0; i < connectedModules.Count; i++)
         {
-            WriteKeyValue(sb, (i + 1).ToString(), connectedModules[i].ToString());
+            WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), connectedModules[i].ToString(CultureInfo.InvariantCulture));
         }
 
         sb.AppendLine();
@@ -427,7 +424,7 @@ public class DcfWriter
     private void WriteComments(StringBuilder sb, Comments comments)
     {
         sb.AppendLine("[Comments]");
-        WriteKeyValue(sb, "Lines", comments.Lines.ToString());
+        WriteKeyValue(sb, "Lines", comments.Lines.ToString(CultureInfo.InvariantCulture));
 
         foreach (var line in comments.CommentLines.OrderBy(l => l.Key))
         {

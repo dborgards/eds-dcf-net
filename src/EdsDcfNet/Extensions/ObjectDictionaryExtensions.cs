@@ -113,7 +113,18 @@ public static class ObjectDictionaryExtensions
 /// </summary>
 public enum ObjectCategory
 {
+    /// <summary>
+    /// Mandatory objects that must be implemented by all CANopen devices.
+    /// </summary>
     Mandatory,
+
+    /// <summary>
+    /// Optional objects that may be implemented by CANopen devices.
+    /// </summary>
     Optional,
+
+    /// <summary>
+    /// Manufacturer-specific objects defined by the device manufacturer.
+    /// </summary>
     Manufacturer
 }

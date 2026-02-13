@@ -402,7 +402,7 @@ public class EdsReader
             return true;
 
         // Check for sub-object sections (hex index + "sub" + hex subindex)
-        if (sectionName.Contains("sub", StringComparison.OrdinalIgnoreCase))
+        if (sectionName.IndexOf("sub", StringComparison.OrdinalIgnoreCase) >= 0)
             return true;
 
         // Check for module sections
