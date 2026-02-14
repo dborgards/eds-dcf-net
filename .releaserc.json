@@ -70,7 +70,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "find . -name '*.csproj' -type f -exec sed -i 's|<Version>.*</Version>|<Version>${nextRelease.version}</Version>|g' {} \\;",
+        "prepareCmd": "sed -i 's|<Version>.*</Version>|<Version>${nextRelease.version}</Version>|g' src/EdsDcfNet/EdsDcfNet.csproj",
         "publishCmd": "dotnet pack src/EdsDcfNet/EdsDcfNet.csproj --configuration Release --no-restore --output ./packages /p:PackageVersion=${nextRelease.version} && dotnet nuget push './packages/*.nupkg' --api-key $NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate"
       }
     ],
