@@ -48,11 +48,11 @@ public class IniParser
             var line = rawLine.Trim();
 
             // Skip empty lines and comments
-            if (string.IsNullOrWhiteSpace(line) || line.StartsWith(';'))
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith(";"))
                 continue;
 
             // Check for section header
-            if (line.StartsWith('[') && line.EndsWith(']'))
+            if (line.StartsWith("[") && line.EndsWith("]"))
             {
                 currentSection = line.Substring(1, line.Length - 2).Trim();
 
