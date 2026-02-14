@@ -3,6 +3,7 @@ namespace EdsDcfNet;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Writers;
+using System.Globalization;
 
 /// <summary>
 /// Main entry point for working with EDS and DCF files.
@@ -122,13 +123,13 @@ public static class CanOpenFile
         {
             FileInfo = new Models.EdsFileInfo
             {
-                FileName = eds.FileInfo.FileName.Replace(".eds", ".dcf", StringComparison.OrdinalIgnoreCase),
+                FileName = Path.ChangeExtension(eds.FileInfo.FileName, ".dcf"),
                 FileVersion = eds.FileInfo.FileVersion,
                 FileRevision = (byte)(eds.FileInfo.FileRevision + 1),
                 EdsVersion = eds.FileInfo.EdsVersion,
                 Description = $"DCF generated from {eds.FileInfo.FileName}",
-                CreationDate = DateTime.Now.ToString("MM-dd-yyyy"),
-                CreationTime = DateTime.Now.ToString("hh:mmtt"),
+                CreationDate = DateTime.Now.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
+                CreationTime = DateTime.Now.ToString("hh:mmtt", CultureInfo.InvariantCulture),
                 CreatedBy = "EdsDcfNet Library",
                 LastEds = eds.FileInfo.FileName
             },

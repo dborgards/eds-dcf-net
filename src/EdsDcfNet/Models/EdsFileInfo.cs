@@ -14,7 +14,7 @@ public class EdsFileInfo
     /// <summary>
     /// Actual file version (Unsigned8).
     /// </summary>
-    public byte FileVersion { get; set; }
+    public byte FileVersion { get; set; } = 1;
 
     /// <summary>
     /// Actual file revision (Unsigned8).

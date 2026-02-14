@@ -1,6 +1,7 @@
 using EdsDcfNet;
 using EdsDcfNet.Extensions;
 using EdsDcfNet.Models;
+using System.Globalization;
 
 namespace EdsDcfNet.Examples;
 
@@ -39,8 +40,8 @@ class Program
                 FileRevision = 0,
                 EdsVersion = "4.0",
                 Description = "Example CANopen Device",
-                CreationDate = DateTime.Now.ToString("MM-dd-yyyy"),
-                CreationTime = DateTime.Now.ToString("hh:mmtt"),
+                CreationDate = DateTime.Now.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
+                CreationTime = DateTime.Now.ToString("hh:mmtt", CultureInfo.InvariantCulture),
                 CreatedBy = "EdsDcfNet Example"
             },
             DeviceInfo = new DeviceInfo

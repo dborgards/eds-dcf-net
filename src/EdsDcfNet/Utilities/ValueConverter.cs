@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Utilities;
 
+using System.Globalization;
 using EdsDcfNet.Models;
 
 /// <summary>
@@ -47,7 +48,7 @@ public static class ValueConverter
         }
 
         // Decimal
-        return uint.Parse(value);
+        return uint.Parse(value, CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -88,7 +89,7 @@ public static class ValueConverter
         }
 
         // Decimal
-        return byte.Parse(value);
+        return byte.Parse(value, CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -114,7 +115,7 @@ public static class ValueConverter
         }
 
         // Decimal
-        return ushort.Parse(value);
+        return ushort.Parse(value, CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -158,7 +159,7 @@ public static class ValueConverter
     {
         if (useHex)
             return $"0x{value:X}";
-        return value.ToString();
+        return value.ToString(CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -177,11 +178,14 @@ public static class ValueConverter
     {
         formula = formula.Trim();
 
-        // Replace $NODEID with the actual node ID value
-        var expression = formula.Replace("$NODEID", nodeId.ToString(), StringComparison.OrdinalIgnoreCase);
+        // Replace $NODEID with the actual node ID value (case-insensitive, netstandard2.0 compatible)
+        var index = formula.IndexOf("$NODEID", StringComparison.OrdinalIgnoreCase);
+        var expression = index >= 0
+            ? formula.Substring(0, index) + nodeId.ToString(CultureInfo.InvariantCulture) + formula.Substring(index + 7)
+            : formula;
 
         // Handle simple addition (e.g., "5+0x200" or "5+512")
-        if (expression.Contains('+'))
+        if (expression.IndexOf('+') >= 0)
         {
             var parts = expression.Split('+');
             if (parts.Length == 2)
@@ -193,7 +197,7 @@ public static class ValueConverter
         }
 
         // Handle simple subtraction (e.g., "5-0x100")
-        if (expression.Contains('-') && !expression.StartsWith('-'))
+        if (expression.IndexOf('-') >= 0 && !expression.StartsWith("-"))
         {
             var parts = expression.Split('-');
             if (parts.Length == 2)

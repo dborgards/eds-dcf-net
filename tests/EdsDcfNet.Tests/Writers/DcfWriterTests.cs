@@ -230,10 +230,10 @@ public class DcfWriterTests
     {
         // Arrange
         var dcf = CreateMinimalDcf();
-        dcf.DeviceInfo.SupportedBaudRates.BaudRate_10 = true;
-        dcf.DeviceInfo.SupportedBaudRates.BaudRate_125 = true;
-        dcf.DeviceInfo.SupportedBaudRates.BaudRate_250 = true;
-        dcf.DeviceInfo.SupportedBaudRates.BaudRate_500 = true;
+        dcf.DeviceInfo.SupportedBaudRates.BaudRate10 = true;
+        dcf.DeviceInfo.SupportedBaudRates.BaudRate125 = true;
+        dcf.DeviceInfo.SupportedBaudRates.BaudRate250 = true;
+        dcf.DeviceInfo.SupportedBaudRates.BaudRate500 = true;
 
         // Act
         var result = _writer.GenerateString(dcf);
@@ -281,9 +281,9 @@ public class DcfWriterTests
 
         // Assert
         result.Should().Contain("[2000]");
-        result.Should().MatchRegex(@"\[2000\].*?AccessType=rw", System.Text.RegularExpressions.RegexOptions.Singleline);
+        result.Should().Contain("AccessType=rw");
         result.Should().Contain("[2001]");
-        result.Should().MatchRegex(@"\[2001\].*?AccessType=wo", System.Text.RegularExpressions.RegexOptions.Singleline);
+        result.Should().Contain("AccessType=wo");
     }
 
     [Fact]

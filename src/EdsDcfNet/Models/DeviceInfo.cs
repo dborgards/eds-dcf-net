@@ -95,12 +95,43 @@ public class DeviceInfo
 /// </summary>
 public class BaudRates
 {
+    /// <summary>
+    /// Supports 10 kbit/s baud rate.
+    /// </summary>
     public bool BaudRate10 { get; set; }
+
+    /// <summary>
+    /// Supports 20 kbit/s baud rate.
+    /// </summary>
     public bool BaudRate20 { get; set; }
+
+    /// <summary>
+    /// Supports 50 kbit/s baud rate.
+    /// </summary>
     public bool BaudRate50 { get; set; }
+
+    /// <summary>
+    /// Supports 125 kbit/s baud rate.
+    /// </summary>
     public bool BaudRate125 { get; set; }
+
+    /// <summary>
+    /// Supports 250 kbit/s baud rate.
+    /// </summary>
     public bool BaudRate250 { get; set; }
+
+    /// <summary>
+    /// Supports 500 kbit/s baud rate.
+    /// </summary>
     public bool BaudRate500 { get; set; }
+
+    /// <summary>
+    /// Supports 800 kbit/s baud rate.
+    /// </summary>
     public bool BaudRate800 { get; set; }
+
+    /// <summary>
+    /// Supports 1000 kbit/s baud rate.
+    /// </summary>
     public bool BaudRate1000 { get; set; }
 }

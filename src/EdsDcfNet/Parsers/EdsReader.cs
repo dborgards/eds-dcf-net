@@ -189,7 +189,7 @@ public class EdsReader
                 if (key.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase) && key.Length > 5)
                 {
                     var indexStr = key.Substring(5);
-                    if (ushort.TryParse(indexStr, System.Globalization.NumberStyles.HexNumber, null, out var index))
+                    if (ushort.TryParse(indexStr, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var index))
                     {
                         objDict.DummyUsage[index] = ValueConverter.ParseBoolean(
                             IniParser.GetValue(sections, "DummyUsage", key));
@@ -398,11 +398,11 @@ public class EdsReader
             return true;
 
         // Check for object sections (hex index)
-        if (ushort.TryParse(sectionName, System.Globalization.NumberStyles.HexNumber, null, out _))
+        if (ushort.TryParse(sectionName, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _))
             return true;
 
         // Check for sub-object sections (hex index + "sub" + hex subindex)
-        if (sectionName.Contains("sub", StringComparison.OrdinalIgnoreCase))
+        if (sectionName.IndexOf("sub", StringComparison.OrdinalIgnoreCase) >= 0)
             return true;
 
         // Check for module sections
