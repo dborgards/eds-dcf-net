@@ -13,10 +13,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        dotnet-version: ['8.0.x']
-
     steps:
     - uses: actions/checkout@v4
       with:
@@ -33,6 +29,8 @@ jobs:
       run: dotnet restore
 
     - name: Build
+      env:
+        CI: true
       run: dotnet build --configuration Release --no-restore
 
     - name: Test
