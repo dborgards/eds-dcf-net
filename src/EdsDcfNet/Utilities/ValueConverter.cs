@@ -185,7 +185,7 @@ public static class ValueConverter
             : formula;
 
         // Handle simple addition (e.g., "5+0x200" or "5+512")
-        if (expression.Contains('+'))
+        if (expression.IndexOf('+') >= 0)
         {
             var parts = expression.Split('+');
             if (parts.Length == 2)
@@ -197,7 +197,7 @@ public static class ValueConverter
         }
 
         // Handle simple subtraction (e.g., "5-0x100")
-        if (expression.Contains('-') && !expression.StartsWith("-"))
+        if (expression.IndexOf('-') >= 0 && !expression.StartsWith("-"))
         {
             var parts = expression.Split('-');
             if (parts.Length == 2)
