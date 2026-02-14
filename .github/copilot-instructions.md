@@ -50,6 +50,52 @@ EDS/DCF file → IniParser → EdsReader/DcfReader → Models → DcfWriter → 
 - **Pattern:** Arrange-Act-Assert (AAA)
 - **Fixture data:** `tests/EdsDcfNet.Tests/Fixtures/sample_device.eds`
 
+## Commit Convention
+
+This project uses **Conventional Commits** and **semantic-release** for automated versioning and NuGet publishing. All commit messages **must** follow this format:
+
+```
+<type>(<optional scope>): <description>
+```
+
+### Types and their effect on versioning
+
+| Type | Release | Description |
+|---|---|---|
+| `feat` | **minor** | A new feature |
+| `fix` | **patch** | A bug fix |
+| `perf` | **patch** | A performance improvement |
+| `revert` | **patch** | Reverts a previous commit |
+| `docs` | none | Documentation only |
+| `style` | none | Formatting, missing semicolons, etc. |
+| `refactor` | none | Code change that neither fixes a bug nor adds a feature |
+| `test` | none | Adding or correcting tests |
+| `build` | none | Changes to the build system or dependencies |
+| `ci` | none | Changes to CI configuration |
+| `chore` | none | Other changes that don't modify src or test files |
+
+### Breaking changes
+
+For a **major** release, add `BREAKING CHANGE:` in the commit body or footer:
+
+```
+feat: redesign public API
+
+BREAKING CHANGE: CanOpenFile.ReadEds now returns a Result type
+```
+
+### Examples
+
+```
+feat: add support for CompactPDO mapping
+fix: correct hex parsing for negative values
+docs: update README with new API examples
+build: bump FluentAssertions to 7.x
+ci: add codecov upload to build workflow
+refactor(parser): simplify IniParser section lookup
+test: add round-trip tests for modular devices
+```
+
 ## Code Style
 
 - XML doc comments on all public members

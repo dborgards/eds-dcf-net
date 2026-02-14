@@ -1,0 +1,25 @@
+{
+  "name": "eds-dcf-net",
+  "version": "0.0.0-development",
+  "private": true,
+  "description": "C# .NET library for reading and writing CiA DS 306 EDS and DCF files for CANopen devices",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dborgards/eds-dcf-net.git"
+  },
+  "author": "Dietmar Borgards",
+  "license": "MIT",
+  "scripts": {
+    "semantic-release": "semantic-release"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^11.1.0",
+    "@semantic-release/exec": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^9.2.6",
+    "@semantic-release/release-notes-generator": "^12.1.0",
+    "conventional-changelog-conventionalcommits": "^7.0.2",
+    "semantic-release": "^23.0.0"
+  }
+}

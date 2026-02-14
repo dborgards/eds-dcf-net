@@ -1,0 +1,33 @@
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+    authors:
+      - octocat
+  categories:
+    - title: "\U0001F494 Breaking Changes"
+      labels:
+        - breaking
+        - breaking-change
+    - title: "\u2728 New Features"
+      labels:
+        - feature
+        - enhancement
+        - feat
+    - title: "\U0001F41B Bug Fixes"
+      labels:
+        - bug
+        - fix
+        - bugfix
+    - title: "\U0001F4DA Documentation"
+      labels:
+        - documentation
+        - docs
+    - title: "\U0001F527 Maintenance"
+      labels:
+        - chore
+        - dependencies
+        - refactor
+    - title: Other Changes
+      labels:
+        - "*"
