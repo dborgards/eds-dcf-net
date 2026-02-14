@@ -281,7 +281,9 @@ public class DcfWriterTests
 
         // Assert
         result.Should().Contain("[2000]");
+        result.Should().Contain("AccessType=rw");
         result.Should().Contain("[2001]");
+        result.Should().Contain("AccessType=wo");
     }
 
     [Fact]

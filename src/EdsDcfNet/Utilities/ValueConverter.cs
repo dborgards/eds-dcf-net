@@ -178,8 +178,11 @@ public static class ValueConverter
     {
         formula = formula.Trim();
 
-        // Replace $NODEID with the actual node ID value
-        var expression = formula.Replace("$NODEID", nodeId.ToString());
+        // Replace $NODEID with the actual node ID value (case-insensitive, netstandard2.0 compatible)
+        var index = formula.IndexOf("$NODEID", StringComparison.OrdinalIgnoreCase);
+        var expression = index >= 0
+            ? formula.Substring(0, index) + nodeId.ToString(CultureInfo.InvariantCulture) + formula.Substring(index + 7)
+            : formula;
 
         // Handle simple addition (e.g., "5+0x200" or "5+512")
         if (expression.Contains('+'))

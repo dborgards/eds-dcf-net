@@ -387,7 +387,7 @@ public class DcfWriter
 
     private void WriteModuleInfo(StringBuilder sb, ModuleInfo module)
     {
-        sb.AppendLine($"[M{module.ModuleNumber}ModuleInfo]");
+        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[M{0}ModuleInfo]", module.ModuleNumber));
         WriteKeyValue(sb, "ProductName", module.ProductName);
         WriteKeyValue(sb, "ProductVersion", module.ProductVersion.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "ProductRevision", module.ProductRevision.ToString(CultureInfo.InvariantCulture));
@@ -396,7 +396,7 @@ public class DcfWriter
 
         if (module.FixedObjects.Any())
         {
-            sb.AppendLine($"[M{module.ModuleNumber}FixedObjects]");
+            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[M{0}FixedObjects]", module.ModuleNumber));
             WriteKeyValue(sb, "NrOfEntries", module.FixedObjects.Count.ToString(CultureInfo.InvariantCulture));
 
             for (int i = 0; i < module.FixedObjects.Count; i++)
