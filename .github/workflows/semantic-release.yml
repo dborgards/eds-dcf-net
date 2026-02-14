@@ -44,6 +44,8 @@ jobs:
         run: dotnet restore
 
       - name: Build
+        env:
+          CI: true
         run: dotnet build --configuration Release --no-restore
 
       - name: Test
