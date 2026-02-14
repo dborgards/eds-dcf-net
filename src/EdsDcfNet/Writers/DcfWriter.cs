@@ -333,12 +333,7 @@ public class DcfWriter
         sb.AppendLine($"[{index:X}sub{subObj.SubIndex:X}]");
 
         WriteKeyValue(sb, "ParameterName", subObj.ParameterName);
-
-        if (subObj.ObjectType != 0x7)
-        {
-            WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(subObj.ObjectType));
-        }
-
+        WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(subObj.ObjectType));
         WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(subObj.DataType));
         WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(subObj.AccessType));
 
