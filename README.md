@@ -140,13 +140,14 @@ eds-dcf-net/
 ├── examples/
 │   └── EdsDcfNet.Examples/     # Example application
 └── docs/
+    └── architecture/           # ARC42 software architecture
     └── cia/                    # CiA DS 306 specification
 ```
 
 ## Requirements
 
-- .NET 10.0 or higher
-- C# 12.0
+- .NET Standard 2.0, .NET 10.0 or higher
+- C# 13.0
 
 ## License
 
