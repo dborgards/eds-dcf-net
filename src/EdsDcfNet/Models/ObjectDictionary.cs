@@ -129,6 +129,16 @@ public class CanOpenObject
     /// For domain objects: file for download operations.
     /// </summary>
     public string? DownloadFile { get; set; }
+
+    /// <summary>
+    /// Whether the object can be mapped into an SRDO (Boolean, 0 = not mappable, 1 = mappable).
+    /// </summary>
+    public bool SrdoMapping { get; set; }
+
+    /// <summary>
+    /// Index and sub-index of the inverted SRAD (hex string, e.g. "0x610101").
+    /// </summary>
+    public string? InvertedSrad { get; set; }
 }
 
 /// <summary>
@@ -190,6 +200,16 @@ public class CanOpenSubObject
     /// For DCF files: application specific name.
     /// </summary>
     public string? Denotation { get; set; }
+
+    /// <summary>
+    /// Whether the sub-object can be mapped into an SRDO (Boolean, 0 = not mappable, 1 = mappable).
+    /// </summary>
+    public bool SrdoMapping { get; set; }
+
+    /// <summary>
+    /// Index and sub-index of the inverted SRAD (hex string, e.g. "0x610101").
+    /// </summary>
+    public string? InvertedSrad { get; set; }
 }
 
 /// <summary>

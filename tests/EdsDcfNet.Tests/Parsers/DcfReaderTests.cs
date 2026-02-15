@@ -770,6 +770,104 @@ Denotation=SubDenotation
         sub.Denotation.Should().Be("SubDenotation");
     }
 
+    [Fact]
+    public void ReadString_DeviceInfo_CANopenSafetySupported_ParsedCorrectly()
+    {
+        // Arrange
+        var content = BuildMinimalDcf().Replace(
+            "LSS_Supported=0",
+            "LSS_Supported=0\nCANopenSafetySupported=1");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.DeviceInfo.CANopenSafetySupported.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReadString_DeviceInfo_CANopenSafetySupported_DefaultsFalse()
+    {
+        // Arrange
+        var content = BuildMinimalDcf();
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.DeviceInfo.CANopenSafetySupported.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ReadString_Object_SafetyProperties_ParsedCorrectly()
+    {
+        // Arrange
+        var content = BuildMinimalDcf(extraSections: @"
+[OptionalObjects]
+SupportedObjects=1
+1=0x6100
+
+[6100]
+ParameterName=SRDO Input
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+SRDOMapping=1
+InvertedSRAD=0x610101
+SubNumber=1
+
+[6100sub0]
+ParameterName=Number of Entries
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+SRDOMapping=0
+
+[6100sub1]
+ParameterName=SRDO Input 1
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+SRDOMapping=1
+InvertedSRAD=0x610101
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x6100];
+        obj.SrdoMapping.Should().BeTrue();
+        obj.InvertedSrad.Should().Be("0x610101");
+
+        obj.SubObjects[0].SrdoMapping.Should().BeFalse();
+        obj.SubObjects[0].InvertedSrad.Should().BeNullOrEmpty();
+
+        obj.SubObjects[1].SrdoMapping.Should().BeTrue();
+        obj.SubObjects[1].InvertedSrad.Should().Be("0x610101");
+    }
+
+    [Fact]
+    public void ReadString_Object_SafetyProperties_DefaultValues()
+    {
+        // Arrange
+        var content = BuildMinimalDcf();
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x1000];
+        obj.SrdoMapping.Should().BeFalse();
+        obj.InvertedSrad.Should().BeNullOrEmpty();
+    }
+
     #endregion
 
     #region DummyUsage Tests
@@ -1150,9 +1248,10 @@ PDOMapping=0
         obj2000.ObjectLinks.Should().HaveCount(2);
         obj2000.ObjectLinks.Should().Contain((ushort)0x2100);
         obj2000.ObjectLinks.Should().Contain((ushort)0x1000);
-        
-        // ObjectLinks section is now in AdditionalSections since IsKnownSection no longer marks it as known
-        result.AdditionalSections.Should().ContainKey("2000ObjectLinks");
+
+        // ObjectLinks sections for existing objects are handled on the object itself
+        // and filtered from AdditionalSections.
+        result.AdditionalSections.Should().NotContainKey("2000ObjectLinks");
     }
 
     [Fact]
@@ -1487,8 +1586,7 @@ ObjectLinks=2
     public void ReadString_ObjectLinksForExistingObject_InAdditionalSections()
     {
         // Arrange – ObjectLinks section for an object that DOES exist
-        // Since ObjectLinks are no longer marked as "known" in IsKnownSection,
-        // they go to AdditionalSections regardless
+        // ObjectLinks for existing objects should be filtered from AdditionalSections.
         var content = BuildMinimalDcf(extraSections: @"
 [ManufacturerObjects]
 SupportedObjects=1
@@ -1514,9 +1612,43 @@ ObjectLinks=1
         // ObjectLinks for existing object are parsed and attached to object
         var obj = result.ObjectDictionary.Objects[0x2000];
         obj.ObjectLinks.Should().Contain(0x1000);
-        
-        // ObjectLinks section is also in AdditionalSections since it's not marked as known
-        result.AdditionalSections.Should().ContainKey("2000ObjectLinks");
+
+        // ObjectLinks section should not be duplicated in AdditionalSections
+        result.AdditionalSections.Should().NotContainKey("2000ObjectLinks");
+    }
+
+    [Fact]
+    public void ReadString_NonHexObjectLinksPrefix_PreservedInAdditionalSections()
+    {
+        // Arrange — section name ending in "ObjectLinks" but with non-hex prefix
+        var content = BuildMinimalDcf(extraSections: @"
+[ZZZZObjectLinks]
+ObjectLinks=1
+1=0x1000
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert — not a valid hex index, so it should be in AdditionalSections
+        result.AdditionalSections.Should().ContainKey("ZZZZObjectLinks");
+    }
+
+    [Fact]
+    public void ReadString_EmptyPrefixObjectLinks_PreservedInAdditionalSections()
+    {
+        // Arrange — section named just "ObjectLinks" with no prefix
+        var content = BuildMinimalDcf(extraSections: @"
+[ObjectLinks]
+ObjectLinks=1
+1=0x1000
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert — empty prefix, preserved in AdditionalSections
+        result.AdditionalSections.Should().ContainKey("ObjectLinks");
     }
 
     [Fact]

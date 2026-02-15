@@ -116,6 +116,7 @@ public class EdsReader
         deviceInfo.NrOfTxPdo = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DeviceInfo", "NrOfTXPDO", "0"));
         deviceInfo.LssSupported = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "LSS_Supported"));
         deviceInfo.CompactPdo = ValueConverter.ParseByte(IniParser.GetValue(sections, "DeviceInfo", "CompactPDO", "0"));
+        deviceInfo.CANopenSafetySupported = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "CANopenSafetySupported"));
 
         return deviceInfo;
     }
@@ -230,6 +231,8 @@ public class EdsReader
         obj.LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit");
         obj.HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit");
         obj.PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping"));
+        obj.SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping"));
+        obj.InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD");
         obj.ObjFlags = ValueConverter.ParseInteger(IniParser.GetValue(sections, sectionName, "ObjFlags", "0"));
 
         var subNumberStr = IniParser.GetValue(sections, sectionName, "SubNumber");
@@ -307,7 +310,9 @@ public class EdsReader
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
             HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
-            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping"))
+            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
+            SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
+            InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
         };
 
         return subObj;

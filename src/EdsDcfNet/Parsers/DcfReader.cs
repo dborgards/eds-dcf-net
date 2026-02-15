@@ -61,7 +61,7 @@ public class DcfReader
         // Parse any additional unknown sections
         foreach (var sectionName in sections.Keys)
         {
-            if (!IsKnownSection(sectionName))
+            if (!IsKnownSection(sectionName) && !IsObjectLinksSectionForExistingObject(sectionName, dcf.ObjectDictionary))
             {
                 dcf.AdditionalSections[sectionName] = new Dictionary<string, string>(sections[sectionName]);
             }
@@ -232,6 +232,8 @@ public class DcfReader
         obj.LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit");
         obj.HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit");
         obj.PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping"));
+        obj.SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping"));
+        obj.InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD");
         obj.ObjFlags = ValueConverter.ParseInteger(IniParser.GetValue(sections, sectionName, "ObjFlags", "0"));
 
         var subNumberStr = IniParser.GetValue(sections, sectionName, "SubNumber");
@@ -353,7 +355,9 @@ public class DcfReader
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
             HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
-            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping"))
+            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
+            SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
+            InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
         };
 
         // DCF-specific fields
@@ -485,5 +489,28 @@ public class DcfReader
             return true;
 
         return false;
+    }
+
+    private bool IsObjectLinksSectionForExistingObject(string sectionName, ObjectDictionary objectDictionary)
+    {
+        const string suffix = "ObjectLinks";
+
+        if (!sectionName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var indexPart = sectionName.Substring(0, sectionName.Length - suffix.Length);
+        if (string.IsNullOrWhiteSpace(indexPart))
+        {
+            return false;
+        }
+
+        if (!ushort.TryParse(indexPart, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var index))
+        {
+            return false;
+        }
+
+        return objectDictionary.Objects.ContainsKey(index);
     }
 }

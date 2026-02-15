@@ -187,9 +187,9 @@ public class RoundTripDcfTests
         var rtLinks = roundTripped.ObjectDictionary.Objects[0x2000].ObjectLinks;
         rtLinks.Should().BeEquivalentTo(origLinks);
         
-        // ObjectLinks section is also preserved in AdditionalSections
-        // since it's no longer marked as "known"
-        roundTripped.AdditionalSections.Should().ContainKey("2000ObjectLinks");
+        // ObjectLinks sections for existing objects are emitted via the object itself
+        // and are filtered from AdditionalSections to avoid duplicates.
+        roundTripped.AdditionalSections.Should().NotContainKey("2000ObjectLinks");
     }
 
     [Fact]

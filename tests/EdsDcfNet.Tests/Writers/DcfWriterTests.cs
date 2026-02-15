@@ -386,6 +386,252 @@ public class DcfWriterTests
         result.Should().Contain("Dummy0005=1");
     }
 
+    [Fact]
+    public void GenerateString_CANopenSafetySupported_WrittenWhenTrue()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo.CANopenSafetySupported = true;
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("CANopenSafetySupported=1");
+    }
+
+    [Fact]
+    public void GenerateString_CANopenSafetySupported_OmittedWhenFalse()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().NotContain("CANopenSafetySupported");
+    }
+
+    [Fact]
+    public void GenerateString_SrdoMapping_WrittenOnObjectAndSubObject()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.OptionalObjects.Add(0x6100);
+        dcf.ObjectDictionary.Objects[0x6100] = new CanOpenObject
+        {
+            Index = 0x6100,
+            ParameterName = "SRDO Input",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            PdoMapping = true,
+            SrdoMapping = true,
+            InvertedSrad = "0x610101",
+            SubNumber = 1
+        };
+        dcf.ObjectDictionary.Objects[0x6100].SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Number of Entries",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "1",
+            PdoMapping = false,
+            SrdoMapping = false
+        };
+        dcf.ObjectDictionary.Objects[0x6100].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "SRDO Input 1",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = true,
+            SrdoMapping = true,
+            InvertedSrad = "0x610101"
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[6100]");
+        result.Should().Contain("SRDOMapping=1");
+        result.Should().Contain("InvertedSRAD=0x610101");
+    }
+
+    [Fact]
+    public void GenerateString_InvertedSrad_OmittedWhenEmpty()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().NotContain("InvertedSRAD");
+        result.Should().NotContain("SRDOMapping");
+    }
+
+    [Fact]
+    public void GenerateString_SafetyProperties_RoundTrip()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo.CANopenSafetySupported = true;
+        dcf.ObjectDictionary.OptionalObjects.Add(0x6100);
+        dcf.ObjectDictionary.Objects[0x6100] = new CanOpenObject
+        {
+            Index = 0x6100,
+            ParameterName = "SRDO Input",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            PdoMapping = true,
+            SrdoMapping = true,
+            InvertedSrad = "0x610101",
+            SubNumber = 1
+        };
+        dcf.ObjectDictionary.Objects[0x6100].SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Number of Entries",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "1",
+            PdoMapping = false,
+            SrdoMapping = false
+        };
+        dcf.ObjectDictionary.Objects[0x6100].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "SRDO Input 1",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = true,
+            SrdoMapping = true,
+            InvertedSrad = "0x610101"
+        };
+
+        // Act - Write then re-parse
+        var written = _writer.GenerateString(dcf);
+        var reader = new EdsDcfNet.Parsers.DcfReader();
+        var parsed = reader.ReadString(written);
+
+        // Assert
+        parsed.DeviceInfo.CANopenSafetySupported.Should().BeTrue();
+
+        var obj = parsed.ObjectDictionary.Objects[0x6100];
+        obj.SrdoMapping.Should().BeTrue();
+        obj.InvertedSrad.Should().Be("0x610101");
+
+        obj.SubObjects[0].SrdoMapping.Should().BeFalse();
+        obj.SubObjects[0].InvertedSrad.Should().BeNullOrEmpty();
+
+        obj.SubObjects[1].SrdoMapping.Should().BeTrue();
+        obj.SubObjects[1].InvertedSrad.Should().Be("0x610101");
+    }
+
+    [Fact]
+    public void GenerateString_ObjectLinksInAdditionalSections_FilteredForExistingObjects()
+    {
+        // Arrange — simulate an AdditionalSections entry for ObjectLinks of an existing object
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.Objects[0x1000].ObjectLinks.Add(0x2000);
+        dcf.AdditionalSections["1000ObjectLinks"] = new Dictionary<string, string>
+        {
+            { "ObjectLinks", "1" },
+            { "1", "0x2000" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert — ObjectLinks written via the object, not duplicated from AdditionalSections
+        var matches = result.Split(new[] { "[1000ObjectLinks]" }, StringSplitOptions.None);
+        matches.Should().HaveCount(2, "ObjectLinks section should appear exactly once");
+    }
+
+    [Fact]
+    public void GenerateString_ObjectLinksInAdditionalSections_KeptForOrphanObjects()
+    {
+        // Arrange — ObjectLinks for a non-existing object should pass through
+        var dcf = CreateMinimalDcf();
+        dcf.AdditionalSections["9999ObjectLinks"] = new Dictionary<string, string>
+        {
+            { "ObjectLinks", "1" },
+            { "1", "0x1000" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[9999ObjectLinks]");
+    }
+
+    [Fact]
+    public void GenerateString_NonObjectLinksAdditionalSection_NotFiltered()
+    {
+        // Arrange — a section that doesn't end with "ObjectLinks"
+        var dcf = CreateMinimalDcf();
+        dcf.AdditionalSections["VendorSpecific"] = new Dictionary<string, string>
+        {
+            { "Key", "Value" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[VendorSpecific]");
+        result.Should().Contain("Key=Value");
+    }
+
+    [Fact]
+    public void GenerateString_EmptyPrefixObjectLinks_NotFiltered()
+    {
+        // Arrange — section named just "ObjectLinks" with no hex prefix
+        var dcf = CreateMinimalDcf();
+        dcf.AdditionalSections["ObjectLinks"] = new Dictionary<string, string>
+        {
+            { "ObjectLinks", "1" },
+            { "1", "0x1000" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[ObjectLinks]");
+    }
+
+    [Fact]
+    public void GenerateString_NonHexPrefixObjectLinks_NotFiltered()
+    {
+        // Arrange — section ending with "ObjectLinks" but non-hex prefix
+        var dcf = CreateMinimalDcf();
+        dcf.AdditionalSections["ZZZZObjectLinks"] = new Dictionary<string, string>
+        {
+            { "ObjectLinks", "1" },
+            { "1", "0x1000" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[ZZZZObjectLinks]");
+    }
+
     #endregion
 
     #region WriteFile Tests

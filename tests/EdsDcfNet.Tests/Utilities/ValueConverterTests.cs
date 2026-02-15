@@ -90,7 +90,6 @@ public class ValueConverterTests
     [InlineData("$NODEID+512", 10, 522u)] // 10 + 512
     [InlineData("$nodeid+0x200", 5, 517u)] // 5 + 512, lowercase with operator
     [InlineData("$NODEID-0x5", 10, 5u)] // 10 - 5, subtraction operation
-    [InlineData("$NODEID-0x5", 10, 5u)] // 10 - 5, subtraction operation
     public void ParseInteger_NodeIdFormula_EvaluatesCorrectly(string formula, byte nodeId, uint expected)
     {
         // Act
