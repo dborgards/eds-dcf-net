@@ -41,7 +41,7 @@ C4Context
 
     System(edsdcfnet, "EdsDcfNet", "NuGet package (netstandard2.0 / net10.0)")
 
-    System_Ext(filesystem, "File System", "EDS/DCF files as text files (ASCII/UTF-8)")
+    System_Ext(filesystem, "File System", "EDS/DCF files as text files (reads UTF-8, writes ASCII)")
     System_Ext(dotnet_host, ".NET Host Application", "Any .NET application referencing the NuGet package")
     System_Ext(nuget, "NuGet.org", "Package distribution")
 
@@ -52,8 +52,8 @@ C4Context
 
 ### Technical Interfaces
 
-| Channel                | Protocol / Format          | Description                                         |
-|------------------------|----------------------------|-----------------------------------------------------|
-| **File system**        | System.IO / ASCII encoding | Reading and writing EDS/DCF text files              |
-| **String API**         | In-memory UTF-16 strings   | `ReadEdsFromString` / `WriteDcfToString` for scenarios without file system access |
-| **NuGet package**      | `.nupkg` + `.snupkg`       | Distribution via nuget.org with Source Link          |
+| Channel                | Protocol / Format                              | Description                                                              |
+|------------------------|------------------------------------------------|--------------------------------------------------------------------------|
+| **File system**        | System.IO (UTF-8 read, ASCII write)            | Reading EDS/DCF as UTF-8 text, writing DCF as ASCII-encoded text         |
+| **String API**         | In-memory UTF-16 strings                       | `ReadEdsFromString` / `WriteDcfToString` for scenarios without file system access |
+| **NuGet package**      | `.nupkg` + `.snupkg`                           | Distribution via nuget.org with Source Link                              |

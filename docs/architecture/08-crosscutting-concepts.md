@@ -10,7 +10,9 @@ The library uses **exceptions** as its primary error mechanism:
 |-------------------------|-------------------------------------------------------------|------------------------------|
 | `EdsParseException`     | Errors during EDS/DCF parsing                               | `LineNumber`, `SectionName`  |
 | `DcfWriteException`     | Errors during DCF writing                                   | `SectionName`                |
-| `ArgumentException`     | Invalid input parameters (e.g., invalid node ID)            | Standard .NET                |
+| `ArgumentException`     | Invalid input parameters where validation is performed by the API | Standard .NET          |
+
+> **Note:** `CanOpenFile.EdsToDcf` currently accepts any `byte nodeId` value without enforcing the CANopen range (1-127) and therefore does not throw an `ArgumentException` for out-of-range node IDs.
 
 ### Error Tolerance
 

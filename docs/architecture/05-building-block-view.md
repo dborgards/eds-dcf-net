@@ -90,7 +90,7 @@ classDiagram
     EdsReader <-- DcfReader : delegates shared parsing
 ```
 
-**IniParser** is the base component that transforms raw INI text into a sections dictionary (`Dictionary<string, Dictionary<string, string>>`). It provides instance methods (`ParseFile`, `ParseString`) for parsing and static helper methods (`GetValue`, `HasSection`, `GetKeys`) for querying the resulting dictionary. Lookups are **case-insensitive**.
+**IniParser** is the base component that transforms raw INI text into a sections dictionary (`Dictionary<string, Dictionary<string, string>>`) that preserves section names as they appear in the file while using a case-insensitive comparer (`StringComparer.OrdinalIgnoreCase`) for lookups. It provides instance methods (`ParseFile`, `ParseString`) for parsing and static helper methods (`GetValue`, `HasSection`, `GetKeys`) for querying the resulting dictionary.
 
 **EdsReader** holds an internal `IniParser` instance. Its public methods (`ReadFile`, `ReadString`) parse the input into a sections dictionary and then build a complete `ElectronicDataSheet` model from it. Unknown sections are preserved in `AdditionalSections`.
 

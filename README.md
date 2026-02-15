@@ -146,8 +146,15 @@ eds-dcf-net/
 
 ## Requirements
 
-- .NET Standard 2.0, .NET 10.0 or higher
-- C# 13.0
+**For consuming the NuGet package:**
+
+- Any .NET implementation compatible with .NET Standard 2.0
+  (e.g., .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5+, Unity, Xamarin)
+
+**For building this repository (library, tests, examples):**
+
+- .NET SDK 10.0 or higher
+- C# 13.0 (as provided by the .NET 10 SDK)
 
 ## License
 

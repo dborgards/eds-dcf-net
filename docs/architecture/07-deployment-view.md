@@ -29,7 +29,7 @@ graph TB
 
     Dev -->|git push| GH
     GH -->|Push to feature branch| Build
-    GH -->|Push to main/develop| Release
+    GH -->|Push to main/develop/alpha| Release
     Release -->|dotnet pack + push| NuGet
     Release -->|Create GitHub Release| GHR
     NuGet -->|dotnet add package| App1
@@ -68,7 +68,7 @@ EdsDcfNet.1.3.0.snupkg            (Symbol package for Source Link)
 ```mermaid
 flowchart LR
     subgraph Trigger ["Trigger"]
-        Push["Push to main"]
+        Push["Push to main, develop, alpha"]
     end
 
     subgraph Pipeline ["GitHub Actions: Semantic Release"]
