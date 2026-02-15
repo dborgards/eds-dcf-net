@@ -73,7 +73,7 @@ public class DcfReader
         // Parse any additional unknown sections
         foreach (var sectionName in sections.Keys)
         {
-            if (!IsKnownSection(sectionName) && !IsObjectLinksSectionForExistingObject(sectionName, dcf.ObjectDictionary))
+            if (!IsKnownSection(sectionName) && !IsToolSectionForParsedTools(sectionName, dcf.Tools.Count) && !IsObjectLinksSectionForExistingObject(sectionName, dcf.ObjectDictionary))
             {
                 dcf.AdditionalSections[sectionName] = new Dictionary<string, string>(sections[sectionName]);
             }
@@ -479,6 +479,17 @@ public class DcfReader
         return moduleInfo;
     }
 
+    private static bool IsToolSectionForParsedTools(string sectionName, int parsedToolCount)
+    {
+        if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) || sectionName.Length <= 4)
+            return false;
+
+        if (!int.TryParse(sectionName.Substring(4), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var toolNumber))
+            return false;
+
+        return toolNumber >= 1 && toolNumber <= parsedToolCount;
+    }
+
     private bool IsKnownSection(string sectionName)
     {
         var knownSections = new[]
@@ -491,13 +502,6 @@ public class DcfReader
 
         if (knownSections.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
             return true;
-
-        // Check for Tool sections (Tool1, Tool2, etc.)
-        if (sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) && sectionName.Length > 4)
-        {
-            if (byte.TryParse(sectionName.Substring(4), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
-                return true;
-        }
 
         // Check for object sections (hex index)
         if (ushort.TryParse(sectionName, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _))

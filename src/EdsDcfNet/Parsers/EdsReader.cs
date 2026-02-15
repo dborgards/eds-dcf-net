@@ -64,7 +64,7 @@ public class EdsReader
         // Parse any additional unknown sections
         foreach (var sectionName in sections.Keys)
         {
-            if (!IsKnownSection(sectionName))
+            if (!IsKnownSection(sectionName) && !IsToolSectionForParsedTools(sectionName, eds.Tools.Count))
             {
                 eds.AdditionalSections[sectionName] = new Dictionary<string, string>(sections[sectionName]);
             }
@@ -434,7 +434,7 @@ public class EdsReader
 
         for (int i = 1; i <= items; i++)
         {
-            var toolSection = $"Tool{i}";
+            var toolSection = "Tool" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
             if (!IniParser.HasSection(sections, toolSection))
                 continue;
 
@@ -449,6 +449,17 @@ public class EdsReader
         return tools;
     }
 
+    private static bool IsToolSectionForParsedTools(string sectionName, int parsedToolCount)
+    {
+        if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) || sectionName.Length <= 4)
+            return false;
+
+        if (!int.TryParse(sectionName.Substring(4), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var toolNumber))
+            return false;
+
+        return toolNumber >= 1 && toolNumber <= parsedToolCount;
+    }
+
     private bool IsKnownSection(string sectionName)
     {
         var knownSections = new[]
@@ -460,13 +471,6 @@ public class EdsReader
 
         if (knownSections.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
             return true;
-
-        // Check for Tool sections (Tool1, Tool2, etc.)
-        if (sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) && sectionName.Length > 4)
-        {
-            if (byte.TryParse(sectionName.Substring(4), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
-                return true;
-        }
 
         // Check for object sections (hex index)
         if (ushort.TryParse(sectionName, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _))

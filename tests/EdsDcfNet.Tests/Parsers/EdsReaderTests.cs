@@ -1180,5 +1180,125 @@ Command=check.exe
         result.AdditionalSections.Should().NotContainKey("Tool1");
     }
 
+    [Fact]
+    public void ReadString_OrphanToolSection_PreservedInAdditionalSections()
+    {
+        // Arrange — Tool1 exists but no [Tools] section, so it's orphaned
+        var content = @"
+[FileInfo]
+FileName=test.eds
+[DeviceInfo]
+VendorName=Test
+VendorNumber=1
+ProductName=Test
+ProductNumber=1
+RevisionNumber=1
+OrderCode=Test
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=0
+NrOfTXPDO=0
+LSS_Supported=0
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+[Tool1]
+Name=Orphan
+Command=orphan.exe
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert — orphan Tool1 preserved in AdditionalSections
+        result.Tools.Should().BeEmpty();
+        result.AdditionalSections.Should().ContainKey("Tool1");
+    }
+
+    [Fact]
+    public void ReadString_ToolSectionBeyondItems_PreservedInAdditionalSections()
+    {
+        // Arrange — Items=1 but Tool2 also exists
+        var content = @"
+[FileInfo]
+FileName=test.eds
+[DeviceInfo]
+VendorName=Test
+VendorNumber=1
+ProductName=Test
+ProductNumber=1
+RevisionNumber=1
+OrderCode=Test
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=0
+NrOfTXPDO=0
+LSS_Supported=0
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+[Tools]
+Items=1
+[Tool1]
+Name=Checker
+Command=check.exe
+[Tool2]
+Name=Extra
+Command=extra.exe
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert — Tool1 parsed, Tool2 beyond Items preserved in AdditionalSections
+        result.Tools.Should().HaveCount(1);
+        result.AdditionalSections.Should().NotContainKey("Tool1");
+        result.AdditionalSections.Should().ContainKey("Tool2");
+    }
+
     #endregion
 }
