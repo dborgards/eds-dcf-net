@@ -102,7 +102,7 @@ EdsToDcf(eds, nodeId, baudrate, nodeName) → DeviceConfigurationFile
 | Category | Technology |
 |---|---|
 | **Test framework** | XUnit 2.9.3 |
-| **Assertions** | FluentAssertions 7.0+ |
+| **Assertions** | FluentAssertions 7.0.0 |
 | **Code coverage** | Coverlet 6.0.4 (XPlat Code Coverage, cobertura format) |
 | **Coverage reporting** | Codecov |
 | **Naming convention** | `MethodName_Scenario_ExpectedBehavior` |
