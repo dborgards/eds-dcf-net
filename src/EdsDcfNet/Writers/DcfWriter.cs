@@ -493,7 +493,7 @@ public class DcfWriter
         sb.AppendLine();
     }
 
-    private void WriteKeyValue(StringBuilder sb, string key, string value)
+    private void WriteKeyValue(StringBuilder sb, string key, string? value)
     {
         sb.AppendLine($"{key}={value}");
     }
