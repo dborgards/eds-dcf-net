@@ -2025,6 +2025,45 @@ Command=check.exe
     }
 
     [Fact]
+    public void ReadString_SectionNamedTool_PreservedInAdditionalSections()
+    {
+        // Arrange — section named exactly "Tool" (length 4, no numeric suffix)
+        var content = BuildMinimalDcf(extraSections: @"
+[Tool]
+SomeKey=SomeValue
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("Tool");
+    }
+
+    [Fact]
+    public void ReadString_ToolZeroSection_PreservedInAdditionalSections()
+    {
+        // Arrange — Tool0 has toolNumber < 1
+        var content = BuildMinimalDcf(extraSections: @"
+[Tools]
+Items=1
+[Tool1]
+Name=Checker
+Command=check.exe
+[Tool0]
+Name=Zero
+Command=zero.exe
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.Tools.Should().HaveCount(1);
+        result.AdditionalSections.Should().ContainKey("Tool0");
+    }
+
+    [Fact]
     public void ReadString_OrphanToolSection_PreservedInAdditionalSections()
     {
         // Arrange — Tool1 without [Tools] section

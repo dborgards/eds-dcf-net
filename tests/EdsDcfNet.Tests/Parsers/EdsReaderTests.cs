@@ -1243,6 +1243,123 @@ Command=invalid.exe
     }
 
     [Fact]
+    public void ReadString_SectionNamedTool_PreservedInAdditionalSections()
+    {
+        // Arrange — section named exactly "Tool" (length 4, no numeric suffix)
+        var content = @"
+[FileInfo]
+FileName=test.eds
+[DeviceInfo]
+VendorName=Test
+VendorNumber=1
+ProductName=Test
+ProductNumber=1
+RevisionNumber=1
+OrderCode=Test
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=0
+NrOfTXPDO=0
+LSS_Supported=0
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+[Tool]
+SomeKey=SomeValue
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert — "Tool" is not a known section and not a valid ToolX
+        result.AdditionalSections.Should().ContainKey("Tool");
+    }
+
+    [Fact]
+    public void ReadString_ToolZeroSection_PreservedInAdditionalSections()
+    {
+        // Arrange — Tool0 has toolNumber < 1
+        var content = @"
+[FileInfo]
+FileName=test.eds
+[DeviceInfo]
+VendorName=Test
+VendorNumber=1
+ProductName=Test
+ProductNumber=1
+RevisionNumber=1
+OrderCode=Test
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=0
+NrOfTXPDO=0
+LSS_Supported=0
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+[Tools]
+Items=1
+[Tool1]
+Name=Checker
+Command=check.exe
+[Tool0]
+Name=Zero
+Command=zero.exe
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert — Tool0 (toolNumber < 1) preserved in AdditionalSections
+        result.Tools.Should().HaveCount(1);
+        result.AdditionalSections.Should().ContainKey("Tool0");
+    }
+
+    [Fact]
     public void ReadString_OrphanToolSection_PreservedInAdditionalSections()
     {
         // Arrange — Tool1 exists but no [Tools] section, so it's orphaned
