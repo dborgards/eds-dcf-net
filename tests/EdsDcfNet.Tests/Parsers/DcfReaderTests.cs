@@ -255,6 +255,35 @@ SupportedObjects=0
         result.FileInfo.EdsVersion.Should().Be("4.0");
     }
 
+    [Fact]
+    public void ReadString_FileInfo_InvalidNumericFields_ThrowsFormatException()
+    {
+        // Arrange – invalid numeric values in FileInfo
+        var content = @"
+[FileInfo]
+FileName=invalid.dcf
+FileVersion=NaN
+FileRevision=NotANumber
+
+[DeviceInfo]
+VendorName=V
+ProductName=P
+VendorNumber=0x1
+
+[DeviceCommissioning]
+NodeID=1
+
+[MandatoryObjects]
+SupportedObjects=0
+";
+
+        // Act
+        var act = () => _reader.ReadString(content);
+
+        // Assert
+        act.Should().Throw<FormatException>();
+    }
+
     #endregion
 
     #region ParseDeviceCommissioning Tests
