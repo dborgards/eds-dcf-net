@@ -165,9 +165,21 @@ public class DcfWriter
         sb.AppendLine("[DeviceCommissioning]");
         WriteKeyValue(sb, "NodeID", dc.NodeId.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "NodeName", dc.NodeName);
+
+        if (!string.IsNullOrEmpty(dc.NodeRefd))
+        {
+            WriteKeyValue(sb, "NodeRefd", dc.NodeRefd);
+        }
+
         WriteKeyValue(sb, "Baudrate", dc.Baudrate.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "NetNumber", dc.NetNumber.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "NetworkName", dc.NetworkName);
+
+        if (!string.IsNullOrEmpty(dc.NetRefd))
+        {
+            WriteKeyValue(sb, "NetRefd", dc.NetRefd);
+        }
+
         WriteKeyValue(sb, "CANopenManager", ValueConverter.FormatBoolean(dc.CANopenManager));
 
         if (dc.LssSerialNumber.HasValue)
@@ -312,6 +324,11 @@ public class DcfWriter
             WriteKeyValue(sb, "Denotation", obj.Denotation);
         }
 
+        if (!string.IsNullOrEmpty(obj.ParamRefd))
+        {
+            WriteKeyValue(sb, "ParamRefd", obj.ParamRefd);
+        }
+
         if (!string.IsNullOrEmpty(obj.UploadFile))
         {
             WriteKeyValue(sb, "UploadFile", obj.UploadFile);
@@ -393,6 +410,11 @@ public class DcfWriter
         if (!string.IsNullOrEmpty(subObj.Denotation))
         {
             WriteKeyValue(sb, "Denotation", subObj.Denotation);
+        }
+
+        if (!string.IsNullOrEmpty(subObj.ParamRefd))
+        {
+            WriteKeyValue(sb, "ParamRefd", subObj.ParamRefd);
         }
 
         sb.AppendLine();

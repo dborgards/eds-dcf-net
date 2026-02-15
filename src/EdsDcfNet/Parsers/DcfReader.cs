@@ -103,17 +103,26 @@ public class DcfReader
     {
         var dc = new DeviceCommissioning();
 
-        if (!IniParser.HasSection(sections, "DeviceCommissioning"))
+        // Accept both spec spelling "DeviceComissioning" (one 'm') and common spelling (two 'm's)
+        var sectionName = IniParser.HasSection(sections, "DeviceCommissioning")
+            ? "DeviceCommissioning"
+            : IniParser.HasSection(sections, "DeviceComissioning")
+                ? "DeviceComissioning"
+                : null;
+
+        if (sectionName == null)
             return dc;
 
-        dc.NodeId = ValueConverter.ParseByte(IniParser.GetValue(sections, "DeviceCommissioning", "NodeID", "1"));
-        dc.NodeName = IniParser.GetValue(sections, "DeviceCommissioning", "NodeName");
-        dc.Baudrate = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DeviceCommissioning", "Baudrate", "250"));
-        dc.NetNumber = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DeviceCommissioning", "NetNumber", "0"));
-        dc.NetworkName = IniParser.GetValue(sections, "DeviceCommissioning", "NetworkName");
-        dc.CANopenManager = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceCommissioning", "CANopenManager"));
+        dc.NodeId = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "NodeID", "1"));
+        dc.NodeName = IniParser.GetValue(sections, sectionName, "NodeName");
+        dc.NodeRefd = IniParser.GetValue(sections, sectionName, "NodeRefd");
+        dc.Baudrate = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "Baudrate", "250"));
+        dc.NetNumber = ValueConverter.ParseInteger(IniParser.GetValue(sections, sectionName, "NetNumber", "0"));
+        dc.NetworkName = IniParser.GetValue(sections, sectionName, "NetworkName");
+        dc.NetRefd = IniParser.GetValue(sections, sectionName, "NetRefd");
+        dc.CANopenManager = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "CANopenManager"));
 
-        var lssSerialStr = IniParser.GetValue(sections, "DeviceCommissioning", "LSS_SerialNumber");
+        var lssSerialStr = IniParser.GetValue(sections, sectionName, "LSS_SerialNumber");
         if (!string.IsNullOrEmpty(lssSerialStr))
         {
             dc.LssSerialNumber = ValueConverter.ParseInteger(lssSerialStr);
@@ -251,6 +260,7 @@ public class DcfReader
         // DCF-specific fields
         obj.ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue");
         obj.Denotation = IniParser.GetValue(sections, sectionName, "Denotation");
+        obj.ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd");
         obj.UploadFile = IniParser.GetValue(sections, sectionName, "UploadFile");
         obj.DownloadFile = IniParser.GetValue(sections, sectionName, "DownloadFile");
 
@@ -363,6 +373,7 @@ public class DcfReader
         // DCF-specific fields
         subObj.ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue");
         subObj.Denotation = IniParser.GetValue(sections, sectionName, "Denotation");
+        subObj.ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd");
 
         return subObj;
     }
@@ -460,7 +471,7 @@ public class DcfReader
     {
         var knownSections = new[]
         {
-            "FileInfo", "DeviceInfo", "DeviceCommissioning", "DummyUsage",
+            "FileInfo", "DeviceInfo", "DeviceCommissioning", "DeviceComissioning", "DummyUsage",
             "MandatoryObjects", "OptionalObjects", "ManufacturerObjects",
             "Comments", "SupportedModules", "ConnectedModules", "Tools",
             "DynamicChannels"

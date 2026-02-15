@@ -42,4 +42,14 @@ public class DeviceCommissioning
     /// Used for LSS (Layer Setting Services).
     /// </summary>
     public uint? LssSerialNumber { get; set; }
+
+    /// <summary>
+    /// Node reference designator (max 249 characters).
+    /// </summary>
+    public string? NodeRefd { get; set; }
+
+    /// <summary>
+    /// Network reference designator (max 249 characters).
+    /// </summary>
+    public string? NetRefd { get; set; }
 }

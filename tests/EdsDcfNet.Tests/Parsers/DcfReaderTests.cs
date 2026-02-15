@@ -348,6 +348,154 @@ Baudrate=500");
         result.DeviceCommissioning.LssSerialNumber.Should().BeNull();
     }
 
+    [Fact]
+    public void ReadString_DeviceCommissioning_ReferenceDesignators_ParsedCorrectly()
+    {
+        // Arrange
+        var content = BuildMinimalDcf(@"
+[DeviceCommissioning]
+NodeID=5
+NodeName=TestNode
+NodeRefd=N1.A2
+Baudrate=500
+NetNumber=1
+NetworkName=TestNetwork
+NetRefd=CAN-Bus 1
+CANopenManager=0");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.DeviceCommissioning.NodeRefd.Should().Be("N1.A2");
+        result.DeviceCommissioning.NetRefd.Should().Be("CAN-Bus 1");
+    }
+
+    [Fact]
+    public void ReadString_DeviceCommissioning_ReferenceDesignators_DefaultNull()
+    {
+        // Arrange
+        var content = BuildMinimalDcf();
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.DeviceCommissioning.NodeRefd.Should().BeNullOrEmpty();
+        result.DeviceCommissioning.NetRefd.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public void ReadString_DeviceComissioning_SingleM_ParsedCorrectly()
+    {
+        // Arrange — spec spelling with single 'm'
+        var content = @"
+[FileInfo]
+FileName=test.dcf
+FileVersion=1
+FileRevision=0
+EDSVersion=4.0
+
+[DeviceInfo]
+VendorName=Test Vendor
+VendorNumber=0x100
+ProductName=Test Product
+ProductNumber=0x1001
+
+[DeviceComissioning]
+NodeID=7
+NodeName=SpecNode
+NodeRefd=N2.B3
+Baudrate=250
+NetNumber=1
+NetworkName=SpecNet
+NetRefd=CAN-Bus 2
+CANopenManager=0
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x191
+PDOMapping=0
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.DeviceCommissioning.NodeId.Should().Be(7);
+        result.DeviceCommissioning.NodeName.Should().Be("SpecNode");
+        result.DeviceCommissioning.NodeRefd.Should().Be("N2.B3");
+        result.DeviceCommissioning.NetworkName.Should().Be("SpecNet");
+        result.DeviceCommissioning.NetRefd.Should().Be("CAN-Bus 2");
+    }
+
+    [Fact]
+    public void ReadString_Object_ParamRefd_ParsedCorrectly()
+    {
+        // Arrange
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2000
+
+[2000]
+ParameterName=Custom Object
+ObjectType=0x9
+DataType=0x0007
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+ParamRefd=X1.Channel1
+SubNumber=1
+
+[2000sub0]
+ParameterName=Number of Entries
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[2000sub1]
+ParameterName=Sub Entry
+ObjectType=0x7
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+ParamRefd=X1.Channel1.Sub1
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2000];
+        obj.ParamRefd.Should().Be("X1.Channel1");
+        obj.SubObjects[1].ParamRefd.Should().Be("X1.Channel1.Sub1");
+        obj.SubObjects[0].ParamRefd.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public void ReadString_Object_ParamRefd_DefaultNull()
+    {
+        // Arrange
+        var content = BuildMinimalDcf();
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.ObjectDictionary.Objects[0x1000].ParamRefd.Should().BeNullOrEmpty();
+    }
+
     #endregion
 
     #region ParseObjectDictionary Tests
