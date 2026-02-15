@@ -775,4 +775,162 @@ public class DcfWriterTests
     }
 
     #endregion
+
+    #region DynamicChannels Tests
+
+    [Fact]
+    public void GenerateString_DynamicChannels_WritesSection()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DynamicChannels = new DynamicChannels
+        {
+            Segments = new List<DynamicChannelSegment>
+            {
+                new DynamicChannelSegment
+                {
+                    Type = 0x0007,
+                    Dir = AccessType.ReadOnly,
+                    Range = "0xA080-0xA0BF",
+                    PPOffset = 0
+                },
+                new DynamicChannelSegment
+                {
+                    Type = 0x0005,
+                    Dir = AccessType.ReadWriteOutput,
+                    Range = "0xA0C0-0xA0FF",
+                    PPOffset = 64
+                }
+            }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[DynamicChannels]");
+        result.Should().Contain("NrOfSeg=2");
+        result.Should().Contain("Type1=0x7");
+        result.Should().Contain("Dir1=ro");
+        result.Should().Contain("Range1=0xA080-0xA0BF");
+        result.Should().Contain("PPOffset1=0");
+        result.Should().Contain("Type2=0x5");
+        result.Should().Contain("Dir2=rww");
+        result.Should().Contain("Range2=0xA0C0-0xA0FF");
+        result.Should().Contain("PPOffset2=64");
+    }
+
+    [Fact]
+    public void GenerateString_NoDynamicChannels_OmitsSection()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().NotContain("[DynamicChannels]");
+    }
+
+    [Fact]
+    public void GenerateString_DynamicChannels_RoundTrip()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DynamicChannels = new DynamicChannels
+        {
+            Segments = new List<DynamicChannelSegment>
+            {
+                new DynamicChannelSegment
+                {
+                    Type = 0x0007,
+                    Dir = AccessType.ReadOnly,
+                    Range = "0xA080-0xA0BF",
+                    PPOffset = 0
+                }
+            }
+        };
+
+        // Act
+        var output = _writer.GenerateString(dcf);
+        var reader = new EdsDcfNet.Parsers.DcfReader();
+        var parsed = reader.ReadString(output);
+
+        // Assert
+        parsed.DynamicChannels.Should().NotBeNull();
+        parsed.DynamicChannels!.Segments.Should().HaveCount(1);
+        parsed.DynamicChannels.Segments[0].Type.Should().Be(0x0007);
+        parsed.DynamicChannels.Segments[0].Dir.Should().Be(AccessType.ReadOnly);
+        parsed.DynamicChannels.Segments[0].Range.Should().Be("0xA080-0xA0BF");
+        parsed.DynamicChannels.Segments[0].PPOffset.Should().Be(0);
+    }
+
+    #endregion
+
+    #region Tools Tests
+
+    [Fact]
+    public void GenerateString_Tools_WritesSections()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.Tools = new List<ToolInfo>
+        {
+            new ToolInfo { Name = "EDS Checker", Command = "checker.exe $EDS" },
+            new ToolInfo { Name = "Configurator", Command = "config.exe $DCF $NODEID" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[Tools]");
+        result.Should().Contain("Items=2");
+        result.Should().Contain("[Tool1]");
+        result.Should().Contain("Name=EDS Checker");
+        result.Should().Contain("Command=checker.exe $EDS");
+        result.Should().Contain("[Tool2]");
+        result.Should().Contain("Name=Configurator");
+        result.Should().Contain("Command=config.exe $DCF $NODEID");
+    }
+
+    [Fact]
+    public void GenerateString_NoTools_OmitsSection()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().NotContain("[Tools]");
+    }
+
+    [Fact]
+    public void GenerateString_Tools_RoundTrip()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.Tools = new List<ToolInfo>
+        {
+            new ToolInfo { Name = "EDS Checker", Command = "checker.exe $EDS" },
+            new ToolInfo { Name = "Configurator", Command = "config.exe $DCF $NODEID" }
+        };
+
+        // Act
+        var output = _writer.GenerateString(dcf);
+        var reader = new EdsDcfNet.Parsers.DcfReader();
+        var parsed = reader.ReadString(output);
+
+        // Assert
+        parsed.Tools.Should().HaveCount(2);
+        parsed.Tools[0].Name.Should().Be("EDS Checker");
+        parsed.Tools[0].Command.Should().Be("checker.exe $EDS");
+        parsed.Tools[1].Name.Should().Be("Configurator");
+        parsed.Tools[1].Command.Should().Be("config.exe $DCF $NODEID");
+    }
+
+    #endregion
 }

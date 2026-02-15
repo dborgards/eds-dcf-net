@@ -44,6 +44,16 @@ public class DeviceConfigurationFile
     public List<ModuleInfo> SupportedModules { get; set; } = new();
 
     /// <summary>
+    /// Dynamic channels configuration for CiA 302-4 programmable devices.
+    /// </summary>
+    public DynamicChannels? DynamicChannels { get; set; }
+
+    /// <summary>
+    /// Tool definitions from [Tools]/[ToolX] sections.
+    /// </summary>
+    public List<ToolInfo> Tools { get; set; } = new();
+
+    /// <summary>
     /// Additional sections not covered by standard specification.
     /// Key is section name, value is dictionary of key-value pairs.
     /// </summary>

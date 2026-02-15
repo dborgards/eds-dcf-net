@@ -58,10 +58,22 @@ public class DcfReader
             dcf.SupportedModules = ParseSupportedModules(sections);
         }
 
+        // Parse dynamic channels if present
+        if (IniParser.HasSection(sections, "DynamicChannels"))
+        {
+            dcf.DynamicChannels = _edsReader.ParseDynamicChannels(sections);
+        }
+
+        // Parse tools if present
+        if (IniParser.HasSection(sections, "Tools"))
+        {
+            dcf.Tools = _edsReader.ParseTools(sections);
+        }
+
         // Parse any additional unknown sections
         foreach (var sectionName in sections.Keys)
         {
-            if (!IsKnownSection(sectionName) && !IsObjectLinksSectionForExistingObject(sectionName, dcf.ObjectDictionary))
+            if (!IsKnownSection(sectionName) && !IsToolSectionForParsedTools(sectionName, dcf.Tools.Count) && !IsObjectLinksSectionForExistingObject(sectionName, dcf.ObjectDictionary))
             {
                 dcf.AdditionalSections[sectionName] = new Dictionary<string, string>(sections[sectionName]);
             }
@@ -465,6 +477,17 @@ public class DcfReader
         }
 
         return moduleInfo;
+    }
+
+    private static bool IsToolSectionForParsedTools(string sectionName, int parsedToolCount)
+    {
+        if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) || sectionName.Length <= 4)
+            return false;
+
+        if (!int.TryParse(sectionName.Substring(4), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var toolNumber))
+            return false;
+
+        return toolNumber >= 1 && toolNumber <= parsedToolCount;
     }
 
     private bool IsKnownSection(string sectionName)

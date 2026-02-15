@@ -76,6 +76,18 @@ public class DcfWriter
             WriteConnectedModules(sb, dcf.ConnectedModules);
         }
 
+        // Write DynamicChannels if present
+        if (dcf.DynamicChannels != null && dcf.DynamicChannels.Segments.Any())
+        {
+            WriteDynamicChannels(sb, dcf.DynamicChannels);
+        }
+
+        // Write Tools if present
+        if (dcf.Tools.Any())
+        {
+            WriteTools(sb, dcf.Tools);
+        }
+
         // Write Comments section if present
         if (dcf.Comments != null && dcf.Comments.CommentLines.Any())
         {
@@ -479,6 +491,40 @@ public class DcfWriter
         }
 
         sb.AppendLine();
+    }
+
+    private void WriteDynamicChannels(StringBuilder sb, DynamicChannels dynamicChannels)
+    {
+        sb.AppendLine("[DynamicChannels]");
+        WriteKeyValue(sb, "NrOfSeg", dynamicChannels.Segments.Count.ToString(CultureInfo.InvariantCulture));
+
+        for (int i = 0; i < dynamicChannels.Segments.Count; i++)
+        {
+            var idx = (i + 1).ToString(CultureInfo.InvariantCulture);
+            var seg = dynamicChannels.Segments[i];
+            WriteKeyValue(sb, $"Type{idx}", ValueConverter.FormatInteger(seg.Type));
+            WriteKeyValue(sb, $"Dir{idx}", ValueConverter.AccessTypeToString(seg.Dir));
+            WriteKeyValue(sb, $"Range{idx}", seg.Range);
+            WriteKeyValue(sb, $"PPOffset{idx}", seg.PPOffset.ToString(CultureInfo.InvariantCulture));
+        }
+
+        sb.AppendLine();
+    }
+
+    private void WriteTools(StringBuilder sb, List<ToolInfo> tools)
+    {
+        sb.AppendLine("[Tools]");
+        WriteKeyValue(sb, "Items", tools.Count.ToString(CultureInfo.InvariantCulture));
+        sb.AppendLine();
+
+        for (int i = 0; i < tools.Count; i++)
+        {
+            var idx = (i + 1).ToString(CultureInfo.InvariantCulture);
+            sb.AppendLine($"[Tool{idx}]");
+            WriteKeyValue(sb, "Name", tools[i].Name);
+            WriteKeyValue(sb, "Command", tools[i].Command);
+            sb.AppendLine();
+        }
     }
 
     private void WriteAdditionalSection(StringBuilder sb, string sectionName, Dictionary<string, string> entries)
