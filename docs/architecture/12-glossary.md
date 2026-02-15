@@ -16,6 +16,10 @@
 | **RPDO (Receive PDO)**        | PDO received by a device.                                                                        |
 | **SDO (Service Data Object)** | Access mechanism to the Object Dictionary of a CANopen device for configuration and diagnostics.  |
 | **SRDO (Safety-Relevant Data Object)** | Safety-relevant data object per EN 50325-5 (CANopen Safety).                             |
+| **NULL**                      | Object Dictionary object type (0x00) indicating an object with no data fields.                    |
+| **DOMAIN**                    | Object Dictionary object type (0x02) for arbitrary-length binary data (e.g. firmware transfer).   |
+| **DEFTYPE**                   | Object Dictionary object type (0x05) for standard or vendor-specific data type definitions.       |
+| **DEFSTRUCT**                 | Object Dictionary object type (0x06) for structure type definitions (can have sub-objects).        |
 | **VAR (Variable)**            | Object Dictionary object type (0x07) for a single variable.                                      |
 | **ARRAY**                     | Object Dictionary object type (0x08) for an array with homogeneous sub-objects.                   |
 | **RECORD**                    | Object Dictionary object type (0x09) for a structure with heterogeneous sub-objects.              |

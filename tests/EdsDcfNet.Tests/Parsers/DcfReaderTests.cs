@@ -2129,5 +2129,162 @@ Command=invalid.exe
     }
 
     #endregion
+
+    #region Object Type Tests
+
+    [Fact]
+    public void ReadString_ObjectType_Null_ParsedCorrectly()
+    {
+        // Arrange - ObjectType 0x0 (NULL)
+        var content = BuildMinimalDcf(extraSections: @"
+[OptionalObjects]
+SupportedObjects=1
+1=0x2000
+
+[2000]
+ParameterName=Null Object
+ObjectType=0x0
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2000];
+        obj.ObjectType.Should().Be(0x0);
+        obj.ParameterName.Should().Be("Null Object");
+        obj.SubObjects.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ReadString_ObjectType_Domain_ParsedCorrectly()
+    {
+        // Arrange - ObjectType 0x2 (DOMAIN) with UploadFile/DownloadFile
+        var content = BuildMinimalDcf(extraSections: @"
+[OptionalObjects]
+SupportedObjects=1
+1=0x1F50
+
+[1F50]
+ParameterName=Program Data
+ObjectType=0x2
+DataType=0x000F
+AccessType=rw
+PDOMapping=0
+UploadFile=firmware.bin
+DownloadFile=firmware.bin
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x1F50];
+        obj.ObjectType.Should().Be(0x2);
+        obj.UploadFile.Should().Be("firmware.bin");
+        obj.DownloadFile.Should().Be("firmware.bin");
+        obj.SubObjects.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ReadString_ObjectType_DefType_ParsedCorrectly()
+    {
+        // Arrange - ObjectType 0x5 (DEFTYPE)
+        var content = BuildMinimalDcf(extraSections: @"
+[OptionalObjects]
+SupportedObjects=1
+1=0x0005
+
+[5]
+ParameterName=UNSIGNED8
+ObjectType=0x5
+DataType=0x0005
+AccessType=ro
+PDOMapping=0
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x0005];
+        obj.ObjectType.Should().Be(0x5);
+        obj.ParameterName.Should().Be("UNSIGNED8");
+        obj.SubObjects.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ReadString_ObjectType_DefStruct_WithSubObjects_ParsedCorrectly()
+    {
+        // Arrange - ObjectType 0x6 (DEFSTRUCT) can have sub-objects
+        var content = BuildMinimalDcf(extraSections: @"
+[OptionalObjects]
+SupportedObjects=1
+1=0x0020
+
+[20]
+ParameterName=PDO Communication Parameter
+ObjectType=0x6
+SubNumber=2
+
+[20sub0]
+ParameterName=Number of Entries
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=2
+PDOMapping=0
+
+[20sub1]
+ParameterName=COB-ID
+ObjectType=0x7
+DataType=0x0007
+AccessType=rw
+PDOMapping=0
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x0020];
+        obj.ObjectType.Should().Be(0x6);
+        obj.SubObjects.Should().HaveCount(2);
+        obj.SubObjects[0].ParameterName.Should().Be("Number of Entries");
+        obj.SubObjects[1].ParameterName.Should().Be("COB-ID");
+    }
+
+    [Fact]
+    public void ReadString_ObjectType_DefStruct_WithoutSubNumber_ParsesSubObjects()
+    {
+        // Arrange - DEFSTRUCT (0x6) should trigger sub-object parsing even without SubNumber
+        var content = BuildMinimalDcf(extraSections: @"
+[OptionalObjects]
+SupportedObjects=1
+1=0x0020
+
+[20]
+ParameterName=PDO Comm Param
+ObjectType=0x6
+
+[20sub0]
+ParameterName=Number of Entries
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x0020];
+        obj.ObjectType.Should().Be(0x6);
+        obj.SubObjects.Should().ContainKey(0);
+    }
+
+    #endregion
 }
 

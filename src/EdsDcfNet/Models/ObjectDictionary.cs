@@ -48,7 +48,9 @@ public class CanOpenObject
     public string ParameterName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Object code (0x7 = VAR, 0x8 = ARRAY, 0x9 = RECORD, etc.).
+    /// Object code per CiA DS 306:
+    /// 0x0 = NULL, 0x2 = DOMAIN, 0x5 = DEFTYPE, 0x6 = DEFSTRUCT,
+    /// 0x7 = VAR, 0x8 = ARRAY, 0x9 = RECORD.
     /// </summary>
     public byte ObjectType { get; set; } = 0x7; // Default: VAR
 
@@ -96,7 +98,7 @@ public class CanOpenObject
     public byte? SubNumber { get; set; }
 
     /// <summary>
-    /// Sub-objects if this is an ARRAY or RECORD.
+    /// Sub-objects if this is a DEFSTRUCT, ARRAY, or RECORD.
     /// </summary>
     public Dictionary<byte, CanOpenSubObject> SubObjects { get; set; } = new();
 
@@ -162,7 +164,8 @@ public class CanOpenSubObject
     public string ParameterName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Object type (usually 0x7 = VAR).
+    /// Object type per CiA DS 306 (usually 0x7 = VAR).
+    /// See <see cref="CanOpenObject.ObjectType"/> for all defined values.
     /// </summary>
     public byte ObjectType { get; set; } = 0x7;
 
