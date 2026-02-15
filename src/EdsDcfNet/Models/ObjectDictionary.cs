@@ -139,6 +139,11 @@ public class CanOpenObject
     /// Index and sub-index of the inverted SRAD (hex string, e.g. "0x610101").
     /// </summary>
     public string? InvertedSrad { get; set; }
+
+    /// <summary>
+    /// For DCF files: parameter reference designator (max 249 characters).
+    /// </summary>
+    public string? ParamRefd { get; set; }
 }
 
 /// <summary>
@@ -210,6 +215,11 @@ public class CanOpenSubObject
     /// Index and sub-index of the inverted SRAD (hex string, e.g. "0x610101").
     /// </summary>
     public string? InvertedSrad { get; set; }
+
+    /// <summary>
+    /// For DCF files: parameter reference designator (max 249 characters).
+    /// </summary>
+    public string? ParamRefd { get; set; }
 }
 
 /// <summary>

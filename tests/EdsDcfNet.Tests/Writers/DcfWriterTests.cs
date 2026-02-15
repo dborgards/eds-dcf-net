@@ -124,6 +124,103 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void GenerateString_ReferenceDesignators_WrittenWhenSet()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceCommissioning.NodeRefd = "N1.A2";
+        dcf.DeviceCommissioning.NetRefd = "CAN-Bus 1";
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("NodeRefd=N1.A2");
+        result.Should().Contain("NetRefd=CAN-Bus 1");
+    }
+
+    [Fact]
+    public void GenerateString_ReferenceDesignators_OmittedWhenEmpty()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().NotContain("NodeRefd");
+        result.Should().NotContain("NetRefd");
+    }
+
+    [Fact]
+    public void GenerateString_ParamRefd_WrittenOnObjectAndSubObject()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.Objects[0x1000].ParamRefd = "X1.DevType";
+
+        dcf.ObjectDictionary.OptionalObjects.Add(0x1018);
+        dcf.ObjectDictionary.Objects[0x1018] = new CanOpenObject
+        {
+            Index = 0x1018,
+            ParameterName = "Identity",
+            ObjectType = 0x9,
+            SubNumber = 1
+        };
+        dcf.ObjectDictionary.Objects[0x1018].SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "NrOfEntries",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "1",
+            ParamRefd = "X1.Identity.Sub0"
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("ParamRefd=X1.DevType");
+        result.Should().Contain("ParamRefd=X1.Identity.Sub0");
+    }
+
+    [Fact]
+    public void GenerateString_ParamRefd_OmittedWhenEmpty()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().NotContain("ParamRefd");
+    }
+
+    [Fact]
+    public void GenerateString_ReferenceDesignators_RoundTrip()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceCommissioning.NodeRefd = "N1.A2";
+        dcf.DeviceCommissioning.NetRefd = "CAN-Bus 1";
+        dcf.ObjectDictionary.Objects[0x1000].ParamRefd = "X1.DevType";
+
+        // Act — write then re-parse
+        var written = _writer.GenerateString(dcf);
+        var reader = new EdsDcfNet.Parsers.DcfReader();
+        var parsed = reader.ReadString(written);
+
+        // Assert
+        parsed.DeviceCommissioning.NodeRefd.Should().Be("N1.A2");
+        parsed.DeviceCommissioning.NetRefd.Should().Be("CAN-Bus 1");
+        parsed.ObjectDictionary.Objects[0x1000].ParamRefd.Should().Be("X1.DevType");
+    }
+
+    [Fact]
     public void GenerateString_MandatoryObjects_WritesCorrectly()
     {
         // Arrange
