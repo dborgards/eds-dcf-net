@@ -2024,6 +2024,71 @@ Command=check.exe
         result.AdditionalSections.Should().NotContainKey("Tool1");
     }
 
+    [Fact]
+    public void ReadString_OrphanToolSection_PreservedInAdditionalSections()
+    {
+        // Arrange — Tool1 without [Tools] section
+        var content = BuildMinimalDcf(extraSections: @"
+[Tool1]
+Name=Orphan
+Command=orphan.exe
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.Tools.Should().BeEmpty();
+        result.AdditionalSections.Should().ContainKey("Tool1");
+    }
+
+    [Fact]
+    public void ReadString_ToolSectionBeyondItems_PreservedInAdditionalSections()
+    {
+        // Arrange — Items=1 but Tool2 also present
+        var content = BuildMinimalDcf(extraSections: @"
+[Tools]
+Items=1
+[Tool1]
+Name=Checker
+Command=check.exe
+[Tool2]
+Name=Extra
+Command=extra.exe
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.Tools.Should().HaveCount(1);
+        result.AdditionalSections.Should().NotContainKey("Tool1");
+        result.AdditionalSections.Should().ContainKey("Tool2");
+    }
+
+    [Fact]
+    public void ReadString_ToolSectionWithNonNumericSuffix_PreservedInAdditionalSections()
+    {
+        // Arrange — ToolABC is not a valid ToolX section
+        var content = BuildMinimalDcf(extraSections: @"
+[Tools]
+Items=1
+[Tool1]
+Name=Checker
+Command=check.exe
+[ToolABC]
+Name=Invalid
+Command=invalid.exe
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.Tools.Should().HaveCount(1);
+        result.AdditionalSections.Should().ContainKey("ToolABC");
+    }
+
     #endregion
 }
 
