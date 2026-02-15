@@ -147,6 +147,11 @@ public class DcfWriter
             WriteKeyValue(sb, "CompactPDO", ValueConverter.FormatInteger(deviceInfo.CompactPdo));
         }
 
+        if (deviceInfo.CANopenSafetySupported)
+        {
+            WriteKeyValue(sb, "CANopenSafetySupported", ValueConverter.FormatBoolean(deviceInfo.CANopenSafetySupported));
+        }
+
         sb.AppendLine();
     }
 
@@ -270,6 +275,12 @@ public class DcfWriter
         }
 
         WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(obj.PdoMapping));
+        WriteKeyValue(sb, "SRDOMapping", ValueConverter.FormatBoolean(obj.SrdoMapping));
+
+        if (!string.IsNullOrEmpty(obj.InvertedSrad))
+        {
+            WriteKeyValue(sb, "InvertedSRAD", obj.InvertedSrad);
+        }
 
         if (obj.ObjFlags > 0)
         {
@@ -353,6 +364,12 @@ public class DcfWriter
         }
 
         WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(subObj.PdoMapping));
+        WriteKeyValue(sb, "SRDOMapping", ValueConverter.FormatBoolean(subObj.SrdoMapping));
+
+        if (!string.IsNullOrEmpty(subObj.InvertedSrad))
+        {
+            WriteKeyValue(sb, "InvertedSRAD", subObj.InvertedSrad);
+        }
 
         // DCF-specific fields
         if (!string.IsNullOrEmpty(subObj.ParameterValue))

@@ -275,6 +275,45 @@ SupportedObjects=0
         result.DeviceInfo.SupportedBaudRates.BaudRate1000.Should().BeTrue();
     }
 
+    [Fact]
+    public void ReadString_DeviceInfo_CANopenSafetySupported_ParsedCorrectly()
+    {
+        // Arrange
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+CANopenSafetySupported=1
+
+[MandatoryObjects]
+SupportedObjects=0
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.DeviceInfo.CANopenSafetySupported.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReadString_DeviceInfo_CANopenSafetySupported_DefaultsFalse()
+    {
+        // Arrange
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.DeviceInfo.CANopenSafetySupported.Should().BeFalse();
+    }
+
     #endregion
 
     #region Object Dictionary Parsing Tests
@@ -544,6 +583,97 @@ PDOMapping=0
         result.ObjectDictionary.Objects[0x2003].AccessType.Should().Be(AccessType.ReadWriteInput);
         result.ObjectDictionary.Objects[0x2004].AccessType.Should().Be(AccessType.ReadWriteOutput);
         result.ObjectDictionary.Objects[0x2005].AccessType.Should().Be(AccessType.Constant);
+    }
+
+    [Fact]
+    public void ReadString_Object_SafetyProperties_ParsedCorrectly()
+    {
+        // Arrange
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x6100
+
+[6100]
+ParameterName=SRDO Input
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+SRDOMapping=1
+InvertedSRAD=0x610101
+SubNumber=1
+
+[6100sub0]
+ParameterName=Number of Entries
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+SRDOMapping=0
+
+[6100sub1]
+ParameterName=SRDO Input 1
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+SRDOMapping=1
+InvertedSRAD=0x610101
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x6100];
+        obj.SrdoMapping.Should().BeTrue();
+        obj.InvertedSrad.Should().Be("0x610101");
+
+        obj.SubObjects[0].SrdoMapping.Should().BeFalse();
+        obj.SubObjects[0].InvertedSrad.Should().BeNullOrEmpty();
+
+        obj.SubObjects[1].SrdoMapping.Should().BeTrue();
+        obj.SubObjects[1].InvertedSrad.Should().Be("0x610101");
+    }
+
+    [Fact]
+    public void ReadString_Object_SafetyProperties_DefaultValues()
+    {
+        // Arrange
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x191
+PDOMapping=0
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x1000];
+        obj.SrdoMapping.Should().BeFalse();
+        obj.InvertedSrad.Should().BeNullOrEmpty();
     }
 
     #endregion

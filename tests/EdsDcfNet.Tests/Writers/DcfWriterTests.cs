@@ -386,6 +386,159 @@ public class DcfWriterTests
         result.Should().Contain("Dummy0005=1");
     }
 
+    [Fact]
+    public void GenerateString_CANopenSafetySupported_WrittenWhenTrue()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo.CANopenSafetySupported = true;
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("CANopenSafetySupported=1");
+    }
+
+    [Fact]
+    public void GenerateString_CANopenSafetySupported_OmittedWhenFalse()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().NotContain("CANopenSafetySupported");
+    }
+
+    [Fact]
+    public void GenerateString_SrdoMapping_WrittenOnObjectAndSubObject()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.OptionalObjects.Add(0x6100);
+        dcf.ObjectDictionary.Objects[0x6100] = new CanOpenObject
+        {
+            Index = 0x6100,
+            ParameterName = "SRDO Input",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            PdoMapping = true,
+            SrdoMapping = true,
+            InvertedSrad = "0x610101",
+            SubNumber = 1
+        };
+        dcf.ObjectDictionary.Objects[0x6100].SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Number of Entries",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "1",
+            PdoMapping = false,
+            SrdoMapping = false
+        };
+        dcf.ObjectDictionary.Objects[0x6100].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "SRDO Input 1",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = true,
+            SrdoMapping = true,
+            InvertedSrad = "0x610101"
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[6100]");
+        result.Should().Contain("SRDOMapping=1");
+        result.Should().Contain("InvertedSRAD=0x610101");
+    }
+
+    [Fact]
+    public void GenerateString_InvertedSrad_OmittedWhenEmpty()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().NotContain("InvertedSRAD");
+    }
+
+    [Fact]
+    public void GenerateString_SafetyProperties_RoundTrip()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo.CANopenSafetySupported = true;
+        dcf.ObjectDictionary.OptionalObjects.Add(0x6100);
+        dcf.ObjectDictionary.Objects[0x6100] = new CanOpenObject
+        {
+            Index = 0x6100,
+            ParameterName = "SRDO Input",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            PdoMapping = true,
+            SrdoMapping = true,
+            InvertedSrad = "0x610101",
+            SubNumber = 1
+        };
+        dcf.ObjectDictionary.Objects[0x6100].SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Number of Entries",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "1",
+            PdoMapping = false,
+            SrdoMapping = false
+        };
+        dcf.ObjectDictionary.Objects[0x6100].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "SRDO Input 1",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = true,
+            SrdoMapping = true,
+            InvertedSrad = "0x610101"
+        };
+
+        // Act - Write then re-parse
+        var written = _writer.GenerateString(dcf);
+        var reader = new EdsDcfNet.Parsers.DcfReader();
+        var parsed = reader.ReadString(written);
+
+        // Assert
+        parsed.DeviceInfo.CANopenSafetySupported.Should().BeTrue();
+
+        var obj = parsed.ObjectDictionary.Objects[0x6100];
+        obj.SrdoMapping.Should().BeTrue();
+        obj.InvertedSrad.Should().Be("0x610101");
+
+        obj.SubObjects[0].SrdoMapping.Should().BeFalse();
+        obj.SubObjects[0].InvertedSrad.Should().BeNullOrEmpty();
+
+        obj.SubObjects[1].SrdoMapping.Should().BeTrue();
+        obj.SubObjects[1].InvertedSrad.Should().Be("0x610101");
+    }
+
     #endregion
 
     #region WriteFile Tests

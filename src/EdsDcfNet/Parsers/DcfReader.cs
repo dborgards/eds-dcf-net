@@ -232,6 +232,8 @@ public class DcfReader
         obj.LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit");
         obj.HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit");
         obj.PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping"));
+        obj.SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping"));
+        obj.InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD");
         obj.ObjFlags = ValueConverter.ParseInteger(IniParser.GetValue(sections, sectionName, "ObjFlags", "0"));
 
         var subNumberStr = IniParser.GetValue(sections, sectionName, "SubNumber");
@@ -353,7 +355,9 @@ public class DcfReader
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
             HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
-            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping"))
+            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
+            SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
+            InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
         };
 
         // DCF-specific fields

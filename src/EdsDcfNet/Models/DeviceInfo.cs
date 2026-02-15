@@ -88,6 +88,11 @@ public class DeviceInfo
     /// Used for compact PDO storage.
     /// </summary>
     public byte CompactPdo { get; set; }
+
+    /// <summary>
+    /// CANopen Safety supported according to EN 50325-5 (Boolean, 0 = not supported, 1 = supported).
+    /// </summary>
+    public bool CANopenSafetySupported { get; set; }
 }
 
 /// <summary>
