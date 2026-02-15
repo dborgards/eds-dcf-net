@@ -474,6 +474,8 @@ public class DcfReader
             return true;
 
         // Check for value and denotation sections
+        // Note: ObjectLinks sections are intentionally NOT marked as known here.
+        // This allows orphaned ObjectLinks (for non-existent objects) to be preserved in AdditionalSections.
         if (sectionName.EndsWith("Value", StringComparison.OrdinalIgnoreCase) ||
             sectionName.EndsWith("Denotation", StringComparison.OrdinalIgnoreCase))
             return true;

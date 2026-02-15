@@ -1,0 +1,259 @@
+;*****************************************************************************
+; Full-featured DCF fixture for comprehensive testing
+; Contains all DCF-specific features: ParameterValue, Denotation,
+; ObjectLinks, CompactSubObj, Value/Denotation sections, Comments,
+; DummyUsage, and an unknown vendor section.
+;*****************************************************************************
+
+[FileInfo]
+FileName=full_features.dcf
+FileVersion=2
+FileRevision=3
+EDSVersion=4.0
+Description=Full-featured DCF test fixture
+CreationTime=10:00AM
+CreationDate=01-15-2026
+CreatedBy=EdsDcfNet Test Suite
+ModificationTime=02:30PM
+ModificationDate=02-15-2026
+ModifiedBy=Test Author
+LastEDS=full_features.eds
+
+[DeviceInfo]
+VendorName=Full Feature Vendor
+VendorNumber=0x00000200
+ProductName=Full Feature Device
+ProductNumber=0x00002001
+RevisionNumber=0x00020000
+OrderCode=FULL-001
+BaudRate_10=1
+BaudRate_20=1
+BaudRate_50=1
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=1
+BaudRate_1000=1
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=2
+NrOfTXPDO=2
+LSS_Supported=1
+CompactPDO=0
+
+[DeviceCommissioning]
+NodeID=10
+NodeName=FullFeatureNode
+Baudrate=250
+NetNumber=2
+NetworkName=ProductionNet
+CANopenManager=1
+LSS_SerialNumber=12345678
+
+[DummyUsage]
+Dummy0002=1
+Dummy0003=0
+Dummy0005=1
+Dummy0007=1
+
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x00000191
+ParameterValue=0x00000191
+PDOMapping=0
+ObjFlags=0
+
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+
+[OptionalObjects]
+SupportedObjects=3
+1=0x1008
+2=0x1018
+3=0x1400
+
+[1008]
+ParameterName=Manufacturer Device Name
+ObjectType=0x7
+DataType=0x0009
+AccessType=ro
+DefaultValue=Full Feature Device
+PDOMapping=0
+Denotation=DeviceName
+ParameterValue=Configured Device Name
+
+[1018]
+ParameterName=Identity Object
+SubNumber=4
+ObjectType=0x9
+
+[1018sub0]
+ParameterName=Number of Entries
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=4
+PDOMapping=0
+
+[1018sub1]
+ParameterName=Vendor ID
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x00000200
+PDOMapping=0
+ParameterValue=0x00000200
+Denotation=VendorIdentifier
+
+[1018sub2]
+ParameterName=Product Code
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x00002001
+PDOMapping=0
+
+[1018sub3]
+ParameterName=Revision Number
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x00020000
+PDOMapping=0
+
+[1018sub4]
+ParameterName=Serial Number
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x00000001
+PDOMapping=0
+
+[1400]
+ParameterName=RPDO Communication Parameter
+SubNumber=2
+ObjectType=0x9
+
+[1400sub0]
+ParameterName=Number of Entries
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=2
+PDOMapping=0
+
+[1400sub1]
+ParameterName=COB-ID
+ObjectType=0x7
+DataType=0x0007
+AccessType=rw
+DefaultValue=$NODEID+0x200
+PDOMapping=0
+
+[1400sub2]
+ParameterName=Transmission Type
+ObjectType=0x7
+DataType=0x0005
+AccessType=rw
+DefaultValue=255
+PDOMapping=0
+
+[ManufacturerObjects]
+SupportedObjects=2
+1=0x2000
+2=0x2100
+
+[2000]
+ParameterName=Manufacturer Status
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+ParameterValue=42
+UploadFile=status_upload.bin
+DownloadFile=status_download.bin
+ObjFlags=3
+
+[2100]
+ParameterName=Manufacturer Config Array
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+SubNumber=3
+CompactSubObj=3
+
+[2100sub0]
+ParameterName=Number of Elements
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=3
+PDOMapping=0
+
+[2100sub1]
+ParameterName=Config Element 1
+ObjectType=0x7
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2100sub2]
+ParameterName=Config Element 2
+ObjectType=0x7
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2100sub3]
+ParameterName=Config Element 3
+ObjectType=0x7
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2100Value]
+NrOfEntries=3
+1=10
+2=20
+3=30
+
+[2100Denotation]
+NrOfEntries=3
+1=Config A
+2=Config B
+3=Config C
+
+[2000ObjectLinks]
+ObjectLinks=2
+1=0x2100
+2=0x1000
+
+[Comments]
+Lines=2
+Line1=Full-featured DCF test file
+Line2=Contains all supported DCF extensions
+
+[VendorSpecificSection]
+CustomKey1=CustomValue1
+CustomKey2=CustomValue2
+VersionInfo=1.2.3

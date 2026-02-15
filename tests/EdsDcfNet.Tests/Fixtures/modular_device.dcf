@@ -1,0 +1,137 @@
+[FileInfo]
+FileName=modular_device.dcf
+FileVersion=1
+FileRevision=1
+EDSVersion=4.0
+Description=Modular device DCF with modules
+
+[DeviceInfo]
+VendorName=Modular Vendor
+VendorNumber=0x00000300
+ProductName=Bus Coupler
+ProductNumber=0x00003001
+RevisionNumber=0x00010000
+OrderCode=MOD-BC-001
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=4
+NrOfTXPDO=4
+LSS_Supported=0
+
+[DeviceCommissioning]
+NodeID=3
+NodeName=BusCoupler_Node3
+Baudrate=125
+NetNumber=0
+NetworkName=FieldNet
+CANopenManager=0
+
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x00000191
+PDOMapping=0
+
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x1018
+
+[1018]
+ParameterName=Identity Object
+SubNumber=4
+ObjectType=0x9
+
+[1018sub0]
+ParameterName=Number of Entries
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=4
+PDOMapping=0
+
+[1018sub1]
+ParameterName=Vendor ID
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x00000300
+PDOMapping=0
+
+[1018sub2]
+ParameterName=Product Code
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x00003001
+PDOMapping=0
+
+[1018sub3]
+ParameterName=Revision Number
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x00010000
+PDOMapping=0
+
+[1018sub4]
+ParameterName=Serial Number
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x00000001
+PDOMapping=0
+
+[SupportedModules]
+NrOfEntries=2
+
+[M1ModuleInfo]
+ProductName=Digital Input Module
+ProductVersion=1
+ProductRevision=0
+OrderCode=MOD-DI-8
+
+[M1FixedObjects]
+NrOfEntries=1
+1=0x6000
+
+[M2ModuleInfo]
+ProductName=Digital Output Module
+ProductVersion=2
+ProductRevision=1
+OrderCode=MOD-DO-8
+
+[M2FixedObjects]
+NrOfEntries=1
+1=0x6200
+
+[ConnectedModules]
+NrOfEntries=3
+1=1
+2=2
+3=1
