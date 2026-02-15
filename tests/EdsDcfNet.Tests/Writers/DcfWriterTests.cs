@@ -475,6 +475,7 @@ public class DcfWriterTests
 
         // Assert
         result.Should().NotContain("InvertedSRAD");
+        result.Should().NotContain("SRDOMapping");
     }
 
     [Fact]

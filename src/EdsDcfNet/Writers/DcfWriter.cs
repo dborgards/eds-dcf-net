@@ -280,7 +280,11 @@ public class DcfWriter
         }
 
         WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(obj.PdoMapping));
-        WriteKeyValue(sb, "SRDOMapping", ValueConverter.FormatBoolean(obj.SrdoMapping));
+
+        if (obj.SrdoMapping)
+        {
+            WriteKeyValue(sb, "SRDOMapping", ValueConverter.FormatBoolean(obj.SrdoMapping));
+        }
 
         if (!string.IsNullOrEmpty(obj.InvertedSrad))
         {
@@ -369,7 +373,11 @@ public class DcfWriter
         }
 
         WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(subObj.PdoMapping));
-        WriteKeyValue(sb, "SRDOMapping", ValueConverter.FormatBoolean(subObj.SrdoMapping));
+
+        if (subObj.SrdoMapping)
+        {
+            WriteKeyValue(sb, "SRDOMapping", ValueConverter.FormatBoolean(subObj.SrdoMapping));
+        }
 
         if (!string.IsNullOrEmpty(subObj.InvertedSrad))
         {
