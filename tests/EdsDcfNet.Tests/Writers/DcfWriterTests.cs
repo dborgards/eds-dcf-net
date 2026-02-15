@@ -581,7 +581,7 @@ public class DcfWriterTests
     [Fact]
     public void GenerateString_NonObjectLinksAdditionalSection_NotFiltered()
     {
-        // Arrange — a section that ends with "ObjectLinks" but has no valid hex prefix
+        // Arrange — a section that doesn't end with "ObjectLinks"
         var dcf = CreateMinimalDcf();
         dcf.AdditionalSections["VendorSpecific"] = new Dictionary<string, string>
         {
@@ -594,6 +594,42 @@ public class DcfWriterTests
         // Assert
         result.Should().Contain("[VendorSpecific]");
         result.Should().Contain("Key=Value");
+    }
+
+    [Fact]
+    public void GenerateString_EmptyPrefixObjectLinks_NotFiltered()
+    {
+        // Arrange — section named just "ObjectLinks" with no hex prefix
+        var dcf = CreateMinimalDcf();
+        dcf.AdditionalSections["ObjectLinks"] = new Dictionary<string, string>
+        {
+            { "ObjectLinks", "1" },
+            { "1", "0x1000" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[ObjectLinks]");
+    }
+
+    [Fact]
+    public void GenerateString_NonHexPrefixObjectLinks_NotFiltered()
+    {
+        // Arrange — section ending with "ObjectLinks" but non-hex prefix
+        var dcf = CreateMinimalDcf();
+        dcf.AdditionalSections["ZZZZObjectLinks"] = new Dictionary<string, string>
+        {
+            { "ObjectLinks", "1" },
+            { "1", "0x1000" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[ZZZZObjectLinks]");
     }
 
     #endregion
