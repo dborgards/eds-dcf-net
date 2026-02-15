@@ -158,6 +158,6 @@ graph TD
 | `ReadOnly`           | `ro`         | Read only                      |
 | `WriteOnly`          | `wo`         | Write only                     |
 | `ReadWrite`          | `rw`         | Read and write                 |
-| `ReadWriteInput`     | `rww`        | Read/write (input PDO)         |
-| `ReadWriteOutput`    | `rwr`        | Read/write (output PDO)        |
+| `ReadWriteInput`     | `rwr`        | Read/write (process input)     |
+| `ReadWriteOutput`    | `rww`        | Read/write (process output)    |
 | `Constant`           | `const`      | Constant, not modifiable       |

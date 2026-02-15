@@ -8,22 +8,21 @@ The following sequence diagram shows the flow when reading an EDS file:
 sequenceDiagram
     participant App as Application
     participant CF as CanOpenFile
-    participant IP as IniParser
     participant ER as EdsReader
+    participant IP as IniParser
     participant VC as ValueConverter
 
     App->>CF: ReadEds(filePath)
-    CF->>CF: File.ReadAllText(filePath)
-    CF->>IP: new IniParser(content)
-    IP->>IP: Parse sections and key-value pairs
-    CF->>ER: Read(content)
-    ER->>IP: GetValue("FileInfo", ...)
-    ER->>ER: ParseFileInfo()
-    ER->>IP: GetValue("DeviceInfo", ...)
-    ER->>ER: ParseDeviceInfo()
+    CF->>ER: new EdsReader()
+    CF->>ER: ReadFile(filePath)
+    ER->>IP: _iniParser.ParseFile(filePath)
+    IP-->>ER: sections dictionary
+    ER->>ER: ParseEds(sections)
+    ER->>ER: ParseFileInfo(sections)
+    Note over ER,IP: Uses static IniParser.GetValue(sections, ...)
+    ER->>ER: ParseDeviceInfo(sections)
 
     loop For each object in the ObjectDictionary
-        ER->>IP: GetValue("[XXXX]", ...)
         ER->>VC: ParseInteger(), ParseBoolean(), ParseAccessType()
         VC-->>ER: Typed values
         ER->>ER: ParseObject() / ParseSubObject()
@@ -65,9 +64,9 @@ sequenceDiagram
     participant VC as ValueConverter
 
     App->>CF: WriteDcf(dcf, filePath)
-    CF->>DW: new DcfWriter(dcf)
-    CF->>DW: WriteFile(filePath)
-    DW->>DW: GenerateString()
+    CF->>DW: new DcfWriter()
+    CF->>DW: WriteFile(dcf, filePath)
+    DW->>DW: GenerateDcfContent(dcf)
 
     DW->>DW: WriteFileInfo()
     DW->>DW: WriteDeviceInfo()
@@ -116,7 +115,7 @@ sequenceDiagram
     participant ER as EdsReader
 
     App->>CF: ReadEds("invalid.eds")
-    CF->>ER: Read(content)
+    CF->>ER: ReadFile(filePath)
     ER->>ER: Required section missing or invalid value
 
     ER--xCF: EdsParseException (LineNumber, SectionName)

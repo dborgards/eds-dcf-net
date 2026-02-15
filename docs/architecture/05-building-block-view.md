@@ -53,70 +53,74 @@ graph LR
 ```mermaid
 classDiagram
     class IniParser {
-        -Dictionary~string, Dictionary~string, string~~ _sections
-        +IniParser(string content)
-        +GetSections() IEnumerable~string~
-        +HasSection(string name) bool
-        +GetKeys(string section) IEnumerable~string~
-        +GetValue(string section, string key) string?
+        +ParseFile(string filePath) Dictionary~string, Dictionary~string, string~~
+        +ParseString(string content) Dictionary~string, Dictionary~string, string~~
+        +GetValue(sections, sectionName, key, defaultValue) string$
+        +HasSection(sections, sectionName) bool$
+        +GetKeys(sections, sectionName) IEnumerable~string~$
     }
 
     class EdsReader {
-        +Read(string content) ElectronicDataSheet
-        -ParseFileInfo(IniParser parser) EdsFileInfo
-        -ParseDeviceInfo(IniParser parser) DeviceInfo
-        -ParseObjectDictionary(IniParser parser) ObjectDictionary
-        -ParseObject(IniParser parser, ushort index) CanOpenObject
-        -ParseSubObject(IniParser parser, ushort index, byte subIndex) CanOpenSubObject
-        -ParseComments(IniParser parser) Comments?
-        -ParseSupportedModules(IniParser parser) List~ModuleInfo~
-        -ParseDynamicChannels(IniParser parser) DynamicChannels?
-        -ParseTools(IniParser parser) List~ToolInfo~
+        -IniParser _iniParser
+        +ReadFile(string filePath) ElectronicDataSheet
+        +ReadString(string content) ElectronicDataSheet
+        -ParseEds(sections) ElectronicDataSheet
+        -ParseFileInfo(sections) EdsFileInfo
+        -ParseDeviceInfo(sections) DeviceInfo
+        -ParseObjectDictionary(sections) ObjectDictionary
+        -ParseObject(sections, ushort index) CanOpenObject?
+        -ParseComments(sections) Comments?
+        -ParseSupportedModules(sections) List~ModuleInfo~
+        -ParseDynamicChannels(sections) DynamicChannels?
+        -ParseTools(sections) List~ToolInfo~
     }
 
     class DcfReader {
-        +Read(string content) DeviceConfigurationFile
-        -ParseDeviceCommissioning(IniParser parser) DeviceCommissioning
-        -ParseConnectedModules(IniParser parser) List~ushort~
+        -IniParser _iniParser
+        -EdsReader _edsReader
+        +ReadFile(string filePath) DeviceConfigurationFile
+        +ReadString(string content) DeviceConfigurationFile
+        -ParseDcf(sections) DeviceConfigurationFile
+        -ParseDeviceCommissioning(sections) DeviceCommissioning
+        -ParseConnectedModules(sections) List~int~
     }
 
     IniParser <-- EdsReader : uses
     IniParser <-- DcfReader : uses
-    EdsReader <|-- DcfReader : extends parsing logic
+    EdsReader <-- DcfReader : delegates shared parsing
 ```
 
-**IniParser** is the base component that transforms raw INI text into a searchable data structure (sections with key-value pairs). Lookups are **case-insensitive**.
+**IniParser** is the base component that transforms raw INI text into a sections dictionary (`Dictionary<string, Dictionary<string, string>>`). It provides instance methods (`ParseFile`, `ParseString`) for parsing and static helper methods (`GetValue`, `HasSection`, `GetKeys`) for querying the resulting dictionary. Lookups are **case-insensitive**.
 
-**EdsReader** uses the IniParser to build a complete `ElectronicDataSheet` model. It processes all specified sections and preserves unknown sections in `AdditionalSections`.
+**EdsReader** holds an internal `IniParser` instance. Its public methods (`ReadFile`, `ReadString`) parse the input into a sections dictionary and then build a complete `ElectronicDataSheet` model from it. Unknown sections are preserved in `AdditionalSections`.
 
-**DcfReader** extends the EdsReader logic with DCF-specific sections (`DeviceCommissioning`, `ConnectedModules`) and fields (`ParameterValue`, `Denotation`).
+**DcfReader** holds its own `IniParser` and an `EdsReader` instance (for delegating shared parsing like `ParseDeviceInfo` and `ParseDynamicChannels`). It adds DCF-specific sections (`DeviceCommissioning`, `ConnectedModules`) and fields (`ParameterValue`, `Denotation`).
 
 ### 5.2.2 Writers
 
 ```mermaid
 classDiagram
     class DcfWriter {
-        -DeviceConfigurationFile _dcf
-        +DcfWriter(DeviceConfigurationFile dcf)
-        +WriteFile(string filePath) void
-        +GenerateString() string
-        -WriteFileInfo(StringBuilder sb) void
-        -WriteDeviceInfo(StringBuilder sb) void
-        -WriteDeviceCommissioning(StringBuilder sb) void
-        -WriteDummyUsage(StringBuilder sb) void
-        -WriteComments(StringBuilder sb) void
-        -WriteObjectDictionary(StringBuilder sb) void
+        +WriteFile(DeviceConfigurationFile dcf, string filePath) void
+        +GenerateString(DeviceConfigurationFile dcf) string
+        -GenerateDcfContent(DeviceConfigurationFile dcf) string
+        -WriteFileInfo(StringBuilder sb, EdsFileInfo fileInfo) void
+        -WriteDeviceInfo(StringBuilder sb, DeviceInfo deviceInfo) void
+        -WriteDeviceCommissioning(StringBuilder sb, DeviceCommissioning dc) void
+        -WriteDummyUsage(StringBuilder sb, ObjectDictionary objDict) void
+        -WriteComments(StringBuilder sb, Comments comments) void
+        -WriteObjectLists(StringBuilder sb, ObjectDictionary objDict) void
+        -WriteObjects(StringBuilder sb, ObjectDictionary objDict) void
         -WriteObject(StringBuilder sb, CanOpenObject obj) void
-        -WriteSubObject(StringBuilder sb, CanOpenObject obj, CanOpenSubObject sub) void
-        -WriteSupportedModules(StringBuilder sb) void
-        -WriteConnectedModules(StringBuilder sb) void
-        -WriteDynamicChannels(StringBuilder sb) void
-        -WriteTools(StringBuilder sb) void
-        -WriteAdditionalSections(StringBuilder sb) void
+        -WriteSubObject(StringBuilder sb, ushort index, CanOpenSubObject subObj) void
+        -WriteSupportedModules(StringBuilder sb, List~ModuleInfo~ modules) void
+        -WriteConnectedModules(StringBuilder sb, List~int~ modules) void
+        -WriteDynamicChannels(StringBuilder sb, DynamicChannels dc) void
+        -WriteTools(StringBuilder sb, List~ToolInfo~ tools) void
     }
 ```
 
-**DcfWriter** serializes a `DeviceConfigurationFile` model back into the INI-based DCF format. Output can be written either to a file (ASCII encoding) or returned as a string.
+**DcfWriter** is a stateless class that serializes a `DeviceConfigurationFile` model back into the INI-based DCF format. The `DeviceConfigurationFile` is passed as a parameter to each public method rather than stored in the writer. Output can be written either to a file (ASCII encoding) or returned as a string.
 
 ### 5.2.3 Models
 
@@ -138,7 +142,7 @@ classDiagram
         +DeviceInfo DeviceInfo
         +ObjectDictionary ObjectDictionary
         +DeviceCommissioning DeviceCommissioning
-        +List~ushort~ ConnectedModules
+        +List~int~ ConnectedModules
         +Comments? Comments
         +List~ModuleInfo~ SupportedModules
         +DynamicChannels? DynamicChannels
@@ -159,71 +163,86 @@ classDiagram
         +string ParameterName
         +byte ObjectType
         +ushort? DataType
-        +AccessType? AccessType
+        +AccessType AccessType
         +string? DefaultValue
         +string? ParameterValue
         +string? Denotation
         +string? LowLimit
         +string? HighLimit
-        +bool? PdoMapping
+        +bool PdoMapping
+        +bool SrdoMapping
+        +string? InvertedSrad
+        +uint ObjFlags
+        +byte? SubNumber
         +byte? CompactSubObj
         +Dictionary~byte, CanOpenSubObject~ SubObjects
         +List~ushort~ ObjectLinks
+        +string? UploadFile
+        +string? DownloadFile
+        +string? ParamRefd
     }
 
     class CanOpenSubObject {
         +byte SubIndex
         +string ParameterName
-        +byte? ObjectType
-        +ushort? DataType
-        +AccessType? AccessType
+        +byte ObjectType
+        +ushort DataType
+        +AccessType AccessType
         +string? DefaultValue
         +string? ParameterValue
         +string? Denotation
         +string? LowLimit
         +string? HighLimit
-        +bool? PdoMapping
+        +bool PdoMapping
+        +bool SrdoMapping
+        +string? InvertedSrad
+        +string? ParamRefd
     }
 
     class DeviceInfo {
-        +string? VendorName
-        +uint? VendorNumber
-        +string? ProductName
-        +uint? ProductNumber
-        +uint? RevisionNumber
-        +string? OrderCode
-        +BaudRates BaudRate
+        +string VendorName
+        +uint VendorNumber
+        +string ProductName
+        +uint ProductNumber
+        +uint RevisionNumber
+        +string OrderCode
+        +BaudRates SupportedBaudRates
         +bool SimpleBootUpMaster
         +bool SimpleBootUpSlave
-        +byte? Granularity
-        +bool? DynamicChannelsSupported
-        +ushort? NrOfRxPdo
-        +ushort? NrOfTxPdo
-        +bool? LssSupported
+        +byte Granularity
+        +byte DynamicChannelsSupported
+        +bool GroupMessaging
+        +ushort NrOfRxPdo
+        +ushort NrOfTxPdo
+        +bool LssSupported
+        +byte CompactPdo
+        +bool CANopenSafetySupported
     }
 
     class DeviceCommissioning {
         +byte NodeId
-        +string? NodeName
+        +string NodeName
         +ushort Baudrate
-        +uint? NetNumber
-        +string? NetworkName
-        +bool? CANopenManager
-        +string? LssSerialNumber
+        +uint NetNumber
+        +string NetworkName
+        +bool CANopenManager
+        +uint? LssSerialNumber
+        +string? NodeRefd
+        +string? NetRefd
     }
 
     class EdsFileInfo {
-        +string? FileName
-        +string? FileVersion
-        +string? FileRevision
-        +string? EdsVersion
-        +string? Description
-        +string? CreationTime
-        +string? CreationDate
-        +string? CreatedBy
-        +string? ModificationTime
-        +string? ModificationDate
-        +string? ModifiedBy
+        +string FileName
+        +byte FileVersion
+        +byte FileRevision
+        +string EdsVersion
+        +string Description
+        +string CreationTime
+        +string CreationDate
+        +string CreatedBy
+        +string ModificationTime
+        +string ModificationDate
+        +string ModifiedBy
         +string? LastEds
     }
 
@@ -249,15 +268,14 @@ classDiagram
 ```mermaid
 classDiagram
     class ValueConverter {
-        +ParseInteger(string? value) int?$
-        +ParseBoolean(string? value) bool$
-        +ParseByte(string? value) byte?$
-        +ParseUInt16(string? value) ushort?$
-        +ParseAccessType(string? value) AccessType?$
-        +AccessTypeToString(AccessType type) string$
-        +FormatInteger(int value) string$
+        +ParseInteger(string value, byte? nodeId) uint$
+        +ParseBoolean(string value) bool$
+        +ParseByte(string value) byte$
+        +ParseUInt16(string value) ushort$
+        +ParseAccessType(string value) AccessType$
+        +AccessTypeToString(AccessType accessType) string$
+        +FormatInteger(uint value, bool useHex) string$
         +FormatBoolean(bool value) string$
-        +EvaluateNodeIdFormula(string formula, byte nodeId) int$
     }
 ```
 
