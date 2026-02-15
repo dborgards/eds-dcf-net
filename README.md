@@ -23,7 +23,7 @@ A comprehensive, easy-to-use C# .NET library for CiA DS 306 - Electronic Data Sh
 
 📦 **Modular** - Support for modular devices (bus couplers + modules)
 
-✅ **CiA DS 306 v1.3 Compliant** - Implemented according to official specification
+✅ **CiA DS 306 v1.4 Compliant** - Implemented according to official specification
 
 ## Quick Start
 
@@ -118,6 +118,7 @@ DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
 - ✅ Modular device concept
 - ✅ Hexadecimal, decimal, and octal numbers
 - ✅ $NODEID formula evaluation (e.g., $NODEID+0x200)
+- ✅ CANopen Safety (EN 50325-5) - SRDOMapping, InvertedSRAD
 - ✅ Comments and additional sections
 
 ## Examples
@@ -153,7 +154,7 @@ MIT License - see [LICENSE](LICENSE) file
 
 ## Specification
 
-Based on **CiA DS 306 Version 1.3** (January 1, 2005)
+Based on **CiA DS 306 Version 1.4.0** (December 15, 2021)
 "Electronic data sheet specification for CANopen"
 
 ## Support
