@@ -404,9 +404,6 @@ public class EdsReader
 
     internal DynamicChannels? ParseDynamicChannels(Dictionary<string, Dictionary<string, string>> sections)
     {
-        if (!IniParser.HasSection(sections, "DynamicChannels"))
-            return null;
-
         var nrOfSeg = ValueConverter.ParseByte(IniParser.GetValue(sections, "DynamicChannels", "NrOfSeg", "0"));
         if (nrOfSeg == 0)
             return null;
@@ -432,9 +429,6 @@ public class EdsReader
     internal List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
     {
         var tools = new List<ToolInfo>();
-
-        if (!IniParser.HasSection(sections, "Tools"))
-            return tools;
 
         var items = ValueConverter.ParseByte(IniParser.GetValue(sections, "Tools", "Items", "0"));
 
