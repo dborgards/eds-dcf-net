@@ -755,4 +755,371 @@ Line3=Third comment line
     }
 
     #endregion
+
+    #region DynamicChannels Tests
+
+    [Fact]
+    public void ReadString_DynamicChannels_ParsesSegments()
+    {
+        // Arrange
+        var content = @"
+[FileInfo]
+FileName=test.eds
+[DeviceInfo]
+VendorName=Test
+VendorNumber=1
+ProductName=Test
+ProductNumber=1
+RevisionNumber=1
+OrderCode=Test
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=2
+GroupMessaging=0
+NrOfRXPDO=0
+NrOfTXPDO=0
+LSS_Supported=0
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+[DynamicChannels]
+NrOfSeg=2
+Type1=0x0007
+Dir1=ro
+Range1=0xA080-0xA0BF
+PPOffset1=0
+Type2=0x0005
+Dir2=rww
+Range2=0xA0C0-0xA0FF
+PPOffset2=64
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.DynamicChannels.Should().NotBeNull();
+        result.DynamicChannels!.Segments.Should().HaveCount(2);
+
+        result.DynamicChannels.Segments[0].Type.Should().Be(0x0007);
+        result.DynamicChannels.Segments[0].Dir.Should().Be(AccessType.ReadOnly);
+        result.DynamicChannels.Segments[0].Range.Should().Be("0xA080-0xA0BF");
+        result.DynamicChannels.Segments[0].PPOffset.Should().Be(0);
+
+        result.DynamicChannels.Segments[1].Type.Should().Be(0x0005);
+        result.DynamicChannels.Segments[1].Dir.Should().Be(AccessType.ReadWriteOutput);
+        result.DynamicChannels.Segments[1].Range.Should().Be("0xA0C0-0xA0FF");
+        result.DynamicChannels.Segments[1].PPOffset.Should().Be(64);
+    }
+
+    [Fact]
+    public void ReadString_NoDynamicChannels_ReturnsNull()
+    {
+        // Arrange
+        var content = @"
+[FileInfo]
+FileName=test.eds
+[DeviceInfo]
+VendorName=Test
+VendorNumber=1
+ProductName=Test
+ProductNumber=1
+RevisionNumber=1
+OrderCode=Test
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=0
+NrOfTXPDO=0
+LSS_Supported=0
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.DynamicChannels.Should().BeNull();
+    }
+
+    [Fact]
+    public void ReadString_DynamicChannelsZeroSegments_ReturnsNull()
+    {
+        // Arrange
+        var content = @"
+[FileInfo]
+FileName=test.eds
+[DeviceInfo]
+VendorName=Test
+VendorNumber=1
+ProductName=Test
+ProductNumber=1
+RevisionNumber=1
+OrderCode=Test
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=0
+NrOfTXPDO=0
+LSS_Supported=0
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+[DynamicChannels]
+NrOfSeg=0
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.DynamicChannels.Should().BeNull();
+    }
+
+    #endregion
+
+    #region Tools Tests
+
+    [Fact]
+    public void ReadString_ToolsSections_ParsesTools()
+    {
+        // Arrange
+        var content = @"
+[FileInfo]
+FileName=test.eds
+[DeviceInfo]
+VendorName=Test
+VendorNumber=1
+ProductName=Test
+ProductNumber=1
+RevisionNumber=1
+OrderCode=Test
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=0
+NrOfTXPDO=0
+LSS_Supported=0
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+[Tools]
+Items=2
+[Tool1]
+Name=EDS Checker
+Command=checker.exe $EDS
+[Tool2]
+Name=Configurator
+Command=config.exe $DCF $NODEID
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.Tools.Should().HaveCount(2);
+        result.Tools[0].Name.Should().Be("EDS Checker");
+        result.Tools[0].Command.Should().Be("checker.exe $EDS");
+        result.Tools[1].Name.Should().Be("Configurator");
+        result.Tools[1].Command.Should().Be("config.exe $DCF $NODEID");
+    }
+
+    [Fact]
+    public void ReadString_NoToolsSection_ReturnsEmptyList()
+    {
+        // Arrange
+        var content = @"
+[FileInfo]
+FileName=test.eds
+[DeviceInfo]
+VendorName=Test
+VendorNumber=1
+ProductName=Test
+ProductNumber=1
+RevisionNumber=1
+OrderCode=Test
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=0
+NrOfTXPDO=0
+LSS_Supported=0
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.Tools.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ReadString_ToolsSections_NotInAdditionalSections()
+    {
+        // Arrange
+        var content = @"
+[FileInfo]
+FileName=test.eds
+[DeviceInfo]
+VendorName=Test
+VendorNumber=1
+ProductName=Test
+ProductNumber=1
+RevisionNumber=1
+OrderCode=Test
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=0
+NrOfTXPDO=0
+LSS_Supported=0
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+[Tools]
+Items=1
+[Tool1]
+Name=Checker
+Command=check.exe
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().NotContainKey("Tools");
+        result.AdditionalSections.Should().NotContainKey("Tool1");
+    }
+
+    #endregion
 }

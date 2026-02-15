@@ -1892,5 +1892,138 @@ PDOMapping=0
     }
 
     #endregion
+
+    #region DynamicChannels Tests
+
+    [Fact]
+    public void ReadString_DynamicChannels_ParsesSegments()
+    {
+        // Arrange
+        var content = BuildMinimalDcf(extraSections: @"
+[DynamicChannels]
+NrOfSeg=2
+Type1=0x0007
+Dir1=ro
+Range1=0xA080-0xA0BF
+PPOffset1=0
+Type2=0x0005
+Dir2=rww
+Range2=0xA0C0-0xA0FF
+PPOffset2=64
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.DynamicChannels.Should().NotBeNull();
+        result.DynamicChannels!.Segments.Should().HaveCount(2);
+        result.DynamicChannels.Segments[0].Type.Should().Be(0x0007);
+        result.DynamicChannels.Segments[0].Dir.Should().Be(AccessType.ReadOnly);
+        result.DynamicChannels.Segments[0].Range.Should().Be("0xA080-0xA0BF");
+        result.DynamicChannels.Segments[0].PPOffset.Should().Be(0);
+        result.DynamicChannels.Segments[1].Type.Should().Be(0x0005);
+        result.DynamicChannels.Segments[1].Dir.Should().Be(AccessType.ReadWriteOutput);
+        result.DynamicChannels.Segments[1].Range.Should().Be("0xA0C0-0xA0FF");
+        result.DynamicChannels.Segments[1].PPOffset.Should().Be(64);
+    }
+
+    [Fact]
+    public void ReadString_NoDynamicChannels_ReturnsNull()
+    {
+        // Arrange
+        var content = BuildMinimalDcf();
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.DynamicChannels.Should().BeNull();
+    }
+
+    [Fact]
+    public void ReadString_DynamicChannelsNotInAdditionalSections()
+    {
+        // Arrange
+        var content = BuildMinimalDcf(extraSections: @"
+[DynamicChannels]
+NrOfSeg=1
+Type1=0x0007
+Dir1=ro
+Range1=0xA080-0xA0BF
+PPOffset1=0
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().NotContainKey("DynamicChannels");
+    }
+
+    #endregion
+
+    #region Tools Tests
+
+    [Fact]
+    public void ReadString_ToolsSections_ParsesTools()
+    {
+        // Arrange
+        var content = BuildMinimalDcf(extraSections: @"
+[Tools]
+Items=2
+[Tool1]
+Name=EDS Checker
+Command=checker.exe $EDS
+[Tool2]
+Name=Configurator
+Command=config.exe $DCF $NODEID
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.Tools.Should().HaveCount(2);
+        result.Tools[0].Name.Should().Be("EDS Checker");
+        result.Tools[0].Command.Should().Be("checker.exe $EDS");
+        result.Tools[1].Name.Should().Be("Configurator");
+        result.Tools[1].Command.Should().Be("config.exe $DCF $NODEID");
+    }
+
+    [Fact]
+    public void ReadString_NoToolsSection_ReturnsEmptyList()
+    {
+        // Arrange
+        var content = BuildMinimalDcf();
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.Tools.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ReadString_ToolsSectionsNotInAdditionalSections()
+    {
+        // Arrange
+        var content = BuildMinimalDcf(extraSections: @"
+[Tools]
+Items=1
+[Tool1]
+Name=Checker
+Command=check.exe
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().NotContainKey("Tools");
+        result.AdditionalSections.Should().NotContainKey("Tool1");
+    }
+
+    #endregion
 }
 

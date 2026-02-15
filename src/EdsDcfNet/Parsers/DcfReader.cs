@@ -58,6 +58,18 @@ public class DcfReader
             dcf.SupportedModules = ParseSupportedModules(sections);
         }
 
+        // Parse dynamic channels if present
+        if (IniParser.HasSection(sections, "DynamicChannels"))
+        {
+            dcf.DynamicChannels = _edsReader.ParseDynamicChannels(sections);
+        }
+
+        // Parse tools if present
+        if (IniParser.HasSection(sections, "Tools"))
+        {
+            dcf.Tools = _edsReader.ParseTools(sections);
+        }
+
         // Parse any additional unknown sections
         foreach (var sectionName in sections.Keys)
         {
@@ -479,6 +491,13 @@ public class DcfReader
 
         if (knownSections.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
             return true;
+
+        // Check for Tool sections (Tool1, Tool2, etc.)
+        if (sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) && sectionName.Length > 4)
+        {
+            if (byte.TryParse(sectionName.Substring(4), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+                return true;
+        }
 
         // Check for object sections (hex index)
         if (ushort.TryParse(sectionName, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _))

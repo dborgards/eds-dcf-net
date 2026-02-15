@@ -49,6 +49,18 @@ public class EdsReader
             eds.SupportedModules = ParseSupportedModules(sections);
         }
 
+        // Parse dynamic channels if present
+        if (IniParser.HasSection(sections, "DynamicChannels"))
+        {
+            eds.DynamicChannels = ParseDynamicChannels(sections);
+        }
+
+        // Parse tools if present
+        if (IniParser.HasSection(sections, "Tools"))
+        {
+            eds.Tools = ParseTools(sections);
+        }
+
         // Parse any additional unknown sections
         foreach (var sectionName in sections.Keys)
         {
@@ -390,6 +402,59 @@ public class EdsReader
         return moduleInfo;
     }
 
+    internal DynamicChannels? ParseDynamicChannels(Dictionary<string, Dictionary<string, string>> sections)
+    {
+        if (!IniParser.HasSection(sections, "DynamicChannels"))
+            return null;
+
+        var nrOfSeg = ValueConverter.ParseByte(IniParser.GetValue(sections, "DynamicChannels", "NrOfSeg", "0"));
+        if (nrOfSeg == 0)
+            return null;
+
+        var dynamicChannels = new DynamicChannels();
+
+        for (int i = 1; i <= nrOfSeg; i++)
+        {
+            var idx = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var segment = new DynamicChannelSegment
+            {
+                Type = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DynamicChannels", $"Type{idx}", "0")),
+                Dir = ValueConverter.ParseAccessType(IniParser.GetValue(sections, "DynamicChannels", $"Dir{idx}")),
+                Range = IniParser.GetValue(sections, "DynamicChannels", $"Range{idx}"),
+                PPOffset = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DynamicChannels", $"PPOffset{idx}", "0"))
+            };
+            dynamicChannels.Segments.Add(segment);
+        }
+
+        return dynamicChannels;
+    }
+
+    internal List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
+    {
+        var tools = new List<ToolInfo>();
+
+        if (!IniParser.HasSection(sections, "Tools"))
+            return tools;
+
+        var items = ValueConverter.ParseByte(IniParser.GetValue(sections, "Tools", "Items", "0"));
+
+        for (int i = 1; i <= items; i++)
+        {
+            var toolSection = $"Tool{i}";
+            if (!IniParser.HasSection(sections, toolSection))
+                continue;
+
+            var tool = new ToolInfo
+            {
+                Name = IniParser.GetValue(sections, toolSection, "Name"),
+                Command = IniParser.GetValue(sections, toolSection, "Command")
+            };
+            tools.Add(tool);
+        }
+
+        return tools;
+    }
+
     private bool IsKnownSection(string sectionName)
     {
         var knownSections = new[]
@@ -401,6 +466,13 @@ public class EdsReader
 
         if (knownSections.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
             return true;
+
+        // Check for Tool sections (Tool1, Tool2, etc.)
+        if (sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) && sectionName.Length > 4)
+        {
+            if (byte.TryParse(sectionName.Substring(4), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+                return true;
+        }
 
         // Check for object sections (hex index)
         if (ushort.TryParse(sectionName, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _))
