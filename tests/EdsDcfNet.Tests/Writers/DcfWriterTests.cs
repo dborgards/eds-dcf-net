@@ -539,6 +539,62 @@ public class DcfWriterTests
         obj.SubObjects[1].InvertedSrad.Should().Be("0x610101");
     }
 
+    [Fact]
+    public void GenerateString_ObjectLinksInAdditionalSections_FilteredForExistingObjects()
+    {
+        // Arrange — simulate an AdditionalSections entry for ObjectLinks of an existing object
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.Objects[0x1000].ObjectLinks.Add(0x2000);
+        dcf.AdditionalSections["1000ObjectLinks"] = new Dictionary<string, string>
+        {
+            { "ObjectLinks", "1" },
+            { "1", "0x2000" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert — ObjectLinks written via the object, not duplicated from AdditionalSections
+        var matches = result.Split(new[] { "[1000ObjectLinks]" }, StringSplitOptions.None);
+        matches.Should().HaveCount(2, "ObjectLinks section should appear exactly once");
+    }
+
+    [Fact]
+    public void GenerateString_ObjectLinksInAdditionalSections_KeptForOrphanObjects()
+    {
+        // Arrange — ObjectLinks for a non-existing object should pass through
+        var dcf = CreateMinimalDcf();
+        dcf.AdditionalSections["9999ObjectLinks"] = new Dictionary<string, string>
+        {
+            { "ObjectLinks", "1" },
+            { "1", "0x1000" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[9999ObjectLinks]");
+    }
+
+    [Fact]
+    public void GenerateString_NonObjectLinksAdditionalSection_NotFiltered()
+    {
+        // Arrange — a section that ends with "ObjectLinks" but has no valid hex prefix
+        var dcf = CreateMinimalDcf();
+        dcf.AdditionalSections["VendorSpecific"] = new Dictionary<string, string>
+        {
+            { "Key", "Value" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[VendorSpecific]");
+        result.Should().Contain("Key=Value");
+    }
+
     #endregion
 
     #region WriteFile Tests

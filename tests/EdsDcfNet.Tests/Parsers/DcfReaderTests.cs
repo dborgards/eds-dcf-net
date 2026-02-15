@@ -1618,6 +1618,40 @@ ObjectLinks=1
     }
 
     [Fact]
+    public void ReadString_NonHexObjectLinksPrefix_PreservedInAdditionalSections()
+    {
+        // Arrange — section name ending in "ObjectLinks" but with non-hex prefix
+        var content = BuildMinimalDcf(extraSections: @"
+[ZZZZObjectLinks]
+ObjectLinks=1
+1=0x1000
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert — not a valid hex index, so it should be in AdditionalSections
+        result.AdditionalSections.Should().ContainKey("ZZZZObjectLinks");
+    }
+
+    [Fact]
+    public void ReadString_EmptyPrefixObjectLinks_PreservedInAdditionalSections()
+    {
+        // Arrange — section named just "ObjectLinks" with no prefix
+        var content = BuildMinimalDcf(extraSections: @"
+[ObjectLinks]
+ObjectLinks=1
+1=0x1000
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert — empty prefix, preserved in AdditionalSections
+        result.AdditionalSections.Should().ContainKey("ObjectLinks");
+    }
+
+    [Fact]
     public void ReadString_InvalidSubNumberCount_StillParsesAvailableSubObjects()
     {
         // Arrange – SubNumber says 3 but only 2 sub-sections exist
