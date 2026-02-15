@@ -276,8 +276,8 @@ public class DcfReader
         obj.UploadFile = IniParser.GetValue(sections, sectionName, "UploadFile");
         obj.DownloadFile = IniParser.GetValue(sections, sectionName, "DownloadFile");
 
-        // Parse sub-objects
-        if (obj.SubNumber > 0 || obj.ObjectType == 0x8 || obj.ObjectType == 0x9)
+        // Parse sub-objects for composite types (DEFSTRUCT, ARRAY, RECORD)
+        if (obj.SubNumber > 0 || obj.ObjectType == 0x6 || obj.ObjectType == 0x8 || obj.ObjectType == 0x9)
         {
             ParseSubObjects(sections, index, obj);
         }

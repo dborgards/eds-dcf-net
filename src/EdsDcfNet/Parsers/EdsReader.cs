@@ -259,8 +259,8 @@ public class EdsReader
             obj.CompactSubObj = ValueConverter.ParseByte(compactSubObjStr);
         }
 
-        // Parse sub-objects
-        if (obj.SubNumber > 0 || obj.ObjectType == 0x8 || obj.ObjectType == 0x9)
+        // Parse sub-objects for composite types (DEFSTRUCT, ARRAY, RECORD)
+        if (obj.SubNumber > 0 || obj.ObjectType == 0x6 || obj.ObjectType == 0x8 || obj.ObjectType == 0x9)
         {
             ParseSubObjects(sections, index, obj);
         }

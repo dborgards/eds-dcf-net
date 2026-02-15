@@ -111,7 +111,7 @@ DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
 
 - ✅ Complete EDS parsing
 - ✅ Complete DCF parsing and writing
-- ✅ All Object Types (VAR, ARRAY, RECORD)
+- ✅ All Object Types (NULL, DOMAIN, DEFTYPE, DEFSTRUCT, VAR, ARRAY, RECORD)
 - ✅ Sub-objects and sub-indexes
 - ✅ Compact Storage (CompactSubObj, CompactPDO)
 - ✅ Object Links
