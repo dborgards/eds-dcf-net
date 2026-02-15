@@ -85,6 +85,11 @@ public class DcfWriter
         // Write additional sections
         foreach (var section in dcf.AdditionalSections)
         {
+            if (IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary))
+            {
+                continue;
+            }
+
             WriteAdditionalSection(sb, section.Key, section.Value);
         }
 
@@ -461,5 +466,28 @@ public class DcfWriter
     private void WriteKeyValue(StringBuilder sb, string key, string value)
     {
         sb.AppendLine($"{key}={value}");
+    }
+
+    private static bool IsObjectLinksSectionForExistingObject(string sectionName, ObjectDictionary objDict)
+    {
+        const string suffix = "ObjectLinks";
+
+        if (!sectionName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var indexPart = sectionName.Substring(0, sectionName.Length - suffix.Length);
+        if (string.IsNullOrWhiteSpace(indexPart))
+        {
+            return false;
+        }
+
+        if (!ushort.TryParse(indexPart, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
+        {
+            return false;
+        }
+
+        return objDict.Objects.ContainsKey(index);
     }
 }

@@ -1248,9 +1248,10 @@ PDOMapping=0
         obj2000.ObjectLinks.Should().HaveCount(2);
         obj2000.ObjectLinks.Should().Contain((ushort)0x2100);
         obj2000.ObjectLinks.Should().Contain((ushort)0x1000);
-        
-        // ObjectLinks section is now in AdditionalSections since IsKnownSection no longer marks it as known
-        result.AdditionalSections.Should().ContainKey("2000ObjectLinks");
+
+        // ObjectLinks sections for existing objects are handled on the object itself
+        // and filtered from AdditionalSections.
+        result.AdditionalSections.Should().NotContainKey("2000ObjectLinks");
     }
 
     [Fact]
@@ -1585,8 +1586,7 @@ ObjectLinks=2
     public void ReadString_ObjectLinksForExistingObject_InAdditionalSections()
     {
         // Arrange – ObjectLinks section for an object that DOES exist
-        // Since ObjectLinks are no longer marked as "known" in IsKnownSection,
-        // they go to AdditionalSections regardless
+        // ObjectLinks for existing objects should be filtered from AdditionalSections.
         var content = BuildMinimalDcf(extraSections: @"
 [ManufacturerObjects]
 SupportedObjects=1
@@ -1612,9 +1612,9 @@ ObjectLinks=1
         // ObjectLinks for existing object are parsed and attached to object
         var obj = result.ObjectDictionary.Objects[0x2000];
         obj.ObjectLinks.Should().Contain(0x1000);
-        
-        // ObjectLinks section is also in AdditionalSections since it's not marked as known
-        result.AdditionalSections.Should().ContainKey("2000ObjectLinks");
+
+        // ObjectLinks section should not be duplicated in AdditionalSections
+        result.AdditionalSections.Should().NotContainKey("2000ObjectLinks");
     }
 
     [Fact]

@@ -61,7 +61,7 @@ public class DcfReader
         // Parse any additional unknown sections
         foreach (var sectionName in sections.Keys)
         {
-            if (!IsKnownSection(sectionName))
+            if (!IsKnownSection(sectionName) && !IsObjectLinksSectionForExistingObject(sectionName, dcf.ObjectDictionary))
             {
                 dcf.AdditionalSections[sectionName] = new Dictionary<string, string>(sections[sectionName]);
             }
@@ -489,5 +489,28 @@ public class DcfReader
             return true;
 
         return false;
+    }
+
+    private bool IsObjectLinksSectionForExistingObject(string sectionName, ObjectDictionary objectDictionary)
+    {
+        const string suffix = "ObjectLinks";
+
+        if (!sectionName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var indexPart = sectionName.Substring(0, sectionName.Length - suffix.Length);
+        if (string.IsNullOrWhiteSpace(indexPart))
+        {
+            return false;
+        }
+
+        if (!ushort.TryParse(indexPart, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var index))
+        {
+            return false;
+        }
+
+        return objectDictionary.Objects.ContainsKey(index);
     }
 }
