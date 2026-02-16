@@ -6,8 +6,8 @@
 graph LR
     subgraph EdsDcfNet ["EdsDcfNet (NuGet Package)"]
         API["CanOpenFile<br/><i>Static Facade</i>"]
-        Parsers["Parsers<br/><i>IniParser, EdsReader, DcfReader</i>"]
-        Writers["Writers<br/><i>DcfWriter</i>"]
+        Parsers["Parsers<br/><i>IniParser, EdsReader, DcfReader, CpjReader</i>"]
+        Writers["Writers<br/><i>DcfWriter, CpjWriter</i>"]
         Models["Models<br/><i>Domain Models</i>"]
         Utilities["Utilities<br/><i>ValueConverter</i>"]
         Extensions["Extensions<br/><i>ObjectDictionaryExtensions</i>"]
@@ -16,7 +16,9 @@ graph LR
 
     EDS["EDS File"] --> API
     DCF_In["DCF File"] --> API
+    CPJ_In["CPJ File"] --> API
     API --> DCF_Out["DCF File"]
+    API --> CPJ_Out["CPJ File"]
     API --> Parsers
     API --> Writers
     Parsers --> Models
@@ -39,9 +41,9 @@ graph LR
 | Building Block        | Responsibility                                                            |
 |-----------------------|---------------------------------------------------------------------------|
 | `CanOpenFile`         | Public API facade; coordinates parsers and writers                        |
-| `Parsers/`            | Reading and interpreting EDS/DCF files                                    |
-| `Writers/`            | Serializing models back to DCF file format                                |
-| `Models/`             | Domain models representing the structure of EDS/DCF files                 |
+| `Parsers/`            | Reading and interpreting EDS/DCF/CPJ files                                |
+| `Writers/`            | Serializing models back to DCF and CPJ file formats                       |
+| `Models/`             | Domain models representing the structure of EDS/DCF/CPJ files             |
 | `Utilities/`          | Helper functions for type conversion (numbers, booleans, formulas)        |
 | `Extensions/`         | Extension methods for convenient ObjectDictionary access                  |
 | `Exceptions/`         | Specific exception types for parse and write errors                       |
@@ -85,8 +87,17 @@ classDiagram
         -ParseConnectedModules(sections) List~int~
     }
 
+    class CpjReader {
+        -IniParser _iniParser
+        +ReadFile(string filePath) NodelistProject
+        +ReadString(string content) NodelistProject
+        -ParseCpj(sections) NodelistProject
+        -ParseTopology(sections, sectionName) NetworkTopology
+    }
+
     IniParser <-- EdsReader : uses
     IniParser <-- DcfReader : uses
+    IniParser <-- CpjReader : uses
     EdsReader <-- DcfReader : delegates shared parsing
 ```
 
@@ -95,6 +106,8 @@ classDiagram
 **EdsReader** holds an internal `IniParser` instance. Its public methods (`ReadFile`, `ReadString`) parse the input into a sections dictionary and then build a complete `ElectronicDataSheet` model from it. Unknown sections are preserved in `AdditionalSections`.
 
 **DcfReader** holds its own `IniParser` and an `EdsReader` instance (for delegating shared parsing like `ParseDeviceInfo` and `ParseDynamicChannels`). It adds DCF-specific sections (`DeviceCommissioning`, `ConnectedModules`) and fields (`ParameterValue`, `Denotation`).
+
+**CpjReader** holds an internal `IniParser` instance. It parses CiA 306-3 nodelist project files by iterating over all sections and identifying `[Topology]` sections (including numbered variants like `[Topology2]`). Each topology section is parsed into a `NetworkTopology` with its associated `NetworkNode` entries. Unknown sections are preserved in `AdditionalSections`.
 
 ### 5.2.2 Writers
 
@@ -121,6 +134,18 @@ classDiagram
 ```
 
 **DcfWriter** is a stateless class that serializes a `DeviceConfigurationFile` model back into the INI-based DCF format. The `DeviceConfigurationFile` is passed as a parameter to each public method rather than stored in the writer. Output can be written either to a file (ASCII encoding) or returned as a string.
+
+```mermaid
+classDiagram
+    class CpjWriter {
+        +WriteFile(NodelistProject cpj, string filePath) void
+        +GenerateString(NodelistProject cpj) string
+        -GenerateCpjContent(NodelistProject cpj) string
+        -WriteTopology(StringBuilder sb, NetworkTopology topology, string sectionName) void$
+    }
+```
+
+**CpjWriter** is a stateless class that serializes a `NodelistProject` model into the INI-based CPJ format. It writes topology sections with nodes ordered by node ID and the `Nodes` count formatted as hexadecimal. Multiple networks are written as `[Topology]`, `[Topology2]`, etc.
 
 ### 5.2.3 Models
 
@@ -246,6 +271,26 @@ classDiagram
         +string? LastEds
     }
 
+    class NodelistProject {
+        +List~NetworkTopology~ Networks
+        +Dictionary~string, Dictionary~string, string~~ AdditionalSections
+    }
+
+    class NetworkTopology {
+        +string? NetName
+        +string? NetRefd
+        +string? EdsBaseName
+        +Dictionary~byte, NetworkNode~ Nodes
+    }
+
+    class NetworkNode {
+        +byte NodeId
+        +bool Present
+        +string? Name
+        +string? Refd
+        +string? DcfFileName
+    }
+
     ElectronicDataSheet *-- EdsFileInfo
     ElectronicDataSheet *-- DeviceInfo
     ElectronicDataSheet *-- ObjectDictionary
@@ -258,6 +303,9 @@ classDiagram
     DeviceConfigurationFile *-- DeviceInfo
     DeviceConfigurationFile *-- ObjectDictionary
     DeviceConfigurationFile *-- DeviceCommissioning
+
+    NodelistProject *-- NetworkTopology
+    NetworkTopology *-- NetworkNode
 
     ObjectDictionary *-- CanOpenObject
     CanOpenObject *-- CanOpenSubObject

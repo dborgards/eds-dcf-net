@@ -106,7 +106,68 @@ sequenceDiagram
     Note over App: Unknown sections are preserved<br/>(round-trip fidelity)
 ```
 
-## 6.5 Error Handling During Parsing
+## 6.5 Reading a CPJ File
+
+The following sequence diagram shows the flow when reading a CiA 306-3 nodelist project file:
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant CF as CanOpenFile
+    participant CR as CpjReader
+    participant IP as IniParser
+
+    App->>CF: ReadCpj(filePath)
+    CF->>CR: new CpjReader()
+    CF->>CR: ReadFile(filePath)
+    CR->>IP: _iniParser.ParseFile(filePath)
+    IP-->>CR: sections dictionary
+    CR->>CR: ParseCpj(sections)
+
+    loop For each Topology section
+        CR->>CR: ParseTopology(sections, sectionName)
+        Note over CR: Read NetName, NetRefd, EDSBaseName
+        loop For Node IDs 1-127
+            CR->>CR: Check NodeXPresent, parse NodeXName, NodeXDCFName, NodeXRefd
+        end
+    end
+
+    CR->>CR: Unknown sections → AdditionalSections
+    CR-->>CF: NodelistProject
+    CF-->>App: NodelistProject
+```
+
+## 6.6 Writing a CPJ File
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant CF as CanOpenFile
+    participant CW as CpjWriter
+
+    App->>CF: WriteCpj(cpj, filePath)
+    CF->>CW: new CpjWriter()
+    CF->>CW: WriteFile(cpj, filePath)
+    CW->>CW: GenerateCpjContent(cpj)
+
+    loop For each NetworkTopology
+        CW->>CW: WriteTopology(sb, topology, sectionName)
+        Note over CW: Write [Topology] / [Topology2] / ...
+        CW->>CW: Write NetName, NetRefd, Nodes (hex count)
+        loop For each node ordered by ID
+            CW->>CW: Write NodeXPresent, NodeXName, NodeXDCFName, NodeXRefd
+        end
+        CW->>CW: Write EDSBaseName
+    end
+
+    CW->>CW: Write AdditionalSections
+    CW->>CW: File.WriteAllText(filePath, content, ASCII)
+
+    CW-->>CF: void
+    CF-->>App: void
+```
+
+## 6.7 Error Handling During Parsing
 
 ```mermaid
 sequenceDiagram

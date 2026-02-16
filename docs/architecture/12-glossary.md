@@ -35,3 +35,5 @@
 | **LSS (Layer Setting Services)** | CANopen service for configuring node ID and baud rate over the CAN bus.                        |
 | **Bus coupler**               | Modular CANopen device serving as a carrier for pluggable I/O modules.                            |
 | **Dynamic Channels**          | Mechanism per CiA 302-4 for programmable devices that can dynamically extend their Object Dictionary. |
+| **CPJ (Nodelist Project)**    | CiA 306-3 file format describing the network topology of a CANopen system. Lists all nodes with their node IDs and associated DCF files. Uses the same INI-based syntax as EDS/DCF. |
+| **Network Topology**          | Description of a CANopen network within a CPJ file, including network name, referenced nodes (1-127), and optional base path for EDS/DCF files. |

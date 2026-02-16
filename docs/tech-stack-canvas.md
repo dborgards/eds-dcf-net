@@ -5,7 +5,7 @@
 | | Context | Layers | | Support |
 |---|---|---|---|---|
 | **Business Goals** | **Frontend Technologies** | **API & Integrations** | **Security & Compliance** | |
-| Provide a zero-dependency C# library for reading/writing CiA DS 306 EDS and DCF files | _Not applicable_ (library, no UI) | CANopen Object Dictionary (0x1000–0x5FFF) | MIT License | |
+| Provide a zero-dependency C# library for reading/writing CiA DS 306 EDS, DCF and CPJ files | _Not applicable_ (library, no UI) | CANopen Object Dictionary (0x1000–0x5FFF) | MIT License | |
 | Support broad .NET ecosystem (netstandard2.0 + net10.0) | | PDO / SRDO mapping | Nullable reference types enabled | |
 | Enable round-trip fidelity for industrial automation device configuration | | `$NODEID` formula evaluation | Deterministic builds | |
 | | | Modular device support (bus couplers + modules) | SourceLink for supply-chain transparency | |
@@ -17,7 +17,7 @@
 
 ### Business Goals
 
-- Provide a comprehensive, **zero-dependency** C# library for reading and writing CiA DS 306 EDS/DCF files
+- Provide a comprehensive, **zero-dependency** C# library for reading and writing CiA DS 306 EDS/DCF/CPJ files
 - Support the broadest possible .NET ecosystem via **netstandard2.0** (.NET Framework 4.6.1+, .NET Core 2.0+, Unity, Xamarin) and **net10.0**
 - Enable **round-trip fidelity** — unknown/vendor-specific sections are preserved during read-modify-write cycles
 - Distribute as a NuGet package with automated semantic versioning and publishing
@@ -28,7 +28,7 @@
 - **External dependencies:** 0 (core library)
 - **Object Dictionary address space:** 0x1000–0x5FFF (CANopen standard)
 - **Current version:** 1.3.1
-- **File formats:** 2 (EDS read, DCF read/write)
+- **File formats:** 3 (EDS read, DCF read/write, CPJ read/write)
 
 ### Major Quality Attributes
 
@@ -65,9 +65,9 @@ An **example console application** (`examples/EdsDcfNet.Examples/`) demonstrates
 
 | Category | Technology |
 |---|---|
-| **File formats** | EDS / DCF (INI-style text files, CiA DS 306 v1.4.0) |
-| **In-memory model** | Strongly-typed C# objects (`ElectronicDataSheet`, `DeviceConfigurationFile`, `ObjectDictionary`) |
-| **Persistence** | File-based — read from and write to `.eds` / `.dcf` files |
+| **File formats** | EDS / DCF / CPJ (INI-style text files, CiA DS 306 v1.4.0) |
+| **In-memory model** | Strongly-typed C# objects (`ElectronicDataSheet`, `DeviceConfigurationFile`, `NodelistProject`, `ObjectDictionary`) |
+| **Persistence** | File-based — read from and write to `.eds` / `.dcf` / `.cpj` files |
 | **Unknown data** | Preserved in `Dictionary<string, Dictionary<string, string>> AdditionalSections` |
 
 ### API & Integrations
@@ -78,10 +78,12 @@ An **example console application** (`examples/EdsDcfNet.Examples/`) demonstrates
 ReadEds(filePath) / ReadEdsFromString(content) → ElectronicDataSheet
 ReadDcf(filePath) / ReadDcfFromString(content) → DeviceConfigurationFile
 WriteDcf(dcf, filePath) / WriteDcfToString(dcf) → DCF output
+ReadCpj(filePath) / ReadCpjFromString(content) → NodelistProject
+WriteCpj(cpj, filePath) / WriteCpjToString(cpj) → CPJ output
 EdsToDcf(eds, nodeId, baudrate, nodeName) → DeviceConfigurationFile
 ```
 
-**CANopen protocol elements:** Object Dictionary, PDO/SRDO mapping, `$NODEID` formulas, modular devices, compact storage modes.
+**CANopen protocol elements:** Object Dictionary, PDO/SRDO mapping, `$NODEID` formulas, modular devices, compact storage modes, network topologies (CiA 306-3).
 
 ### Security & Compliance
 
