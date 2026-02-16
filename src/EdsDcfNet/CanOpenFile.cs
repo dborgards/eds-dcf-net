@@ -99,6 +99,50 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) file.
+    /// </summary>
+    /// <param name="filePath">Path to the CPJ file</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static NodelistProject ReadCpj(string filePath)
+    {
+        var reader = new CpjReader();
+        return reader.ReadFile(filePath);
+    }
+
+    /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) from a string.
+    /// </summary>
+    /// <param name="content">CPJ file content as string</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static NodelistProject ReadCpjFromString(string content)
+    {
+        var reader = new CpjReader();
+        return reader.ReadString(content);
+    }
+
+    /// <summary>
+    /// Writes a CiA 306-3 nodelist project (.cpj) to disk.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write</param>
+    /// <param name="filePath">Path where the CPJ file should be written</param>
+    public static void WriteCpj(NodelistProject cpj, string filePath)
+    {
+        var writer = new CpjWriter();
+        writer.WriteFile(cpj, filePath);
+    }
+
+    /// <summary>
+    /// Generates CPJ file content as string.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to convert</param>
+    /// <returns>CPJ content as string</returns>
+    public static string WriteCpjToString(NodelistProject cpj)
+    {
+        var writer = new CpjWriter();
+        return writer.GenerateString(cpj);
+    }
+
+    /// <summary>
     /// Converts an EDS to a DCF with specified commissioning parameters.
     /// </summary>
     /// <param name="eds">The EDS to convert</param>
