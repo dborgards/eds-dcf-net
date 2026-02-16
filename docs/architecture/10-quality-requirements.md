@@ -92,5 +92,8 @@ Quality is ensured through automated tests:
 | **Unit tests**           | `ObjectDictionaryExtensionsTests`| Extension method behavior                         |
 | **Unit tests**           | `EdsParseExceptionTests`         | Exception constructors and properties             |
 | **Unit tests**           | `DcfWriteExceptionTests`         | Exception constructors and properties             |
+| **Unit tests**           | `CpjReaderTests`                 | CPJ topology parsing, multi-network, node IDs     |
+| **Unit tests**           | `CpjWriterTests`                 | CPJ output, round-trip fidelity                   |
 | **Integration tests**    | `CanOpenFileTests`               | End-to-end: read file, verify model               |
 | **Integration tests**    | `RoundTripDcfTests`              | Read -> write -> read again                       |
+| **Integration tests**    | `CpjIntegrationTests`            | CPJ end-to-end via CanOpenFile facade              |

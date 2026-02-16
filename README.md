@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![codecov](https://codecov.io/gh/dborgards/eds-dcf-net/branch/main/graph/badge.svg)](https://codecov.io/gh/dborgards/eds-dcf-net)
 
-A comprehensive, easy-to-use C# .NET library for CiA DS 306 - Electronic Data Sheet (EDS) and Device Configuration File (DCF) for CANopen devices.
+A comprehensive, easy-to-use C# .NET library for CiA DS 306 - Electronic Data Sheet (EDS), Device Configuration File (DCF) and Nodelist Project (CPJ) for CANopen devices.
 
 ## Features
 
@@ -16,6 +16,8 @@ A comprehensive, easy-to-use C# .NET library for CiA DS 306 - Electronic Data Sh
 📖 **Read EDS** - Complete parsing of Electronic Data Sheets
 
 📝 **Read & Write DCF** - Process and create Device Configuration Files
+
+🌐 **Read & Write CPJ** - Parse and create Nodelist Project files (CiA 306-3 network topologies)
 
 🔄 **EDS to DCF Conversion** - Easy conversion with configuration parameters
 
@@ -68,6 +70,38 @@ var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 2, baudrate: 500, nodeName: "MyDevic
 CanOpenFile.WriteDcf(dcf, "device_node2.dcf");
 ```
 
+### Working with Nodelist Projects (CPJ)
+
+```csharp
+using EdsDcfNet;
+using EdsDcfNet.Models;
+
+// Read a CPJ file describing the network topology
+var cpj = CanOpenFile.ReadCpj("nodelist.cpj");
+
+foreach (var network in cpj.Networks)
+{
+    Console.WriteLine($"Network: {network.NetName}");
+    foreach (var node in network.Nodes.Values)
+    {
+        Console.WriteLine($"  Node {node.NodeId}: {node.Name} ({node.DcfFileName})");
+    }
+}
+
+// Create a new CPJ
+var project = new NodelistProject();
+project.Networks.Add(new NetworkTopology
+{
+    NetName = "Production Line 1",
+    Nodes =
+    {
+        [2] = new NetworkNode { NodeId = 2, Present = true, Name = "PLC", DcfFileName = "plc.dcf" },
+        [3] = new NetworkNode { NodeId = 3, Present = true, Name = "IO Module", DcfFileName = "io.dcf" }
+    }
+});
+CanOpenFile.WriteCpj(project, "network.cpj");
+```
+
 ### Working with Object Dictionary
 
 ```csharp
@@ -102,6 +136,14 @@ DeviceConfigurationFile ReadDcfFromString(string content)
 void WriteDcf(DeviceConfigurationFile dcf, string filePath)
 string WriteDcfToString(DeviceConfigurationFile dcf)
 
+// Read CPJ (CiA 306-3 Nodelist Project)
+NodelistProject ReadCpj(string filePath)
+NodelistProject ReadCpjFromString(string content)
+
+// Write CPJ
+void WriteCpj(NodelistProject cpj, string filePath)
+string WriteCpjToString(NodelistProject cpj)
+
 // Convert EDS to DCF
 DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
                                   ushort baudrate = 250, string? nodeName = null)
@@ -111,6 +153,7 @@ DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
 
 - ✅ Complete EDS parsing
 - ✅ Complete DCF parsing and writing
+- ✅ CPJ nodelist project parsing and writing (CiA 306-3 network topologies)
 - ✅ All Object Types (NULL, DOMAIN, DEFTYPE, DEFSTRUCT, VAR, ARRAY, RECORD)
 - ✅ Sub-objects and sub-indexes
 - ✅ Compact Storage (CompactSubObj, CompactPDO)
@@ -132,8 +175,8 @@ eds-dcf-net/
 ├── src/
 │   └── EdsDcfNet/              # Main library
 │       ├── Models/             # Data models
-│       ├── Parsers/            # EDS/DCF parsers
-│       ├── Writers/            # DCF writer
+│       ├── Parsers/            # EDS/DCF/CPJ parsers
+│       ├── Writers/            # DCF/CPJ writers
 │       ├── Utilities/          # Helper classes
 │       ├── Exceptions/         # Custom exceptions
 │       └── Extensions/         # Extension methods

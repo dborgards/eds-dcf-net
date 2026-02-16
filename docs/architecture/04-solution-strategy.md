@@ -8,7 +8,7 @@
 | **netstandard2.0 + net10.0**   | Maximum compatibility (incl. .NET Framework) while gaining access to modern APIs. |
 | **No external dependencies**   | Minimizes risk of version conflicts, simplifies deployment and auditing.         |
 | **Static facade (`CanOpenFile`)** | Simple entry point that hides internal complexity.                            |
-| **INI parser as foundation**   | EDS/DCF files are based on the INI format; a custom parser avoids external dependencies. |
+| **INI parser as foundation**   | EDS/DCF/CPJ files are based on the INI format; a custom parser avoids external dependencies. |
 
 ## 4.2 Architecture Patterns and Style
 
@@ -20,12 +20,12 @@ The library follows a clean **layered architecture**:
 graph TD
     A["<b>API Layer</b><br/>CanOpenFile (static facade)"] --> B
     A --> D
-    B["<b>Parser Layer</b><br/>EdsReader / DcfReader"] --> C
+    B["<b>Parser Layer</b><br/>EdsReader / DcfReader / CpjReader"] --> C
     C["<b>INI Layer</b><br/>IniParser"]
-    D["<b>Writer Layer</b><br/>DcfWriter"]
+    D["<b>Writer Layer</b><br/>DcfWriter / CpjWriter"]
     B --> E["<b>Utilities</b><br/>ValueConverter"]
     D --> E
-    B --> F["<b>Model Layer</b><br/>ElectronicDataSheet / DeviceConfigurationFile<br/>ObjectDictionary / DeviceInfo / ..."]
+    B --> F["<b>Model Layer</b><br/>ElectronicDataSheet / DeviceConfigurationFile / NodelistProject<br/>ObjectDictionary / NetworkTopology / ..."]
     D --> F
 
     style A fill:#4A90D9,color:#fff
@@ -46,6 +46,7 @@ Processing follows a linear pipeline:
 
 ```
 EDS/DCF file --> IniParser --> EdsReader/DcfReader --> Models --> DcfWriter --> DCF file
+CPJ file -----> IniParser --> CpjReader ------------> Models --> CpjWriter --> CPJ file
 ```
 
 ## 4.3 Key Design Decisions
