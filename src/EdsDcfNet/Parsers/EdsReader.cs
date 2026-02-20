@@ -477,15 +477,53 @@ public class EdsReader
             return true;
 
         // Check for sub-object sections (hex index + "sub" + hex subindex)
-        if (sectionName.IndexOf("sub", StringComparison.OrdinalIgnoreCase) >= 0)
+        if (IsSubObjectSection(sectionName))
             return true;
 
-        // Check for module sections
-        if (sectionName.StartsWith("M", StringComparison.OrdinalIgnoreCase) &&
-            (sectionName.Contains("ModuleInfo") || sectionName.Contains("FixedObjects") ||
-             sectionName.Contains("SubExtends") || sectionName.Contains("SubExt")))
+        // Check for module sections (M + digits + known suffix)
+        if (IsModuleSection(sectionName))
             return true;
 
         return false;
+    }
+
+    /// <summary>
+    /// Checks if a section name matches the sub-object pattern: {HexIndex}sub{HexSubIndex}.
+    /// </summary>
+    private static bool IsSubObjectSection(string sectionName)
+    {
+        var subPos = sectionName.IndexOf("sub", StringComparison.OrdinalIgnoreCase);
+        if (subPos < 1)
+            return false;
+
+        var prefix = sectionName.Substring(0, subPos);
+        return ushort.TryParse(prefix, System.Globalization.NumberStyles.HexNumber,
+            System.Globalization.CultureInfo.InvariantCulture, out _);
+    }
+
+    /// <summary>
+    /// Checks if a section name matches a module section pattern: M{Digits}{KnownSuffix}.
+    /// </summary>
+    private static bool IsModuleSection(string sectionName)
+    {
+        if (sectionName.Length < 2 ||
+            !sectionName.StartsWith("M", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // Must have at least one digit after "M"
+        var i = 1;
+        while (i < sectionName.Length && char.IsDigit(sectionName[i]))
+            i++;
+
+        if (i == 1)
+            return false;
+
+        // The suffix after "M{digits}" must be a known module suffix
+        var suffix = sectionName.Substring(i);
+        return suffix.Equals("ModuleInfo", StringComparison.OrdinalIgnoreCase) ||
+               suffix.Equals("FixedObjects", StringComparison.OrdinalIgnoreCase) ||
+               suffix.StartsWith("SubExtend", StringComparison.OrdinalIgnoreCase) ||
+               suffix.StartsWith("SubExt", StringComparison.OrdinalIgnoreCase) ||
+               suffix.Equals("Comments", StringComparison.OrdinalIgnoreCase);
     }
 }

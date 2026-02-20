@@ -1481,6 +1481,116 @@ Command=extra.exe
 
     #endregion
 
+    #region Vendor Section Preservation Tests
+
+    [Fact]
+    public void ReadString_SectionContainingSub_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "SubSystem" contains "sub" but is NOT a sub-object section (no hex prefix)
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x191
+PDOMapping=0
+
+[SubSystem]
+VendorKey=VendorData
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - SubSystem should NOT be swallowed as a known section
+        result.AdditionalSections.Should().ContainKey("SubSystem");
+        result.AdditionalSections["SubSystem"]["VendorKey"].Should().Be("VendorData");
+    }
+
+    [Fact]
+    public void ReadString_SectionStartingWithM_NotModule_PreservedInAdditionalSections()
+    {
+        // Arrange - "Manufacturing" starts with "M" but is NOT a module section
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x191
+PDOMapping=0
+
+[Manufacturing]
+SerialFormat=12345
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - Manufacturing should NOT be swallowed as a known section
+        result.AdditionalSections.Should().ContainKey("Manufacturing");
+        result.AdditionalSections["Manufacturing"]["SerialFormat"].Should().Be("12345");
+    }
+
+    [Fact]
+    public void ReadString_ValidSubObjectSection_StillRecognized()
+    {
+        // Arrange - "1018sub1" is a valid sub-object section (hex prefix + "sub" + hex suffix)
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1018
+
+[1018]
+ParameterName=Identity
+ObjectType=0x9
+SubNumber=2
+
+[1018sub0]
+ParameterName=Number of Entries
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[1018sub1]
+ParameterName=Vendor ID
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x100
+PDOMapping=0
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - valid sub-object sections should still be parsed, not in AdditionalSections
+        result.ObjectDictionary.Objects[0x1018].SubObjects.Should().ContainKey(1);
+        result.AdditionalSections.Should().NotContainKey("1018sub1");
+    }
+
+    #endregion
+
     #region Object Type Tests
 
     [Fact]
