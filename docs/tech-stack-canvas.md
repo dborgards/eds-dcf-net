@@ -119,7 +119,7 @@ EdsToDcf(eds, nodeId, baudrate, nodeName) → DeviceConfigurationFile
 | **Source code** | GitHub ([dborgards/eds-dcf-net](https://github.com/dborgards/eds-dcf-net)) |
 | **CI/CD** | GitHub Actions |
 | **Build workflow** | Build + test on ubuntu-latest with .NET 8.0 and 10.0 |
-| **Release workflow** | semantic-release v23 (Node.js 20) → NuGet publish |
+| **Release workflow** | semantic-release v25 (Node.js 22) → NuGet publish |
 | **Versioning** | Semantic Versioning (automated via conventional commits) |
 | **Dependency updates** | Dependabot (NuGet ecosystem, weekly) |
 
