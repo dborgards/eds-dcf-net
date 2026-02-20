@@ -1276,6 +1276,89 @@ Version=1.0
         result.AdditionalSections.Should().NotContainKey("1000");
     }
 
+    [Fact]
+    public void ReadString_SectionContainingSub_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "SubSystem" contains "sub" but is NOT a sub-object section (no hex prefix)
+        var content = BuildMinimalDcf(extraSections: @"
+[SubSystem]
+VendorKey=VendorData
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - SubSystem should NOT be swallowed as a known section
+        result.AdditionalSections.Should().ContainKey("SubSystem");
+        result.AdditionalSections["SubSystem"]["VendorKey"].Should().Be("VendorData");
+    }
+
+    [Fact]
+    public void ReadString_SectionStartingWithM_NotModule_PreservedInAdditionalSections()
+    {
+        // Arrange - "Manufacturing" starts with "M" but is NOT a module section (no digit after "M")
+        var content = BuildMinimalDcf(extraSections: @"
+[Manufacturing]
+SerialFormat=12345
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - Manufacturing should NOT be swallowed as a known section
+        result.AdditionalSections.Should().ContainKey("Manufacturing");
+        result.AdditionalSections["Manufacturing"]["SerialFormat"].Should().Be("12345");
+    }
+
+    [Fact]
+    public void ReadString_SectionEndingWithValue_NotHexPrefixed_PreservedInAdditionalSections()
+    {
+        // Arrange - "SomeValue" ends with "Value" but prefix is NOT a valid hex index
+        var content = BuildMinimalDcf(extraSections: @"
+[SomeValue]
+Data=123
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - SomeValue should NOT be swallowed as a known section
+        result.AdditionalSections.Should().ContainKey("SomeValue");
+        result.AdditionalSections["SomeValue"]["Data"].Should().Be("123");
+    }
+
+    [Fact]
+    public void ReadString_SectionEndingWithDenotation_NotHexPrefixed_PreservedInAdditionalSections()
+    {
+        // Arrange - "CustomDenotation" ends with "Denotation" but prefix is not hex
+        var content = BuildMinimalDcf(extraSections: @"
+[CustomDenotation]
+Label=Test
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("CustomDenotation");
+    }
+
+    [Fact]
+    public void ReadString_SectionWithMetadata_NotModule_PreservedInAdditionalSections()
+    {
+        // Arrange - "Metadata" starts with "M" but has no digit after "M"
+        var content = BuildMinimalDcf(extraSections: @"
+[Metadata]
+Author=Test
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("Metadata");
+    }
+
     #endregion
 
     #region Case-Insensitivity Tests

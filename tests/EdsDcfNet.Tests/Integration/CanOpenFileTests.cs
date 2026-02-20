@@ -309,8 +309,8 @@ PDOMapping=0
         // Act
         var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
 
-        // Assert
-        dcf.DeviceInfo.Should().BeSameAs(eds.DeviceInfo);
+        // Assert - deep copy: not the same reference, but equal values
+        dcf.DeviceInfo.Should().NotBeSameAs(eds.DeviceInfo);
         dcf.DeviceInfo.VendorName.Should().Be("Test Vendor");
         dcf.DeviceInfo.ProductName.Should().Be("Test Product");
         dcf.DeviceInfo.VendorNumber.Should().Be(0x100);
@@ -337,8 +337,8 @@ PDOMapping=0
         // Act
         var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
 
-        // Assert
-        dcf.ObjectDictionary.Should().BeSameAs(eds.ObjectDictionary);
+        // Assert - deep copy: not the same reference, but equal values
+        dcf.ObjectDictionary.Should().NotBeSameAs(eds.ObjectDictionary);
         dcf.ObjectDictionary.Objects.Should().ContainKey(0x1000);
     }
 
@@ -358,6 +358,159 @@ PDOMapping=0
 
         // Assert
         dcf.FileInfo.LastEds.Should().Be("original.eds");
+    }
+
+    #endregion
+
+    #region EdsToDcf Mutation Isolation Tests
+
+    [Fact]
+    public void EdsToDcf_MutatingDcfObjectDictionary_DoesNotAffectEds()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            DefaultValue = "0x191"
+        };
+
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Act - mutate the DCF
+        dcf.ObjectDictionary.Objects[0x1000].ParameterValue = "0x999";
+        dcf.ObjectDictionary.Objects[0x1000].ParameterName = "Modified";
+
+        // Assert - EDS must be unchanged
+        eds.ObjectDictionary.Objects[0x1000].ParameterValue.Should().BeNull();
+        eds.ObjectDictionary.Objects[0x1000].ParameterName.Should().Be("Device Type");
+    }
+
+    [Fact]
+    public void EdsToDcf_TwoDcfsFromSameEds_AreMutuallyIsolated()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            DefaultValue = "0x191"
+        };
+
+        var dcf1 = CanOpenFile.EdsToDcf(eds, nodeId: 1);
+        var dcf2 = CanOpenFile.EdsToDcf(eds, nodeId: 2);
+
+        // Act - mutate dcf1
+        dcf1.ObjectDictionary.Objects[0x1000].ParameterValue = "0xAAA";
+
+        // Assert - dcf2 must be unaffected
+        dcf2.ObjectDictionary.Objects[0x1000].ParameterValue.Should().BeNull();
+    }
+
+    [Fact]
+    public void EdsToDcf_MutatingDcfDeviceInfo_DoesNotAffectEds()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo
+            {
+                VendorName = "Original Vendor",
+                ProductName = "Original Product"
+            },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Act - mutate the DCF's DeviceInfo
+        dcf.DeviceInfo.VendorName = "Modified Vendor";
+
+        // Assert - EDS must be unchanged
+        eds.DeviceInfo.VendorName.Should().Be("Original Vendor");
+    }
+
+    [Fact]
+    public void EdsToDcf_MutatingDcfSubObjects_DoesNotAffectEds()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1018);
+        var obj = new CanOpenObject
+        {
+            Index = 0x1018,
+            ParameterName = "Identity",
+            SubNumber = 4
+        };
+        obj.SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Number of Entries",
+            DefaultValue = "4"
+        };
+        obj.SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "Vendor ID",
+            DefaultValue = "0x100"
+        };
+        eds.ObjectDictionary.Objects[0x1018] = obj;
+
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Act - mutate a sub-object in the DCF
+        dcf.ObjectDictionary.Objects[0x1018].SubObjects[1].ParameterValue = "0x200";
+
+        // Assert - EDS sub-object must be unchanged
+        eds.ObjectDictionary.Objects[0x1018].SubObjects[1].ParameterValue.Should().BeNull();
+    }
+
+    [Fact]
+    public void EdsToDcf_MutatingDcfComments_DoesNotAffectEds()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary(),
+            Comments = new Comments
+            {
+                Lines = 1,
+                CommentLines = new Dictionary<int, string> { { 1, "Original comment" } }
+            }
+        };
+
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Act - mutate the DCF's comments
+        dcf.Comments!.CommentLines[1] = "Modified comment";
+
+        // Assert - EDS comments must be unchanged
+        eds.Comments!.CommentLines[1].Should().Be("Original comment");
     }
 
     #endregion

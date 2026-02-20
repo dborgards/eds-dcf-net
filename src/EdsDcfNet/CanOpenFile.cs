@@ -163,6 +163,7 @@ public static class CanOpenFile
         ushort baudrate = 250,
         string? nodeName = null)
     {
+        var now = DateTime.Now;
         var dcf = new DeviceConfigurationFile
         {
             FileInfo = new Models.EdsFileInfo
@@ -172,12 +173,12 @@ public static class CanOpenFile
                 FileRevision = (byte)(eds.FileInfo.FileRevision + 1),
                 EdsVersion = eds.FileInfo.EdsVersion,
                 Description = $"DCF generated from {eds.FileInfo.FileName}",
-                CreationDate = DateTime.Now.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
-                CreationTime = DateTime.Now.ToString("hh:mmtt", CultureInfo.InvariantCulture),
+                CreationDate = now.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
+                CreationTime = now.ToString("hh:mmtt", CultureInfo.InvariantCulture),
                 CreatedBy = "EdsDcfNet Library",
                 LastEds = eds.FileInfo.FileName
             },
-            DeviceInfo = eds.DeviceInfo,
+            DeviceInfo = CloneDeviceInfo(eds.DeviceInfo),
             DeviceCommissioning = new DeviceCommissioning
             {
                 NodeId = nodeId,
@@ -187,12 +188,182 @@ public static class CanOpenFile
                 NetworkName = "CANopen Network",
                 CANopenManager = false
             },
-            ObjectDictionary = eds.ObjectDictionary,
-            Comments = eds.Comments,
-            SupportedModules = eds.SupportedModules,
-            AdditionalSections = new Dictionary<string, Dictionary<string, string>>(eds.AdditionalSections)
+            ObjectDictionary = CloneObjectDictionary(eds.ObjectDictionary),
+            Comments = CloneComments(eds.Comments),
+            SupportedModules = CloneSupportedModules(eds.SupportedModules),
+            AdditionalSections = CloneAdditionalSections(eds.AdditionalSections)
         };
 
         return dcf;
+    }
+
+    private static DeviceInfo CloneDeviceInfo(DeviceInfo source)
+    {
+        return new DeviceInfo
+        {
+            VendorName = source.VendorName,
+            VendorNumber = source.VendorNumber,
+            ProductName = source.ProductName,
+            ProductNumber = source.ProductNumber,
+            RevisionNumber = source.RevisionNumber,
+            OrderCode = source.OrderCode,
+            SupportedBaudRates = new BaudRates
+            {
+                BaudRate10 = source.SupportedBaudRates.BaudRate10,
+                BaudRate20 = source.SupportedBaudRates.BaudRate20,
+                BaudRate50 = source.SupportedBaudRates.BaudRate50,
+                BaudRate125 = source.SupportedBaudRates.BaudRate125,
+                BaudRate250 = source.SupportedBaudRates.BaudRate250,
+                BaudRate500 = source.SupportedBaudRates.BaudRate500,
+                BaudRate800 = source.SupportedBaudRates.BaudRate800,
+                BaudRate1000 = source.SupportedBaudRates.BaudRate1000
+            },
+            SimpleBootUpMaster = source.SimpleBootUpMaster,
+            SimpleBootUpSlave = source.SimpleBootUpSlave,
+            Granularity = source.Granularity,
+            DynamicChannelsSupported = source.DynamicChannelsSupported,
+            GroupMessaging = source.GroupMessaging,
+            NrOfRxPdo = source.NrOfRxPdo,
+            NrOfTxPdo = source.NrOfTxPdo,
+            LssSupported = source.LssSupported,
+            CompactPdo = source.CompactPdo,
+            CANopenSafetySupported = source.CANopenSafetySupported
+        };
+    }
+
+    private static ObjectDictionary CloneObjectDictionary(ObjectDictionary source)
+    {
+        var clone = new ObjectDictionary
+        {
+            MandatoryObjects = new List<ushort>(source.MandatoryObjects),
+            OptionalObjects = new List<ushort>(source.OptionalObjects),
+            ManufacturerObjects = new List<ushort>(source.ManufacturerObjects),
+            DummyUsage = new Dictionary<ushort, bool>(source.DummyUsage)
+        };
+
+        foreach (var kvp in source.Objects)
+        {
+            clone.Objects[kvp.Key] = CloneObject(kvp.Value);
+        }
+
+        return clone;
+    }
+
+    private static CanOpenObject CloneObject(CanOpenObject source)
+    {
+        var clone = new CanOpenObject
+        {
+            Index = source.Index,
+            ParameterName = source.ParameterName,
+            ObjectType = source.ObjectType,
+            DataType = source.DataType,
+            AccessType = source.AccessType,
+            DefaultValue = source.DefaultValue,
+            LowLimit = source.LowLimit,
+            HighLimit = source.HighLimit,
+            PdoMapping = source.PdoMapping,
+            ObjFlags = source.ObjFlags,
+            SubNumber = source.SubNumber,
+            CompactSubObj = source.CompactSubObj,
+            ObjectLinks = new List<ushort>(source.ObjectLinks),
+            ParameterValue = source.ParameterValue,
+            Denotation = source.Denotation,
+            UploadFile = source.UploadFile,
+            DownloadFile = source.DownloadFile,
+            SrdoMapping = source.SrdoMapping,
+            InvertedSrad = source.InvertedSrad,
+            ParamRefd = source.ParamRefd
+        };
+
+        foreach (var kvp in source.SubObjects)
+        {
+            clone.SubObjects[kvp.Key] = CloneSubObject(kvp.Value);
+        }
+
+        return clone;
+    }
+
+    private static CanOpenSubObject CloneSubObject(CanOpenSubObject source)
+    {
+        return new CanOpenSubObject
+        {
+            SubIndex = source.SubIndex,
+            ParameterName = source.ParameterName,
+            ObjectType = source.ObjectType,
+            DataType = source.DataType,
+            AccessType = source.AccessType,
+            DefaultValue = source.DefaultValue,
+            LowLimit = source.LowLimit,
+            HighLimit = source.HighLimit,
+            PdoMapping = source.PdoMapping,
+            ParameterValue = source.ParameterValue,
+            Denotation = source.Denotation,
+            SrdoMapping = source.SrdoMapping,
+            InvertedSrad = source.InvertedSrad,
+            ParamRefd = source.ParamRefd
+        };
+    }
+
+    private static Comments? CloneComments(Comments? source)
+    {
+        if (source == null) return null;
+        return new Comments
+        {
+            Lines = source.Lines,
+            CommentLines = new Dictionary<int, string>(source.CommentLines)
+        };
+    }
+
+    private static List<ModuleInfo> CloneSupportedModules(List<ModuleInfo> source)
+    {
+        var clone = new List<ModuleInfo>(source.Count);
+        foreach (var module in source)
+        {
+            var clonedModule = new ModuleInfo
+            {
+                ModuleNumber = module.ModuleNumber,
+                ProductName = module.ProductName,
+                ProductVersion = module.ProductVersion,
+                ProductRevision = module.ProductRevision,
+                OrderCode = module.OrderCode,
+                FixedObjects = new List<ushort>(module.FixedObjects),
+                SubExtends = new List<ushort>(module.SubExtends),
+                Comments = CloneComments(module.Comments)
+            };
+
+            foreach (var kvp in module.FixedObjectDefinitions)
+            {
+                clonedModule.FixedObjectDefinitions[kvp.Key] = CloneObject(kvp.Value);
+            }
+
+            foreach (var kvp in module.SubExtensionDefinitions)
+            {
+                clonedModule.SubExtensionDefinitions[kvp.Key] = new ModuleSubExtension
+                {
+                    Index = kvp.Value.Index,
+                    ParameterName = kvp.Value.ParameterName,
+                    DataType = kvp.Value.DataType,
+                    AccessType = kvp.Value.AccessType,
+                    DefaultValue = kvp.Value.DefaultValue,
+                    PdoMapping = kvp.Value.PdoMapping,
+                    Count = kvp.Value.Count,
+                    ObjExtend = kvp.Value.ObjExtend
+                };
+            }
+
+            clone.Add(clonedModule);
+        }
+        return clone;
+    }
+
+    private static Dictionary<string, Dictionary<string, string>> CloneAdditionalSections(
+        Dictionary<string, Dictionary<string, string>> source)
+    {
+        var clone = new Dictionary<string, Dictionary<string, string>>(source.Count);
+        foreach (var kvp in source)
+        {
+            clone[kvp.Key] = new Dictionary<string, string>(kvp.Value);
+        }
+        return clone;
     }
 }
