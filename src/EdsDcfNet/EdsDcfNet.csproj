@@ -7,7 +7,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<PackageId>EdsDcfNet</PackageId>
-		<Version>1.4.0</Version>
+		<Version>1.4.1</Version>
 		<Authors>Dietmar Borgards</Authors>
 		<Description>A comprehensive C# .NET library for reading and writing CiA DS 306 EDS (Electronic Data Sheet) and DCF (Device Configuration File) files for CANopen devices.</Description>
 		<PackageTags>CANopen;EDS;DCF;CiA;DS306;Industrial Automation</PackageTags>
