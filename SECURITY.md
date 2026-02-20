@@ -50,7 +50,7 @@ surface is therefore limited to:
 | Malformed input handling | Unbounded memory allocation, infinite loops, or unhandled exceptions when parsing crafted EDS/DCF/CPJ files |
 | Path traversal | Any API that accepts a file path and could be abused to read or write outside the intended directory |
 | Denial of service via parsing | Algorithmic complexity attacks (e.g. quadratic parsing) triggered by crafted files |
-| Dependency vulnerabilities | Vulnerabilities in transitive NuGet dependencies (currently none in the main library) |
+| Dependency vulnerabilities | Vulnerabilities in NuGet dependencies. The main library has no runtime dependencies shipped to consumers, but does use build-time/dev-only tooling packages (e.g. Microsoft.SourceLink.GitHub). |
 
 The following are **out of scope**:
 
