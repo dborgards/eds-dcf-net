@@ -63,7 +63,7 @@ The following are **out of scope**:
 
 Because EdsDcfNet parses files that may come from untrusted sources (e.g.
 device configuration files downloaded from the internet or received over a
-network), consumers should apply the standard defence-in-depth measures:
+network), consumers should apply the standard defense-in-depth measures:
 
 - **Validate file origin** before passing paths or content to the library.
 - **Limit resource usage** (memory, CPU) at the process level when parsing
