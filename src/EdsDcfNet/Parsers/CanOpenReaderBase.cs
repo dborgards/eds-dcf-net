@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Parsers;
 
+using System.Globalization;
+
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
@@ -59,7 +61,7 @@ public abstract class CanOpenReaderBase
 
     /// <summary>
     /// Parses the <c>[DeviceInfo]</c> section into a <see cref="DeviceInfo"/> object.
-    /// Throws <see cref="Exceptions.EdsParseException"/> if the section is absent.
+    /// Throws <see cref="EdsParseException"/> if the section is absent.
     /// </summary>
     protected DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
@@ -172,7 +174,7 @@ public abstract class CanOpenReaderBase
                 if (key.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase) && key.Length > 5)
                 {
                     var indexStr = key.Substring(5);
-                    if (ushort.TryParse(indexStr, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var index))
+                    if (ushort.TryParse(indexStr, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
                     {
                         objDict.DummyUsage[index] = ValueConverter.ParseBoolean(
                             IniParser.GetValue(sections, "DummyUsage", key));
@@ -327,7 +329,7 @@ public abstract class CanOpenReaderBase
 
         for (int i = 1; i <= comments.Lines; i++)
         {
-            var line = IniParser.GetValue(sections, "Comments", string.Format(System.Globalization.CultureInfo.InvariantCulture, "Line{0}", i));
+            var line = IniParser.GetValue(sections, "Comments", string.Format(CultureInfo.InvariantCulture, "Line{0}", i));
             if (!string.IsNullOrEmpty(line))
             {
                 comments.CommentLines[i] = line;
@@ -364,7 +366,7 @@ public abstract class CanOpenReaderBase
     /// </summary>
     protected ModuleInfo? ParseModuleInfo(Dictionary<string, Dictionary<string, string>> sections, int moduleNumber)
     {
-        var sectionName = string.Format(System.Globalization.CultureInfo.InvariantCulture, "M{0}ModuleInfo", moduleNumber);
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}ModuleInfo", moduleNumber);
         if (!IniParser.HasSection(sections, sectionName))
             return null;
 
@@ -378,7 +380,7 @@ public abstract class CanOpenReaderBase
         };
 
         // Parse fixed objects
-        var fixedObjSection = string.Format(System.Globalization.CultureInfo.InvariantCulture, "M{0}FixedObjects", moduleNumber);
+        var fixedObjSection = string.Format(CultureInfo.InvariantCulture, "M{0}FixedObjects", moduleNumber);
         if (IniParser.HasSection(sections, fixedObjSection))
         {
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, fixedObjSection, "NrOfEntries", "0"));
@@ -409,7 +411,7 @@ public abstract class CanOpenReaderBase
 
         for (int i = 1; i <= nrOfSeg; i++)
         {
-            var idx = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var idx = i.ToString(CultureInfo.InvariantCulture);
             var segment = new DynamicChannelSegment
             {
                 Type = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DynamicChannels", $"Type{idx}", "0")),
@@ -435,7 +437,7 @@ public abstract class CanOpenReaderBase
 
         for (int i = 1; i <= items; i++)
         {
-            var toolSection = "Tool" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var toolSection = "Tool" + i.ToString(CultureInfo.InvariantCulture);
             if (!IniParser.HasSection(sections, toolSection))
                 continue;
 
@@ -461,7 +463,7 @@ public abstract class CanOpenReaderBase
             return true;
 
         // Check for object sections (hex index)
-        if (ushort.TryParse(sectionName, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _))
+        if (ushort.TryParse(sectionName, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out _))
             return true;
 
         // Check for sub-object sections (hex index + "sub" + hex subindex)
@@ -485,7 +487,7 @@ public abstract class CanOpenReaderBase
         if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) || sectionName.Length <= 4)
             return false;
 
-        if (!int.TryParse(sectionName.Substring(4), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var toolNumber))
+        if (!int.TryParse(sectionName.Substring(4), NumberStyles.Integer, CultureInfo.InvariantCulture, out var toolNumber))
             return false;
 
         return toolNumber >= 1 && toolNumber <= parsedToolCount;
@@ -501,8 +503,8 @@ public abstract class CanOpenReaderBase
             return false;
 
         var prefix = sectionName.Substring(0, subPos);
-        return ushort.TryParse(prefix, System.Globalization.NumberStyles.HexNumber,
-            System.Globalization.CultureInfo.InvariantCulture, out _);
+        return ushort.TryParse(prefix, NumberStyles.HexNumber,
+            CultureInfo.InvariantCulture, out _);
     }
 
     /// <summary>
@@ -515,8 +517,8 @@ public abstract class CanOpenReaderBase
 
         var prefix = sectionName.Substring(0, sectionName.Length - suffix.Length);
         return prefix.Length > 0 && ushort.TryParse(prefix,
-            System.Globalization.NumberStyles.HexNumber,
-            System.Globalization.CultureInfo.InvariantCulture, out _);
+            NumberStyles.HexNumber,
+            CultureInfo.InvariantCulture, out _);
     }
 
     /// <summary>
