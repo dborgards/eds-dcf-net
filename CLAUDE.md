@@ -18,3 +18,14 @@ When adding or updating content here:
 
 - Do **not** restate the project overview, architecture, or global constraints; instead, reference `.github/copilot-instructions.md` if needed.
 - Keep instructions focused on how Claude Code should interact with this repository while respecting the shared constraints defined in the canonical documentation.
+
+### Branching rules for Claude Code
+
+- **Never commit directly to `main` or `develop`.** All changes go through a short-lived branch with a PR.
+- **PRs for features and fixes target `develop`**, not `main`.
+- **PRs from `develop` → `main`** are only opened explicitly by the user to cut a stable release.
+- Each logical finding or change gets its **own branch and PR** (one concern per PR).
+- Branch naming: `feat/…`, `fix/…`, `refactor/…`, `chore/…`, `ci/…` (conventional-commit type prefix).
+- **Never include `Co-Authored-By: Claude` lines** in commit messages.
+
+See `.github/copilot-instructions.md` § "Branching Strategy" for the full CI behaviour.
