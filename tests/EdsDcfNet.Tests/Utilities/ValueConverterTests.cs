@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Utilities;
 
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 using FluentAssertions;
@@ -563,6 +564,52 @@ public class ValueConverterTests
 
         // Assert
         parsed.Should().Be(input);
+    }
+
+    #endregion
+
+    #region Invalid Value Tests
+
+    [Theory]
+    [InlineData("0xZZZZ")]
+    [InlineData("0x1FFFFFFFF")]
+    [InlineData("not_a_number")]
+    [InlineData("999999999999")]
+    public void ParseInteger_InvalidValue_ThrowsEdsParseException(string input)
+    {
+        var act = () => ValueConverter.ParseInteger(input);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*'{input}'*")
+            .WithInnerException<Exception>();
+    }
+
+    [Theory]
+    [InlineData("0xZZ")]
+    [InlineData("0x1FF")]
+    [InlineData("not_a_byte")]
+    [InlineData("256")]
+    public void ParseByte_InvalidValue_ThrowsEdsParseException(string input)
+    {
+        var act = () => ValueConverter.ParseByte(input);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*'{input}'*")
+            .WithInnerException<Exception>();
+    }
+
+    [Theory]
+    [InlineData("0xZZZZ")]
+    [InlineData("0x1FFFF")]
+    [InlineData("not_a_ushort")]
+    [InlineData("65536")]
+    public void ParseUInt16_InvalidValue_ThrowsEdsParseException(string input)
+    {
+        var act = () => ValueConverter.ParseUInt16(input);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*'{input}'*")
+            .WithInnerException<Exception>();
     }
 
     #endregion
