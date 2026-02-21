@@ -1589,6 +1589,148 @@ PDOMapping=0
         result.AdditionalSections.Should().NotContainKey("1018sub1");
     }
 
+    [Fact]
+    public void ReadString_ModuleSectionWithSubExtendSuffix_RecognizedAsKnown()
+    {
+        // Arrange - "M1SubExtend1" has suffix "SubExtend1" which StartsWith("SubExtend")
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[SupportedModules]
+NrOfEntries=1
+
+[M1ModuleInfo]
+ProductName=Module
+ProductVersion=1
+ProductRevision=0
+OrderCode=MOD-1
+
+[M1SubExtend1]
+SomeKey=SomeValue
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - M1SubExtend1 is a known module section, NOT in AdditionalSections
+        result.AdditionalSections.Should().NotContainKey("M1SubExtend1");
+    }
+
+    [Fact]
+    public void ReadString_ModuleSectionWithSubExtSuffix_RecognizedAsKnown()
+    {
+        // Arrange - "M1SubExt1" has suffix "SubExt1" which StartsWith("SubExt") but NOT "SubExtend"
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[SupportedModules]
+NrOfEntries=1
+
+[M1ModuleInfo]
+ProductName=Module
+ProductVersion=1
+ProductRevision=0
+OrderCode=MOD-1
+
+[M1SubExt1]
+SomeKey=SomeValue
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - M1SubExt1 is a known module section, NOT in AdditionalSections
+        result.AdditionalSections.Should().NotContainKey("M1SubExt1");
+    }
+
+    [Fact]
+    public void ReadString_ModuleSectionWithCommentsSuffix_RecognizedAsKnown()
+    {
+        // Arrange - "M1Comments" has suffix "Comments"
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[SupportedModules]
+NrOfEntries=1
+
+[M1ModuleInfo]
+ProductName=Module
+ProductVersion=1
+ProductRevision=0
+OrderCode=MOD-1
+
+[M1Comments]
+Lines=1
+Line1=Module comment
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - M1Comments is a known module section, NOT in AdditionalSections
+        result.AdditionalSections.Should().NotContainKey("M1Comments");
+    }
+
+    [Fact]
+    public void ReadString_ModuleSectionWithUnknownSuffix_PreservedInAdditionalSections()
+    {
+        // Arrange - a module-style section name with an unrecognised suffix ("M1UnknownSuffix")
+        // is not a known module section and should be preserved in AdditionalSections.
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[M1UnknownSuffix]
+Key=Value
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - M1UnknownSuffix is NOT a known module section, so it lands in AdditionalSections
+        result.AdditionalSections.Should().ContainKey("M1UnknownSuffix");
+    }
+
+    [Fact]
+    public void ReadString_DummyUsage_NonDummyKey_IsIgnored()
+    {
+        // Arrange - DummyUsage section contains a key that does not follow the DummyXXXX
+        // naming convention; such keys are ignored and not added to DummyUsage.
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[DummyUsage]
+Dummy0002=1
+SupportedObjects=0
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - only the valid DummyXXXX entry is in DummyUsage; the other key is ignored
+        result.ObjectDictionary.DummyUsage.Should().ContainKey(0x0002);
+        result.ObjectDictionary.DummyUsage.Should().HaveCount(1);
+    }
+
     #endregion
 
     #region Object Type Tests

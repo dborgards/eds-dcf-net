@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Parsers;
 
-using EdsDcfNet.Exceptions;
+using System.Globalization;
+
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
@@ -8,10 +9,18 @@ using EdsDcfNet.Utilities;
 /// Reader for Device Configuration File (DCF) files.
 /// DCF files extend EDS files with configured values and device-specific settings.
 /// </summary>
-public class DcfReader
+public class DcfReader : CanOpenReaderBase
 {
-    private readonly IniParser _iniParser = new();
-    private readonly EdsReader _edsReader = new();
+    private static readonly string[] DcfKnownSectionNames =
+    {
+        "FileInfo", "DeviceInfo", "DeviceCommissioning", "DeviceComissioning", "DummyUsage",
+        "MandatoryObjects", "OptionalObjects", "ManufacturerObjects",
+        "Comments", "SupportedModules", "ConnectedModules", "Tools",
+        "DynamicChannels"
+    };
+
+    /// <inheritdoc/>
+    protected override string[] KnownSectionNames => DcfKnownSectionNames;
 
     /// <summary>
     /// Reads a DCF file from the specified path.
@@ -20,7 +29,7 @@ public class DcfReader
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public DeviceConfigurationFile ReadFile(string filePath)
     {
-        var sections = _iniParser.ParseFile(filePath);
+        var sections = ParseSectionsFromFile(filePath);
         return ParseDcf(sections);
     }
 
@@ -31,7 +40,7 @@ public class DcfReader
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public DeviceConfigurationFile ReadString(string content)
     {
-        var sections = _iniParser.ParseString(content);
+        var sections = ParseSectionsFromString(content);
         return ParseDcf(sections);
     }
 
@@ -61,13 +70,13 @@ public class DcfReader
         // Parse dynamic channels if present
         if (IniParser.HasSection(sections, "DynamicChannels"))
         {
-            dcf.DynamicChannels = _edsReader.ParseDynamicChannels(sections);
+            dcf.DynamicChannels = ParseDynamicChannels(sections);
         }
 
         // Parse tools if present
         if (IniParser.HasSection(sections, "Tools"))
         {
-            dcf.Tools = _edsReader.ParseTools(sections);
+            dcf.Tools = ParseTools(sections);
         }
 
         // Parse any additional unknown sections
@@ -82,34 +91,118 @@ public class DcfReader
         return dcf;
     }
 
-    private Models.EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
+    #region DCF-specific overrides
+
+    /// <inheritdoc/>
+    protected override EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
-        var fileInfo = new Models.EdsFileInfo();
+        var fileInfo = base.ParseFileInfo(sections);
 
-        if (!IniParser.HasSection(sections, "FileInfo"))
-            return fileInfo;
-
-        fileInfo.FileName = IniParser.GetValue(sections, "FileInfo", "FileName");
-        fileInfo.FileVersion = ValueConverter.ParseByte(IniParser.GetValue(sections, "FileInfo", "FileVersion", "1"));
-        fileInfo.FileRevision = ValueConverter.ParseByte(IniParser.GetValue(sections, "FileInfo", "FileRevision", "0"));
-        fileInfo.EdsVersion = IniParser.GetValue(sections, "FileInfo", "EDSVersion", "4.0");
-        fileInfo.Description = IniParser.GetValue(sections, "FileInfo", "Description");
-        fileInfo.CreationTime = IniParser.GetValue(sections, "FileInfo", "CreationTime");
-        fileInfo.CreationDate = IniParser.GetValue(sections, "FileInfo", "CreationDate");
-        fileInfo.CreatedBy = IniParser.GetValue(sections, "FileInfo", "CreatedBy");
-        fileInfo.ModificationTime = IniParser.GetValue(sections, "FileInfo", "ModificationTime");
-        fileInfo.ModificationDate = IniParser.GetValue(sections, "FileInfo", "ModificationDate");
-        fileInfo.ModifiedBy = IniParser.GetValue(sections, "FileInfo", "ModifiedBy");
-        fileInfo.LastEds = IniParser.GetValue(sections, "FileInfo", "LastEDS");
+        if (IniParser.HasSection(sections, "FileInfo"))
+        {
+            fileInfo.LastEds = IniParser.GetValue(sections, "FileInfo", "LastEDS");
+        }
 
         return fileInfo;
     }
 
-    private DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
+    /// <inheritdoc/>
+    protected override CanOpenObject? ParseObject(Dictionary<string, Dictionary<string, string>> sections, ushort index)
     {
-        // Use the same parser as EDS reader
-        return _edsReader.ParseDeviceInfo(sections);
+        var obj = base.ParseObject(sections, index);
+        if (obj == null)
+            return null;
+
+        // DCF-specific fields
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", index);
+        obj.ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue");
+        obj.Denotation = IniParser.GetValue(sections, sectionName, "Denotation");
+        obj.ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd");
+        obj.UploadFile = IniParser.GetValue(sections, sectionName, "UploadFile");
+        obj.DownloadFile = IniParser.GetValue(sections, sectionName, "DownloadFile");
+
+        return obj;
     }
+
+    /// <inheritdoc/>
+    protected override void ParseSubObjects(Dictionary<string, Dictionary<string, string>> sections, ushort index, CanOpenObject obj)
+    {
+        base.ParseSubObjects(sections, index, obj);
+
+        // Parse compact value storage
+        var valueSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Value", index);
+        if (IniParser.HasSection(sections, valueSectionName))
+        {
+            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, valueSectionName, "NrOfEntries", "0"));
+            for (int i = 1; i <= count; i++)
+            {
+                var value = IniParser.GetValue(sections, valueSectionName, i.ToString(CultureInfo.InvariantCulture));
+                if (!string.IsNullOrEmpty(value) && i <= 254)
+                {
+                    var subIndex = (byte)i;
+                    if (obj.SubObjects.ContainsKey(subIndex))
+                    {
+                        obj.SubObjects[subIndex].ParameterValue = value;
+                    }
+                }
+            }
+        }
+
+        // Parse compact denotation storage
+        var denotationSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Denotation", index);
+        if (IniParser.HasSection(sections, denotationSectionName))
+        {
+            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, denotationSectionName, "NrOfEntries", "0"));
+            for (int i = 1; i <= count; i++)
+            {
+                var denotation = IniParser.GetValue(sections, denotationSectionName, i.ToString(CultureInfo.InvariantCulture));
+                if (!string.IsNullOrEmpty(denotation) && i <= 254)
+                {
+                    var subIndex = (byte)i;
+                    if (obj.SubObjects.ContainsKey(subIndex))
+                    {
+                        obj.SubObjects[subIndex].Denotation = denotation;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override CanOpenSubObject? ParseSubObject(Dictionary<string, Dictionary<string, string>> sections, ushort index, byte subIndex)
+    {
+        var subObj = base.ParseSubObject(sections, index, subIndex);
+        if (subObj == null)
+            return null;
+
+        // DCF-specific fields
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", index, subIndex);
+        subObj.ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue");
+        subObj.Denotation = IniParser.GetValue(sections, sectionName, "Denotation");
+        subObj.ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd");
+
+        return subObj;
+    }
+
+    /// <inheritdoc/>
+    protected override bool IsKnownSection(string sectionName)
+    {
+        if (base.IsKnownSection(sectionName))
+            return true;
+
+        // Check for compact value/denotation sections (hex index + "Value" or "Denotation")
+        // Note: ObjectLinks sections are intentionally NOT marked as known here.
+        // This allows orphaned ObjectLinks (for non-existent objects) to be preserved in AdditionalSections.
+        if (IsHexPrefixedSection(sectionName, "Value") ||
+            IsHexPrefixedSection(sectionName, "Denotation"))
+            return true;
+
+        return false;
+    }
+
+    #endregion
+
+    #region DCF-only parsing methods
 
     private DeviceCommissioning ParseDeviceCommissioning(Dictionary<string, Dictionary<string, string>> sections)
     {
@@ -143,275 +236,6 @@ public class DcfReader
         return dc;
     }
 
-    private ObjectDictionary ParseObjectDictionary(Dictionary<string, Dictionary<string, string>> sections)
-    {
-        var objDict = new ObjectDictionary();
-
-        // Parse mandatory objects
-        if (IniParser.HasSection(sections, "MandatoryObjects"))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "MandatoryObjects", "SupportedObjects", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var indexStr = IniParser.GetValue(sections, "MandatoryObjects", i.ToString());
-                if (!string.IsNullOrEmpty(indexStr))
-                {
-                    objDict.MandatoryObjects.Add(ValueConverter.ParseUInt16(indexStr));
-                }
-            }
-        }
-
-        // Parse optional objects
-        if (IniParser.HasSection(sections, "OptionalObjects"))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "OptionalObjects", "SupportedObjects", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var indexStr = IniParser.GetValue(sections, "OptionalObjects", i.ToString());
-                if (!string.IsNullOrEmpty(indexStr))
-                {
-                    objDict.OptionalObjects.Add(ValueConverter.ParseUInt16(indexStr));
-                }
-            }
-        }
-
-        // Parse manufacturer objects
-        if (IniParser.HasSection(sections, "ManufacturerObjects"))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "ManufacturerObjects", "SupportedObjects", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var indexStr = IniParser.GetValue(sections, "ManufacturerObjects", i.ToString());
-                if (!string.IsNullOrEmpty(indexStr))
-                {
-                    objDict.ManufacturerObjects.Add(ValueConverter.ParseUInt16(indexStr));
-                }
-            }
-        }
-
-        // Parse all object definitions
-        var allObjects = objDict.MandatoryObjects
-            .Concat(objDict.OptionalObjects)
-            .Concat(objDict.ManufacturerObjects)
-            .Distinct();
-
-        foreach (var index in allObjects)
-        {
-            var obj = ParseObject(sections, index);
-            if (obj != null)
-            {
-                objDict.Objects[index] = obj;
-            }
-        }
-
-        // Parse dummy usage
-        if (IniParser.HasSection(sections, "DummyUsage"))
-        {
-            foreach (var key in IniParser.GetKeys(sections, "DummyUsage"))
-            {
-                if (key.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase) && key.Length > 5)
-                {
-                    var indexStr = key.Substring(5);
-                    if (ushort.TryParse(indexStr, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var index))
-                    {
-                        objDict.DummyUsage[index] = ValueConverter.ParseBoolean(
-                            IniParser.GetValue(sections, "DummyUsage", key));
-                    }
-                }
-            }
-        }
-
-        return objDict;
-    }
-
-    private CanOpenObject? ParseObject(Dictionary<string, Dictionary<string, string>> sections, ushort index)
-    {
-        var sectionName = $"{index:X}";
-        if (!IniParser.HasSection(sections, sectionName))
-            return null;
-
-        var obj = new CanOpenObject
-        {
-            Index = index,
-            ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", "0x7"))
-        };
-
-        var dataTypeStr = IniParser.GetValue(sections, sectionName, "DataType");
-        if (!string.IsNullOrEmpty(dataTypeStr))
-        {
-            obj.DataType = ValueConverter.ParseUInt16(dataTypeStr);
-        }
-
-        var accessTypeStr = IniParser.GetValue(sections, sectionName, "AccessType");
-        if (!string.IsNullOrEmpty(accessTypeStr))
-        {
-            obj.AccessType = ValueConverter.ParseAccessType(accessTypeStr);
-        }
-
-        obj.DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue");
-        obj.LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit");
-        obj.HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit");
-        obj.PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping"));
-        obj.SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping"));
-        obj.InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD");
-        obj.ObjFlags = ValueConverter.ParseInteger(IniParser.GetValue(sections, sectionName, "ObjFlags", "0"));
-
-        var subNumberStr = IniParser.GetValue(sections, sectionName, "SubNumber");
-        if (!string.IsNullOrEmpty(subNumberStr))
-        {
-            obj.SubNumber = ValueConverter.ParseByte(subNumberStr);
-        }
-
-        var compactSubObjStr = IniParser.GetValue(sections, sectionName, "CompactSubObj");
-        if (!string.IsNullOrEmpty(compactSubObjStr))
-        {
-            obj.CompactSubObj = ValueConverter.ParseByte(compactSubObjStr);
-        }
-
-        // DCF-specific fields
-        obj.ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue");
-        obj.Denotation = IniParser.GetValue(sections, sectionName, "Denotation");
-        obj.ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd");
-        obj.UploadFile = IniParser.GetValue(sections, sectionName, "UploadFile");
-        obj.DownloadFile = IniParser.GetValue(sections, sectionName, "DownloadFile");
-
-        // Parse sub-objects for composite types (DEFSTRUCT, ARRAY, RECORD)
-        if (obj.SubNumber > 0 || obj.ObjectType == 0x6 || obj.ObjectType == 0x8 || obj.ObjectType == 0x9)
-        {
-            ParseSubObjects(sections, index, obj);
-        }
-
-        // Parse object links
-        var linksSectionName = $"{index:X}ObjectLinks";
-        if (IniParser.HasSection(sections, linksSectionName))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, linksSectionName, "ObjectLinks", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var linkStr = IniParser.GetValue(sections, linksSectionName, i.ToString());
-                if (!string.IsNullOrEmpty(linkStr))
-                {
-                    obj.ObjectLinks.Add(ValueConverter.ParseUInt16(linkStr));
-                }
-            }
-        }
-
-        return obj;
-    }
-
-    private void ParseSubObjects(Dictionary<string, Dictionary<string, string>> sections, ushort index, CanOpenObject obj)
-    {
-        // Determine the number of sub-objects to parse
-        var maxSubIndex = obj.SubNumber ?? 0;
-        if (obj.CompactSubObj.HasValue && obj.CompactSubObj.Value > 0)
-        {
-            maxSubIndex = Math.Max(maxSubIndex, obj.CompactSubObj.Value);
-        }
-
-        for (byte subIndex = 0; subIndex <= maxSubIndex; subIndex++)
-        {
-            var sectionName = $"{index:X}sub{subIndex:X}";
-            if (IniParser.HasSection(sections, sectionName))
-            {
-                var subObj = ParseSubObject(sections, index, subIndex);
-                if (subObj != null)
-                {
-                    obj.SubObjects[subIndex] = subObj;
-                }
-            }
-        }
-
-        // Parse compact value storage
-        var valueSectionName = $"{index:X}Value";
-        if (IniParser.HasSection(sections, valueSectionName))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, valueSectionName, "NrOfEntries", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var value = IniParser.GetValue(sections, valueSectionName, i.ToString());
-                if (!string.IsNullOrEmpty(value) && i <= 254)
-                {
-                    var subIndex = (byte)i;
-                    if (obj.SubObjects.ContainsKey(subIndex))
-                    {
-                        obj.SubObjects[subIndex].ParameterValue = value;
-                    }
-                }
-            }
-        }
-
-        // Parse compact denotation storage
-        var denotationSectionName = $"{index:X}Denotation";
-        if (IniParser.HasSection(sections, denotationSectionName))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, denotationSectionName, "NrOfEntries", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var denotation = IniParser.GetValue(sections, denotationSectionName, i.ToString());
-                if (!string.IsNullOrEmpty(denotation) && i <= 254)
-                {
-                    var subIndex = (byte)i;
-                    if (obj.SubObjects.ContainsKey(subIndex))
-                    {
-                        obj.SubObjects[subIndex].Denotation = denotation;
-                    }
-                }
-            }
-        }
-    }
-
-    private CanOpenSubObject? ParseSubObject(Dictionary<string, Dictionary<string, string>> sections, ushort index, byte subIndex)
-    {
-        var sectionName = $"{index:X}sub{subIndex:X}";
-        if (!IniParser.HasSection(sections, sectionName))
-            return null;
-
-        var subObj = new CanOpenSubObject
-        {
-            SubIndex = subIndex,
-            ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", "0x7")),
-            DataType = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "DataType", "0")),
-            AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
-            DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
-            LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
-            HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
-            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
-            SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
-            InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
-        };
-
-        // DCF-specific fields
-        subObj.ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue");
-        subObj.Denotation = IniParser.GetValue(sections, sectionName, "Denotation");
-        subObj.ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd");
-
-        return subObj;
-    }
-
-    private Comments? ParseComments(Dictionary<string, Dictionary<string, string>> sections)
-    {
-        if (!IniParser.HasSection(sections, "Comments"))
-            return null;
-
-        var comments = new Comments
-        {
-            Lines = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "Comments", "Lines", "0"))
-        };
-
-        for (int i = 1; i <= comments.Lines; i++)
-        {
-            var line = IniParser.GetValue(sections, "Comments", $"Line{i}");
-            if (!string.IsNullOrEmpty(line))
-            {
-                comments.CommentLines[i] = line;
-            }
-        }
-
-        return comments;
-    }
-
     private List<int> ParseConnectedModules(Dictionary<string, Dictionary<string, string>> sections)
     {
         var modules = new List<int>();
@@ -419,8 +243,8 @@ public class DcfReader
 
         for (int i = 1; i <= count; i++)
         {
-            var moduleStr = IniParser.GetValue(sections, "ConnectedModules", i.ToString());
-            if (!string.IsNullOrEmpty(moduleStr) && int.TryParse(moduleStr, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var moduleNumber))
+            var moduleStr = IniParser.GetValue(sections, "ConnectedModules", i.ToString(CultureInfo.InvariantCulture));
+            if (!string.IsNullOrEmpty(moduleStr) && int.TryParse(moduleStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var moduleNumber))
             {
                 modules.Add(moduleNumber);
             }
@@ -429,157 +253,7 @@ public class DcfReader
         return modules;
     }
 
-    private List<ModuleInfo> ParseSupportedModules(Dictionary<string, Dictionary<string, string>> sections)
-    {
-        var modules = new List<ModuleInfo>();
-        var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "SupportedModules", "NrOfEntries", "0"));
-
-        for (int i = 1; i <= count; i++)
-        {
-            var moduleInfo = ParseModuleInfo(sections, i);
-            if (moduleInfo != null)
-            {
-                modules.Add(moduleInfo);
-            }
-        }
-
-        return modules;
-    }
-
-    private ModuleInfo? ParseModuleInfo(Dictionary<string, Dictionary<string, string>> sections, int moduleNumber)
-    {
-        var sectionName = $"M{moduleNumber}ModuleInfo";
-        if (!IniParser.HasSection(sections, sectionName))
-            return null;
-
-        var moduleInfo = new ModuleInfo
-        {
-            ModuleNumber = moduleNumber,
-            ProductName = IniParser.GetValue(sections, sectionName, "ProductName"),
-            ProductVersion = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ProductVersion", "1")),
-            ProductRevision = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ProductRevision", "0")),
-            OrderCode = IniParser.GetValue(sections, sectionName, "OrderCode")
-        };
-
-        // Parse fixed objects
-        var fixedObjSection = $"M{moduleNumber}FixedObjects";
-        if (IniParser.HasSection(sections, fixedObjSection))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, fixedObjSection, "NrOfEntries", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var indexStr = IniParser.GetValue(sections, fixedObjSection, i.ToString());
-                if (!string.IsNullOrEmpty(indexStr))
-                {
-                    moduleInfo.FixedObjects.Add(ValueConverter.ParseUInt16(indexStr));
-                }
-            }
-        }
-
-        return moduleInfo;
-    }
-
-    private static bool IsToolSectionForParsedTools(string sectionName, int parsedToolCount)
-    {
-        if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) || sectionName.Length <= 4)
-            return false;
-
-        if (!int.TryParse(sectionName.Substring(4), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var toolNumber))
-            return false;
-
-        return toolNumber >= 1 && toolNumber <= parsedToolCount;
-    }
-
-    private bool IsKnownSection(string sectionName)
-    {
-        var knownSections = new[]
-        {
-            "FileInfo", "DeviceInfo", "DeviceCommissioning", "DeviceComissioning", "DummyUsage",
-            "MandatoryObjects", "OptionalObjects", "ManufacturerObjects",
-            "Comments", "SupportedModules", "ConnectedModules", "Tools",
-            "DynamicChannels"
-        };
-
-        if (knownSections.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
-            return true;
-
-        // Check for object sections (hex index)
-        if (ushort.TryParse(sectionName, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _))
-            return true;
-
-        // Check for sub-object sections (hex index + "sub" + hex subindex)
-        if (IsSubObjectSection(sectionName))
-            return true;
-
-        // Check for compact value/denotation sections (hex index + "Value" or "Denotation")
-        // Note: ObjectLinks sections are intentionally NOT marked as known here.
-        // This allows orphaned ObjectLinks (for non-existent objects) to be preserved in AdditionalSections.
-        if (IsHexPrefixedSection(sectionName, "Value") ||
-            IsHexPrefixedSection(sectionName, "Denotation"))
-            return true;
-
-        // Check for module sections (M + digits + known suffix)
-        if (IsModuleSection(sectionName))
-            return true;
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks if a section name matches the sub-object pattern: {HexIndex}sub{HexSubIndex}.
-    /// </summary>
-    private static bool IsSubObjectSection(string sectionName)
-    {
-        var subPos = sectionName.IndexOf("sub", StringComparison.OrdinalIgnoreCase);
-        if (subPos < 1)
-            return false;
-
-        var prefix = sectionName.Substring(0, subPos);
-        return ushort.TryParse(prefix, System.Globalization.NumberStyles.HexNumber,
-            System.Globalization.CultureInfo.InvariantCulture, out _);
-    }
-
-    /// <summary>
-    /// Checks if a section name has a valid hex object index prefix followed by the given suffix.
-    /// </summary>
-    private static bool IsHexPrefixedSection(string sectionName, string suffix)
-    {
-        if (!sectionName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        var prefix = sectionName.Substring(0, sectionName.Length - suffix.Length);
-        return prefix.Length > 0 && ushort.TryParse(prefix,
-            System.Globalization.NumberStyles.HexNumber,
-            System.Globalization.CultureInfo.InvariantCulture, out _);
-    }
-
-    /// <summary>
-    /// Checks if a section name matches a module section pattern: M{Digits}{KnownSuffix}.
-    /// </summary>
-    private static bool IsModuleSection(string sectionName)
-    {
-        if (sectionName.Length < 2 ||
-            !sectionName.StartsWith("M", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        // Must have at least one digit after "M"
-        var i = 1;
-        while (i < sectionName.Length && char.IsDigit(sectionName[i]))
-            i++;
-
-        if (i == 1)
-            return false;
-
-        // The suffix after "M{digits}" must be a known module suffix
-        var suffix = sectionName.Substring(i);
-        return suffix.Equals("ModuleInfo", StringComparison.OrdinalIgnoreCase) ||
-               suffix.Equals("FixedObjects", StringComparison.OrdinalIgnoreCase) ||
-               suffix.StartsWith("SubExtend", StringComparison.OrdinalIgnoreCase) ||
-               suffix.StartsWith("SubExt", StringComparison.OrdinalIgnoreCase) ||
-               suffix.Equals("Comments", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private bool IsObjectLinksSectionForExistingObject(string sectionName, ObjectDictionary objectDictionary)
+    private static bool IsObjectLinksSectionForExistingObject(string sectionName, ObjectDictionary objectDictionary)
     {
         const string suffix = "ObjectLinks";
 
@@ -594,11 +268,13 @@ public class DcfReader
             return false;
         }
 
-        if (!ushort.TryParse(indexPart, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var index))
+        if (!ushort.TryParse(indexPart, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
         {
             return false;
         }
 
         return objectDictionary.Objects.ContainsKey(index);
     }
+
+    #endregion
 }
