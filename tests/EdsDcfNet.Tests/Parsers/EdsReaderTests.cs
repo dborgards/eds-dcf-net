@@ -1592,7 +1592,7 @@ PDOMapping=0
     [Fact]
     public void ReadString_ModuleSectionWithSubExtendSuffix_RecognizedAsKnown()
     {
-        // Arrange - "M1SubExtension" has suffix "SubExtension" which StartsWith("SubExtend")
+        // Arrange - "M1SubExtend1" has suffix "SubExtend1" which StartsWith("SubExtend")
         var content = @"
 [DeviceInfo]
 VendorName=Test
@@ -1609,15 +1609,15 @@ ProductVersion=1
 ProductRevision=0
 OrderCode=MOD-1
 
-[M1SubExtension1]
+[M1SubExtend1]
 SomeKey=SomeValue
 ";
 
         // Act
         var result = _reader.ReadString(content);
 
-        // Assert - M1SubExtension1 is a known module section, NOT in AdditionalSections
-        result.AdditionalSections.Should().NotContainKey("M1SubExtension1");
+        // Assert - M1SubExtend1 is a known module section, NOT in AdditionalSections
+        result.AdditionalSections.Should().NotContainKey("M1SubExtend1");
     }
 
     [Fact]

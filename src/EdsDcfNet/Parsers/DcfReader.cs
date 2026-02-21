@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Parsers;
 
+using System.Globalization;
+
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
@@ -112,7 +114,7 @@ public class DcfReader : CanOpenReaderBase
             return null;
 
         // DCF-specific fields
-        var sectionName = $"{index:X}";
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", index);
         obj.ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue");
         obj.Denotation = IniParser.GetValue(sections, sectionName, "Denotation");
         obj.ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd");
@@ -128,13 +130,13 @@ public class DcfReader : CanOpenReaderBase
         base.ParseSubObjects(sections, index, obj);
 
         // Parse compact value storage
-        var valueSectionName = $"{index:X}Value";
+        var valueSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Value", index);
         if (IniParser.HasSection(sections, valueSectionName))
         {
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, valueSectionName, "NrOfEntries", "0"));
             for (int i = 1; i <= count; i++)
             {
-                var value = IniParser.GetValue(sections, valueSectionName, i.ToString());
+                var value = IniParser.GetValue(sections, valueSectionName, i.ToString(CultureInfo.InvariantCulture));
                 if (!string.IsNullOrEmpty(value) && i <= 254)
                 {
                     var subIndex = (byte)i;
@@ -147,13 +149,13 @@ public class DcfReader : CanOpenReaderBase
         }
 
         // Parse compact denotation storage
-        var denotationSectionName = $"{index:X}Denotation";
+        var denotationSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Denotation", index);
         if (IniParser.HasSection(sections, denotationSectionName))
         {
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, denotationSectionName, "NrOfEntries", "0"));
             for (int i = 1; i <= count; i++)
             {
-                var denotation = IniParser.GetValue(sections, denotationSectionName, i.ToString());
+                var denotation = IniParser.GetValue(sections, denotationSectionName, i.ToString(CultureInfo.InvariantCulture));
                 if (!string.IsNullOrEmpty(denotation) && i <= 254)
                 {
                     var subIndex = (byte)i;
@@ -174,7 +176,7 @@ public class DcfReader : CanOpenReaderBase
             return null;
 
         // DCF-specific fields
-        var sectionName = $"{index:X}sub{subIndex:X}";
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", index, subIndex);
         subObj.ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue");
         subObj.Denotation = IniParser.GetValue(sections, sectionName, "Denotation");
         subObj.ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd");
@@ -241,8 +243,8 @@ public class DcfReader : CanOpenReaderBase
 
         for (int i = 1; i <= count; i++)
         {
-            var moduleStr = IniParser.GetValue(sections, "ConnectedModules", i.ToString());
-            if (!string.IsNullOrEmpty(moduleStr) && int.TryParse(moduleStr, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var moduleNumber))
+            var moduleStr = IniParser.GetValue(sections, "ConnectedModules", i.ToString(CultureInfo.InvariantCulture));
+            if (!string.IsNullOrEmpty(moduleStr) && int.TryParse(moduleStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var moduleNumber))
             {
                 modules.Add(moduleNumber);
             }
@@ -266,7 +268,7 @@ public class DcfReader : CanOpenReaderBase
             return false;
         }
 
-        if (!ushort.TryParse(indexPart, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var index))
+        if (!ushort.TryParse(indexPart, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
         {
             return false;
         }

@@ -115,7 +115,7 @@ public abstract class CanOpenReaderBase
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "MandatoryObjects", "SupportedObjects", "0"));
             for (int i = 1; i <= count; i++)
             {
-                var indexStr = IniParser.GetValue(sections, "MandatoryObjects", i.ToString());
+                var indexStr = IniParser.GetValue(sections, "MandatoryObjects", i.ToString(CultureInfo.InvariantCulture));
                 if (!string.IsNullOrEmpty(indexStr))
                 {
                     objDict.MandatoryObjects.Add(ValueConverter.ParseUInt16(indexStr));
@@ -129,7 +129,7 @@ public abstract class CanOpenReaderBase
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "OptionalObjects", "SupportedObjects", "0"));
             for (int i = 1; i <= count; i++)
             {
-                var indexStr = IniParser.GetValue(sections, "OptionalObjects", i.ToString());
+                var indexStr = IniParser.GetValue(sections, "OptionalObjects", i.ToString(CultureInfo.InvariantCulture));
                 if (!string.IsNullOrEmpty(indexStr))
                 {
                     objDict.OptionalObjects.Add(ValueConverter.ParseUInt16(indexStr));
@@ -143,7 +143,7 @@ public abstract class CanOpenReaderBase
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "ManufacturerObjects", "SupportedObjects", "0"));
             for (int i = 1; i <= count; i++)
             {
-                var indexStr = IniParser.GetValue(sections, "ManufacturerObjects", i.ToString());
+                var indexStr = IniParser.GetValue(sections, "ManufacturerObjects", i.ToString(CultureInfo.InvariantCulture));
                 if (!string.IsNullOrEmpty(indexStr))
                 {
                     objDict.ManufacturerObjects.Add(ValueConverter.ParseUInt16(indexStr));
@@ -193,7 +193,7 @@ public abstract class CanOpenReaderBase
     /// </summary>
     protected virtual CanOpenObject? ParseObject(Dictionary<string, Dictionary<string, string>> sections, ushort index)
     {
-        var sectionName = $"{index:X}";
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", index);
         if (!IniParser.HasSection(sections, sectionName))
             return null;
 
@@ -243,13 +243,13 @@ public abstract class CanOpenReaderBase
         }
 
         // Parse object links
-        var linksSectionName = $"{index:X}ObjectLinks";
+        var linksSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}ObjectLinks", index);
         if (IniParser.HasSection(sections, linksSectionName))
         {
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, linksSectionName, "ObjectLinks", "0"));
             for (int i = 1; i <= count; i++)
             {
-                var linkStr = IniParser.GetValue(sections, linksSectionName, i.ToString());
+                var linkStr = IniParser.GetValue(sections, linksSectionName, i.ToString(CultureInfo.InvariantCulture));
                 if (!string.IsNullOrEmpty(linkStr))
                 {
                     obj.ObjectLinks.Add(ValueConverter.ParseUInt16(linkStr));
@@ -291,7 +291,7 @@ public abstract class CanOpenReaderBase
     /// </summary>
     protected virtual CanOpenSubObject? ParseSubObject(Dictionary<string, Dictionary<string, string>> sections, ushort index, byte subIndex)
     {
-        var sectionName = $"{index:X}sub{subIndex:X}";
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", index, subIndex);
         if (!IniParser.HasSection(sections, sectionName))
             return null;
 
@@ -386,7 +386,7 @@ public abstract class CanOpenReaderBase
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, fixedObjSection, "NrOfEntries", "0"));
             for (int i = 1; i <= count; i++)
             {
-                var indexStr = IniParser.GetValue(sections, fixedObjSection, i.ToString());
+                var indexStr = IniParser.GetValue(sections, fixedObjSection, i.ToString(CultureInfo.InvariantCulture));
                 if (!string.IsNullOrEmpty(indexStr))
                 {
                     moduleInfo.FixedObjects.Add(ValueConverter.ParseUInt16(indexStr));
