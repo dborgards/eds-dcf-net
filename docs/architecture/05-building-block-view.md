@@ -341,8 +341,8 @@ classDiagram
     class ObjectDictionaryExtensions {
         +GetObject(ushort index) CanOpenObject?$
         +GetSubObject(ushort index, byte subIndex) CanOpenSubObject?$
-        +SetParameterValue(ushort index, string value) void$
-        +SetParameterValue(ushort index, byte subIndex, string value) void$
+        +SetParameterValue(ushort index, string value) bool$
+        +SetParameterValue(ushort index, byte subIndex, string value) bool$
         +GetParameterValue(ushort index) string?$
         +GetParameterValue(ushort index, byte subIndex) string?$
         +GetObjectsByType(ObjectCategory category) IEnumerable~CanOpenObject~$

@@ -214,55 +214,57 @@ public class ObjectDictionaryExtensionsTests
     #region SetParameterValue Tests
 
     [Fact]
-    public void SetParameterValue_ExistingObject_SetsValue()
+    public void SetParameterValue_ExistingObject_SetsValueAndReturnsTrue()
     {
         // Arrange
         var dict = CreateTestDictionary();
 
         // Act
-        dict.SetParameterValue(0x1000, "0x12345678");
+        var result = dict.SetParameterValue(0x1000, "0x12345678");
 
         // Assert
+        result.Should().BeTrue();
         dict.Objects[0x1000].ParameterValue.Should().Be("0x12345678");
     }
 
     [Fact]
-    public void SetParameterValue_NonExistentObject_DoesNothing()
+    public void SetParameterValue_NonExistentObject_ReturnsFalse()
     {
         // Arrange
         var dict = CreateTestDictionary();
 
         // Act
-        var act = () => dict.SetParameterValue(0x9999, "value");
+        var result = dict.SetParameterValue(0x9999, "value");
 
         // Assert
-        act.Should().NotThrow();
+        result.Should().BeFalse();
     }
 
     [Fact]
-    public void SetParameterValue_SubObject_SetsValue()
+    public void SetParameterValue_ExistingSubObject_SetsValueAndReturnsTrue()
     {
         // Arrange
         var dict = CreateTestDictionary();
 
         // Act
-        dict.SetParameterValue(0x1018, 1, "0xABCD");
+        var result = dict.SetParameterValue(0x1018, (byte)1, "0xABCD");
 
         // Assert
+        result.Should().BeTrue();
         dict.Objects[0x1018].SubObjects[1].ParameterValue.Should().Be("0xABCD");
     }
 
     [Fact]
-    public void SetParameterValue_NonExistentSubObject_DoesNothing()
+    public void SetParameterValue_NonExistentSubObject_ReturnsFalse()
     {
         // Arrange
         var dict = CreateTestDictionary();
 
         // Act
-        var act = () => dict.SetParameterValue(0x1018, 99, "value");
+        var result = dict.SetParameterValue(0x1018, (byte)99, "value");
 
         // Assert
-        act.Should().NotThrow();
+        result.Should().BeFalse();
     }
 
     #endregion

@@ -112,8 +112,8 @@ var dcf = CanOpenFile.ReadDcf("device.dcf");
 // Get object
 var deviceType = dcf.ObjectDictionary.GetObject(0x1000);
 
-// Set value
-dcf.ObjectDictionary.SetParameterValue(0x1000, "0x00000191");
+// Set value (returns true if object exists, false if not found)
+bool set = dcf.ObjectDictionary.SetParameterValue(0x1000, "0x00000191");
 
 // Browse PDO objects
 var tpdos = dcf.ObjectDictionary.GetPdoCommunicationParameters(transmit: true);
