@@ -75,13 +75,10 @@
       }
     ],
     [
-      "@semantic-release/git",
+      "@semantic-release/exec",
       {
-        "assets": [
-          "CHANGELOG.md",
-          "src/**/*.csproj"
-        ],
-        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+        "prepareCmd": "git checkout -b chore/release-${nextRelease.version} && git add CHANGELOG.md src/EdsDcfNet/EdsDcfNet.csproj && git commit -m \"chore(release): ${nextRelease.version} [skip ci]\" && git push origin chore/release-${nextRelease.version}",
+        "successCmd": "gh pr create --base ${branch.name} --head chore/release-${nextRelease.version} --title \"chore(release): ${nextRelease.version} [skip ci]\" --body \"Automated version bump and changelog update for ${nextRelease.version}.\" || true"
       }
     ],
     [
