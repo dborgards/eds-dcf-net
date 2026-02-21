@@ -419,3 +419,10 @@ FodyWeavers.xsd
 
 # NuGet output (semantic-release publish)
 packages/
+
+# specific
+docs/manual/
+docs/cia/306_1v01040003.pdf
+docs/cia/306_2v01020003.pdf
+docs/cia/306_3v01020003.pdf
+.claude/settings.local.json
