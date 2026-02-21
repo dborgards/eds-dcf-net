@@ -12,7 +12,7 @@ The library uses **exceptions** as its primary error mechanism:
 | `DcfWriteException`     | Errors during DCF writing                                   | `SectionName`                |
 | `ArgumentException`     | Invalid input parameters where validation is performed by the API | Standard .NET          |
 
-> **Note:** `CanOpenFile.EdsToDcf` and DCF parsing enforce the CANopen Node-ID range (`1..127`) and reject out-of-range values with clear exceptions.
+> **Note:** `CanOpenFile.EdsToDcf` and DCF parsing enforce the CANopen Node-ID range (`1..127`) for provided `NodeID` values and reject out-of-range values with clear exceptions. If a DCF omits the entire `[DeviceCommissioning]` section (no `NodeID` provided), parsing succeeds and leaves `DeviceCommissioning.NodeId` at the default value (`0`) without throwing.
 
 > **Compatibility note (AccessType):** Parsing of invalid or unknown `AccessType` values is intentionally tolerant and falls back to `ReadOnly` instead of failing. This is a deliberate trade-off to maximize interoperability with non-compliant manufacturer EDS/DCF files.
 
