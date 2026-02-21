@@ -211,7 +211,7 @@ public class DcfWriter
 
         foreach (var dummy in objDict.DummyUsage.OrderBy(d => d.Key))
         {
-            WriteKeyValue(sb, $"Dummy{dummy.Key:X4}", ValueConverter.FormatBoolean(dummy.Value));
+            WriteKeyValue(sb, string.Format(CultureInfo.InvariantCulture, "Dummy{0:X4}", dummy.Key), ValueConverter.FormatBoolean(dummy.Value));
         }
 
         sb.AppendLine();
@@ -490,7 +490,7 @@ public class DcfWriter
 
         foreach (var line in comments.CommentLines.OrderBy(l => l.Key))
         {
-            WriteKeyValue(sb, $"Line{line.Key}", line.Value);
+            WriteKeyValue(sb, string.Format(CultureInfo.InvariantCulture, "Line{0}", line.Key), line.Value);
         }
 
         sb.AppendLine();

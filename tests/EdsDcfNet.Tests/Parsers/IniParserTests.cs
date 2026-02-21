@@ -335,8 +335,8 @@ DataType=0x0005
         const int count = 500;
         for (int i = 0; i < count; i++)
         {
-            sb.AppendLine($"[Sec{i}]");
-            sb.AppendLine($"Key=Value{i}");
+            sb.AppendLine(string.Format(System.Globalization.CultureInfo.InvariantCulture, "[Sec{0}]", i));
+            sb.AppendLine(string.Format(System.Globalization.CultureInfo.InvariantCulture, "Key=Value{0}", i));
         }
 
         // Act
