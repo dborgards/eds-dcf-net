@@ -49,7 +49,7 @@ graph TB
 The NuGet package contains two target frameworks:
 
 ```
-EdsDcfNet.1.3.0.nupkg
+EdsDcfNet.<version>.nupkg
 ├── lib/
 │   ├── netstandard2.0/
 │   │   ├── EdsDcfNet.dll
@@ -60,7 +60,7 @@ EdsDcfNet.1.3.0.nupkg
 ├── README.md
 └── EdsDcfNet.nuspec
 
-EdsDcfNet.1.3.0.snupkg            (Symbol package for Source Link)
+EdsDcfNet.<version>.snupkg        (Symbol package for Source Link)
 ```
 
 ## 7.3 CI/CD Pipeline
