@@ -27,24 +27,32 @@ public static class ObjectDictionaryExtensions
     /// <summary>
     /// Sets the parameter value for an object.
     /// </summary>
-    public static void SetParameterValue(this ObjectDictionary objDict, ushort index, string value)
+    /// <returns><c>true</c> if the object was found and the value was set; <c>false</c> if the object does not exist.</returns>
+    public static bool SetParameterValue(this ObjectDictionary objDict, ushort index, string value)
     {
         if (objDict.Objects.TryGetValue(index, out var obj))
         {
             obj.ParameterValue = value;
+            return true;
         }
+
+        return false;
     }
 
     /// <summary>
     /// Sets the parameter value for a sub-object.
     /// </summary>
-    public static void SetParameterValue(this ObjectDictionary objDict, ushort index, byte subIndex, string value)
+    /// <returns><c>true</c> if the sub-object was found and the value was set; <c>false</c> if the object or sub-object does not exist.</returns>
+    public static bool SetParameterValue(this ObjectDictionary objDict, ushort index, byte subIndex, string value)
     {
         var subObj = objDict.GetSubObject(index, subIndex);
         if (subObj != null)
         {
             subObj.ParameterValue = value;
+            return true;
         }
+
+        return false;
     }
 
     /// <summary>
