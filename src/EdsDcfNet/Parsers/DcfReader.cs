@@ -2,6 +2,7 @@ namespace EdsDcfNet.Parsers;
 
 using System.Globalization;
 
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
@@ -219,6 +220,15 @@ public class DcfReader : CanOpenReaderBase
             return dc;
 
         dc.NodeId = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "NodeID", "1"));
+        if (dc.NodeId < 1 || dc.NodeId > 127)
+        {
+            throw new EdsParseException(
+                $"Invalid NodeID '{dc.NodeId}' in [{sectionName}]. CANopen Node-ID must be in range 1..127.")
+            {
+                SectionName = sectionName
+            };
+        }
+
         dc.NodeName = IniParser.GetValue(sections, sectionName, "NodeName");
         dc.NodeRefd = IniParser.GetValue(sections, sectionName, "NodeRefd");
         dc.Baudrate = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "Baudrate", "250"));
