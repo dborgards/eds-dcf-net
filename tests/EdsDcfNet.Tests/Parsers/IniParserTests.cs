@@ -18,10 +18,8 @@ public class IniParserTests
 Key1=Value1
 Key2=Value2
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result.Should().ContainKey("Section1");
@@ -41,10 +39,8 @@ Key1=Value1
 Key2=Value2
 Key3=Value3
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result.Should().HaveCount(2);
@@ -67,10 +63,8 @@ Key1=Value1
 ; Comment in the middle
 Key2=Value2
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result.Should().ContainKey("Section1");
@@ -94,10 +88,8 @@ Key1=Value1
 Key2=Value2
 
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result.Should().ContainKey("Section1");
@@ -113,10 +105,8 @@ Key2=Value2
   Key1  =  Value1
 Key2=Value2
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result.Should().ContainKey("Section1");
@@ -132,10 +122,8 @@ Key2=Value2
 [Section1]
 Key1=Value1
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result.Should().ContainKey("section1");
@@ -151,10 +139,8 @@ Key1=Value1
 [Section1]
 Key1=Value1
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result["Section1"].Should().ContainKey("key1");
@@ -171,10 +157,8 @@ Key1=Value1
 Key1=
 Key2=Value2
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result["Section1"]["Key1"].Should().Be(string.Empty);
@@ -189,10 +173,8 @@ Key2=Value2
 [Section1]
 Key1=Value=With=Equals
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result["Section1"]["Key1"].Should().Be("Value=With=Equals");
@@ -208,10 +190,8 @@ Key1=0xFF
 Key2=0x1000
 Key3=$NODEID+0x200
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result["Section1"]["Key1"].Should().Be("0xFF");
@@ -228,10 +208,8 @@ Key1=Value1
 [Section1]
 Key2=Value2
 ";
-        var parser = new IniParser();
-
         // Act
-        var act = () => parser.ParseString(content);
+        var act = () => IniParser.ParseString(content);
 
         // Assert
         act.Should().Throw<EdsParseException>()
@@ -249,10 +227,8 @@ Key1=Value1
 [Section1]
 Key2=Value2
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result.Should().ContainKey("Section1");
@@ -270,10 +246,8 @@ Key2=Value2
 Key1=Value1
 Key1=Value2
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result["Section1"]["Key1"].Should().Be("Value2");
@@ -288,10 +262,8 @@ Key1=Value2
 ParameterName=Number of Entries
 DataType=0x0005
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result.Should().ContainKey("1018sub0");
@@ -304,10 +276,8 @@ DataType=0x0005
     {
         // Arrange
         var content = string.Empty;
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result.Should().BeEmpty();
@@ -322,10 +292,8 @@ DataType=0x0005
 ; Comment 2
 ; Comment 3
 ";
-        var parser = new IniParser();
-
         // Act
-        var result = parser.ParseString(content);
+        var result = IniParser.ParseString(content);
 
         // Assert
         result.Should().BeEmpty();
@@ -335,11 +303,10 @@ DataType=0x0005
     public void ParseString_ContentTooLarge_ThrowsEdsParseException()
     {
         // Arrange
-        var parser = new IniParser(maxInputSize: 10);
         var content = "[Section1]\nKey1=Value1"; // 22 chars > 10
 
         // Act
-        var act = () => parser.ParseString(content);
+        var act = () => IniParser.ParseString(content, maxInputSize: 10);
 
         // Assert
         act.Should().Throw<EdsParseException>()
@@ -354,11 +321,10 @@ DataType=0x0005
     public void ParseFile_ValidFile_ParsesCorrectly()
     {
         // Arrange
-        var parser = new IniParser();
         var filePath = "Fixtures/sample_device.eds";
 
         // Act
-        var result = parser.ParseFile(filePath);
+        var result = IniParser.ParseFile(filePath);
 
         // Assert
         result.Should().NotBeEmpty();
@@ -371,11 +337,10 @@ DataType=0x0005
     public void ParseFile_NonExistentFile_ThrowsFileNotFoundException()
     {
         // Arrange
-        var parser = new IniParser();
         var filePath = "NonExistent.eds";
 
         // Act
-        var act = () => parser.ParseFile(filePath);
+        var act = () => IniParser.ParseFile(filePath);
 
         // Assert
         act.Should().Throw<FileNotFoundException>()
@@ -386,7 +351,6 @@ DataType=0x0005
     public void ParseFile_FileTooLarge_ThrowsEdsParseException()
     {
         // Arrange
-        var parser = new IniParser(maxInputSize: 10);
         var tempFile = Path.GetTempFileName();
 
         try
@@ -394,7 +358,7 @@ DataType=0x0005
             File.WriteAllText(tempFile, "[Section1]\nKey1=Value1"); // 22 bytes > 10
 
             // Act
-            var act = () => parser.ParseFile(tempFile);
+            var act = () => IniParser.ParseFile(tempFile, maxInputSize: 10);
 
             // Assert
             act.Should().Throw<EdsParseException>()

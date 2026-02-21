@@ -9,8 +9,6 @@ using EdsDcfNet.Utilities;
 /// </summary>
 public class CpjReader
 {
-    private readonly IniParser _iniParser = new();
-
     /// <summary>
     /// Reads a CPJ file from the specified path.
     /// </summary>
@@ -18,7 +16,7 @@ public class CpjReader
     /// <returns>Parsed NodelistProject object</returns>
     public NodelistProject ReadFile(string filePath)
     {
-        var sections = _iniParser.ParseFile(filePath);
+        var sections = IniParser.ParseFile(filePath);
         return ParseCpj(sections);
     }
 
@@ -29,7 +27,7 @@ public class CpjReader
     /// <returns>Parsed NodelistProject object</returns>
     public NodelistProject ReadString(string content)
     {
-        var sections = _iniParser.ParseString(content);
+        var sections = IniParser.ParseString(content);
         return ParseCpj(sections);
     }
 

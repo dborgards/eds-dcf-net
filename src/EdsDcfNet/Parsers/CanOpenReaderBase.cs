@@ -13,8 +13,6 @@ using EdsDcfNet.Utilities;
 /// </summary>
 public abstract class CanOpenReaderBase
 {
-    private readonly IniParser _iniParser = new();
-
     /// <summary>
     /// Section names that are considered "known" for this file format.
     /// Unknown sections are preserved in AdditionalSections for round-trip fidelity.
@@ -25,13 +23,13 @@ public abstract class CanOpenReaderBase
     /// Parses INI sections from a file path.
     /// </summary>
     protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromFile(string filePath)
-        => _iniParser.ParseFile(filePath);
+        => IniParser.ParseFile(filePath);
 
     /// <summary>
     /// Parses INI sections from a string.
     /// </summary>
     protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromString(string content)
-        => _iniParser.ParseString(content);
+        => IniParser.ParseString(content);
 
     /// <summary>
     /// Parses the <c>[FileInfo]</c> section into an <see cref="EdsFileInfo"/> object.
