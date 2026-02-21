@@ -77,8 +77,8 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "git checkout -b chore/release-${nextRelease.version} && git add CHANGELOG.md src/EdsDcfNet/EdsDcfNet.csproj && git commit -m \"chore(release): ${nextRelease.version} [skip ci]\" && git push origin chore/release-${nextRelease.version}",
-        "successCmd": "gh pr create --base ${branch.name} --head chore/release-${nextRelease.version} --title \"chore(release): ${nextRelease.version} [skip ci]\" --body \"Automated version bump and changelog update for ${nextRelease.version}.\" || true"
+        "prepareCmd": "git checkout -B chore/release-${nextRelease.version} && git add CHANGELOG.md src/EdsDcfNet/EdsDcfNet.csproj && git commit -m \"chore(release): ${nextRelease.version}\" && git push --force-with-lease origin chore/release-${nextRelease.version}",
+        "successCmd": "if gh pr list --base ${branch.name} --head chore/release-${nextRelease.version} --state open --json number --jq 'length > 0' | grep -q true; then echo \"PR already exists for chore/release-${nextRelease.version}\"; else gh pr create --base ${branch.name} --head chore/release-${nextRelease.version} --title \"chore(release): ${nextRelease.version}\" --body \"Automated version bump and changelog update for ${nextRelease.version}.\"; fi"
       }
     ],
     [
