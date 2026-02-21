@@ -203,52 +203,55 @@ public static class ValueConverter
     {
         formula = formula.Trim();
 
-        // Replace $NODEID with the actual node ID value (case-insensitive, netstandard2.0 compatible)
-        var index = formula.IndexOf("$NODEID", StringComparison.OrdinalIgnoreCase);
-        var expression = index >= 0
-            ? formula.Substring(0, index) + nodeId.ToString(CultureInfo.InvariantCulture) + formula.Substring(index + 7)
-            : formula;
+        if (formula.Equals("$NODEID", StringComparison.OrdinalIgnoreCase))
+            return nodeId;
 
-        // Handle simple addition (e.g., "5+0x200" or "5+512")
-        if (expression.IndexOf('+') >= 0)
+        const string token = "$NODEID";
+        if (!formula.StartsWith(token, StringComparison.OrdinalIgnoreCase))
         {
-            var parts = expression.Split('+');
-            if (parts.Length == 2)
+            throw new EdsParseException(
+                $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
+        }
+
+        var suffix = formula.Substring(token.Length).Trim();
+        if (string.IsNullOrEmpty(suffix))
+            return nodeId;
+
+        if (suffix[0] == '+' || suffix[0] == '-')
+        {
+            var rightSide = suffix.Substring(1).Trim();
+            if (string.IsNullOrEmpty(rightSide) || rightSide.IndexOf('+') >= 0 || rightSide.IndexOf('-') >= 0)
             {
-                var left = ParseInteger(parts[0].Trim());
-                var right = ParseInteger(parts[1].Trim());
+                throw new EdsParseException(
+                    $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
+            }
+
+            var right = ParseInteger(rightSide);
+
+            if (suffix[0] == '+')
+            {
                 try
                 {
-                    return checked(left + right);
+                    return checked(nodeId + right);
                 }
                 catch (OverflowException ex)
                 {
                     throw new EdsParseException($"$NODEID formula '{formula}' overflows uint range.", ex);
                 }
             }
-        }
 
-        // Handle simple subtraction (e.g., "5-0x100")
-        if (expression.IndexOf('-') >= 0 && !expression.StartsWith("-", StringComparison.Ordinal))
-        {
-            var parts = expression.Split('-');
-            if (parts.Length == 2)
+            try
             {
-                var left = ParseInteger(parts[0].Trim());
-                var right = ParseInteger(parts[1].Trim());
-                try
-                {
-                    return checked(left - right);
-                }
-                catch (OverflowException ex)
-                {
-                    throw new EdsParseException($"$NODEID formula '{formula}' underflows uint range.", ex);
-                }
+                return checked((uint)nodeId - right);
+            }
+            catch (OverflowException ex)
+            {
+                throw new EdsParseException($"$NODEID formula '{formula}' underflows uint range.", ex);
             }
         }
 
-        // If no operator, just return the node ID
-        return nodeId;
+        throw new EdsParseException(
+            $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
     }
 }
 

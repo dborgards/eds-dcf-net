@@ -163,6 +163,9 @@ public static class CanOpenFile
         ushort baudrate = 250,
         string? nodeName = null)
     {
+        if (nodeId < 1 || nodeId > 127)
+            throw new ArgumentOutOfRangeException(nameof(nodeId), nodeId, "CANopen Node-ID must be in range 1..127.");
+
         var now = DateTime.Now;
         var dcf = new DeviceConfigurationFile
         {
