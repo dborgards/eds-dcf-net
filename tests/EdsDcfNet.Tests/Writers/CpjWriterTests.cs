@@ -202,4 +202,31 @@ EDSBaseName=/eds/
         result.Should().Contain("Key1=Value1");
         result.Should().Contain("Key2=Value2");
     }
+
+    [Fact]
+    public void WriteFile_NonAsciiCharacters_PreservesCharacters()
+    {
+        // Arrange
+        var project = new NodelistProject();
+        var network = new NetworkTopology { NetName = "Netzwerk Süd" };
+        network.Nodes[1] = new NetworkNode { NodeId = 1, Present = true, Name = "Antrieb Ü1" };
+        project.Networks.Add(network);
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            // Act
+            _writer.WriteFile(project, tempFile);
+
+            // Assert
+            var content = File.ReadAllText(tempFile, System.Text.Encoding.UTF8);
+            content.Should().Contain("Netzwerk Süd");
+            content.Should().Contain("Antrieb Ü1");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
 }

@@ -774,6 +774,32 @@ public class DcfWriterTests
             .WithMessage("*Failed to write DCF file*");
     }
 
+    [Fact]
+    public void WriteFile_NonAsciiCharacters_PreservesCharacters()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo.VendorName = "Müller GmbH & Söhne";
+        dcf.DeviceInfo.ProductName = "Schütz-Relä Ä5";
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            // Act
+            _writer.WriteFile(dcf, tempFile);
+
+            // Assert
+            var content = File.ReadAllText(tempFile, System.Text.Encoding.UTF8);
+            content.Should().Contain("Müller GmbH & Söhne");
+            content.Should().Contain("Schütz-Relä Ä5");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
     #endregion
 
     #region DynamicChannels Tests
