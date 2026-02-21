@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Writers;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using EdsDcfNet.Exceptions;
@@ -16,7 +17,8 @@ public class DcfWriter
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="filePath">Path where the DCF file should be written</param>
-    public static void WriteFile(DeviceConfigurationFile dcf, string filePath)
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public void WriteFile(DeviceConfigurationFile dcf, string filePath)
     {
         try
         {
@@ -34,7 +36,8 @@ public class DcfWriter
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to convert</param>
     /// <returns>DCF content as string</returns>
-    public static string GenerateString(DeviceConfigurationFile dcf)
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public string GenerateString(DeviceConfigurationFile dcf)
     {
         return GenerateDcfContent(dcf);
     }

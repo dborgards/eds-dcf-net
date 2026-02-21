@@ -83,7 +83,8 @@ public static class CanOpenFile
     /// </example>
     public static void WriteDcf(DeviceConfigurationFile dcf, string filePath)
     {
-        DcfWriter.WriteFile(dcf, filePath);
+        var writer = new DcfWriter();
+        writer.WriteFile(dcf, filePath);
     }
 
     /// <summary>
@@ -93,7 +94,8 @@ public static class CanOpenFile
     /// <returns>DCF content as string</returns>
     public static string WriteDcfToString(DeviceConfigurationFile dcf)
     {
-        return DcfWriter.GenerateString(dcf);
+        var writer = new DcfWriter();
+        return writer.GenerateString(dcf);
     }
 
     /// <summary>
@@ -103,7 +105,8 @@ public static class CanOpenFile
     /// <returns>Parsed NodelistProject object</returns>
     public static NodelistProject ReadCpj(string filePath)
     {
-        return CpjReader.ReadFile(filePath);
+        var reader = new CpjReader();
+        return reader.ReadFile(filePath);
     }
 
     /// <summary>
@@ -113,7 +116,8 @@ public static class CanOpenFile
     /// <returns>Parsed NodelistProject object</returns>
     public static NodelistProject ReadCpjFromString(string content)
     {
-        return CpjReader.ReadString(content);
+        var reader = new CpjReader();
+        return reader.ReadString(content);
     }
 
     /// <summary>
@@ -123,7 +127,8 @@ public static class CanOpenFile
     /// <param name="filePath">Path where the CPJ file should be written</param>
     public static void WriteCpj(NodelistProject cpj, string filePath)
     {
-        CpjWriter.WriteFile(cpj, filePath);
+        var writer = new CpjWriter();
+        writer.WriteFile(cpj, filePath);
     }
 
     /// <summary>
@@ -133,7 +138,8 @@ public static class CanOpenFile
     /// <returns>CPJ content as string</returns>
     public static string WriteCpjToString(NodelistProject cpj)
     {
-        return CpjWriter.GenerateString(cpj);
+        var writer = new CpjWriter();
+        return writer.GenerateString(cpj);
     }
 
     /// <summary>

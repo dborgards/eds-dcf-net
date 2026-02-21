@@ -8,6 +8,8 @@ using Xunit;
 
 public class CpjWriterTests
 {
+    private readonly CpjWriter _writer = new();
+    private readonly CpjReader _reader = new();
 
     [Fact]
     public void RoundTrip_ParseWriteParse_PreservesAllData()
@@ -31,9 +33,9 @@ EDSBaseName=/eds/
 ";
 
         // Act
-        var parsed = CpjReader.ReadString(content);
-        var written = CpjWriter.GenerateString(parsed);
-        var reparsed = CpjReader.ReadString(written);
+        var parsed = _reader.ReadString(content);
+        var written = _writer.GenerateString(parsed);
+        var reparsed = _reader.ReadString(written);
 
         // Assert
         reparsed.Networks.Should().HaveCount(1);
@@ -56,7 +58,7 @@ EDSBaseName=/eds/
         var project = new NodelistProject();
 
         // Act
-        var result = CpjWriter.GenerateString(project);
+        var result = _writer.GenerateString(project);
 
         // Assert
         result.Should().BeEmpty();
@@ -79,7 +81,7 @@ EDSBaseName=/eds/
         });
 
         // Act
-        var result = CpjWriter.GenerateString(project);
+        var result = _writer.GenerateString(project);
 
         // Assert
         result.Should().Contain("[Topology]");
@@ -88,7 +90,7 @@ EDSBaseName=/eds/
         result.Should().Contain("NetName=Net B");
 
         // Round-trip verify
-        var reparsed = CpjReader.ReadString(result);
+        var reparsed = _reader.ReadString(result);
         reparsed.Networks.Should().HaveCount(2);
         reparsed.Networks[0].NetName.Should().Be("Net A");
         reparsed.Networks[1].NetName.Should().Be("Net B");
@@ -105,7 +107,7 @@ EDSBaseName=/eds/
         });
 
         // Act
-        var result = CpjWriter.GenerateString(project);
+        var result = _writer.GenerateString(project);
 
         // Assert
         result.Should().Contain("Node1Present=0x00");
@@ -124,7 +126,7 @@ EDSBaseName=/eds/
         project.Networks.Add(topology);
 
         // Act
-        var result = CpjWriter.GenerateString(project);
+        var result = _writer.GenerateString(project);
 
         // Assert
         var idx1 = result.IndexOf("Node1Present");
@@ -160,8 +162,8 @@ EDSBaseName=/eds/
         });
 
         // Act
-        var written = CpjWriter.GenerateString(project);
-        var reparsed = CpjReader.ReadString(written);
+        var written = _writer.GenerateString(project);
+        var reparsed = _reader.ReadString(written);
 
         // Assert
         reparsed.Networks.Should().HaveCount(2);
@@ -193,7 +195,7 @@ EDSBaseName=/eds/
         };
 
         // Act
-        var result = CpjWriter.GenerateString(project);
+        var result = _writer.GenerateString(project);
 
         // Assert
         result.Should().Contain("[CustomSection]");
@@ -214,7 +216,7 @@ EDSBaseName=/eds/
         try
         {
             // Act
-            CpjWriter.WriteFile(project, tempFile);
+            _writer.WriteFile(project, tempFile);
 
             // Assert
             var content = File.ReadAllText(tempFile, System.Text.Encoding.UTF8);

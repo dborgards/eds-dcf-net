@@ -7,6 +7,8 @@ using Xunit;
 
 public class DcfWriterTests
 {
+    private readonly DcfWriter _writer = new();
+
     private DeviceConfigurationFile CreateMinimalDcf()
     {
         var dcf = new DeviceConfigurationFile
@@ -62,7 +64,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().NotBeNullOrEmpty();
@@ -78,7 +80,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("FileName=test.dcf");
@@ -95,7 +97,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("VendorName=Test Vendor");
@@ -111,7 +113,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("NodeID=5");
@@ -130,7 +132,7 @@ public class DcfWriterTests
         dcf.DeviceCommissioning.NetRefd = "CAN-Bus 1";
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("NodeRefd=N1.A2");
@@ -144,7 +146,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().NotContain("NodeRefd");
@@ -178,7 +180,7 @@ public class DcfWriterTests
         };
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("ParamRefd=X1.DevType");
@@ -192,7 +194,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().NotContain("ParamRefd");
@@ -208,7 +210,7 @@ public class DcfWriterTests
         dcf.ObjectDictionary.Objects[0x1000].ParamRefd = "X1.DevType";
 
         // Act — write then re-parse
-        var written = DcfWriter.GenerateString(dcf);
+        var written = _writer.GenerateString(dcf);
         var reader = new EdsDcfNet.Parsers.DcfReader();
         var parsed = reader.ReadString(written);
 
@@ -225,7 +227,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[MandatoryObjects]");
@@ -240,7 +242,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[1000]");
@@ -289,7 +291,7 @@ public class DcfWriterTests
         };
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[1018]");
@@ -311,7 +313,7 @@ public class DcfWriterTests
         dcf.Comments.CommentLines[2] = "Second comment";
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[Comments]");
@@ -331,7 +333,7 @@ public class DcfWriterTests
         dcf.DeviceInfo.SupportedBaudRates.BaudRate500 = true;
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("BaudRate_10=1");
@@ -372,7 +374,7 @@ public class DcfWriterTests
         };
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[2000]");
@@ -388,7 +390,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("VendorNumber=0x100");
@@ -404,7 +406,7 @@ public class DcfWriterTests
         dcf.ObjectDictionary.Objects[0x1000].ParameterValue = "0x999";
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("ParameterValue=0x999");
@@ -428,7 +430,7 @@ public class DcfWriterTests
         };
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[OptionalObjects]");
@@ -455,7 +457,7 @@ public class DcfWriterTests
         };
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[ManufacturerObjects]");
@@ -473,7 +475,7 @@ public class DcfWriterTests
         dcf.ObjectDictionary.DummyUsage[5] = true;
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[DummyUsage]");
@@ -489,7 +491,7 @@ public class DcfWriterTests
         dcf.DeviceInfo.CANopenSafetySupported = true;
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("CANopenSafetySupported=1");
@@ -502,7 +504,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().NotContain("CANopenSafetySupported");
@@ -551,7 +553,7 @@ public class DcfWriterTests
         };
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[6100]");
@@ -566,7 +568,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().NotContain("InvertedSRAD");
@@ -617,7 +619,7 @@ public class DcfWriterTests
         };
 
         // Act - Write then re-parse
-        var written = DcfWriter.GenerateString(dcf);
+        var written = _writer.GenerateString(dcf);
         var reader = new EdsDcfNet.Parsers.DcfReader();
         var parsed = reader.ReadString(written);
 
@@ -648,7 +650,7 @@ public class DcfWriterTests
         };
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert — ObjectLinks written via the object, not duplicated from AdditionalSections
         var matches = result.Split(new[] { "[1000ObjectLinks]" }, StringSplitOptions.None);
@@ -667,7 +669,7 @@ public class DcfWriterTests
         };
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[9999ObjectLinks]");
@@ -684,7 +686,7 @@ public class DcfWriterTests
         };
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[VendorSpecific]");
@@ -703,7 +705,7 @@ public class DcfWriterTests
         };
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[ObjectLinks]");
@@ -721,7 +723,7 @@ public class DcfWriterTests
         };
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[ZZZZObjectLinks]");
@@ -741,7 +743,7 @@ public class DcfWriterTests
         try
         {
             // Act
-            DcfWriter.WriteFile(dcf, tempFile);
+            _writer.WriteFile(dcf, tempFile);
 
             // Assert
             File.Exists(tempFile).Should().BeTrue();
@@ -765,7 +767,7 @@ public class DcfWriterTests
         var invalidPath = "/invalid/path/that/does/not/exist/test.dcf";
 
         // Act
-        var act = () => DcfWriter.WriteFile(dcf, invalidPath);
+        var act = () => _writer.WriteFile(dcf, invalidPath);
 
         // Assert
         act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>()
@@ -784,7 +786,7 @@ public class DcfWriterTests
         try
         {
             // Act
-            DcfWriter.WriteFile(dcf, tempFile);
+            _writer.WriteFile(dcf, tempFile);
 
             // Assert
             var content = File.ReadAllText(tempFile, System.Text.Encoding.UTF8);
@@ -824,7 +826,7 @@ public class DcfWriterTests
         });
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[DynamicChannels]");
@@ -846,7 +848,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().NotContain("[DynamicChannels]");
@@ -867,7 +869,7 @@ public class DcfWriterTests
         });
 
         // Act
-        var output = DcfWriter.GenerateString(dcf);
+        var output = _writer.GenerateString(dcf);
         var reader = new EdsDcfNet.Parsers.DcfReader();
         var parsed = reader.ReadString(output);
 
@@ -893,7 +895,7 @@ public class DcfWriterTests
         dcf.Tools.Add(new ToolInfo { Name = "Configurator", Command = "config.exe $DCF $NODEID" });
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().Contain("[Tools]");
@@ -913,7 +915,7 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
 
         // Act
-        var result = DcfWriter.GenerateString(dcf);
+        var result = _writer.GenerateString(dcf);
 
         // Assert
         result.Should().NotContain("[Tools]");
@@ -928,7 +930,7 @@ public class DcfWriterTests
         dcf.Tools.Add(new ToolInfo { Name = "Configurator", Command = "config.exe $DCF $NODEID" });
 
         // Act
-        var output = DcfWriter.GenerateString(dcf);
+        var output = _writer.GenerateString(dcf);
         var reader = new EdsDcfNet.Parsers.DcfReader();
         var parsed = reader.ReadString(output);
 
