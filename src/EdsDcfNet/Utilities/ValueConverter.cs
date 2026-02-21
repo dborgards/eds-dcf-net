@@ -207,15 +207,7 @@ public static class ValueConverter
             return nodeId;
 
         const string token = "$NODEID";
-        if (!formula.StartsWith(token, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new EdsParseException(
-                $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
-        }
-
         var suffix = formula.Substring(token.Length).Trim();
-        if (string.IsNullOrEmpty(suffix))
-            return nodeId;
 
         if (suffix[0] == '+' || suffix[0] == '-')
         {
