@@ -313,6 +313,41 @@ DataType=0x0005
             .WithMessage("*too large*");
     }
 
+    [Fact]
+    public void ParseString_VeryLongLineValue_ParsesCorrectly()
+    {
+        // Arrange – a value of 10 000 characters; no line-length limit is defined
+        var longValue = new string('X', 10_000);
+        var content = $"[Section1]\nKey1={longValue}\n";
+
+        // Act
+        var result = IniParser.ParseString(content);
+
+        // Assert
+        result["Section1"]["Key1"].Should().Be(longValue);
+    }
+
+    [Fact]
+    public void ParseString_ManySections_AllParsedCorrectly()
+    {
+        // Arrange – 500 sections; the parser must not degrade or lose data
+        var sb = new System.Text.StringBuilder();
+        const int count = 500;
+        for (int i = 0; i < count; i++)
+        {
+            sb.AppendLine($"[Sec{i}]");
+            sb.AppendLine($"Key=Value{i}");
+        }
+
+        // Act
+        var result = IniParser.ParseString(sb.ToString());
+
+        // Assert
+        result.Should().HaveCount(count);
+        result["Sec0"]["Key"].Should().Be("Value0");
+        result["Sec499"]["Key"].Should().Be("Value499");
+    }
+
     #endregion
 
     #region ParseFile Tests
