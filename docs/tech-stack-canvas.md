@@ -27,7 +27,7 @@
 - **Target platforms:** netstandard2.0 + net10.0 (covers .NET Framework 4.6.1 through .NET 10)
 - **External dependencies:** 0 (core library)
 - **Object Dictionary address space:** 0x1000–0x5FFF (CANopen standard)
-- **Current version:** 1.3.1
+- **Current version:** Branch-specific; see `src/EdsDcfNet/EdsDcfNet.csproj` (managed by semantic-release)
 - **File formats:** 3 (EDS read, DCF read/write, CPJ read/write)
 
 ### Major Quality Attributes
@@ -66,6 +66,7 @@ An **example console application** (`examples/EdsDcfNet.Examples/`) demonstrates
 | Category | Technology |
 |---|---|
 | **File formats** | EDS / DCF / CPJ (INI-style text files, CiA DS 306 v1.4.0) |
+| **File encoding (I/O)** | UTF-8 text processing; file writes use UTF-8 without BOM |
 | **In-memory model** | Strongly-typed C# objects (`ElectronicDataSheet`, `DeviceConfigurationFile`, `NodelistProject`, `ObjectDictionary`) |
 | **Persistence** | File-based — read from and write to `.eds` / `.dcf` / `.cpj` files |
 | **Unknown data** | Preserved in `Dictionary<string, Dictionary<string, string>> AdditionalSections` |
@@ -104,8 +105,8 @@ EdsToDcf(eds, nodeId, baudrate, nodeName) → DeviceConfigurationFile
 | Category | Technology |
 |---|---|
 | **Test framework** | XUnit 2.9.3 |
-| **Assertions** | FluentAssertions 7.0.0 |
-| **Code coverage** | Coverlet 6.0.4 (XPlat Code Coverage, cobertura format) |
+| **Assertions** | FluentAssertions 7.2.1 |
+| **Code coverage** | coverlet.collector 8.0.0 (XPlat Code Coverage, cobertura format) |
 | **Coverage reporting** | Codecov |
 | **Naming convention** | `MethodName_Scenario_ExpectedBehavior` |
 | **Test pattern** | Arrange-Act-Assert (AAA) |

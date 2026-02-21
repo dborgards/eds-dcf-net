@@ -114,10 +114,10 @@ The `Fixtures/` directory contains:
 
 ## Dependencies
 
-- **xunit** (v2.6.2) - Test framework
-- **FluentAssertions** (v7.0.0) - Fluent assertion library
-- **Microsoft.NET.Test.Sdk** (v17.8.0) - Test platform
-- **coverlet.collector** (v6.0.0) - Code coverage collector
+- **xunit** (v2.9.3) - Test framework
+- **FluentAssertions** (v7.2.1) - Fluent assertion library
+- **Microsoft.NET.Test.Sdk** (v18.0.1) - Test platform
+- **coverlet.collector** (v8.0.0) - Code coverage collector
 
 ## Conventions
 

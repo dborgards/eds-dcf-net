@@ -120,22 +120,25 @@ Unknown sections are stored in a `Dictionary<string, Dictionary<string, string>>
 
 ---
 
-## ADR-6: ASCII Encoding for DCF Output
+## ADR-6: UTF-8 (without BOM) for DCF/CPJ File Output
 
 ### Context
 
-The CiA DS 306 specification defines EDS/DCF files as ASCII-encoded text files.
+CiA DS 306 historically describes EDS/DCF as ASCII-oriented text files, while
+real-world files often contain extended characters from vendor/device names.
 
 ### Decision
 
-The `DcfWriter` uses **ASCII encoding** when writing files.
+`DcfWriter` and `CpjWriter` use **UTF-8 without BOM** when writing files.
 
 ### Rationale
 
-- Specification compliance.
-- Maximum compatibility with existing CANopen tools.
+- UTF-8 is ASCII-compatible for the 7-bit subset required by classic tooling.
+- Non-ASCII characters are preserved instead of being replaced during write.
+- Reader and writer behavior stay symmetric (UTF-8-based text processing).
 
 ### Consequences
 
-- (+) Interoperability with all common CANopen configuration tools.
-- (-) No support for Unicode characters in parameter names or comments.
+- (+) Preserves Unicode content in names/comments for modern toolchains.
+- (+) Keeps ASCII compatibility for standard-compliant content.
+- (-) A very strict ASCII-only consumer may reject UTF-8 files with non-ASCII characters.

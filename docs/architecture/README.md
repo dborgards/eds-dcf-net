@@ -5,7 +5,7 @@
 | Property            | Value                                                    |
 |---------------------|----------------------------------------------------------|
 | **Project**         | EdsDcfNet                                                |
-| **Version**         | 1.3.0                                                    |
+| **Version**         | Branch-specific; see `src/EdsDcfNet/EdsDcfNet.csproj` (managed by semantic-release) |
 | **Repository**      | https://github.com/dborgards/eds-dcf-net                 |
 | **License**         | MIT                                                      |
 | **Platform**        | .NET Standard 2.0 / .NET 10.0                            |
