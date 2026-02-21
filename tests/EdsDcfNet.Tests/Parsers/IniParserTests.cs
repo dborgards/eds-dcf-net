@@ -335,7 +335,7 @@ DataType=0x0005
     public void ParseString_ContentTooLarge_ThrowsEdsParseException()
     {
         // Arrange
-        var parser = new IniParser(maxFileSizeBytes: 10);
+        var parser = new IniParser(maxInputSize: 10);
         var content = "[Section1]\nKey1=Value1"; // 22 chars > 10
 
         // Act
@@ -386,7 +386,7 @@ DataType=0x0005
     public void ParseFile_FileTooLarge_ThrowsEdsParseException()
     {
         // Arrange
-        var parser = new IniParser(maxFileSizeBytes: 10);
+        var parser = new IniParser(maxInputSize: 10);
         var tempFile = Path.GetTempFileName();
 
         try

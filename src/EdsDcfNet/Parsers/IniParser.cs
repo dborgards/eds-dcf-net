@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Parsers;
 
 using System.Collections.Generic;
+using System.Globalization;
 using EdsDcfNet.Exceptions;
 
 /// <summary>
@@ -13,27 +14,28 @@ public class IniParser
     /// Default maximum input size (10 MB) used by <see cref="ParseFile"/> and
     /// <see cref="ParseString"/> to guard against unbounded memory consumption.
     /// </summary>
-    public const long DefaultMaxFileSizeBytes = 10L * 1024 * 1024;
+    public const long DefaultMaxInputSize = 10L * 1024 * 1024;
 
-    private readonly long _maxFileSizeBytes;
+    private readonly long _maxInputSize;
 
     /// <summary>
     /// Initializes a new instance of <see cref="IniParser"/> with the default size limit.
     /// </summary>
-    public IniParser() : this(DefaultMaxFileSizeBytes)
+    public IniParser() : this(DefaultMaxInputSize)
     {
     }
 
     /// <summary>
     /// Initializes a new instance of <see cref="IniParser"/> with a custom size limit.
     /// </summary>
-    /// <param name="maxFileSizeBytes">
-    /// Maximum file size (for <see cref="ParseFile"/>) or content length in characters
-    /// (for <see cref="ParseString"/>) before an <see cref="EdsParseException"/> is thrown.
+    /// <param name="maxInputSize">
+    /// Maximum file size in bytes (for <see cref="ParseFile"/>) or content length in
+    /// characters (for <see cref="ParseString"/>) before an <see cref="EdsParseException"/>
+    /// is thrown.
     /// </param>
-    public IniParser(long maxFileSizeBytes)
+    public IniParser(long maxInputSize)
     {
-        _maxFileSizeBytes = maxFileSizeBytes;
+        _maxInputSize = maxInputSize;
     }
 
     /// <summary>
@@ -49,10 +51,11 @@ public class IniParser
             throw new FileNotFoundException($"EDS/DCF file not found: {filePath}");
 
         var fileInfo = new FileInfo(filePath);
-        if (fileInfo.Length > _maxFileSizeBytes)
+        if (fileInfo.Length > _maxInputSize)
             throw new EdsParseException(
-                $"File '{filePath}' is too large ({fileInfo.Length:N0} bytes). " +
-                $"Maximum supported size is {_maxFileSizeBytes:N0} bytes.");
+                string.Format(CultureInfo.InvariantCulture,
+                    "File '{0}' is too large ({1:N0} bytes). Maximum supported size is {2:N0} bytes.",
+                    filePath, fileInfo.Length, _maxInputSize));
 
         return ParseLines(File.ReadLines(filePath));
     }
@@ -65,10 +68,11 @@ public class IniParser
     /// <exception cref="EdsParseException">Thrown when the content length exceeds the configured size limit.</exception>
     public Dictionary<string, Dictionary<string, string>> ParseString(string content)
     {
-        if (content.Length > _maxFileSizeBytes)
+        if (content.Length > _maxInputSize)
             throw new EdsParseException(
-                $"Content is too large ({content.Length:N0} characters). " +
-                $"Maximum supported size is {_maxFileSizeBytes:N0} characters.");
+                string.Format(CultureInfo.InvariantCulture,
+                    "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
+                    content.Length, _maxInputSize));
 
         var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         return ParseLines(lines);
