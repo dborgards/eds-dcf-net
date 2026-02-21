@@ -190,6 +190,36 @@ PDOMapping=0
         result.Should().Contain("Baudrate=500");
     }
 
+    [Fact]
+    public void WriteDcf_ValidDcf_WritesAndReadsBackFile()
+    {
+        // Arrange
+        var dcf = new DeviceConfigurationFile
+        {
+            FileInfo = new EdsFileInfo { FileName = "roundtrip.dcf" },
+            DeviceInfo = new DeviceInfo { VendorName = "Test Vendor", ProductName = "Test Product" },
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 3, Baudrate = 250 },
+            ObjectDictionary = new ObjectDictionary()
+        };
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            // Act
+            CanOpenFile.WriteDcf(dcf, tempFile);
+            var result = CanOpenFile.ReadDcf(tempFile);
+
+            // Assert
+            result.DeviceCommissioning.NodeId.Should().Be(3);
+            result.DeviceCommissioning.Baudrate.Should().Be(250);
+            result.DeviceInfo.VendorName.Should().Be("Test Vendor");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     #endregion
 
     #region EdsToDcf Tests
