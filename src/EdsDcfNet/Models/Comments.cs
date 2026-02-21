@@ -15,5 +15,5 @@ public class Comments
     /// List of comment lines (max 249 characters each).
     /// Key is the line number (1-based), value is the comment text.
     /// </summary>
-    public Dictionary<int, string> CommentLines { get; set; } = new();
+    public Dictionary<int, string> CommentLines { get; } = new();
 }

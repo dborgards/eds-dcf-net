@@ -34,22 +34,22 @@ public class ModuleInfo
     /// <summary>
     /// Fixed objects that are instantiated when at least one module of this type is connected.
     /// </summary>
-    public List<ushort> FixedObjects { get; set; } = new();
+    public List<ushort> FixedObjects { get; } = new();
 
     /// <summary>
     /// Objects indexed by their index that are created once per device.
     /// </summary>
-    public Dictionary<ushort, CanOpenObject> FixedObjectDefinitions { get; set; } = new();
+    public Dictionary<ushort, CanOpenObject> FixedObjectDefinitions { get; } = new();
 
     /// <summary>
     /// Objects that instantiate new sub-indexes per module.
     /// </summary>
-    public List<ushort> SubExtends { get; set; } = new();
+    public List<ushort> SubExtends { get; } = new();
 
     /// <summary>
     /// Sub-extension object definitions.
     /// </summary>
-    public Dictionary<ushort, ModuleSubExtension> SubExtensionDefinitions { get; set; } = new();
+    public Dictionary<ushort, ModuleSubExtension> SubExtensionDefinitions { get; } = new();
 
     /// <summary>
     /// Optional module comments.

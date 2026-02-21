@@ -58,13 +58,13 @@ public class DcfReader : CanOpenReaderBase
         // Parse connected modules if present
         if (IniParser.HasSection(sections, "ConnectedModules"))
         {
-            dcf.ConnectedModules = ParseConnectedModules(sections);
+            dcf.ConnectedModules.AddRange(ParseConnectedModules(sections));
         }
 
         // Parse supported modules if present
         if (IniParser.HasSection(sections, "SupportedModules"))
         {
-            dcf.SupportedModules = ParseSupportedModules(sections);
+            dcf.SupportedModules.AddRange(ParseSupportedModules(sections));
         }
 
         // Parse dynamic channels if present
@@ -76,7 +76,7 @@ public class DcfReader : CanOpenReaderBase
         // Parse tools if present
         if (IniParser.HasSection(sections, "Tools"))
         {
-            dcf.Tools = ParseTools(sections);
+            dcf.Tools.AddRange(ParseTools(sections));
         }
 
         // Parse any additional unknown sections

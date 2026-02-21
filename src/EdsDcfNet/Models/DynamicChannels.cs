@@ -9,7 +9,7 @@ public class DynamicChannels
     /// <summary>
     /// List of dynamic channel segments.
     /// </summary>
-    public List<DynamicChannelSegment> Segments { get; set; } = new();
+    public List<DynamicChannelSegment> Segments { get; } = new();
 }
 
 /// <summary>

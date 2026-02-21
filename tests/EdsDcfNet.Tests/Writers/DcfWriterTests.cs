@@ -809,26 +809,21 @@ public class DcfWriterTests
     {
         // Arrange
         var dcf = CreateMinimalDcf();
-        dcf.DynamicChannels = new DynamicChannels
+        dcf.DynamicChannels = new DynamicChannels();
+        dcf.DynamicChannels.Segments.Add(new DynamicChannelSegment
         {
-            Segments = new List<DynamicChannelSegment>
-            {
-                new DynamicChannelSegment
-                {
-                    Type = 0x0007,
-                    Dir = AccessType.ReadOnly,
-                    Range = "0xA080-0xA0BF",
-                    PPOffset = 0
-                },
-                new DynamicChannelSegment
-                {
-                    Type = 0x0005,
-                    Dir = AccessType.ReadWriteOutput,
-                    Range = "0xA0C0-0xA0FF",
-                    PPOffset = 64
-                }
-            }
-        };
+            Type = 0x0007,
+            Dir = AccessType.ReadOnly,
+            Range = "0xA080-0xA0BF",
+            PPOffset = 0
+        });
+        dcf.DynamicChannels.Segments.Add(new DynamicChannelSegment
+        {
+            Type = 0x0005,
+            Dir = AccessType.ReadWriteOutput,
+            Range = "0xA0C0-0xA0FF",
+            PPOffset = 64
+        });
 
         // Act
         var result = _writer.GenerateString(dcf);
@@ -864,19 +859,14 @@ public class DcfWriterTests
     {
         // Arrange
         var dcf = CreateMinimalDcf();
-        dcf.DynamicChannels = new DynamicChannels
+        dcf.DynamicChannels = new DynamicChannels();
+        dcf.DynamicChannels.Segments.Add(new DynamicChannelSegment
         {
-            Segments = new List<DynamicChannelSegment>
-            {
-                new DynamicChannelSegment
-                {
-                    Type = 0x0007,
-                    Dir = AccessType.ReadOnly,
-                    Range = "0xA080-0xA0BF",
-                    PPOffset = 0
-                }
-            }
-        };
+            Type = 0x0007,
+            Dir = AccessType.ReadOnly,
+            Range = "0xA080-0xA0BF",
+            PPOffset = 0
+        });
 
         // Act
         var output = _writer.GenerateString(dcf);
@@ -901,11 +891,8 @@ public class DcfWriterTests
     {
         // Arrange
         var dcf = CreateMinimalDcf();
-        dcf.Tools = new List<ToolInfo>
-        {
-            new ToolInfo { Name = "EDS Checker", Command = "checker.exe $EDS" },
-            new ToolInfo { Name = "Configurator", Command = "config.exe $DCF $NODEID" }
-        };
+        dcf.Tools.Add(new ToolInfo { Name = "EDS Checker", Command = "checker.exe $EDS" });
+        dcf.Tools.Add(new ToolInfo { Name = "Configurator", Command = "config.exe $DCF $NODEID" });
 
         // Act
         var result = _writer.GenerateString(dcf);
@@ -939,11 +926,8 @@ public class DcfWriterTests
     {
         // Arrange
         var dcf = CreateMinimalDcf();
-        dcf.Tools = new List<ToolInfo>
-        {
-            new ToolInfo { Name = "EDS Checker", Command = "checker.exe $EDS" },
-            new ToolInfo { Name = "Configurator", Command = "config.exe $DCF $NODEID" }
-        };
+        dcf.Tools.Add(new ToolInfo { Name = "EDS Checker", Command = "checker.exe $EDS" });
+        dcf.Tools.Add(new ToolInfo { Name = "Configurator", Command = "config.exe $DCF $NODEID" });
 
         // Act
         var output = _writer.GenerateString(dcf);

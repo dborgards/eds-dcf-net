@@ -8,11 +8,11 @@ public class NodelistProject
     /// <summary>
     /// Gets or sets the list of network topologies defined in this project.
     /// </summary>
-    public List<NetworkTopology> Networks { get; set; } = new();
+    public List<NetworkTopology> Networks { get; } = new();
 
     /// <summary>
     /// Gets or sets additional sections not recognized as topology sections.
     /// Key is the section name, value is a dictionary of key-value pairs.
     /// </summary>
-    public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; set; } = new();
+    public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } = new();
 }
