@@ -214,7 +214,14 @@ public static class ValueConverter
             {
                 var left = ParseInteger(parts[0].Trim());
                 var right = ParseInteger(parts[1].Trim());
-                return left + right;
+                try
+                {
+                    return checked(left + right);
+                }
+                catch (OverflowException ex)
+                {
+                    throw new EdsParseException($"$NODEID formula '{formula}' overflows uint range.", ex);
+                }
             }
         }
 
@@ -226,7 +233,14 @@ public static class ValueConverter
             {
                 var left = ParseInteger(parts[0].Trim());
                 var right = ParseInteger(parts[1].Trim());
-                return left - right;
+                try
+                {
+                    return checked(left - right);
+                }
+                catch (OverflowException ex)
+                {
+                    throw new EdsParseException($"$NODEID formula '{formula}' underflows uint range.", ex);
+                }
             }
         }
 
