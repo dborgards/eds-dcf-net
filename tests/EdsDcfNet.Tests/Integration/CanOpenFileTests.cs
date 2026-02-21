@@ -497,12 +497,9 @@ PDOMapping=0
             FileInfo = new EdsFileInfo { FileName = "test.eds" },
             DeviceInfo = new DeviceInfo { ProductName = "Test" },
             ObjectDictionary = new ObjectDictionary(),
-            Comments = new Comments
-            {
-                Lines = 1,
-                CommentLines = new Dictionary<int, string> { { 1, "Original comment" } }
-            }
+            Comments = new Comments { Lines = 1 }
         };
+        eds.Comments.CommentLines[1] = "Original comment";
 
         var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
 
@@ -664,12 +661,9 @@ PDOMapping=0
         {
             ModuleNumber = 1,
             ProductName = "Module With Comments",
-            Comments = new Comments
-            {
-                Lines = 1,
-                CommentLines = new Dictionary<int, string> { { 1, "Module comment" } }
-            }
+            Comments = new Comments { Lines = 1 }
         };
+        module.Comments!.CommentLines[1] = "Module comment";
         eds.SupportedModules.Add(module);
 
         // Act

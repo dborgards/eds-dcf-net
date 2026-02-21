@@ -23,5 +23,5 @@ public class NetworkTopology
     /// <summary>
     /// Gets or sets the nodes in this network, keyed by their node ID (1-127).
     /// </summary>
-    public Dictionary<byte, NetworkNode> Nodes { get; set; } = new();
+    public Dictionary<byte, NetworkNode> Nodes { get; } = new();
 }

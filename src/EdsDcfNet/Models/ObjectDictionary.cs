@@ -9,27 +9,27 @@ public class ObjectDictionary
     /// <summary>
     /// Mandatory objects (at least 1000h and 1001h).
     /// </summary>
-    public List<ushort> MandatoryObjects { get; set; } = new();
+    public List<ushort> MandatoryObjects { get; } = new();
 
     /// <summary>
     /// Optional objects (area 1000h-1FFFh and 6000h-FFFFh).
     /// </summary>
-    public List<ushort> OptionalObjects { get; set; } = new();
+    public List<ushort> OptionalObjects { get; } = new();
 
     /// <summary>
     /// Manufacturer specific objects (area 2000h-5FFFh).
     /// </summary>
-    public List<ushort> ManufacturerObjects { get; set; } = new();
+    public List<ushort> ManufacturerObjects { get; } = new();
 
     /// <summary>
     /// All objects indexed by their index.
     /// </summary>
-    public Dictionary<ushort, CanOpenObject> Objects { get; set; } = new();
+    public Dictionary<ushort, CanOpenObject> Objects { get; } = new();
 
     /// <summary>
     /// Dummy usage for mapping (data type index -> supported).
     /// </summary>
-    public Dictionary<ushort, bool> DummyUsage { get; set; } = new();
+    public Dictionary<ushort, bool> DummyUsage { get; } = new();
 }
 
 /// <summary>
@@ -100,7 +100,7 @@ public class CanOpenObject
     /// <summary>
     /// Sub-objects if this is a DEFSTRUCT, ARRAY, or RECORD.
     /// </summary>
-    public Dictionary<byte, CanOpenSubObject> SubObjects { get; set; } = new();
+    public Dictionary<byte, CanOpenSubObject> SubObjects { get; } = new();
 
     /// <summary>
     /// For compact sub-object storage: number of sub-indexes with equal description.
@@ -110,7 +110,7 @@ public class CanOpenObject
     /// <summary>
     /// Object links (related objects grouped together).
     /// </summary>
-    public List<ushort> ObjectLinks { get; set; } = new();
+    public List<ushort> ObjectLinks { get; } = new();
 
     /// <summary>
     /// For DCF files: configured parameter value.

@@ -36,12 +36,12 @@ public class DeviceConfigurationFile
     /// Connected modules (for modular devices).
     /// List of module indices referring to SupportedModules.
     /// </summary>
-    public List<int> ConnectedModules { get; set; } = new();
+    public List<int> ConnectedModules { get; } = new();
 
     /// <summary>
     /// Supported extension modules (copied from EDS).
     /// </summary>
-    public List<ModuleInfo> SupportedModules { get; set; } = new();
+    public List<ModuleInfo> SupportedModules { get; } = new();
 
     /// <summary>
     /// Dynamic channels configuration for CiA 302-4 programmable devices.
@@ -51,11 +51,11 @@ public class DeviceConfigurationFile
     /// <summary>
     /// Tool definitions from [Tools]/[ToolX] sections.
     /// </summary>
-    public List<ToolInfo> Tools { get; set; } = new();
+    public List<ToolInfo> Tools { get; } = new();
 
     /// <summary>
     /// Additional sections not covered by standard specification.
     /// Key is section name, value is dictionary of key-value pairs.
     /// </summary>
-    public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; set; } = new();
+    public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } = new();
 }

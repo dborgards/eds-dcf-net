@@ -52,7 +52,7 @@ public class EdsReader : CanOpenReaderBase
         // Parse supported modules if present
         if (IniParser.HasSection(sections, "SupportedModules"))
         {
-            eds.SupportedModules = ParseSupportedModules(sections);
+            eds.SupportedModules.AddRange(ParseSupportedModules(sections));
         }
 
         // Parse dynamic channels if present
@@ -64,7 +64,7 @@ public class EdsReader : CanOpenReaderBase
         // Parse tools if present
         if (IniParser.HasSection(sections, "Tools"))
         {
-            eds.Tools = ParseTools(sections);
+            eds.Tools.AddRange(ParseTools(sections));
         }
 
         // Parse any additional unknown sections

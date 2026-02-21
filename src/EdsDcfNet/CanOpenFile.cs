@@ -190,9 +190,11 @@ public static class CanOpenFile
             },
             ObjectDictionary = CloneObjectDictionary(eds.ObjectDictionary),
             Comments = CloneComments(eds.Comments),
-            SupportedModules = CloneSupportedModules(eds.SupportedModules),
-            AdditionalSections = CloneAdditionalSections(eds.AdditionalSections)
         };
+
+        dcf.SupportedModules.AddRange(CloneSupportedModules(eds.SupportedModules));
+        foreach (var kvp in CloneAdditionalSections(eds.AdditionalSections))
+            dcf.AdditionalSections[kvp.Key] = kvp.Value;
 
         return dcf;
     }
@@ -233,13 +235,12 @@ public static class CanOpenFile
 
     private static ObjectDictionary CloneObjectDictionary(ObjectDictionary source)
     {
-        var clone = new ObjectDictionary
-        {
-            MandatoryObjects = new List<ushort>(source.MandatoryObjects),
-            OptionalObjects = new List<ushort>(source.OptionalObjects),
-            ManufacturerObjects = new List<ushort>(source.ManufacturerObjects),
-            DummyUsage = new Dictionary<ushort, bool>(source.DummyUsage)
-        };
+        var clone = new ObjectDictionary();
+        clone.MandatoryObjects.AddRange(source.MandatoryObjects);
+        clone.OptionalObjects.AddRange(source.OptionalObjects);
+        clone.ManufacturerObjects.AddRange(source.ManufacturerObjects);
+        foreach (var kvp in source.DummyUsage)
+            clone.DummyUsage[kvp.Key] = kvp.Value;
 
         foreach (var kvp in source.Objects)
         {
@@ -265,7 +266,6 @@ public static class CanOpenFile
             ObjFlags = source.ObjFlags,
             SubNumber = source.SubNumber,
             CompactSubObj = source.CompactSubObj,
-            ObjectLinks = new List<ushort>(source.ObjectLinks),
             ParameterValue = source.ParameterValue,
             Denotation = source.Denotation,
             UploadFile = source.UploadFile,
@@ -274,6 +274,8 @@ public static class CanOpenFile
             InvertedSrad = source.InvertedSrad,
             ParamRefd = source.ParamRefd
         };
+
+        clone.ObjectLinks.AddRange(source.ObjectLinks);
 
         foreach (var kvp in source.SubObjects)
         {
@@ -307,11 +309,10 @@ public static class CanOpenFile
     private static Comments? CloneComments(Comments? source)
     {
         if (source == null) return null;
-        return new Comments
-        {
-            Lines = source.Lines,
-            CommentLines = new Dictionary<int, string>(source.CommentLines)
-        };
+        var clone = new Comments { Lines = source.Lines };
+        foreach (var kvp in source.CommentLines)
+            clone.CommentLines[kvp.Key] = kvp.Value;
+        return clone;
     }
 
     private static List<ModuleInfo> CloneSupportedModules(List<ModuleInfo> source)
@@ -326,10 +327,11 @@ public static class CanOpenFile
                 ProductVersion = module.ProductVersion,
                 ProductRevision = module.ProductRevision,
                 OrderCode = module.OrderCode,
-                FixedObjects = new List<ushort>(module.FixedObjects),
-                SubExtends = new List<ushort>(module.SubExtends),
                 Comments = CloneComments(module.Comments)
             };
+
+            clonedModule.FixedObjects.AddRange(module.FixedObjects);
+            clonedModule.SubExtends.AddRange(module.SubExtends);
 
             foreach (var kvp in module.FixedObjectDefinitions)
             {
