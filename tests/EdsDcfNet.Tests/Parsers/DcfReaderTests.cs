@@ -2214,9 +2214,8 @@ Command=invalid.exe
     [Fact]
     public void ReadString_SectionNamedValue_WithNoHexPrefix_PreservedInAdditionalSections()
     {
-        // Arrange - a section named exactly "Value" has no hex prefix (prefix = ""),
-        // so IsHexPrefixedSection("Value", "Value") hits the prefix.Length=0 branch and
-        // returns false, leaving the section in AdditionalSections.
+        // Arrange - a section named exactly "Value" is not treated as a hex-prefixed
+        // compact storage section and should be preserved in AdditionalSections.
         var content = BuildMinimalDcf(extraSections: @"
 [Value]
 SomeKey=SomeData

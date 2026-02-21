@@ -1686,9 +1686,8 @@ Line1=Module comment
     [Fact]
     public void ReadString_ModuleSectionWithUnknownSuffix_PreservedInAdditionalSections()
     {
-        // Arrange - "M1UnknownSuffix" has suffix "UnknownSuffix" which matches none of the known
-        // module suffixes (ModuleInfo, FixedObjects, SubExtend*, SubExt*, Comments), so
-        // IsModuleSection evaluates the Equals("Comments") branch as false and returns false overall.
+        // Arrange - a module-style section name with an unrecognised suffix ("M1UnknownSuffix")
+        // is not a known module section and should be preserved in AdditionalSections.
         var content = @"
 [DeviceInfo]
 VendorName=Test
@@ -1710,8 +1709,8 @@ Key=Value
     [Fact]
     public void ReadString_DummyUsage_NonDummyKey_IsIgnored()
     {
-        // Arrange - DummyUsage section contains a key that does NOT start with "Dummy".
-        // This covers the StartsWith("Dummy")=false branch in ParseObjectDictionary.
+        // Arrange - DummyUsage section contains a key that does not follow the DummyXXXX
+        // naming convention; such keys are ignored and not added to DummyUsage.
         var content = @"
 [DeviceInfo]
 VendorName=Test
