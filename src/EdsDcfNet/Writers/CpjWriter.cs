@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Writers;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using EdsDcfNet.Models;
@@ -14,6 +15,7 @@ public class CpjWriter
     /// </summary>
     /// <param name="cpj">The NodelistProject to write</param>
     /// <param name="filePath">Path where the CPJ file should be written</param>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteFile(NodelistProject cpj, string filePath)
     {
         var content = GenerateCpjContent(cpj);
@@ -25,12 +27,13 @@ public class CpjWriter
     /// </summary>
     /// <param name="cpj">The NodelistProject to convert</param>
     /// <returns>CPJ content as string</returns>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public string GenerateString(NodelistProject cpj)
     {
         return GenerateCpjContent(cpj);
     }
 
-    private string GenerateCpjContent(NodelistProject cpj)
+    private static string GenerateCpjContent(NodelistProject cpj)
     {
         var sb = new StringBuilder();
 

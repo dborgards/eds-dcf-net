@@ -1,9 +1,12 @@
 namespace EdsDcfNet.Models;
 
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// Represents the object dictionary of a CANopen device.
 /// Contains mandatory, optional, and manufacturer-specific objects.
 /// </summary>
+[SuppressMessage("Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix", Justification = "ObjectDictionary is a CiA CANopen domain term, not a Dictionary<K,V>.")]
 public class ObjectDictionary
 {
     /// <summary>
