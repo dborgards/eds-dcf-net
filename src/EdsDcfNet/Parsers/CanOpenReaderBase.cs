@@ -35,10 +35,17 @@ public abstract class CanOpenReaderBase
     /// Parses the <c>[FileInfo]</c> section into an <see cref="EdsFileInfo"/> object.
     /// Derived classes may override this to read additional format-specific fields.
     /// </summary>
+    /// <remarks>
+    /// <c>[FileInfo]</c> is treated as <b>optional</b>: CiA 306 recommends the section but
+    /// does not make it mandatory, and many real-world EDS/DCF files omit individual fields
+    /// or the section entirely. When the section is absent an empty <see cref="EdsFileInfo"/>
+    /// with default values is returned so that the rest of the file can still be parsed.
+    /// </remarks>
     protected virtual EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
         var fileInfo = new EdsFileInfo();
 
+        // [FileInfo] is optional — return defaults when the section is absent.
         if (!IniParser.HasSection(sections, "FileInfo"))
             return fileInfo;
 
@@ -59,12 +66,19 @@ public abstract class CanOpenReaderBase
 
     /// <summary>
     /// Parses the <c>[DeviceInfo]</c> section into a <see cref="DeviceInfo"/> object.
-    /// Throws <see cref="EdsParseException"/> if the section is absent.
     /// </summary>
+    /// <remarks>
+    /// <c>[DeviceInfo]</c> is <b>mandatory</b> per CiA 306-1 §5.2: every valid EDS and DCF
+    /// file must contain this section. Without it the library cannot determine basic device
+    /// identity (vendor, product, supported baud rates), so an <see cref="EdsParseException"/>
+    /// is thrown rather than silently returning an empty or misleading object.
+    /// </remarks>
+    /// <exception cref="EdsParseException">Thrown when the <c>[DeviceInfo]</c> section is absent.</exception>
     protected DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
         var deviceInfo = new DeviceInfo();
 
+        // [DeviceInfo] is mandatory (CiA 306-1 §5.2) — reject the file when absent.
         if (!IniParser.HasSection(sections, "DeviceInfo"))
             throw new EdsParseException("Required section [DeviceInfo] not found");
 
