@@ -327,7 +327,7 @@ public abstract class CanOpenReaderBase
 
         for (int i = 1; i <= comments.Lines; i++)
         {
-            var line = IniParser.GetValue(sections, "Comments", $"Line{i}");
+            var line = IniParser.GetValue(sections, "Comments", string.Format(System.Globalization.CultureInfo.InvariantCulture, "Line{0}", i));
             if (!string.IsNullOrEmpty(line))
             {
                 comments.CommentLines[i] = line;
@@ -364,7 +364,7 @@ public abstract class CanOpenReaderBase
     /// </summary>
     protected ModuleInfo? ParseModuleInfo(Dictionary<string, Dictionary<string, string>> sections, int moduleNumber)
     {
-        var sectionName = $"M{moduleNumber}ModuleInfo";
+        var sectionName = string.Format(System.Globalization.CultureInfo.InvariantCulture, "M{0}ModuleInfo", moduleNumber);
         if (!IniParser.HasSection(sections, sectionName))
             return null;
 
@@ -378,7 +378,7 @@ public abstract class CanOpenReaderBase
         };
 
         // Parse fixed objects
-        var fixedObjSection = $"M{moduleNumber}FixedObjects";
+        var fixedObjSection = string.Format(System.Globalization.CultureInfo.InvariantCulture, "M{0}FixedObjects", moduleNumber);
         if (IniParser.HasSection(sections, fixedObjSection))
         {
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, fixedObjSection, "NrOfEntries", "0"));
