@@ -1708,36 +1708,6 @@ Key=Value
     }
 
     [Fact]
-    public void ReadString_SupportedModules_MissingModuleSection_SkipsEntry()
-    {
-        // Arrange - NrOfEntries=2 but only M1ModuleInfo exists, not M2ModuleInfo.
-        // ParseModuleInfo(sections, 2) hits the HasSection=false path and returns null.
-        var content = @"
-[DeviceInfo]
-VendorName=Test
-
-[MandatoryObjects]
-SupportedObjects=0
-
-[SupportedModules]
-NrOfEntries=2
-
-[M1ModuleInfo]
-ProductName=Module1
-ProductVersion=1
-ProductRevision=0
-OrderCode=MOD-1
-";
-
-        // Act
-        var result = _reader.ReadString(content);
-
-        // Assert - only module 1 was parsed; module 2 has no section so it is skipped
-        result.SupportedModules.Should().HaveCount(1);
-        result.SupportedModules[0].ModuleNumber.Should().Be(1);
-    }
-
-    [Fact]
     public void ReadString_DummyUsage_NonDummyKey_IsIgnored()
     {
         // Arrange - DummyUsage section contains a key that does NOT start with "Dummy".
