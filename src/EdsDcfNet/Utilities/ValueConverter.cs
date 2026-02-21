@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Utilities;
 
 using System.Globalization;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 
 /// <summary>
@@ -34,21 +35,28 @@ public static class ValueConverter
             return EvaluateNodeIdFormula(value, nodeId.Value);
         }
 
-        // Hexadecimal (0x prefix)
-        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ||
-            value.StartsWith("0X", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            return Convert.ToUInt32(value.Substring(2), 16);
-        }
+            // Hexadecimal (0x prefix)
+            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ||
+                value.StartsWith("0X", StringComparison.OrdinalIgnoreCase))
+            {
+                return Convert.ToUInt32(value.Substring(2), 16);
+            }
 
-        // Octal (leading 0, but not 0x)
-        if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
+            // Octal (leading 0, but not 0x)
+            if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
+            {
+                return Convert.ToUInt32(value, 8);
+            }
+
+            // Decimal
+            return uint.Parse(value, CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
-            return Convert.ToUInt32(value, 8);
+            throw new EdsParseException($"Invalid integer value: '{value}'", ex);
         }
-
-        // Decimal
-        return uint.Parse(value, CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -76,20 +84,27 @@ public static class ValueConverter
         if (string.IsNullOrEmpty(value))
             return 0;
 
-        // Hexadecimal
-        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            return Convert.ToByte(value.Substring(2), 16);
-        }
+            // Hexadecimal
+            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                return Convert.ToByte(value.Substring(2), 16);
+            }
 
-        // Octal
-        if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
+            // Octal
+            if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
+            {
+                return Convert.ToByte(value, 8);
+            }
+
+            // Decimal
+            return byte.Parse(value, CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
-            return Convert.ToByte(value, 8);
+            throw new EdsParseException($"Invalid byte value: '{value}'", ex);
         }
-
-        // Decimal
-        return byte.Parse(value, CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -102,20 +117,27 @@ public static class ValueConverter
         if (string.IsNullOrEmpty(value))
             return 0;
 
-        // Hexadecimal
-        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            return Convert.ToUInt16(value.Substring(2), 16);
-        }
+            // Hexadecimal
+            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                return Convert.ToUInt16(value.Substring(2), 16);
+            }
 
-        // Octal
-        if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
+            // Octal
+            if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
+            {
+                return Convert.ToUInt16(value, 8);
+            }
+
+            // Decimal
+            return ushort.Parse(value, CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
-            return Convert.ToUInt16(value, 8);
+            throw new EdsParseException($"Invalid UInt16 value: '{value}'", ex);
         }
-
-        // Decimal
-        return ushort.Parse(value, CultureInfo.InvariantCulture);
     }
 
     /// <summary>

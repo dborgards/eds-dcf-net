@@ -256,7 +256,7 @@ SupportedObjects=0
     }
 
     [Fact]
-    public void ReadString_FileInfo_InvalidNumericFields_ThrowsFormatException()
+    public void ReadString_FileInfo_InvalidNumericFields_ThrowsEdsParseException()
     {
         // Arrange – invalid numeric values in FileInfo
         var content = @"
@@ -281,7 +281,7 @@ SupportedObjects=0
         var act = () => _reader.ReadString(content);
 
         // Assert
-        act.Should().Throw<FormatException>();
+        act.Should().Throw<EdsParseException>();
     }
 
     #endregion
@@ -1673,7 +1673,7 @@ PDOMapping=0
     }
 
     [Fact]
-    public void ReadString_NonHexObjectIndex_ThrowsFormatException()
+    public void ReadString_NonHexObjectIndex_ThrowsEdsParseException()
     {
         // Arrange – Non-hex index in object list
         var content = BuildMinimalDcf(extraSections: @"
@@ -1686,12 +1686,11 @@ SupportedObjects=1
         var act = () => _reader.ReadString(content);
 
         // Assert
-        // ValueConverter.ParseUInt16 throws FormatException for non-hex
-        act.Should().Throw<FormatException>();
+        act.Should().Throw<EdsParseException>();
     }
 
     [Fact]
-    public void ReadString_OverflowObjectIndex_ThrowsOverflowException()
+    public void ReadString_OverflowObjectIndex_ThrowsEdsParseException()
     {
         // Arrange – Value exceeds ushort range
         var content = BuildMinimalDcf(extraSections: @"
@@ -1704,8 +1703,7 @@ SupportedObjects=1
         var act = () => _reader.ReadString(content);
 
         // Assert
-        // ValueConverter.ParseUInt16 throws OverflowException
-        act.Should().Throw<OverflowException>();
+        act.Should().Throw<EdsParseException>();
     }
 
     [Fact]
