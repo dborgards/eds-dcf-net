@@ -31,6 +31,10 @@ public abstract class CanOpenReaderBase
     protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromString(string content)
         => _iniParser.ParseString(content);
 
+    /// <summary>
+    /// Parses the <c>[FileInfo]</c> section into an <see cref="EdsFileInfo"/> object.
+    /// Derived classes may override this to read additional format-specific fields.
+    /// </summary>
     protected virtual EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
         var fileInfo = new EdsFileInfo();
@@ -53,6 +57,10 @@ public abstract class CanOpenReaderBase
         return fileInfo;
     }
 
+    /// <summary>
+    /// Parses the <c>[DeviceInfo]</c> section into a <see cref="DeviceInfo"/> object.
+    /// Throws <see cref="Exceptions.EdsParseException"/> if the section is absent.
+    /// </summary>
     protected DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
         var deviceInfo = new DeviceInfo();
@@ -91,6 +99,10 @@ public abstract class CanOpenReaderBase
         return deviceInfo;
     }
 
+    /// <summary>
+    /// Parses the mandatory, optional, and manufacturer object sections into an
+    /// <see cref="ObjectDictionary"/>, including all sub-objects and dummy usage entries.
+    /// </summary>
     protected ObjectDictionary ParseObjectDictionary(Dictionary<string, Dictionary<string, string>> sections)
     {
         var objDict = new ObjectDictionary();
@@ -172,6 +184,11 @@ public abstract class CanOpenReaderBase
         return objDict;
     }
 
+    /// <summary>
+    /// Parses a single CANopen object at the given <paramref name="index"/> from the INI sections.
+    /// Returns <see langword="null"/> if no section exists for that index.
+    /// Derived classes may override this to read additional format-specific fields.
+    /// </summary>
     protected virtual CanOpenObject? ParseObject(Dictionary<string, Dictionary<string, string>> sections, ushort index)
     {
         var sectionName = $"{index:X}";
@@ -241,6 +258,11 @@ public abstract class CanOpenReaderBase
         return obj;
     }
 
+    /// <summary>
+    /// Parses all sub-objects for the given <paramref name="obj"/> and populates
+    /// <see cref="CanOpenObject.SubObjects"/>.
+    /// Derived classes may override this to handle additional compact storage formats.
+    /// </summary>
     protected virtual void ParseSubObjects(Dictionary<string, Dictionary<string, string>> sections, ushort index, CanOpenObject obj)
     {
         // Determine the number of sub-objects to parse
@@ -260,6 +282,11 @@ public abstract class CanOpenReaderBase
         }
     }
 
+    /// <summary>
+    /// Parses a single sub-object at the given <paramref name="index"/> and <paramref name="subIndex"/>.
+    /// Returns <see langword="null"/> if no section exists for that sub-object.
+    /// Derived classes may override this to read additional format-specific fields.
+    /// </summary>
     protected virtual CanOpenSubObject? ParseSubObject(Dictionary<string, Dictionary<string, string>> sections, ushort index, byte subIndex)
     {
         var sectionName = $"{index:X}sub{subIndex:X}";
@@ -284,6 +311,10 @@ public abstract class CanOpenReaderBase
         return subObj;
     }
 
+    /// <summary>
+    /// Parses the <c>[Comments]</c> section into a <see cref="Comments"/> object,
+    /// or returns <see langword="null"/> if the section is absent.
+    /// </summary>
     protected Comments? ParseComments(Dictionary<string, Dictionary<string, string>> sections)
     {
         if (!IniParser.HasSection(sections, "Comments"))
@@ -306,6 +337,10 @@ public abstract class CanOpenReaderBase
         return comments;
     }
 
+    /// <summary>
+    /// Parses the <c>[SupportedModules]</c> section and each module's <c>ModuleInfo</c>
+    /// section into a list of <see cref="ModuleInfo"/> objects.
+    /// </summary>
     protected List<ModuleInfo> ParseSupportedModules(Dictionary<string, Dictionary<string, string>> sections)
     {
         var modules = new List<ModuleInfo>();
@@ -323,6 +358,10 @@ public abstract class CanOpenReaderBase
         return modules;
     }
 
+    /// <summary>
+    /// Parses the <c>[M{moduleNumber}ModuleInfo]</c> section for the given module number.
+    /// Returns <see langword="null"/> if the section does not exist.
+    /// </summary>
     protected ModuleInfo? ParseModuleInfo(Dictionary<string, Dictionary<string, string>> sections, int moduleNumber)
     {
         var sectionName = $"M{moduleNumber}ModuleInfo";
@@ -356,6 +395,10 @@ public abstract class CanOpenReaderBase
         return moduleInfo;
     }
 
+    /// <summary>
+    /// Parses the <c>[DynamicChannels]</c> section into a <see cref="DynamicChannels"/> object,
+    /// or returns <see langword="null"/> if the section has no segments.
+    /// </summary>
     protected DynamicChannels? ParseDynamicChannels(Dictionary<string, Dictionary<string, string>> sections)
     {
         var nrOfSeg = ValueConverter.ParseByte(IniParser.GetValue(sections, "DynamicChannels", "NrOfSeg", "0"));
@@ -380,6 +423,10 @@ public abstract class CanOpenReaderBase
         return dynamicChannels;
     }
 
+    /// <summary>
+    /// Parses the <c>[Tools]</c> section and each individual <c>[Tool{n}]</c> section
+    /// into a list of <see cref="ToolInfo"/> objects.
+    /// </summary>
     protected List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
     {
         var tools = new List<ToolInfo>();
@@ -403,6 +450,11 @@ public abstract class CanOpenReaderBase
         return tools;
     }
 
+    /// <summary>
+    /// Determines whether <paramref name="sectionName"/> is a known section for this file format.
+    /// Unknown sections are preserved in <c>AdditionalSections</c> for round-trip fidelity.
+    /// Derived classes may override this to recognise additional format-specific sections.
+    /// </summary>
     protected virtual bool IsKnownSection(string sectionName)
     {
         if (KnownSectionNames.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
@@ -423,6 +475,11 @@ public abstract class CanOpenReaderBase
         return false;
     }
 
+    /// <summary>
+    /// Returns <see langword="true"/> if <paramref name="sectionName"/> matches a
+    /// <c>[Tool{n}]</c> section for one of the already-parsed tools (1 ≤ n ≤ <paramref name="parsedToolCount"/>).
+    /// Used to avoid treating tool data sections as unknown additional sections.
+    /// </summary>
     protected static bool IsToolSectionForParsedTools(string sectionName, int parsedToolCount)
     {
         if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) || sectionName.Length <= 4)
