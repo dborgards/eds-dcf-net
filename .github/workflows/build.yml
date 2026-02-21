@@ -42,13 +42,13 @@ jobs:
     - name: Enforce coverage threshold
       shell: bash
       run: |
-        coverage_file="$(find . -type f -name 'coverage.cobertura.xml' | head -n 1)"
+        coverage_file="$(find . -type f -name 'coverage.cobertura.xml' -print -quit)"
         if [[ -z "$coverage_file" ]]; then
           echo "No coverage.cobertura.xml found."
           exit 1
         fi
 
-        line_rate="$(grep -o 'line-rate="[^"]*"' "$coverage_file" | head -n 1 | cut -d'"' -f2)"
+        line_rate="$(sed -n 's/.*line-rate="\([^"]*\)".*/\1/p; q' "$coverage_file")"
         if [[ -z "$line_rate" ]]; then
           echo "Could not read line-rate from $coverage_file"
           exit 1
