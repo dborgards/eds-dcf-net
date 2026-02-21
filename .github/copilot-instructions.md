@@ -96,6 +96,36 @@ refactor(parser): simplify IniParser section lookup
 test: add round-trip tests for modular devices
 ```
 
+## Branching Strategy
+
+This project uses a **develop → main** integration model:
+
+| Branch | Purpose | Release |
+|---|---|---|
+| `main` | Stable, production-ready code | Stable NuGet release (e.g., `1.5.0`) |
+| `develop` | Integration branch for ongoing work | Pre-release NuGet (e.g., `1.5.0-beta.1`) |
+| `feat/*`, `fix/*`, etc. | Short-lived feature/fix branches | None |
+
+### Workflow
+
+1. Branch off `develop`:
+   ```
+   git checkout -b feat/my-feature develop
+   ```
+2. Open a PR from the feature branch **into `develop`** (never directly into `main`).
+3. On merge to `develop`, semantic-release publishes a `beta` pre-release to NuGet automatically.
+4. When ready for a stable release, open a PR from `develop` → `main`.
+5. On merge to `main`, semantic-release publishes the stable release to NuGet.
+
+### CI Behaviour
+
+- **Push to a feature branch** → `build.yml` runs (build + test).
+- **PR targeting `develop` or `main`** → `build.yml` runs (build + test as gate).
+- **Merge to `develop`** → `semantic-release.yml` runs (build + test + beta pre-release).
+- **Merge to `main`** → `semantic-release.yml` runs (build + test + stable release).
+
+Direct commits to `main` or `develop` are not allowed; all changes go through PRs.
+
 ## Code Style
 
 - XML doc comments on all public members
