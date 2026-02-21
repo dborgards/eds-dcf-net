@@ -252,4 +252,4 @@ public static class ValueConverter
     }
 }
 
-#pragma warning restore CA1845, CA1865, CA1866 // span-based and char overloads not available in netstandard2.0
+#pragma warning restore CA1845, CA1865, CA1866, CA2249 // span-based and char overloads not available in netstandard2.0

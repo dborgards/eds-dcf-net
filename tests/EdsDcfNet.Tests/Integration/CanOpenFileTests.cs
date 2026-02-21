@@ -216,7 +216,10 @@ PDOMapping=0
         }
         finally
         {
-            File.Delete(tempFile);
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
         }
     }
 
