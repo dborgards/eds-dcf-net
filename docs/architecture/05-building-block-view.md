@@ -133,7 +133,7 @@ classDiagram
     }
 ```
 
-**DcfWriter** is a stateless class that serializes a `DeviceConfigurationFile` model back into the INI-based DCF format. The `DeviceConfigurationFile` is passed as a parameter to each public method rather than stored in the writer. Output can be written either to a file (ASCII encoding) or returned as a string.
+**DcfWriter** is a stateless class that serializes a `DeviceConfigurationFile` model back into the INI-based DCF format. The `DeviceConfigurationFile` is passed as a parameter to each public method rather than stored in the writer. Output can be written either to a file (UTF-8 without BOM) or returned as a string.
 
 ```mermaid
 classDiagram
