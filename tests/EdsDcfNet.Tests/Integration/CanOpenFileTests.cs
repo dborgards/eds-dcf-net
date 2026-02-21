@@ -280,6 +280,44 @@ PDOMapping=0
     }
 
     [Fact]
+    public void EdsToDcf_NodeIdZero_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test Product" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        // Act
+        var act = () => CanOpenFile.EdsToDcf(eds, nodeId: 0);
+
+        // Assert
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .WithMessage("*Node-ID must be in range 1..127*");
+    }
+
+    [Fact]
+    public void EdsToDcf_NodeIdAbove127_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test Product" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        // Act
+        var act = () => CanOpenFile.EdsToDcf(eds, nodeId: 200);
+
+        // Assert
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .WithMessage("*Node-ID must be in range 1..127*");
+    }
+
+    [Fact]
     public void EdsToDcf_NoNodeName_GeneratesDefault()
     {
         // Arrange

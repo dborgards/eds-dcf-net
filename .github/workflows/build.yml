@@ -1,5 +1,11 @@
 name: Build and Test
 
+permissions:
+  contents: read
+
+env:
+  COVERAGE_MIN_PERCENT: "95.0"
+
 on:
   push:
     branches-ignore:
@@ -35,6 +41,36 @@ jobs:
 
     - name: Test
       run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+
+    - name: Enforce coverage threshold
+      shell: bash
+      run: |
+        coverage_file="$(find . -type f -name 'coverage.cobertura.xml' -print -quit)"
+        if [[ -z "$coverage_file" ]]; then
+          echo "No coverage.cobertura.xml found."
+          exit 1
+        fi
+
+        line_rate="$(awk '
+          /line-rate="/ {
+            match($0, /line-rate="[^"]+"/)
+            value = substr($0, RSTART + 11, RLENGTH - 12)
+            print value
+            exit
+          }
+        ' "$coverage_file")"
+        if [[ -z "$line_rate" ]]; then
+          echo "Could not read line-rate from $coverage_file"
+          exit 1
+        fi
+
+        coverage_percent="$(awk "BEGIN { printf \"%.2f\", $line_rate * 100 }")"
+        echo "Line coverage: ${coverage_percent}% (required: >= ${COVERAGE_MIN_PERCENT}%)"
+
+        awk "BEGIN { exit !($coverage_percent >= $COVERAGE_MIN_PERCENT) }" || {
+          echo "Coverage gate failed."
+          exit 1
+        }
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5

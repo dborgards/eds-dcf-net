@@ -114,6 +114,20 @@ public class ValueConverterTests
             .WithMessage("*Cannot evaluate $NODEID formula*");
     }
 
+    [Theory]
+    [InlineData("$NODEID*2")]
+    [InlineData("$NODEID+0x200+1")]
+    [InlineData("$NODEID-")]
+    public void ParseInteger_UnsupportedNodeIdFormula_ThrowsEdsParseException(string formula)
+    {
+        // Act
+        var act = () => ValueConverter.ParseInteger(formula, 5);
+
+        // Assert
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*Unsupported $NODEID formula*'{formula}'*");
+    }
+
     #endregion
 
     #region ParseBoolean Tests

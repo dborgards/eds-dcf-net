@@ -348,6 +348,30 @@ Baudrate=500");
         result.DeviceCommissioning.LssSerialNumber.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(128)]
+    public void ReadString_DeviceCommissioning_InvalidNodeId_ThrowsEdsParseException(int nodeId)
+    {
+        // Arrange
+        var content = BuildMinimalDcf($@"
+[DeviceCommissioning]
+NodeID={nodeId}
+NodeName=InvalidNode
+Baudrate=500
+NetNumber=1
+NetworkName=TestNetwork
+CANopenManager=0");
+
+        // Act
+        var act = () => _reader.ReadString(content);
+
+        // Assert
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*Invalid NodeID*")
+            .Which.SectionName.Should().BeOneOf("DeviceCommissioning", "DeviceComissioning");
+    }
+
     [Fact]
     public void ReadString_DeviceCommissioning_ReferenceDesignators_ParsedCorrectly()
     {
@@ -2385,4 +2409,3 @@ PDOMapping=0
 
     #endregion
 }
-

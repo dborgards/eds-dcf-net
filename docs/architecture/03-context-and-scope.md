@@ -45,7 +45,7 @@ C4Context
 
     System(edsdcfnet, "EdsDcfNet", "NuGet package (netstandard2.0 / net10.0)")
 
-    System_Ext(filesystem, "File System", "EDS/DCF/CPJ files as text files (reads UTF-8, writes ASCII)")
+    System_Ext(filesystem, "File System", "EDS/DCF/CPJ files as text files (reads UTF-8, writes UTF-8 without BOM)")
     System_Ext(dotnet_host, ".NET Host Application", "Any .NET application referencing the NuGet package")
     System_Ext(nuget, "NuGet.org", "Package distribution")
 
@@ -58,6 +58,6 @@ C4Context
 
 | Channel                | Protocol / Format                              | Description                                                              |
 |------------------------|------------------------------------------------|--------------------------------------------------------------------------|
-| **File system**        | System.IO (UTF-8 read, ASCII write)            | Reading EDS/DCF/CPJ as UTF-8 text, writing DCF/CPJ as ASCII-encoded text |
+| **File system**        | System.IO (UTF-8 read/write, no BOM on write)  | Reading EDS/DCF/CPJ as UTF-8 text, writing DCF/CPJ as UTF-8 (without BOM) |
 | **String API**         | In-memory UTF-16 strings                       | `ReadEdsFromString` / `WriteDcfToString` / `ReadCpjFromString` / `WriteCpjToString` for scenarios without file system access |
 | **NuGet package**      | `.nupkg` + `.snupkg`                           | Distribution via nuget.org with Source Link                              |

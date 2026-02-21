@@ -82,7 +82,7 @@ sequenceDiagram
 
     DW->>DW: WriteSupportedModules()
     DW->>DW: WriteAdditionalSections()
-    DW->>DW: File.WriteAllText(filePath, content, ASCII)
+    DW->>DW: File.WriteAllText(filePath, content, UTF-8 (no BOM))
 
     DW-->>CF: void
     CF-->>App: void
@@ -161,7 +161,7 @@ sequenceDiagram
     end
 
     CW->>CW: Write AdditionalSections
-    CW->>CW: File.WriteAllText(filePath, content, ASCII)
+    CW->>CW: File.WriteAllText(filePath, content, UTF-8 (no BOM))
 
     CW-->>CF: void
     CF-->>App: void
