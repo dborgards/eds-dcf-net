@@ -14,7 +14,7 @@ public class CpjWriter
     /// </summary>
     /// <param name="cpj">The NodelistProject to write</param>
     /// <param name="filePath">Path where the CPJ file should be written</param>
-    public void WriteFile(NodelistProject cpj, string filePath)
+    public static void WriteFile(NodelistProject cpj, string filePath)
     {
         var content = GenerateCpjContent(cpj);
         File.WriteAllText(filePath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
@@ -25,12 +25,12 @@ public class CpjWriter
     /// </summary>
     /// <param name="cpj">The NodelistProject to convert</param>
     /// <returns>CPJ content as string</returns>
-    public string GenerateString(NodelistProject cpj)
+    public static string GenerateString(NodelistProject cpj)
     {
         return GenerateCpjContent(cpj);
     }
 
-    private string GenerateCpjContent(NodelistProject cpj)
+    private static string GenerateCpjContent(NodelistProject cpj)
     {
         var sb = new StringBuilder();
 

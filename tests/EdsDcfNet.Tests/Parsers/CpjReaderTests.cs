@@ -7,8 +7,6 @@ using Xunit;
 
 public class CpjReaderTests
 {
-    private readonly CpjReader _reader = new();
-
     [Fact]
     public void ReadString_SimpleTopologyWith3Nodes_ParsesCorrectly()
     {
@@ -31,7 +29,7 @@ EDSBaseName=/eds/
 ";
 
         // Act
-        var result = _reader.ReadString(content);
+        var result = CpjReader.ReadString(content);
 
         // Assert
         result.Networks.Should().HaveCount(1);
@@ -74,7 +72,7 @@ Node5DCFName=b.dcf
 ";
 
         // Act
-        var result = _reader.ReadString(content);
+        var result = CpjReader.ReadString(content);
 
         // Assert
         result.Networks.Should().HaveCount(2);
@@ -98,7 +96,7 @@ Node1Present=0x01
 ";
 
         // Act
-        var result = _reader.ReadString(content);
+        var result = CpjReader.ReadString(content);
 
         // Assert
         var network = result.Networks[0];
@@ -124,7 +122,7 @@ Node2Name=Inactive
 ";
 
         // Act
-        var result = _reader.ReadString(content);
+        var result = CpjReader.ReadString(content);
 
         // Assert
         var network = result.Networks[0];
@@ -149,7 +147,7 @@ Node127Name=Node Max
 ";
 
         // Act
-        var result = _reader.ReadString(content);
+        var result = CpjReader.ReadString(content);
 
         // Assert
         var network = result.Networks[0];
@@ -175,7 +173,7 @@ Version=1.0
 ";
 
         // Act
-        var result = _reader.ReadString(content);
+        var result = CpjReader.ReadString(content);
 
         // Assert
         result.Networks.Should().HaveCount(1);
@@ -198,7 +196,7 @@ Node10DCFName=sensor.dcf
 ";
 
         // Act
-        var result = _reader.ReadString(content);
+        var result = CpjReader.ReadString(content);
 
         // Assert
         var node = result.Networks[0].Nodes[10];
@@ -212,7 +210,7 @@ Node10DCFName=sensor.dcf
         var content = "";
 
         // Act
-        var result = _reader.ReadString(content);
+        var result = CpjReader.ReadString(content);
 
         // Assert
         result.Networks.Should().BeEmpty();
@@ -231,7 +229,7 @@ Node1Name=DecimalPresent
 ";
 
         // Act
-        var result = _reader.ReadString(content);
+        var result = CpjReader.ReadString(content);
 
         // Assert
         result.Networks[0].Nodes[1].Present.Should().BeTrue();
