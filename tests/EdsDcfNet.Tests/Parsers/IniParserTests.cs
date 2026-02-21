@@ -331,6 +331,21 @@ DataType=0x0005
         result.Should().BeEmpty();
     }
 
+    [Fact]
+    public void ParseString_ContentTooLarge_ThrowsEdsParseException()
+    {
+        // Arrange
+        var parser = new IniParser(maxInputSize: 10);
+        var content = "[Section1]\nKey1=Value1"; // 22 chars > 10
+
+        // Act
+        var act = () => parser.ParseString(content);
+
+        // Assert
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
     #endregion
 
     #region ParseFile Tests
@@ -365,6 +380,30 @@ DataType=0x0005
         // Assert
         act.Should().Throw<FileNotFoundException>()
             .WithMessage("*EDS/DCF file not found*");
+    }
+
+    [Fact]
+    public void ParseFile_FileTooLarge_ThrowsEdsParseException()
+    {
+        // Arrange
+        var parser = new IniParser(maxInputSize: 10);
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            File.WriteAllText(tempFile, "[Section1]\nKey1=Value1"); // 22 bytes > 10
+
+            // Act
+            var act = () => parser.ParseFile(tempFile);
+
+            // Assert
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*too large*");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 
     #endregion

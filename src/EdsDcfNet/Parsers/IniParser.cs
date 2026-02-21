@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Parsers;
 
+using System.Collections.Generic;
+using System.Globalization;
 using EdsDcfNet.Exceptions;
 
 /// <summary>
@@ -9,17 +11,53 @@ using EdsDcfNet.Exceptions;
 public class IniParser
 {
     /// <summary>
+    /// Default maximum input size (10 MB) used by <see cref="ParseFile"/> and
+    /// <see cref="ParseString"/> to guard against unbounded memory consumption.
+    /// </summary>
+    public const long DefaultMaxInputSize = 10L * 1024 * 1024;
+
+    private readonly long _maxInputSize;
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="IniParser"/> with the default size limit.
+    /// </summary>
+    public IniParser() : this(DefaultMaxInputSize)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="IniParser"/> with a custom size limit.
+    /// </summary>
+    /// <param name="maxInputSize">
+    /// Maximum file size in bytes (for <see cref="ParseFile"/>) or content length in
+    /// characters (for <see cref="ParseString"/>) before an <see cref="EdsParseException"/>
+    /// is thrown.
+    /// </param>
+    public IniParser(long maxInputSize)
+    {
+        _maxInputSize = maxInputSize;
+    }
+
+    /// <summary>
     /// Parses an EDS/DCF file and returns sections with their key-value pairs.
     /// </summary>
     /// <param name="filePath">Path to the EDS/DCF file</param>
     /// <returns>Dictionary where key is section name (lowercase) and value is key-value pairs</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
+    /// <exception cref="EdsParseException">Thrown when the file exceeds the configured size limit.</exception>
     public Dictionary<string, Dictionary<string, string>> ParseFile(string filePath)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"EDS/DCF file not found: {filePath}");
 
-        var lines = File.ReadAllLines(filePath);
-        return ParseLines(lines);
+        var fileInfo = new FileInfo(filePath);
+        if (fileInfo.Length > _maxInputSize)
+            throw new EdsParseException(
+                string.Format(CultureInfo.InvariantCulture,
+                    "File '{0}' is too large ({1:N0} bytes). Maximum supported size is {2:N0} bytes.",
+                    filePath, fileInfo.Length, _maxInputSize));
+
+        return ParseLines(File.ReadLines(filePath));
     }
 
     /// <summary>
@@ -27,8 +65,15 @@ public class IniParser
     /// </summary>
     /// <param name="content">EDS/DCF file content as string</param>
     /// <returns>Dictionary where key is section name (lowercase) and value is key-value pairs</returns>
+    /// <exception cref="EdsParseException">Thrown when the content length exceeds the configured size limit.</exception>
     public Dictionary<string, Dictionary<string, string>> ParseString(string content)
     {
+        if (content.Length > _maxInputSize)
+            throw new EdsParseException(
+                string.Format(CultureInfo.InvariantCulture,
+                    "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
+                    content.Length, _maxInputSize));
+
         var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         return ParseLines(lines);
     }
@@ -36,7 +81,7 @@ public class IniParser
     /// <summary>
     /// Parses lines of an EDS/DCF file.
     /// </summary>
-    private Dictionary<string, Dictionary<string, string>> ParseLines(string[] lines)
+    private Dictionary<string, Dictionary<string, string>> ParseLines(IEnumerable<string> lines)
     {
         var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
         string? currentSection = null;
