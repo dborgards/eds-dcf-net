@@ -1589,6 +1589,100 @@ PDOMapping=0
         result.AdditionalSections.Should().NotContainKey("1018sub1");
     }
 
+    [Fact]
+    public void ReadString_ModuleSectionWithSubExtendSuffix_RecognizedAsKnown()
+    {
+        // Arrange - "M1SubExtension" has suffix "SubExtension" which StartsWith("SubExtend")
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[SupportedModules]
+NrOfEntries=1
+
+[M1ModuleInfo]
+ProductName=Module
+ProductVersion=1
+ProductRevision=0
+OrderCode=MOD-1
+
+[M1SubExtension1]
+SomeKey=SomeValue
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - M1SubExtension1 is a known module section, NOT in AdditionalSections
+        result.AdditionalSections.Should().NotContainKey("M1SubExtension1");
+    }
+
+    [Fact]
+    public void ReadString_ModuleSectionWithSubExtSuffix_RecognizedAsKnown()
+    {
+        // Arrange - "M1SubExt1" has suffix "SubExt1" which StartsWith("SubExt") but NOT "SubExtend"
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[SupportedModules]
+NrOfEntries=1
+
+[M1ModuleInfo]
+ProductName=Module
+ProductVersion=1
+ProductRevision=0
+OrderCode=MOD-1
+
+[M1SubExt1]
+SomeKey=SomeValue
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - M1SubExt1 is a known module section, NOT in AdditionalSections
+        result.AdditionalSections.Should().NotContainKey("M1SubExt1");
+    }
+
+    [Fact]
+    public void ReadString_ModuleSectionWithCommentsSuffix_RecognizedAsKnown()
+    {
+        // Arrange - "M1Comments" has suffix "Comments"
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[SupportedModules]
+NrOfEntries=1
+
+[M1ModuleInfo]
+ProductName=Module
+ProductVersion=1
+ProductRevision=0
+OrderCode=MOD-1
+
+[M1Comments]
+Lines=1
+Line1=Module comment
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - M1Comments is a known module section, NOT in AdditionalSections
+        result.AdditionalSections.Should().NotContainKey("M1Comments");
+    }
+
     #endregion
 
     #region Object Type Tests

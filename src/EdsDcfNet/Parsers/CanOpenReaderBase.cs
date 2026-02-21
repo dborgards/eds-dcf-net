@@ -252,14 +252,10 @@ public abstract class CanOpenReaderBase
 
         for (byte subIndex = 0; subIndex <= maxSubIndex; subIndex++)
         {
-            var sectionName = $"{index:X}sub{subIndex:X}";
-            if (IniParser.HasSection(sections, sectionName))
+            var subObj = ParseSubObject(sections, index, subIndex);
+            if (subObj != null)
             {
-                var subObj = ParseSubObject(sections, index, subIndex);
-                if (subObj != null)
-                {
-                    obj.SubObjects[subIndex] = subObj;
-                }
+                obj.SubObjects[subIndex] = subObj;
             }
         }
     }
