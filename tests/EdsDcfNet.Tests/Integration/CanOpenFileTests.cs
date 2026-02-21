@@ -515,6 +515,228 @@ PDOMapping=0
 
     #endregion
 
+    #region EdsToDcf SupportedModules Tests
+
+    [Fact]
+    public void EdsToDcf_WithSupportedModules_ClonesModulesList()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        eds.SupportedModules.Add(new ModuleInfo
+        {
+            ModuleNumber = 1,
+            ProductName = "Input Module",
+            ProductVersion = 1,
+            ProductRevision = 0,
+            OrderCode = "MOD-IN-8"
+        });
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert
+        dcf.SupportedModules.Should().HaveCount(1);
+        dcf.SupportedModules[0].ProductName.Should().Be("Input Module");
+        dcf.SupportedModules.Should().NotBeSameAs(eds.SupportedModules);
+    }
+
+    [Fact]
+    public void EdsToDcf_WithModuleFixedObjectDefinitions_ClonesCorrectly()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        var module = new ModuleInfo { ModuleNumber = 1, ProductName = "Module A" };
+        module.FixedObjectDefinitions[0x6000] = new CanOpenObject
+        {
+            Index = 0x6000,
+            ParameterName = "Digital Input",
+            ObjectType = 0x8,
+            DataType = 0x0005
+        };
+        eds.SupportedModules.Add(module);
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert
+        dcf.SupportedModules[0].FixedObjectDefinitions.Should().ContainKey(0x6000);
+        dcf.SupportedModules[0].FixedObjectDefinitions[0x6000].ParameterName.Should().Be("Digital Input");
+        dcf.SupportedModules[0].FixedObjectDefinitions.Should().NotBeSameAs(
+            eds.SupportedModules[0].FixedObjectDefinitions);
+    }
+
+    [Fact]
+    public void EdsToDcf_WithModuleSubExtensionDefinitions_ClonesCorrectly()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        var module = new ModuleInfo { ModuleNumber = 1, ProductName = "Module B" };
+        module.SubExtensionDefinitions[0x6100] = new ModuleSubExtension
+        {
+            Index = 0x6100,
+            ParameterName = "Digital Output",
+            DataType = 0x0005,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "0",
+            PdoMapping = true,
+            Count = "8",
+            ObjExtend = 0
+        };
+        eds.SupportedModules.Add(module);
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert
+        dcf.SupportedModules[0].SubExtensionDefinitions.Should().ContainKey(0x6100);
+        var ext = dcf.SupportedModules[0].SubExtensionDefinitions[0x6100];
+        ext.ParameterName.Should().Be("Digital Output");
+        ext.DataType.Should().Be(0x0005);
+        ext.AccessType.Should().Be(AccessType.ReadWrite);
+        ext.DefaultValue.Should().Be("0");
+        ext.PdoMapping.Should().BeTrue();
+        ext.Count.Should().Be("8");
+        ext.ObjExtend.Should().Be(0);
+        dcf.SupportedModules[0].SubExtensionDefinitions.Should().NotBeSameAs(
+            eds.SupportedModules[0].SubExtensionDefinitions);
+    }
+
+    [Fact]
+    public void EdsToDcf_MutatingDcfSupportedModules_DoesNotAffectEds()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        var module = new ModuleInfo { ModuleNumber = 1, ProductName = "Original Module" };
+        module.FixedObjectDefinitions[0x6000] = new CanOpenObject
+        {
+            Index = 0x6000,
+            ParameterName = "Original Name"
+        };
+        eds.SupportedModules.Add(module);
+
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Act - mutate the DCF module
+        dcf.SupportedModules[0].ProductName = "Modified Module";
+        dcf.SupportedModules[0].FixedObjectDefinitions[0x6000].ParameterName = "Modified Name";
+
+        // Assert - EDS must be unchanged
+        eds.SupportedModules[0].ProductName.Should().Be("Original Module");
+        eds.SupportedModules[0].FixedObjectDefinitions[0x6000].ParameterName.Should().Be("Original Name");
+    }
+
+    [Fact]
+    public void EdsToDcf_WithModuleComments_ClonesCorrectly()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        var module = new ModuleInfo
+        {
+            ModuleNumber = 1,
+            ProductName = "Module With Comments",
+            Comments = new Comments
+            {
+                Lines = 1,
+                CommentLines = new Dictionary<int, string> { { 1, "Module comment" } }
+            }
+        };
+        eds.SupportedModules.Add(module);
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert
+        dcf.SupportedModules[0].Comments.Should().NotBeNull();
+        dcf.SupportedModules[0].Comments!.CommentLines[1].Should().Be("Module comment");
+        dcf.SupportedModules[0].Comments.Should().NotBeSameAs(eds.SupportedModules[0].Comments);
+    }
+
+    #endregion
+
+    #region EdsToDcf AdditionalSections Tests
+
+    [Fact]
+    public void EdsToDcf_WithAdditionalSections_ClonesCorrectly()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+        eds.AdditionalSections["VendorSection"] = new Dictionary<string, string>
+        {
+            { "Key1", "Value1" },
+            { "Key2", "Value2" }
+        };
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert
+        dcf.AdditionalSections.Should().ContainKey("VendorSection");
+        dcf.AdditionalSections["VendorSection"]["Key1"].Should().Be("Value1");
+        dcf.AdditionalSections["VendorSection"]["Key2"].Should().Be("Value2");
+        dcf.AdditionalSections.Should().NotBeSameAs(eds.AdditionalSections);
+    }
+
+    [Fact]
+    public void EdsToDcf_MutatingDcfAdditionalSections_DoesNotAffectEds()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+        eds.AdditionalSections["VendorSection"] = new Dictionary<string, string>
+        {
+            { "Key1", "OriginalValue" }
+        };
+
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Act - mutate the DCF additional sections
+        dcf.AdditionalSections["VendorSection"]["Key1"] = "ModifiedValue";
+
+        // Assert - EDS must be unchanged
+        eds.AdditionalSections["VendorSection"]["Key1"].Should().Be("OriginalValue");
+    }
+
+    #endregion
+
     #region Round-trip Tests
 
     [Fact]

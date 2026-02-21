@@ -1762,4 +1762,171 @@ PDOMapping=0
     }
 
     #endregion
+
+    #region SupportedModules Tests
+
+    [Fact]
+    public void ReadString_SupportedModules_ParsesModulesCorrectly()
+    {
+        // Arrange
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[SupportedModules]
+NrOfEntries=2
+
+[M1ModuleInfo]
+ProductName=Input Module
+ProductVersion=1
+ProductRevision=0
+OrderCode=MOD-IN-8
+
+[M2ModuleInfo]
+ProductName=Output Module
+ProductVersion=2
+ProductRevision=1
+OrderCode=MOD-OUT-4
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.SupportedModules.Should().HaveCount(2);
+
+        result.SupportedModules[0].ModuleNumber.Should().Be(1);
+        result.SupportedModules[0].ProductName.Should().Be("Input Module");
+        result.SupportedModules[0].ProductVersion.Should().Be(1);
+        result.SupportedModules[0].ProductRevision.Should().Be(0);
+        result.SupportedModules[0].OrderCode.Should().Be("MOD-IN-8");
+
+        result.SupportedModules[1].ModuleNumber.Should().Be(2);
+        result.SupportedModules[1].ProductName.Should().Be("Output Module");
+        result.SupportedModules[1].ProductVersion.Should().Be(2);
+        result.SupportedModules[1].ProductRevision.Should().Be(1);
+    }
+
+    [Fact]
+    public void ReadString_SupportedModules_WithFixedObjects_ParsedCorrectly()
+    {
+        // Arrange
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[SupportedModules]
+NrOfEntries=1
+
+[M1ModuleInfo]
+ProductName=IO Module
+ProductVersion=1
+ProductRevision=0
+OrderCode=MOD-IO
+
+[M1FixedObjects]
+NrOfEntries=2
+1=0x6000
+2=0x6200
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.SupportedModules.Should().HaveCount(1);
+        result.SupportedModules[0].FixedObjects.Should().HaveCount(2);
+        result.SupportedModules[0].FixedObjects.Should().Contain((ushort)0x6000);
+        result.SupportedModules[0].FixedObjects.Should().Contain((ushort)0x6200);
+    }
+
+    [Fact]
+    public void ReadString_SupportedModules_MissingModuleSection_SkipsEntry()
+    {
+        // Arrange — NrOfEntries says 2 but M2ModuleInfo is missing
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[SupportedModules]
+NrOfEntries=2
+
+[M1ModuleInfo]
+ProductName=Only Module
+ProductVersion=1
+ProductRevision=0
+OrderCode=ONLY
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert — only M1 parsed, M2 skipped
+        result.SupportedModules.Should().HaveCount(1);
+        result.SupportedModules[0].ProductName.Should().Be("Only Module");
+    }
+
+    [Fact]
+    public void ReadString_SupportedModules_SectionsNotInAdditionalSections()
+    {
+        // Arrange
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[SupportedModules]
+NrOfEntries=1
+
+[M1ModuleInfo]
+ProductName=Test Module
+ProductVersion=1
+ProductRevision=0
+OrderCode=TEST
+
+[M1FixedObjects]
+NrOfEntries=1
+1=0x6000
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert — module sections should NOT be in AdditionalSections
+        result.AdditionalSections.Should().NotContainKey("SupportedModules");
+        result.AdditionalSections.Should().NotContainKey("M1ModuleInfo");
+        result.AdditionalSections.Should().NotContainKey("M1FixedObjects");
+    }
+
+    [Fact]
+    public void ReadString_NoSupportedModules_ReturnsEmptyList()
+    {
+        // Arrange
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.SupportedModules.Should().BeEmpty();
+    }
+
+    #endregion
 }
