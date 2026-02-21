@@ -4,6 +4,9 @@ using System.Globalization;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 
+#pragma warning disable CA1845, CA1865, CA1866 // span-based and char overloads not available in netstandard2.0
+#pragma warning disable CA2249 // string.Contains(char) not available in netstandard2.0; IndexOf(char) >= 0 is the correct alternative
+
 /// <summary>
 /// Utility class for converting string values from EDS/DCF files to typed values.
 /// </summary>
@@ -226,7 +229,7 @@ public static class ValueConverter
         }
 
         // Handle simple subtraction (e.g., "5-0x100")
-        if (expression.IndexOf('-') >= 0 && !expression.StartsWith("-"))
+        if (expression.IndexOf('-') >= 0 && !expression.StartsWith("-", StringComparison.Ordinal))
         {
             var parts = expression.Split('-');
             if (parts.Length == 2)
@@ -248,3 +251,5 @@ public static class ValueConverter
         return nodeId;
     }
 }
+
+#pragma warning restore CA1845, CA1865, CA1866, CA2249 // span-based and char overloads not available in netstandard2.0

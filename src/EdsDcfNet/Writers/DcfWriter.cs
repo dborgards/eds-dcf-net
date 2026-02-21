@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Writers;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using EdsDcfNet.Exceptions;
@@ -16,6 +17,7 @@ public class DcfWriter
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="filePath">Path where the DCF file should be written</param>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteFile(DeviceConfigurationFile dcf, string filePath)
     {
         try
@@ -34,12 +36,13 @@ public class DcfWriter
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to convert</param>
     /// <returns>DCF content as string</returns>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public string GenerateString(DeviceConfigurationFile dcf)
     {
         return GenerateDcfContent(dcf);
     }
 
-    private string GenerateDcfContent(DeviceConfigurationFile dcf)
+    private static string GenerateDcfContent(DeviceConfigurationFile dcf)
     {
         var sb = new StringBuilder();
 
@@ -53,7 +56,7 @@ public class DcfWriter
         WriteDeviceCommissioning(sb, dcf.DeviceCommissioning);
 
         // Write DummyUsage section if present
-        if (dcf.ObjectDictionary.DummyUsage.Any())
+        if (dcf.ObjectDictionary.DummyUsage.Count > 0)
         {
             WriteDummyUsage(sb, dcf.ObjectDictionary);
         }
@@ -65,31 +68,31 @@ public class DcfWriter
         WriteObjects(sb, dcf.ObjectDictionary);
 
         // Write SupportedModules if present
-        if (dcf.SupportedModules.Any())
+        if (dcf.SupportedModules.Count > 0)
         {
             WriteSupportedModules(sb, dcf.SupportedModules);
         }
 
         // Write ConnectedModules if present
-        if (dcf.ConnectedModules.Any())
+        if (dcf.ConnectedModules.Count > 0)
         {
             WriteConnectedModules(sb, dcf.ConnectedModules);
         }
 
         // Write DynamicChannels if present
-        if (dcf.DynamicChannels != null && dcf.DynamicChannels.Segments.Any())
+        if (dcf.DynamicChannels != null && dcf.DynamicChannels.Segments.Count > 0)
         {
             WriteDynamicChannels(sb, dcf.DynamicChannels);
         }
 
         // Write Tools if present
-        if (dcf.Tools.Any())
+        if (dcf.Tools.Count > 0)
         {
             WriteTools(sb, dcf.Tools);
         }
 
         // Write Comments section if present
-        if (dcf.Comments != null && dcf.Comments.CommentLines.Any())
+        if (dcf.Comments != null && dcf.Comments.CommentLines.Count > 0)
         {
             WriteComments(sb, dcf.Comments);
         }
@@ -108,7 +111,7 @@ public class DcfWriter
         return sb.ToString();
     }
 
-    private void WriteFileInfo(StringBuilder sb, Models.EdsFileInfo fileInfo)
+    private static void WriteFileInfo(StringBuilder sb, Models.EdsFileInfo fileInfo)
     {
         sb.AppendLine("[FileInfo]");
         WriteKeyValue(sb, "FileName", fileInfo.FileName);
@@ -131,7 +134,7 @@ public class DcfWriter
         sb.AppendLine();
     }
 
-    private void WriteDeviceInfo(StringBuilder sb, DeviceInfo deviceInfo)
+    private static void WriteDeviceInfo(StringBuilder sb, DeviceInfo deviceInfo)
     {
         sb.AppendLine("[DeviceInfo]");
         WriteKeyValue(sb, "VendorName", deviceInfo.VendorName);
@@ -172,7 +175,7 @@ public class DcfWriter
         sb.AppendLine();
     }
 
-    private void WriteDeviceCommissioning(StringBuilder sb, DeviceCommissioning dc)
+    private static void WriteDeviceCommissioning(StringBuilder sb, DeviceCommissioning dc)
     {
         sb.AppendLine("[DeviceCommissioning]");
         WriteKeyValue(sb, "NodeID", dc.NodeId.ToString(CultureInfo.InvariantCulture));
@@ -202,22 +205,22 @@ public class DcfWriter
         sb.AppendLine();
     }
 
-    private void WriteDummyUsage(StringBuilder sb, ObjectDictionary objDict)
+    private static void WriteDummyUsage(StringBuilder sb, ObjectDictionary objDict)
     {
         sb.AppendLine("[DummyUsage]");
 
         foreach (var dummy in objDict.DummyUsage.OrderBy(d => d.Key))
         {
-            WriteKeyValue(sb, $"Dummy{dummy.Key:X4}", ValueConverter.FormatBoolean(dummy.Value));
+            WriteKeyValue(sb, string.Format(CultureInfo.InvariantCulture, "Dummy{0:X4}", dummy.Key), ValueConverter.FormatBoolean(dummy.Value));
         }
 
         sb.AppendLine();
     }
 
-    private void WriteObjectLists(StringBuilder sb, ObjectDictionary objDict)
+    private static void WriteObjectLists(StringBuilder sb, ObjectDictionary objDict)
     {
         // Write MandatoryObjects
-        if (objDict.MandatoryObjects.Any())
+        if (objDict.MandatoryObjects.Count > 0)
         {
             sb.AppendLine("[MandatoryObjects]");
             WriteKeyValue(sb, "SupportedObjects", objDict.MandatoryObjects.Count.ToString(CultureInfo.InvariantCulture));
@@ -231,7 +234,7 @@ public class DcfWriter
         }
 
         // Write OptionalObjects
-        if (objDict.OptionalObjects.Any())
+        if (objDict.OptionalObjects.Count > 0)
         {
             sb.AppendLine("[OptionalObjects]");
             WriteKeyValue(sb, "SupportedObjects", objDict.OptionalObjects.Count.ToString(CultureInfo.InvariantCulture));
@@ -245,7 +248,7 @@ public class DcfWriter
         }
 
         // Write ManufacturerObjects
-        if (objDict.ManufacturerObjects.Any())
+        if (objDict.ManufacturerObjects.Count > 0)
         {
             sb.AppendLine("[ManufacturerObjects]");
             WriteKeyValue(sb, "SupportedObjects", objDict.ManufacturerObjects.Count.ToString(CultureInfo.InvariantCulture));
@@ -259,7 +262,7 @@ public class DcfWriter
         }
     }
 
-    private void WriteObjects(StringBuilder sb, ObjectDictionary objDict)
+    private static void WriteObjects(StringBuilder sb, ObjectDictionary objDict)
     {
         var allObjects = objDict.Objects.OrderBy(o => o.Key);
 
@@ -269,9 +272,9 @@ public class DcfWriter
         }
     }
 
-    private void WriteObject(StringBuilder sb, CanOpenObject obj)
+    private static void WriteObject(StringBuilder sb, CanOpenObject obj)
     {
-        sb.AppendLine($"[{obj.Index:X}]");
+        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}]", obj.Index));
 
         if (obj.SubNumber.HasValue && obj.SubNumber.Value > 0)
         {
@@ -354,7 +357,7 @@ public class DcfWriter
         sb.AppendLine();
 
         // Write sub-objects
-        if (obj.SubObjects.Any())
+        if (obj.SubObjects.Count > 0)
         {
             foreach (var subObjEntry in obj.SubObjects.OrderBy(s => s.Key))
             {
@@ -363,9 +366,9 @@ public class DcfWriter
         }
 
         // Write object links
-        if (obj.ObjectLinks.Any())
+        if (obj.ObjectLinks.Count > 0)
         {
-            sb.AppendLine($"[{obj.Index:X}ObjectLinks]");
+            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}ObjectLinks]", obj.Index));
             WriteKeyValue(sb, "ObjectLinks", obj.ObjectLinks.Count.ToString(CultureInfo.InvariantCulture));
 
             for (int i = 0; i < obj.ObjectLinks.Count; i++)
@@ -377,9 +380,9 @@ public class DcfWriter
         }
     }
 
-    private void WriteSubObject(StringBuilder sb, ushort index, CanOpenSubObject subObj)
+    private static void WriteSubObject(StringBuilder sb, ushort index, CanOpenSubObject subObj)
     {
-        sb.AppendLine($"[{index:X}sub{subObj.SubIndex:X}]");
+        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}sub{1:X}]", index, subObj.SubIndex));
 
         WriteKeyValue(sb, "ParameterName", subObj.ParameterName);
         WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(subObj.ObjectType));
@@ -432,7 +435,7 @@ public class DcfWriter
         sb.AppendLine();
     }
 
-    private void WriteSupportedModules(StringBuilder sb, List<ModuleInfo> modules)
+    private static void WriteSupportedModules(StringBuilder sb, List<ModuleInfo> modules)
     {
         sb.AppendLine("[SupportedModules]");
         WriteKeyValue(sb, "NrOfEntries", modules.Count.ToString(CultureInfo.InvariantCulture));
@@ -444,7 +447,7 @@ public class DcfWriter
         }
     }
 
-    private void WriteModuleInfo(StringBuilder sb, ModuleInfo module)
+    private static void WriteModuleInfo(StringBuilder sb, ModuleInfo module)
     {
         sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[M{0}ModuleInfo]", module.ModuleNumber));
         WriteKeyValue(sb, "ProductName", module.ProductName);
@@ -453,7 +456,7 @@ public class DcfWriter
         WriteKeyValue(sb, "OrderCode", module.OrderCode);
         sb.AppendLine();
 
-        if (module.FixedObjects.Any())
+        if (module.FixedObjects.Count > 0)
         {
             sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[M{0}FixedObjects]", module.ModuleNumber));
             WriteKeyValue(sb, "NrOfEntries", module.FixedObjects.Count.ToString(CultureInfo.InvariantCulture));
@@ -467,7 +470,7 @@ public class DcfWriter
         }
     }
 
-    private void WriteConnectedModules(StringBuilder sb, List<int> connectedModules)
+    private static void WriteConnectedModules(StringBuilder sb, List<int> connectedModules)
     {
         sb.AppendLine("[ConnectedModules]");
         WriteKeyValue(sb, "NrOfEntries", connectedModules.Count.ToString(CultureInfo.InvariantCulture));
@@ -480,20 +483,20 @@ public class DcfWriter
         sb.AppendLine();
     }
 
-    private void WriteComments(StringBuilder sb, Comments comments)
+    private static void WriteComments(StringBuilder sb, Comments comments)
     {
         sb.AppendLine("[Comments]");
         WriteKeyValue(sb, "Lines", comments.Lines.ToString(CultureInfo.InvariantCulture));
 
         foreach (var line in comments.CommentLines.OrderBy(l => l.Key))
         {
-            WriteKeyValue(sb, $"Line{line.Key}", line.Value);
+            WriteKeyValue(sb, string.Format(CultureInfo.InvariantCulture, "Line{0}", line.Key), line.Value);
         }
 
         sb.AppendLine();
     }
 
-    private void WriteDynamicChannels(StringBuilder sb, DynamicChannels dynamicChannels)
+    private static void WriteDynamicChannels(StringBuilder sb, DynamicChannels dynamicChannels)
     {
         sb.AppendLine("[DynamicChannels]");
         WriteKeyValue(sb, "NrOfSeg", dynamicChannels.Segments.Count.ToString(CultureInfo.InvariantCulture));
@@ -511,7 +514,7 @@ public class DcfWriter
         sb.AppendLine();
     }
 
-    private void WriteTools(StringBuilder sb, List<ToolInfo> tools)
+    private static void WriteTools(StringBuilder sb, List<ToolInfo> tools)
     {
         sb.AppendLine("[Tools]");
         WriteKeyValue(sb, "Items", tools.Count.ToString(CultureInfo.InvariantCulture));
@@ -520,16 +523,16 @@ public class DcfWriter
         for (int i = 0; i < tools.Count; i++)
         {
             var idx = (i + 1).ToString(CultureInfo.InvariantCulture);
-            sb.AppendLine($"[Tool{idx}]");
+            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[Tool{0}]", idx));
             WriteKeyValue(sb, "Name", tools[i].Name);
             WriteKeyValue(sb, "Command", tools[i].Command);
             sb.AppendLine();
         }
     }
 
-    private void WriteAdditionalSection(StringBuilder sb, string sectionName, Dictionary<string, string> entries)
+    private static void WriteAdditionalSection(StringBuilder sb, string sectionName, Dictionary<string, string> entries)
     {
-        sb.AppendLine($"[{sectionName}]");
+        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0}]", sectionName));
 
         foreach (var entry in entries)
         {
@@ -539,9 +542,9 @@ public class DcfWriter
         sb.AppendLine();
     }
 
-    private void WriteKeyValue(StringBuilder sb, string key, string? value)
+    private static void WriteKeyValue(StringBuilder sb, string key, string? value)
     {
-        sb.AppendLine($"{key}={value}");
+        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
     }
 
     private static bool IsObjectLinksSectionForExistingObject(string sectionName, ObjectDictionary objDict)

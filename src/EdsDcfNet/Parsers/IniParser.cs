@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using EdsDcfNet.Exceptions;
 
+#pragma warning disable CA1865, CA1866 // char overloads not available in netstandard2.0
+
 /// <summary>
 /// Low-level INI file parser for EDS/DCF files.
 /// Parses INI-style files with sections and key-value pairs.
@@ -11,6 +13,7 @@ using EdsDcfNet.Exceptions;
 /// </summary>
 public static class IniParser
 {
+    private static readonly char[] LineEndChars = { '\r', '\n' };
     /// <summary>
     /// Default maximum input size (10 MB) used by <see cref="ParseFile"/> and
     /// <see cref="ParseString"/> to guard against unbounded memory consumption.
@@ -65,7 +68,7 @@ public static class IniParser
                     "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
                     content.Length, maxInputSize));
 
-        var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = content.Split(LineEndChars, StringSplitOptions.RemoveEmptyEntries);
         return ParseLines(lines);
     }
 
@@ -135,11 +138,11 @@ public static class IniParser
             var line = rawLine.Trim();
 
             // Skip empty lines and comments
-            if (string.IsNullOrWhiteSpace(line) || line.StartsWith(";"))
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith(";", StringComparison.Ordinal))
                 continue;
 
             // Check for section header
-            if (line.StartsWith("[") && line.EndsWith("]"))
+            if (line.StartsWith("[", StringComparison.Ordinal) && line.EndsWith("]", StringComparison.Ordinal))
             {
                 currentSection = line.Substring(1, line.Length - 2).Trim();
 
@@ -172,3 +175,5 @@ public static class IniParser
         return sections;
     }
 }
+
+#pragma warning restore CA1865, CA1866 // char overloads not available in netstandard2.0

@@ -1,8 +1,11 @@
 namespace EdsDcfNet.Parsers;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
+
+#pragma warning disable CA1846 // span-based overloads not available in netstandard2.0
 
 /// <summary>
 /// Reader for CiA 306-3 nodelist project (.cpj) files.
@@ -14,6 +17,7 @@ public class CpjReader
     /// </summary>
     /// <param name="filePath">Path to the CPJ file</param>
     /// <returns>Parsed NodelistProject object</returns>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public NodelistProject ReadFile(string filePath)
     {
         var sections = IniParser.ParseFile(filePath);
@@ -25,13 +29,14 @@ public class CpjReader
     /// </summary>
     /// <param name="content">CPJ file content as string</param>
     /// <returns>Parsed NodelistProject object</returns>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public NodelistProject ReadString(string content)
     {
         var sections = IniParser.ParseString(content);
         return ParseCpj(sections);
     }
 
-    private NodelistProject ParseCpj(Dictionary<string, Dictionary<string, string>> sections)
+    private static NodelistProject ParseCpj(Dictionary<string, Dictionary<string, string>> sections)
     {
         var project = new NodelistProject();
 
@@ -105,3 +110,5 @@ public class CpjReader
         return string.IsNullOrEmpty(value) ? null : value;
     }
 }
+
+#pragma warning restore CA1846 // span-based overloads not available in netstandard2.0

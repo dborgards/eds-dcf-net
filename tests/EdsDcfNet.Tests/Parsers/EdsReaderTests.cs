@@ -314,6 +314,26 @@ SupportedObjects=0
         result.DeviceInfo.CANopenSafetySupported.Should().BeFalse();
     }
 
+    [Fact]
+    public void ReadString_MissingDeviceInfo_ThrowsEdsParseException()
+    {
+        // Arrange – no [DeviceInfo] section; [DeviceInfo] is mandatory per CiA 306-1 §5.2
+        var content = @"
+[FileInfo]
+FileName=test.eds
+
+[MandatoryObjects]
+SupportedObjects=0
+";
+
+        // Act
+        var act = () => _reader.ReadString(content);
+
+        // Assert
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*DeviceInfo*");
+    }
+
     #endregion
 
     #region Object Dictionary Parsing Tests

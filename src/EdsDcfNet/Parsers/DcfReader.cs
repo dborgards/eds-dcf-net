@@ -140,9 +140,9 @@ public class DcfReader : CanOpenReaderBase
                 if (!string.IsNullOrEmpty(value) && i <= 254)
                 {
                     var subIndex = (byte)i;
-                    if (obj.SubObjects.ContainsKey(subIndex))
+                    if (obj.SubObjects.TryGetValue(subIndex, out var subObjForValue))
                     {
-                        obj.SubObjects[subIndex].ParameterValue = value;
+                        subObjForValue.ParameterValue = value;
                     }
                 }
             }
@@ -159,9 +159,9 @@ public class DcfReader : CanOpenReaderBase
                 if (!string.IsNullOrEmpty(denotation) && i <= 254)
                 {
                     var subIndex = (byte)i;
-                    if (obj.SubObjects.ContainsKey(subIndex))
+                    if (obj.SubObjects.TryGetValue(subIndex, out var subObjForDenotation))
                     {
-                        obj.SubObjects[subIndex].Denotation = denotation;
+                        subObjForDenotation.Denotation = denotation;
                     }
                 }
             }
@@ -204,7 +204,7 @@ public class DcfReader : CanOpenReaderBase
 
     #region DCF-only parsing methods
 
-    private DeviceCommissioning ParseDeviceCommissioning(Dictionary<string, Dictionary<string, string>> sections)
+    private static DeviceCommissioning ParseDeviceCommissioning(Dictionary<string, Dictionary<string, string>> sections)
     {
         var dc = new DeviceCommissioning();
 
@@ -236,7 +236,7 @@ public class DcfReader : CanOpenReaderBase
         return dc;
     }
 
-    private List<int> ParseConnectedModules(Dictionary<string, Dictionary<string, string>> sections)
+    private static List<int> ParseConnectedModules(Dictionary<string, Dictionary<string, string>> sections)
     {
         var modules = new List<int>();
         var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "ConnectedModules", "NrOfEntries", "0"));
