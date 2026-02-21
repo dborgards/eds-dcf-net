@@ -411,13 +411,12 @@ public abstract class CanOpenReaderBase
 
         for (int i = 1; i <= nrOfSeg; i++)
         {
-            var idx = i.ToString(CultureInfo.InvariantCulture);
             var segment = new DynamicChannelSegment
             {
-                Type = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DynamicChannels", $"Type{idx}", "0")),
-                Dir = ValueConverter.ParseAccessType(IniParser.GetValue(sections, "DynamicChannels", $"Dir{idx}")),
-                Range = IniParser.GetValue(sections, "DynamicChannels", $"Range{idx}"),
-                PPOffset = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DynamicChannels", $"PPOffset{idx}", "0"))
+                Type = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Type{0}", i), "0")),
+                Dir = ValueConverter.ParseAccessType(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Dir{0}", i))),
+                Range = IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Range{0}", i)),
+                PPOffset = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "PPOffset{0}", i), "0"))
             };
             dynamicChannels.Segments.Add(segment);
         }
