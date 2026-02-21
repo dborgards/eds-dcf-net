@@ -17,7 +17,7 @@ public class CpjWriter
     public void WriteFile(NodelistProject cpj, string filePath)
     {
         var content = GenerateCpjContent(cpj);
-        File.WriteAllText(filePath, content, Encoding.ASCII);
+        File.WriteAllText(filePath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     }
 
     /// <summary>

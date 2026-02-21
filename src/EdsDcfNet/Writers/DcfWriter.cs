@@ -21,7 +21,7 @@ public class DcfWriter
         try
         {
             var content = GenerateDcfContent(dcf);
-            File.WriteAllText(filePath, content, Encoding.ASCII);
+            File.WriteAllText(filePath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         }
         catch (Exception ex)
         {
