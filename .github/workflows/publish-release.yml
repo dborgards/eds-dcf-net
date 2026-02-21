@@ -1,0 +1,87 @@
+name: Publish Release
+
+# Triggered when a chore/release-* PR is merged into a release branch.
+# By running AFTER the merge, CHANGELOG.md and the bumped .csproj are
+# already on the target branch before NuGet and the GitHub Release are
+# created — keeping the repository fully consistent at publish time.
+on:
+  pull_request:
+    types: [closed]
+    branches: [main, develop, alpha]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    # Only run when the PR was actually merged (not just closed) and the
+    # PR title matches the pattern set by the semantic-release prepare step.
+    if: >
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.title, 'chore(release):')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          # Explicitly check out the base branch so we read the merged
+          # CHANGELOG.md and .csproj, not a detached HEAD.
+          ref: ${{ github.event.pull_request.base.ref }}
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Read version from csproj
+        id: ver
+        run: |
+          VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/EdsDcfNet/EdsDcfNet.csproj)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION"
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        env:
+          CI: true
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Pack NuGet package
+        run: |
+          dotnet pack src/EdsDcfNet/EdsDcfNet.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./packages \
+            /p:PackageVersion=${{ steps.ver.outputs.version }}
+
+      - name: Publish to NuGet
+        run: |
+          dotnet nuget push './packages/*.nupkg' \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          VERSION="v${{ steps.ver.outputs.version }}"
+          # Extract the latest section from CHANGELOG.md (between the first
+          # and second '## [' headings) to use as release notes.
+          NOTES=$(awk '/^## \[/{if(++n==2) exit; next} n>=1{print}' CHANGELOG.md)
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            echo "Release $VERSION already exists — uploading assets only."
+            gh release upload "$VERSION" packages/*.nupkg --clobber
+          else
+            gh release create "$VERSION" \
+              --title "$VERSION" \
+              --notes "$NOTES" \
+              packages/*.nupkg
+          fi

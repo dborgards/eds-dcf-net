@@ -70,29 +70,14 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "sed -i 's|<Version>.*</Version>|<Version>${nextRelease.version}</Version>|g' src/EdsDcfNet/EdsDcfNet.csproj",
-        "publishCmd": "dotnet pack src/EdsDcfNet/EdsDcfNet.csproj --configuration Release --no-restore --output ./packages /p:PackageVersion=${nextRelease.version} && dotnet nuget push './packages/*.nupkg' --api-key $NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate"
+        "prepareCmd": "sed -i 's|<Version>.*</Version>|<Version>${nextRelease.version}</Version>|g' src/EdsDcfNet/EdsDcfNet.csproj"
       }
     ],
     [
       "@semantic-release/exec",
       {
         "prepareCmd": "git checkout -B chore/release-${nextRelease.version} && git add CHANGELOG.md src/EdsDcfNet/EdsDcfNet.csproj && git commit -m \"chore(release): ${nextRelease.version}\" && git push --force-with-lease origin chore/release-${nextRelease.version}",
-        "successCmd": "if gh pr list --base ${branch.name} --head chore/release-${nextRelease.version} --state open --json number --jq 'length > 0' | grep -q true; then echo \"PR already exists for chore/release-${nextRelease.version}\"; else gh pr create --base ${branch.name} --head chore/release-${nextRelease.version} --title \"chore(release): ${nextRelease.version}\" --body \"Automated version bump and changelog update for ${nextRelease.version}.\"; fi"
-      }
-    ],
-    [
-      "@semantic-release/github",
-      {
-        "assets": [
-          {
-            "path": "packages/*.nupkg",
-            "label": "NuGet Packages"
-          }
-        ],
-        "successComment": false,
-        "failComment": false,
-        "releasedLabels": ["released"]
+        "successCmd": "if gh pr list --base ${branch.name} --head chore/release-${nextRelease.version} --state open --json number --jq 'length > 0' | grep -q true; then echo \"PR already exists for chore/release-${nextRelease.version}\"; else gh pr create --base ${branch.name} --head chore/release-${nextRelease.version} --title \"chore(release): ${nextRelease.version}\" --body \"Automated version bump and changelog update for ${nextRelease.version}.\"; fi && gh pr merge chore/release-${nextRelease.version} --auto --merge --delete-branch || echo \"Auto-merge not available — please merge the release PR manually.\""
       }
     ]
   ]
