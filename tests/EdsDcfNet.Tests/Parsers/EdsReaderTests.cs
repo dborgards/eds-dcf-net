@@ -1683,6 +1683,30 @@ Line1=Module comment
         result.AdditionalSections.Should().NotContainKey("M1Comments");
     }
 
+    [Fact]
+    public void ReadString_ModuleSectionWithUnknownSuffix_PreservedInAdditionalSections()
+    {
+        // Arrange - "M1UnknownSuffix" has suffix "UnknownSuffix" which matches none of the known
+        // module suffixes (ModuleInfo, FixedObjects, SubExtend*, SubExt*, Comments), so
+        // IsModuleSection evaluates the Equals("Comments") branch as false and returns false overall.
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[M1UnknownSuffix]
+Key=Value
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - M1UnknownSuffix is NOT a known module section, so it lands in AdditionalSections
+        result.AdditionalSections.Should().ContainKey("M1UnknownSuffix");
+    }
+
     #endregion
 
     #region Object Type Tests
