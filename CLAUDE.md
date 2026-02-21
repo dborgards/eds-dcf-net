@@ -28,4 +28,4 @@ When adding or updating content here:
 - Branch naming: `feat/…`, `fix/…`, `refactor/…`, `chore/…`, `ci/…` (conventional-commit type prefix).
 - **Never include `Co-Authored-By: Claude` lines** in commit messages.
 
-See `.github/copilot-instructions.md` § "Branching Strategy" for the full CI behaviour.
+See `.github/copilot-instructions.md` § "Branching Strategy" for the full CI behavior.
