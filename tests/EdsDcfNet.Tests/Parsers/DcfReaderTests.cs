@@ -2211,6 +2211,24 @@ Command=invalid.exe
         result.AdditionalSections.Should().ContainKey("ToolABC");
     }
 
+    [Fact]
+    public void ReadString_SectionNamedValue_WithNoHexPrefix_PreservedInAdditionalSections()
+    {
+        // Arrange - a section named exactly "Value" has no hex prefix (prefix = ""),
+        // so IsHexPrefixedSection("Value", "Value") hits the prefix.Length=0 branch and
+        // returns false, leaving the section in AdditionalSections.
+        var content = BuildMinimalDcf(extraSections: @"
+[Value]
+SomeKey=SomeData
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - "Value" is not a known hex-prefixed section, so it lands in AdditionalSections
+        result.AdditionalSections.Should().ContainKey("Value");
+    }
+
     #endregion
 
     #region Object Type Tests

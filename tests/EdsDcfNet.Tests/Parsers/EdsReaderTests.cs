@@ -1707,6 +1707,61 @@ Key=Value
         result.AdditionalSections.Should().ContainKey("M1UnknownSuffix");
     }
 
+    [Fact]
+    public void ReadString_SupportedModules_MissingModuleSection_SkipsEntry()
+    {
+        // Arrange - NrOfEntries=2 but only M1ModuleInfo exists, not M2ModuleInfo.
+        // ParseModuleInfo(sections, 2) hits the HasSection=false path and returns null.
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[SupportedModules]
+NrOfEntries=2
+
+[M1ModuleInfo]
+ProductName=Module1
+ProductVersion=1
+ProductRevision=0
+OrderCode=MOD-1
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - only module 1 was parsed; module 2 has no section so it is skipped
+        result.SupportedModules.Should().HaveCount(1);
+        result.SupportedModules[0].ModuleNumber.Should().Be(1);
+    }
+
+    [Fact]
+    public void ReadString_DummyUsage_NonDummyKey_IsIgnored()
+    {
+        // Arrange - DummyUsage section contains a key that does NOT start with "Dummy".
+        // This covers the StartsWith("Dummy")=false branch in ParseObjectDictionary.
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[DummyUsage]
+Dummy0002=1
+SupportedObjects=0
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - only the valid DummyXXXX entry is in DummyUsage; the other key is ignored
+        result.ObjectDictionary.DummyUsage.Should().ContainKey(0x0002);
+        result.ObjectDictionary.DummyUsage.Should().HaveCount(1);
+    }
+
     #endregion
 
     #region Object Type Tests
