@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Parsers;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 using EdsDcfNet.Exceptions;
@@ -24,13 +25,15 @@ public abstract class CanOpenReaderBase
     /// <summary>
     /// Parses INI sections from a file path.
     /// </summary>
-    protected static Dictionary<string, Dictionary<string, string>> ParseSectionsFromFile(string filePath)
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromFile().")]
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromFile(string filePath)
         => IniParser.ParseFile(filePath);
 
     /// <summary>
     /// Parses INI sections from a string.
     /// </summary>
-    protected static Dictionary<string, Dictionary<string, string>> ParseSectionsFromString(string content)
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromString().")]
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromString(string content)
         => IniParser.ParseString(content);
 
     /// <summary>
@@ -76,7 +79,8 @@ public abstract class CanOpenReaderBase
     /// is thrown rather than silently returning an empty or misleading object.
     /// </remarks>
     /// <exception cref="EdsParseException">Thrown when the <c>[DeviceInfo]</c> section is absent.</exception>
-    protected static DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseDeviceInfo().")]
+    protected DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
         var deviceInfo = new DeviceInfo();
 
@@ -331,7 +335,8 @@ public abstract class CanOpenReaderBase
     /// Parses the <c>[Comments]</c> section into a <see cref="Comments"/> object,
     /// or returns <see langword="null"/> if the section is absent.
     /// </summary>
-    protected static Comments? ParseComments(Dictionary<string, Dictionary<string, string>> sections)
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseComments().")]
+    protected Comments? ParseComments(Dictionary<string, Dictionary<string, string>> sections)
     {
         if (!IniParser.HasSection(sections, "Comments"))
             return null;
@@ -357,7 +362,8 @@ public abstract class CanOpenReaderBase
     /// Parses the <c>[SupportedModules]</c> section and each module's <c>ModuleInfo</c>
     /// section into a list of <see cref="ModuleInfo"/> objects.
     /// </summary>
-    protected static List<ModuleInfo> ParseSupportedModules(Dictionary<string, Dictionary<string, string>> sections)
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSupportedModules().")]
+    protected List<ModuleInfo> ParseSupportedModules(Dictionary<string, Dictionary<string, string>> sections)
     {
         var modules = new List<ModuleInfo>();
         var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "SupportedModules", "NrOfEntries", "0"));
@@ -378,7 +384,8 @@ public abstract class CanOpenReaderBase
     /// Parses the <c>[M{moduleNumber}ModuleInfo]</c> section for the given module number.
     /// Returns <see langword="null"/> if the section does not exist.
     /// </summary>
-    protected static ModuleInfo? ParseModuleInfo(Dictionary<string, Dictionary<string, string>> sections, int moduleNumber)
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseModuleInfo().")]
+    protected ModuleInfo? ParseModuleInfo(Dictionary<string, Dictionary<string, string>> sections, int moduleNumber)
     {
         var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}ModuleInfo", moduleNumber);
         if (!IniParser.HasSection(sections, sectionName))
@@ -415,7 +422,8 @@ public abstract class CanOpenReaderBase
     /// Parses the <c>[DynamicChannels]</c> section into a <see cref="DynamicChannels"/> object,
     /// or returns <see langword="null"/> if the section has no segments.
     /// </summary>
-    protected static DynamicChannels? ParseDynamicChannels(Dictionary<string, Dictionary<string, string>> sections)
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseDynamicChannels().")]
+    protected DynamicChannels? ParseDynamicChannels(Dictionary<string, Dictionary<string, string>> sections)
     {
         var nrOfSeg = ValueConverter.ParseByte(IniParser.GetValue(sections, "DynamicChannels", "NrOfSeg", "0"));
         if (nrOfSeg == 0)
@@ -442,7 +450,8 @@ public abstract class CanOpenReaderBase
     /// Parses the <c>[Tools]</c> section and each individual <c>[Tool{n}]</c> section
     /// into a list of <see cref="ToolInfo"/> objects.
     /// </summary>
-    protected static List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseTools().")]
+    protected List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
     {
         var tools = new List<ToolInfo>();
 
