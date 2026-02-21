@@ -621,8 +621,10 @@ public class ValueConverterTests
     [InlineData("$NODEID+0xFFFFFFFE", 2)]    // 2 + 4294967294 > uint.MaxValue
     public void ParseInteger_NodeIdFormulaAdditionOverflows_ThrowsEdsParseException(string formula, byte nodeId)
     {
+        // Act
         var act = () => ValueConverter.ParseInteger(formula, nodeId);
 
+        // Assert
         act.Should().Throw<EdsParseException>()
             .WithMessage($"*'{formula}'*overflows*")
             .WithInnerException<OverflowException>();
@@ -633,8 +635,10 @@ public class ValueConverterTests
     [InlineData("$NODEID-0xFF", 10)]    // 10 - 255: negative result not representable as uint
     public void ParseInteger_NodeIdFormulaSubtractionUnderflows_ThrowsEdsParseException(string formula, byte nodeId)
     {
+        // Act
         var act = () => ValueConverter.ParseInteger(formula, nodeId);
 
+        // Assert
         act.Should().Throw<EdsParseException>()
             .WithMessage($"*'{formula}'*underflows*")
             .WithInnerException<OverflowException>();
