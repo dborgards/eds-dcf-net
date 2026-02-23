@@ -45,6 +45,13 @@ public class XddWriter
     /// <summary>
     /// Builds the XDocument for the given EDS. Override in subclasses to customise output.
     /// </summary>
+    protected virtual XDocument BuildDocument(ElectronicDataSheet eds)
+        => BuildDocument(eds, commissioning: null);
+
+    /// <summary>
+    /// Builds the XDocument for the given EDS, optionally including commissioning data.
+    /// Override in subclasses to customise output.
+    /// </summary>
     protected virtual XDocument BuildDocument(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
         XNamespace xsi = "http://www.w3.org/2001/XMLSchema-instance";

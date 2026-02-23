@@ -496,7 +496,11 @@ public class XddReader
             {
                 if (nodeIdValue < 1 || nodeIdValue > 127)
                     throw new EdsParseException(
-                        $"Invalid nodeID '{nodeIdValue}'. CANopen Node-ID must be in range 1..127.");
+                        string.Format(
+                            CultureInfo.InvariantCulture,
+                            "Invalid nodeID '{0}' (parsed value {1}). CANopen Node-ID must be in range 1..127.",
+                            nodeIdStr,
+                            nodeIdValue));
                 dc.NodeId = nodeIdValue;
             }
         }
