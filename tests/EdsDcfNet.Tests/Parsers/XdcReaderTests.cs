@@ -361,5 +361,21 @@ public class XdcReaderTests
             .WithMessage("*nodeID*");
     }
 
+    [Theory]
+    [InlineData("abc")]
+    [InlineData("0x100")]
+    [InlineData("not-a-number")]
+    public void ParseDeviceCommissioning_UnparseableNodeId_ThrowsEdsParseException(string nodeId)
+    {
+        var xdc = MinimalXdc.Replace(
+            @"<deviceCommissioning nodeID=""3""",
+            $@"<deviceCommissioning nodeID=""{nodeId}""");
+
+        var act = () => _reader.ReadString(xdc);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*nodeID*");
+    }
+
     #endregion
 }

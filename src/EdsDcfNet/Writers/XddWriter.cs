@@ -43,14 +43,14 @@ public class XddWriter
     }
 
     /// <summary>
-    /// Builds the XDocument for the given EDS. Override in subclasses to customise output.
+    /// Convenience overload — delegates to <see cref="BuildDocument(ElectronicDataSheet, DeviceCommissioning?)"/>.
+    /// Override <see cref="BuildDocument(ElectronicDataSheet, DeviceCommissioning?)"/> to customise output.
     /// </summary>
-    protected virtual XDocument BuildDocument(ElectronicDataSheet eds)
+    protected XDocument BuildDocument(ElectronicDataSheet eds)
         => BuildDocument(eds, commissioning: null);
 
     /// <summary>
-    /// Builds the XDocument for the given EDS, optionally including commissioning data.
-    /// Override in subclasses to customise output.
+    /// Builds the XDocument for the given EDS. Override in subclasses to customise output.
     /// </summary>
     protected virtual XDocument BuildDocument(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {

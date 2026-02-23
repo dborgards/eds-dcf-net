@@ -503,6 +503,14 @@ public class XddReader
                             nodeIdValue));
                 dc.NodeId = nodeIdValue;
             }
+            else
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Invalid nodeID '{0}'. Value cannot be parsed as a CANopen Node-ID (byte).",
+                        nodeIdStr));
+            }
         }
 
         dc.NodeName = dcElem.Attribute("nodeName")?.Value ?? string.Empty;

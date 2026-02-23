@@ -80,7 +80,7 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: '**/coverage.cobertura.xml'
-        override_pr: ${{ github.event.pull_request.number }}
+        override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
         fail_ci_if_error: false
 
     - name: Post codecov/patch status
