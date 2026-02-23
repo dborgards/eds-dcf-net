@@ -78,6 +78,6 @@ jobs:
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        github_token: ${{ secrets.GITHUB_TOKEN }}
         files: '**/coverage.cobertura.xml'
+        override_pr: ${{ github.event.pull_request.number }}
         fail_ci_if_error: false
