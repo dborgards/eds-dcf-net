@@ -143,6 +143,94 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads a CiA 311 XDD (XML Device Description) file.
+    /// </summary>
+    /// <param name="filePath">Path to the XDD file</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static ElectronicDataSheet ReadXdd(string filePath)
+    {
+        var reader = new XddReader();
+        return reader.ReadFile(filePath);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDD (XML Device Description) from a string.
+    /// </summary>
+    /// <param name="content">XDD file content as string</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static ElectronicDataSheet ReadXddFromString(string content)
+    {
+        var reader = new XddReader();
+        return reader.ReadString(content);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) file.
+    /// </summary>
+    /// <param name="filePath">Path to the XDC file</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadXdc(string filePath)
+    {
+        var reader = new XdcReader();
+        return reader.ReadFile(filePath);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
+    /// </summary>
+    /// <param name="content">XDC file content as string</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadXdcFromString(string content)
+    {
+        var reader = new XdcReader();
+        return reader.ReadString(content);
+    }
+
+    /// <summary>
+    /// Writes an ElectronicDataSheet as a CiA 311 XDD file.
+    /// </summary>
+    /// <param name="xdd">The ElectronicDataSheet to write</param>
+    /// <param name="filePath">Path where the XDD file should be written</param>
+    public static void WriteXdd(ElectronicDataSheet xdd, string filePath)
+    {
+        var writer = new XddWriter();
+        writer.WriteFile(xdd, filePath);
+    }
+
+    /// <summary>
+    /// Generates XDD file content as string.
+    /// </summary>
+    /// <param name="xdd">The ElectronicDataSheet to convert</param>
+    /// <returns>XDD content as string</returns>
+    public static string WriteXddToString(ElectronicDataSheet xdd)
+    {
+        var writer = new XddWriter();
+        return writer.GenerateString(xdd);
+    }
+
+    /// <summary>
+    /// Writes a DeviceConfigurationFile as a CiA 311 XDC file.
+    /// </summary>
+    /// <param name="xdc">The DeviceConfigurationFile to write</param>
+    /// <param name="filePath">Path where the XDC file should be written</param>
+    public static void WriteXdc(DeviceConfigurationFile xdc, string filePath)
+    {
+        var writer = new XdcWriter();
+        writer.WriteFile(xdc, filePath);
+    }
+
+    /// <summary>
+    /// Generates XDC file content as string.
+    /// </summary>
+    /// <param name="xdc">The DeviceConfigurationFile to convert</param>
+    /// <returns>XDC content as string</returns>
+    public static string WriteXdcToString(DeviceConfigurationFile xdc)
+    {
+        var writer = new XdcWriter();
+        return writer.GenerateString(xdc);
+    }
+
+    /// <summary>
     /// Converts an EDS to a DCF with specified commissioning parameters.
     /// </summary>
     /// <param name="eds">The EDS to convert</param>

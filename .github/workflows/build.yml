@@ -2,6 +2,7 @@ name: Build and Test
 
 permissions:
   contents: read
+  statuses: write
 
 env:
   COVERAGE_MIN_PERCENT: "95.0"
@@ -73,8 +74,10 @@ jobs:
         }
 
     - name: Upload coverage reports to Codecov
+      if: always()
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
         files: '**/coverage.cobertura.xml'
         fail_ci_if_error: false
