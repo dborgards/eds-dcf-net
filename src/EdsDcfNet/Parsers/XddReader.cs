@@ -483,15 +483,21 @@ public class XddReader
         var nodeIdStr = dcElem.Attribute("nodeID")?.Value ?? string.Empty;
         if (!string.IsNullOrEmpty(nodeIdStr))
         {
+            byte nodeIdValue;
+            bool parsed;
             if (nodeIdStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                parsed = byte.TryParse(nodeIdStr.Substring(2), NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture, out nodeIdValue);
+            else
+                parsed = byte.TryParse(nodeIdStr, NumberStyles.None,
+                    CultureInfo.InvariantCulture, out nodeIdValue);
+
+            if (parsed)
             {
-                if (byte.TryParse(nodeIdStr.Substring(2), NumberStyles.HexNumber,
-                    CultureInfo.InvariantCulture, out var nodeIdHex))
-                    dc.NodeId = nodeIdHex;
-            }
-            else if (byte.TryParse(nodeIdStr, NumberStyles.None, CultureInfo.InvariantCulture, out var nodeId))
-            {
-                dc.NodeId = nodeId;
+                if (nodeIdValue < 1 || nodeIdValue > 127)
+                    throw new EdsParseException(
+                        $"Invalid nodeID '{nodeIdValue}'. CANopen Node-ID must be in range 1..127.");
+                dc.NodeId = nodeIdValue;
             }
         }
 

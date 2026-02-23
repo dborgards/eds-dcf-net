@@ -570,4 +570,33 @@ public class XddWriterTests
     }
 
     #endregion
+
+    #region BuildDocument virtual hook
+
+    [Fact]
+    public void BuildDocument_Override_IsCalledByGenerateString()
+    {
+        // Verify the virtual BuildDocument(eds, commissioning) hook is in the call chain
+        // so subclasses can genuinely customise document generation.
+        var writer = new CustomDocumentWriter();
+
+        writer.GenerateString(CreateSampleEds());
+
+        writer.WasCalled.Should().BeTrue();
+    }
+
+    private sealed class CustomDocumentWriter : XddWriter
+    {
+        public bool WasCalled { get; private set; }
+
+        protected override System.Xml.Linq.XDocument BuildDocument(
+            ElectronicDataSheet eds,
+            EdsDcfNet.Models.DeviceCommissioning? commissioning)
+        {
+            WasCalled = true;
+            return base.BuildDocument(eds, commissioning);
+        }
+    }
+
+    #endregion
 }

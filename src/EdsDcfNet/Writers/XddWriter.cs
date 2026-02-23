@@ -38,29 +38,21 @@ public class XddWriter
     /// </summary>
     internal string GenerateString(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
-        var doc = BuildDocumentCore(eds, commissioning);
+        var doc = BuildDocument(eds, commissioning);
         return SerializeDocument(doc);
     }
 
     /// <summary>
     /// Builds the XDocument for the given EDS. Override in subclasses to customise output.
     /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static",
-        Justification = "Virtual call chain requires instance dispatch.")]
-    protected virtual XDocument BuildDocument(ElectronicDataSheet eds)
-        => BuildDocumentCore(eds, commissioning: null);
-
-    private XDocument BuildDocumentCore(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
+    protected virtual XDocument BuildDocument(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
         XNamespace xsi = "http://www.w3.org/2001/XMLSchema-instance";
 
         var container = new XElement("ISO15745ProfileContainer",
             new XAttribute(XNamespace.Xmlns + "xsi", xsi));
 
-        // Profile 1: Device profile
         container.Add(BuildDeviceProfile(eds, xsi));
-
-        // Profile 2: CommunicationNetwork profile
         container.Add(BuildCommNetProfile(eds, xsi, commissioning));
 
         return new XDocument(

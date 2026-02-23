@@ -345,5 +345,21 @@ public class XdcReaderTests
         result.ObjectDictionary.Objects[0x1018].SubObjects[0].Denotation.Should().Be("SubDenotation");
     }
 
+    [Theory]
+    [InlineData("0")]
+    [InlineData("128")]
+    [InlineData("255")]
+    public void ParseDeviceCommissioning_OutOfRangeNodeId_ThrowsEdsParseException(string nodeId)
+    {
+        var xdc = MinimalXdc.Replace(
+            @"<deviceCommissioning nodeID=""3""",
+            $@"<deviceCommissioning nodeID=""{nodeId}""");
+
+        var act = () => _reader.ReadString(xdc);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*nodeID*");
+    }
+
     #endregion
 }
