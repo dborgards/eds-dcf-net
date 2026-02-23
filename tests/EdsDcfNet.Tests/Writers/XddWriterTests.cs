@@ -291,5 +291,280 @@ public class XddWriterTests
         result.Should().Contain("fileCreationDate=\"2025-03-15\"");
     }
 
+    [Fact]
+    public void GenerateString_FileInfo_OptionalAttributes_Written()
+    {
+        // Arrange — set all optional FileInfo fields
+        var eds = CreateSampleEds();
+        eds.FileInfo.ModificationDate = "04-20-2025";
+        eds.FileInfo.ModificationTime = "14:00";
+        eds.FileInfo.ModifiedBy = "Engineer";
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("fileModificationDate=\"2025-04-20\"");
+        result.Should().Contain("fileModificationTime=\"14:00\"");
+        result.Should().Contain("fileModifiedBy=\"Engineer\"");
+    }
+
+    [Fact]
+    public void GenerateString_NonStandardDateFormat_PassedThrough()
+    {
+        // Arrange — date that doesn't match MM-DD-YYYY format
+        var eds = CreateSampleEds();
+        eds.FileInfo.CreationDate = "2025/01/15";
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert — non-standard date is written as-is (fallback)
+        result.Should().Contain("fileCreationDate=\"2025/01/15\"");
+    }
+
+    [Fact]
+    public void GenerateString_DynamicChannels_Written()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        eds.DynamicChannels = new DynamicChannels();
+        eds.DynamicChannels.Segments.Add(new DynamicChannelSegment
+        {
+            Type = 0x0007,
+            Dir = AccessType.ReadOnly,
+            Range = "1600-17FF",
+            PPOffset = 5
+        });
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("dynamicChannels");
+        result.Should().Contain("dynamicChannel");
+        result.Should().Contain("dataType=\"0007\"");
+        result.Should().Contain("accessType=\"ro\"");
+        result.Should().Contain("startIndex=\"1600\"");
+        result.Should().Contain("endIndex=\"17FF\"");
+        result.Should().Contain("pDOmappingIndex=\"5\"");
+    }
+
+    [Fact]
+    public void GenerateString_DynamicChannel_NoEndIndex_WhenSingleRangePart()
+    {
+        // Arrange — Range with no '-' separator → only startIndex written
+        var eds = CreateSampleEds();
+        eds.DynamicChannels = new DynamicChannels();
+        eds.DynamicChannels.Segments.Add(new DynamicChannelSegment
+        {
+            Type = 0x0004,
+            Dir = AccessType.ReadWrite,
+            Range = "2000"
+        });
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("startIndex=\"2000\"");
+        result.Should().NotContain("endIndex");
+    }
+
+    [Fact]
+    public void GenerateString_AccessType_Constant_WrittenAsConst()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        eds.ObjectDictionary.Objects[0x1000].AccessType = AccessType.Constant;
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("accessType=\"const\"");
+    }
+
+    [Fact]
+    public void GenerateString_AccessType_WriteOnly_WrittenAsWo()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        eds.ObjectDictionary.Objects[0x1000].AccessType = AccessType.WriteOnly;
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("accessType=\"wo\"");
+    }
+
+    [Fact]
+    public void GenerateString_AccessType_ReadWriteOutput_WrittenAsRw()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        eds.ObjectDictionary.Objects[0x1000].AccessType = AccessType.ReadWriteOutput;
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("accessType=\"rw\"");
+    }
+
+    [Fact]
+    public void GenerateString_Object_LowLimitHighLimit_Written()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        eds.ObjectDictionary.Objects[0x1000].LowLimit = "0";
+        eds.ObjectDictionary.Objects[0x1000].HighLimit = "100";
+        eds.ObjectDictionary.Objects[0x1000].ObjFlags = 1;
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("lowLimit=\"0\"");
+        result.Should().Contain("highLimit=\"100\"");
+        result.Should().Contain("objFlags=\"1\"");
+    }
+
+    [Fact]
+    public void GenerateString_SubObject_LowLimitHighLimit_Written()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        var parentObj = new CanOpenObject
+        {
+            Index = 0x1018, ParameterName = "Identity Object", ObjectType = 0x9, SubNumber = 2
+        };
+        var subObj = new CanOpenSubObject
+        {
+            SubIndex = 1, ParameterName = "Vendor ID",
+            ObjectType = 0x7, DataType = 0x0007, AccessType = AccessType.ReadOnly,
+            LowLimit = "0", HighLimit = "0xFFFFFFFF"
+        };
+        parentObj.SubObjects[1] = subObj;
+        eds.ObjectDictionary.Objects[0x1018] = parentObj;
+        eds.ObjectDictionary.OptionalObjects.Add(0x1018);
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("lowLimit=\"0\"");
+        result.Should().Contain("highLimit=\"0xFFFFFFFF\"");
+    }
+
+    [Fact]
+    public void GenerateString_InvalidApplicationProcessXml_IsSkipped()
+    {
+        // Arrange — malformed XML should be silently skipped (catch block)
+        var eds = CreateSampleEds();
+        eds.ApplicationProcessXml = "<notclosed";
+
+        // Act — should not throw
+        var result = _writer.GenerateString(eds);
+
+        // Assert — result is still valid XML, invalid app process not included
+        result.Should().NotContain("notclosed");
+        var act = () => System.Xml.Linq.XDocument.Parse(result);
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void GenerateString_DefaultBaudRate_OnlyBaudRate500_ReturnsCorrectDefault()
+    {
+        // Arrange — only BaudRate500 set (BaudRate250 is false)
+        var eds = CreateSampleEds();
+        eds.DeviceInfo.SupportedBaudRates = new BaudRates { BaudRate500 = true };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert — defaultValue should be "500 Kbps"
+        result.Should().Contain("defaultValue=\"500 Kbps\"");
+    }
+
+    [Fact]
+    public void GenerateString_DefaultBaudRate_OnlyBaudRate125()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo.SupportedBaudRates = new BaudRates { BaudRate125 = true };
+
+        var result = _writer.GenerateString(eds);
+
+        result.Should().Contain("defaultValue=\"125 Kbps\"");
+    }
+
+    [Fact]
+    public void GenerateString_DefaultBaudRate_OnlyBaudRate1000()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo.SupportedBaudRates = new BaudRates { BaudRate1000 = true };
+
+        var result = _writer.GenerateString(eds);
+
+        result.Should().Contain("defaultValue=\"1000 Kbps\"");
+    }
+
+    [Fact]
+    public void GenerateString_DefaultBaudRate_OnlyBaudRate800()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo.SupportedBaudRates = new BaudRates { BaudRate800 = true };
+
+        var result = _writer.GenerateString(eds);
+
+        result.Should().Contain("defaultValue=\"800 Kbps\"");
+        result.Should().Contain("800 Kbps");
+    }
+
+    [Fact]
+    public void GenerateString_DefaultBaudRate_OnlyBaudRate50()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo.SupportedBaudRates = new BaudRates { BaudRate50 = true };
+
+        var result = _writer.GenerateString(eds);
+
+        result.Should().Contain("defaultValue=\"50 Kbps\"");
+    }
+
+    [Fact]
+    public void GenerateString_DefaultBaudRate_OnlyBaudRate20()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo.SupportedBaudRates = new BaudRates { BaudRate20 = true };
+
+        var result = _writer.GenerateString(eds);
+
+        result.Should().Contain("defaultValue=\"20 Kbps\"");
+    }
+
+    [Fact]
+    public void GenerateString_DefaultBaudRate_OnlyBaudRate10()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo.SupportedBaudRates = new BaudRates { BaudRate10 = true };
+
+        var result = _writer.GenerateString(eds);
+
+        result.Should().Contain("defaultValue=\"10 Kbps\"");
+    }
+
+    [Fact]
+    public void GenerateString_DefaultBaudRate_NoneSet_FallsBackTo250()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo.SupportedBaudRates = new BaudRates();
+
+        var result = _writer.GenerateString(eds);
+
+        result.Should().Contain("defaultValue=\"250 Kbps\"");
+    }
+
     #endregion
 }

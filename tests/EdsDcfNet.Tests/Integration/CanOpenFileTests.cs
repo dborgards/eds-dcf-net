@@ -847,4 +847,169 @@ PDOMapping=0
     }
 
     #endregion
+
+    #region XDD/XDC Facade Tests
+
+    [Fact]
+    public void ReadXdd_ValidFile_ReturnsElectronicDataSheet()
+    {
+        var result = CanOpenFile.ReadXdd("Fixtures/sample_device.xdd");
+
+        result.Should().NotBeNull();
+        result.DeviceInfo.ProductName.Should().Be("IO-Module 16x16");
+    }
+
+    [Fact]
+    public void ReadXddFromString_ValidContent_ReturnsElectronicDataSheet()
+    {
+        var content = File.ReadAllText("Fixtures/sample_device.xdd");
+
+        var result = CanOpenFile.ReadXddFromString(content);
+
+        result.Should().NotBeNull();
+        result.DeviceInfo.VendorName.Should().Be("Example Automation Inc.");
+    }
+
+    [Fact]
+    public void ReadXdc_ValidFile_ReturnsDeviceConfigurationFile()
+    {
+        var result = CanOpenFile.ReadXdc("Fixtures/minimal.xdc");
+
+        result.Should().NotBeNull();
+        result.DeviceCommissioning.NodeId.Should().Be(5);
+    }
+
+    [Fact]
+    public void ReadXdcFromString_ValidContent_ReturnsDeviceConfigurationFile()
+    {
+        var content = File.ReadAllText("Fixtures/minimal.xdc");
+
+        var result = CanOpenFile.ReadXdcFromString(content);
+
+        result.Should().NotBeNull();
+        result.DeviceCommissioning.Baudrate.Should().Be(500);
+    }
+
+    [Fact]
+    public void WriteXddToString_ValidEds_ReturnsXddContent()
+    {
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.xdd", FileVersion = 1 },
+            DeviceInfo = new DeviceInfo
+            {
+                VendorName = "Test",
+                ProductName = "Device",
+                SupportedBaudRates = new BaudRates { BaudRate250 = true }
+            }
+        };
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000, ParameterName = "Device Type",
+            ObjectType = 0x7, DataType = 0x0007, AccessType = AccessType.ReadOnly
+        };
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+
+        var result = CanOpenFile.WriteXddToString(eds);
+
+        result.Should().Contain("ISO15745ProfileContainer");
+        result.Should().Contain("ProfileBody_CommunicationNetwork_CANopen");
+    }
+
+    [Fact]
+    public void WriteXdd_ValidEds_WritesFile()
+    {
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.xdd", FileVersion = 1 },
+            DeviceInfo = new DeviceInfo
+            {
+                VendorName = "Test",
+                ProductName = "Device",
+                SupportedBaudRates = new BaudRates { BaudRate250 = true }
+            }
+        };
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000, ParameterName = "Device Type",
+            ObjectType = 0x7, DataType = 0x0007, AccessType = AccessType.ReadOnly
+        };
+
+        var filePath = Path.GetTempFileName() + ".xdd";
+        try
+        {
+            CanOpenFile.WriteXdd(eds, filePath);
+            File.Exists(filePath).Should().BeTrue();
+            File.ReadAllText(filePath).Should().Contain("ISO15745ProfileContainer");
+        }
+        finally
+        {
+            if (File.Exists(filePath)) File.Delete(filePath);
+        }
+    }
+
+    [Fact]
+    public void WriteXdcToString_ValidDcf_ReturnsXdcContent()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.xdc", FileVersion = 1 },
+            DeviceInfo = new DeviceInfo
+            {
+                VendorName = "Test",
+                ProductName = "Device",
+                SupportedBaudRates = new BaudRates { BaudRate250 = true }
+            },
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 3, Baudrate = 250 }
+        };
+        dcf.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        dcf.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000, ParameterName = "Device Type",
+            ObjectType = 0x7, DataType = 0x0007, AccessType = AccessType.ReadOnly,
+            ParameterValue = "0x00000191"
+        };
+
+        var result = CanOpenFile.WriteXdcToString(dcf);
+
+        result.Should().Contain("deviceCommissioning");
+        result.Should().Contain("actualValue");
+    }
+
+    [Fact]
+    public void WriteXdc_ValidDcf_WritesFile()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.xdc", FileVersion = 1 },
+            DeviceInfo = new DeviceInfo
+            {
+                VendorName = "Test",
+                ProductName = "Device",
+                SupportedBaudRates = new BaudRates { BaudRate250 = true }
+            },
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 5, Baudrate = 500 }
+        };
+        dcf.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        dcf.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000, ParameterName = "Device Type",
+            ObjectType = 0x7, DataType = 0x0007, AccessType = AccessType.ReadOnly
+        };
+
+        var filePath = Path.GetTempFileName() + ".xdc";
+        try
+        {
+            CanOpenFile.WriteXdc(dcf, filePath);
+            File.Exists(filePath).Should().BeTrue();
+            File.ReadAllText(filePath).Should().Contain("deviceCommissioning");
+        }
+        finally
+        {
+            if (File.Exists(filePath)) File.Delete(filePath);
+        }
+    }
+
+    #endregion
 }

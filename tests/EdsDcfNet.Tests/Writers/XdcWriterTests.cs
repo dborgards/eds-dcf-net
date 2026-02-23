@@ -208,5 +208,50 @@ public class XdcWriterTests
         result.Should().Contain("actualValue=\"4\"");
     }
 
+    [Fact]
+    public void GenerateString_SubObjectDenotation_WrittenCorrectly()
+    {
+        // Arrange — sub-object with Denotation set (covers AddCanOpenSubObjectXdcAttributes denotation branch)
+        var dcf = CreateSampleDcf();
+        var parentObj = new CanOpenObject
+        {
+            Index = 0x1018, ParameterName = "Identity Object", ObjectType = 0x9, SubNumber = 2
+        };
+        var sub = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "Vendor ID",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0x00000100",
+            ParameterValue = "0x00000100",
+            Denotation = "VendorIdentifier"
+        };
+        parentObj.SubObjects[1] = sub;
+        dcf.ObjectDictionary.Objects[0x1018] = parentObj;
+        dcf.ObjectDictionary.OptionalObjects.Add(0x1018);
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("denotation=\"VendorIdentifier\"");
+    }
+
+    [Fact]
+    public void GenerateString_DcfWithAdditionalSections_CreateEdsViewCoversAllPaths()
+    {
+        // Arrange — DCF with AdditionalSections to cover CreateEdsView kvp loop (line 114)
+        var dcf = CreateSampleDcf();
+        dcf.AdditionalSections["CustomSection"] = new System.Collections.Generic.Dictionary<string, string> { { "key", "value" } };
+
+        // Act — should not throw; AdditionalSections are mapped through CreateEdsView
+        var result = _writer.GenerateString(dcf);
+
+        // Assert — output is valid
+        result.Should().Contain("ISO15745ProfileContainer");
+    }
+
     #endregion
 }
