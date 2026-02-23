@@ -11,7 +11,6 @@ on:
   push:
     branches-ignore:
       - main
-      - develop
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -44,6 +43,7 @@ jobs:
       run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
 
     - name: Enforce coverage threshold
+      id: coverage_gate
       shell: bash
       run: |
         coverage_file="$(find . -type f -name 'coverage.cobertura.xml' -print -quit)"
@@ -67,6 +67,7 @@ jobs:
 
         coverage_percent="$(awk "BEGIN { printf \"%.2f\", $line_rate * 100 }")"
         echo "Line coverage: ${coverage_percent}% (required: >= ${COVERAGE_MIN_PERCENT}%)"
+        echo "coverage_percent=${coverage_percent}" >> "$GITHUB_OUTPUT"
 
         awk "BEGIN { exit !($coverage_percent >= $COVERAGE_MIN_PERCENT) }" || {
           echo "Coverage gate failed."
@@ -78,6 +79,33 @@ jobs:
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        github_token: ${{ secrets.GITHUB_TOKEN }}
         files: '**/coverage.cobertura.xml'
+        override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
         fail_ci_if_error: false
+
+    - name: Post codecov/patch status
+      if: always()
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      run: |
+        outcome="${{ steps.coverage_gate.outcome }}"
+        if [[ "$outcome" == "success" ]]; then
+          state="success"
+          description="Coverage ${{ steps.coverage_gate.outputs.coverage_percent }}% >= ${COVERAGE_MIN_PERCENT}%"
+        elif [[ "$outcome" == "failure" ]]; then
+          state="failure"
+          description="Coverage gate failed (< ${COVERAGE_MIN_PERCENT}%)"
+        else
+          echo "Coverage gate was skipped (build/test failed earlier); not posting status."
+          exit 0
+        fi
+
+        gh api "repos/${{ github.repository }}/statuses/${COMMIT_SHA}" \
+          --method POST \
+          -f state="${state}" \
+          -f context="codecov/patch" \
+          -f description="${description}" \
+          -f target_url="https://app.codecov.io/github/${{ github.repository }}"

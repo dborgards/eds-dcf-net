@@ -2,6 +2,7 @@ namespace EdsDcfNet.Parsers;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
@@ -43,7 +44,7 @@ public class XdcReader
         {
             doc = XDocument.Parse(content);
         }
-        catch (Exception ex)
+        catch (XmlException ex)
         {
             throw new EdsParseException("Failed to parse XDC XML content.", ex);
         }
@@ -90,7 +91,7 @@ public class XdcReader
                 continue;
 
             // Only look in the CommunicationNetwork profile body
-            var xsiType = GetXsiType(profileBody);
+            var xsiType = XddReader.GetXsiType(profileBody);
             if (xsiType.IndexOf("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase) < 0)
                 continue;
 
@@ -105,14 +106,4 @@ public class XdcReader
         return null;
     }
 
-    private static string GetXsiType(XElement element)
-    {
-        foreach (var attr in element.Attributes())
-        {
-            if (attr.Name.LocalName == "type")
-                return attr.Value;
-        }
-
-        return string.Empty;
-    }
 }

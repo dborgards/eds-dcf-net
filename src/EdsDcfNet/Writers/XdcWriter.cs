@@ -60,7 +60,8 @@ public class XdcWriter : XddWriter
     {
         var networkMgmt = base.BuildNetworkManagement(eds, commissioning);
 
-        if (commissioning != null)
+        // NodeId == 0 means no commissioning was configured; omit the element.
+        if (commissioning != null && commissioning.NodeId > 0)
             networkMgmt.Add(BuildDeviceCommissioning(commissioning));
 
         return networkMgmt;
@@ -68,6 +69,12 @@ public class XdcWriter : XddWriter
 
     private static XElement BuildDeviceCommissioning(DeviceCommissioning dc)
     {
+        if (dc.NodeId < 1 || dc.NodeId > 127)
+            throw new InvalidOperationException(
+                string.Format(CultureInfo.InvariantCulture,
+                    "Cannot write XDC: NodeId {0} is outside the valid CANopen range 1..127.",
+                    dc.NodeId));
+
         var elem = new XElement("deviceCommissioning");
 
         elem.Add(new XAttribute("nodeID",

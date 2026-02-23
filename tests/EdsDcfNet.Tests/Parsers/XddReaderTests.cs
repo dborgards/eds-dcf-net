@@ -790,4 +790,48 @@ public class XddReaderTests
     }
 
     #endregion
+
+    #region Malformed required hex fields
+
+    [Theory]
+    [InlineData("ZZZZ")]
+    [InlineData("GGGG")]
+    [InlineData("not-hex")]
+    public void ParseCanOpenObject_MalformedIndex_ThrowsEdsParseException(string badIndex)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<CANopenObjectList mandatoryObjects=""1"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000""",
+            $@"<CANopenObjectList mandatoryObjects=""1"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""{badIndex}""");
+
+        var act = () => _reader.ReadString(xdd);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*index*");
+    }
+
+    [Theory]
+    [InlineData("ZZ")]
+    [InlineData("GG")]
+    [InlineData("not-hex")]
+    public void ParseCanOpenSubObject_MalformedSubIndex_ThrowsEdsParseException(string badSubIndex)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<CANopenObjectList mandatoryObjects=""1"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" defaultValue=""0x00000000"" PDOmapping=""no""/>",
+            $@"<CANopenObjectList mandatoryObjects=""0"" optionalObjects=""1"" manufacturerObjects=""0"">
+          <CANopenObject index=""1018"" name=""Identity"" objectType=""9"" subNumber=""1"">
+            <CANopenSubObject subIndex=""{badSubIndex}"" name=""Count"" objectType=""7"" dataType=""0005""
+                              accessType=""ro"" defaultValue=""0"" PDOmapping=""no""/>
+          </CANopenObject>");
+
+        var act = () => _reader.ReadString(xdd);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*subIndex*");
+    }
+
+    #endregion
 }

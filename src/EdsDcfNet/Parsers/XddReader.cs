@@ -3,6 +3,7 @@ namespace EdsDcfNet.Parsers;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
@@ -47,7 +48,7 @@ public class XddReader
         {
             doc = XDocument.Parse(content);
         }
-        catch (Exception ex)
+        catch (XmlException ex)
         {
             throw new EdsParseException("Failed to parse XDD XML content.", ex);
         }
@@ -221,13 +222,18 @@ public class XddReader
 
     private static void ParseObjectDictionary(XElement objList, ObjectDictionary dict, bool includeActualValues)
     {
+        // HashSets provide O(1) duplicate detection without the O(n) List.Contains cost.
+        var seenMandatory = new HashSet<ushort>();
+        var seenOptional = new HashSet<ushort>();
+        var seenManufacturer = new HashSet<ushort>();
+
         foreach (var objElem in objList.Elements().Where(e => e.Name.LocalName == "CANopenObject"))
         {
             var obj = ParseCanOpenObject(objElem, includeActualValues);
             dict.Objects[obj.Index] = obj;
 
             // Classify object into the right list based on index range
-            ClassifyObject(dict, obj.Index);
+            ClassifyObject(dict, obj.Index, seenMandatory, seenOptional, seenManufacturer);
         }
     }
 
@@ -328,24 +334,26 @@ public class XddReader
         return subObj;
     }
 
-    private static void ClassifyObject(ObjectDictionary dict, ushort index)
+    private static void ClassifyObject(
+        ObjectDictionary dict, ushort index,
+        HashSet<ushort> seenMandatory, HashSet<ushort> seenOptional, HashSet<ushort> seenManufacturer)
     {
         // Mandatory objects: 1000h and 1001h
         if (index == 0x1000 || index == 0x1001)
         {
-            if (!dict.MandatoryObjects.Contains(index))
+            if (seenMandatory.Add(index))
                 dict.MandatoryObjects.Add(index);
         }
         // Manufacturer-specific objects: 2000h-5FFFh
         else if (index >= 0x2000 && index <= 0x5FFF)
         {
-            if (!dict.ManufacturerObjects.Contains(index))
+            if (seenManufacturer.Add(index))
                 dict.ManufacturerObjects.Add(index);
         }
         // Everything else goes to optional
         else
         {
-            if (!dict.OptionalObjects.Contains(index))
+            if (seenOptional.Add(index))
                 dict.OptionalObjects.Add(index);
         }
     }
@@ -483,15 +491,33 @@ public class XddReader
         var nodeIdStr = dcElem.Attribute("nodeID")?.Value ?? string.Empty;
         if (!string.IsNullOrEmpty(nodeIdStr))
         {
+            byte nodeIdValue;
+            bool parsed;
             if (nodeIdStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                parsed = byte.TryParse(nodeIdStr.Substring(2), NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture, out nodeIdValue);
+            else
+                parsed = byte.TryParse(nodeIdStr, NumberStyles.None,
+                    CultureInfo.InvariantCulture, out nodeIdValue);
+
+            if (parsed)
             {
-                if (byte.TryParse(nodeIdStr.Substring(2), NumberStyles.HexNumber,
-                    CultureInfo.InvariantCulture, out var nodeIdHex))
-                    dc.NodeId = nodeIdHex;
+                if (nodeIdValue < 1 || nodeIdValue > 127)
+                    throw new EdsParseException(
+                        string.Format(
+                            CultureInfo.InvariantCulture,
+                            "Invalid nodeID '{0}' (parsed value {1}). CANopen Node-ID must be in range 1..127.",
+                            nodeIdStr,
+                            nodeIdValue));
+                dc.NodeId = nodeIdValue;
             }
-            else if (byte.TryParse(nodeIdStr, NumberStyles.None, CultureInfo.InvariantCulture, out var nodeId))
+            else
             {
-                dc.NodeId = nodeId;
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Invalid nodeID '{0}'. Value cannot be parsed as a CANopen Node-ID (byte).",
+                        nodeIdStr));
             }
         }
 
@@ -515,7 +541,7 @@ public class XddReader
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
-    private static string GetXsiType(XElement element)
+    internal static string GetXsiType(XElement element)
     {
         foreach (var attr in element.Attributes())
         {
@@ -537,28 +563,32 @@ public class XddReader
     /// </summary>
     internal static ushort ParseHexIndex(string value)
     {
-        value = value.Trim();
+        var trimmed = value.Trim();
+        var hex = trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? trimmed.Substring(2) : trimmed;
 
-        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            value = value.Substring(2);
-
-        if (ushort.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
+        if (ushort.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
             return result;
 
-        return 0;
+        throw new EdsParseException(
+            string.Format(CultureInfo.InvariantCulture,
+                "Malformed CANopen object index '{0}'. Expected a 4-digit hex value (e.g. '1000' or '0x1000').",
+                value));
     }
 
     private static byte ParseHexSubIndex(string value)
     {
-        value = value.Trim();
+        var trimmed = value.Trim();
+        var hex = trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? trimmed.Substring(2) : trimmed;
 
-        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            value = value.Substring(2);
-
-        if (byte.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
+        if (byte.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
             return result;
 
-        return 0;
+        throw new EdsParseException(
+            string.Format(CultureInfo.InvariantCulture,
+                "Malformed CANopen sub-object subIndex '{0}'. Expected a 2-digit hex value (e.g. '00' or '0x00').",
+                value));
     }
 
     private static ushort ParseHexDataType(string value)

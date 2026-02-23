@@ -38,17 +38,31 @@ public class XddWriter
     /// </summary>
     internal string GenerateString(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
-        var doc = BuildDocumentCore(eds, commissioning);
+        var doc = BuildDocument(eds, commissioning);
         return SerializeDocument(doc);
     }
 
     /// <summary>
-    /// Builds the XDocument for the given EDS. Override in subclasses to customise output.
+    /// Builds the XDocument for the given EDS without commissioning data.
+    /// Override this in subclasses for commissioning-unaware customisation.
+    /// Called by <see cref="BuildDocument(ElectronicDataSheet, DeviceCommissioning?)"/>
+    /// when no commissioning data is present, keeping this override in the call chain
+    /// for backward compatibility.
     /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static",
-        Justification = "Virtual call chain requires instance dispatch.")]
     protected virtual XDocument BuildDocument(ElectronicDataSheet eds)
         => BuildDocumentCore(eds, commissioning: null);
+
+    /// <summary>
+    /// Builds the XDocument for the given EDS, optionally including commissioning data.
+    /// Override this in subclasses to customise commissioning-aware output.
+    /// When <paramref name="commissioning"/> is <see langword="null"/>, delegates to
+    /// <see cref="BuildDocument(ElectronicDataSheet)"/> so that single-argument overrides
+    /// remain in the call chain.
+    /// </summary>
+    protected virtual XDocument BuildDocument(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
+        => commissioning == null
+            ? BuildDocument(eds)
+            : BuildDocumentCore(eds, commissioning);
 
     private XDocument BuildDocumentCore(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
@@ -57,10 +71,7 @@ public class XddWriter
         var container = new XElement("ISO15745ProfileContainer",
             new XAttribute(XNamespace.Xmlns + "xsi", xsi));
 
-        // Profile 1: Device profile
         container.Add(BuildDeviceProfile(eds, xsi));
-
-        // Profile 2: CommunicationNetwork profile
         container.Add(BuildCommNetProfile(eds, xsi, commissioning));
 
         return new XDocument(
