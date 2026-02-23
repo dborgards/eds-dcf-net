@@ -258,10 +258,9 @@ public class XdcWriterTests
     #region NodeId validation
 
     [Theory]
-    [InlineData(0)]
     [InlineData(128)]
     [InlineData(255)]
-    public void GenerateString_InvalidNodeId_ThrowsInvalidOperationException(byte nodeId)
+    public void GenerateString_OutOfRangeNodeId_ThrowsInvalidOperationException(byte nodeId)
     {
         var dcf = new DeviceConfigurationFile
         {
@@ -272,6 +271,21 @@ public class XdcWriterTests
 
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*NodeId*");
+    }
+
+    [Fact]
+    public void GenerateString_NodeIdZero_OmitsDeviceCommissioningElement()
+    {
+        // NodeId == 0 means "no commissioning configured"; the element must be omitted
+        // so that read→write round-trips for XDC files without commissioning succeed.
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 0 }
+        };
+
+        var result = _writer.GenerateString(dcf);
+
+        result.Should().NotContain("deviceCommissioning");
     }
 
     #endregion

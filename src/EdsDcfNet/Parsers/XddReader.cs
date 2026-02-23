@@ -222,13 +222,18 @@ public class XddReader
 
     private static void ParseObjectDictionary(XElement objList, ObjectDictionary dict, bool includeActualValues)
     {
+        // HashSets provide O(1) duplicate detection without the O(n) List.Contains cost.
+        var seenMandatory = new HashSet<ushort>();
+        var seenOptional = new HashSet<ushort>();
+        var seenManufacturer = new HashSet<ushort>();
+
         foreach (var objElem in objList.Elements().Where(e => e.Name.LocalName == "CANopenObject"))
         {
             var obj = ParseCanOpenObject(objElem, includeActualValues);
             dict.Objects[obj.Index] = obj;
 
             // Classify object into the right list based on index range
-            ClassifyObject(dict, obj.Index);
+            ClassifyObject(dict, obj.Index, seenMandatory, seenOptional, seenManufacturer);
         }
     }
 
@@ -329,22 +334,27 @@ public class XddReader
         return subObj;
     }
 
-    private static void ClassifyObject(ObjectDictionary dict, ushort index)
+    private static void ClassifyObject(
+        ObjectDictionary dict, ushort index,
+        HashSet<ushort> seenMandatory, HashSet<ushort> seenOptional, HashSet<ushort> seenManufacturer)
     {
         // Mandatory objects: 1000h and 1001h
         if (index == 0x1000 || index == 0x1001)
         {
-            dict.MandatoryObjects.Add(index);
+            if (seenMandatory.Add(index))
+                dict.MandatoryObjects.Add(index);
         }
         // Manufacturer-specific objects: 2000h-5FFFh
         else if (index >= 0x2000 && index <= 0x5FFF)
         {
-            dict.ManufacturerObjects.Add(index);
+            if (seenManufacturer.Add(index))
+                dict.ManufacturerObjects.Add(index);
         }
         // Everything else goes to optional
         else
         {
-            dict.OptionalObjects.Add(index);
+            if (seenOptional.Add(index))
+                dict.OptionalObjects.Add(index);
         }
     }
 

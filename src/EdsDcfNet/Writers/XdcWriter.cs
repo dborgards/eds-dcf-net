@@ -60,7 +60,8 @@ public class XdcWriter : XddWriter
     {
         var networkMgmt = base.BuildNetworkManagement(eds, commissioning);
 
-        if (commissioning != null)
+        // NodeId == 0 means no commissioning was configured; omit the element.
+        if (commissioning != null && commissioning.NodeId > 0)
             networkMgmt.Add(BuildDeviceCommissioning(commissioning));
 
         return networkMgmt;
