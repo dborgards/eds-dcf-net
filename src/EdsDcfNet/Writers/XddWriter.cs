@@ -89,7 +89,7 @@ public class XddWriter
             }
         }
 
-        return BuildProfile("Device", "ProfileBody_Device_CANopen", profileBody);
+        return BuildProfile("Device", profileBody);
     }
 
     [SuppressMessage("Performance", "CA1822:Mark members as static",
@@ -110,10 +110,10 @@ public class XddWriter
         // NetworkManagement
         profileBody.Add(BuildNetworkManagement(eds));
 
-        return BuildProfile("CommunicationNetwork", "ProfileBody_CommunicationNetwork_CANopen", profileBody);
+        return BuildProfile("CommunicationNetwork", profileBody);
     }
 
-    private static XElement BuildProfile(string classId, string bodyType, XElement profileBody)
+    private static XElement BuildProfile(string classId, XElement profileBody)
     {
         return new XElement("ISO15745Profile",
             new XElement("ProfileHeader",
