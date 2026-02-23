@@ -29,8 +29,16 @@ public class XddWriter
     /// <param name="eds">The ElectronicDataSheet to convert</param>
     /// <returns>XDD content as string</returns>
     public string GenerateString(ElectronicDataSheet eds)
+        => GenerateString(eds, commissioning: null);
+
+    /// <summary>
+    /// Generates XDD/XDC content as a string, optionally including device commissioning data.
+    /// Called by <see cref="XdcWriter"/> to pass commissioning through the virtual call chain
+    /// without resorting to mutable instance state.
+    /// </summary>
+    internal string GenerateString(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
-        var doc = BuildDocument(eds);
+        var doc = BuildDocumentCore(eds, commissioning);
         return SerializeDocument(doc);
     }
 
@@ -40,6 +48,9 @@ public class XddWriter
     [SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Virtual call chain requires instance dispatch.")]
     protected virtual XDocument BuildDocument(ElectronicDataSheet eds)
+        => BuildDocumentCore(eds, commissioning: null);
+
+    private XDocument BuildDocumentCore(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
         XNamespace xsi = "http://www.w3.org/2001/XMLSchema-instance";
 
@@ -50,7 +61,7 @@ public class XddWriter
         container.Add(BuildDeviceProfile(eds, xsi));
 
         // Profile 2: CommunicationNetwork profile
-        container.Add(BuildCommNetProfile(eds, xsi));
+        container.Add(BuildCommNetProfile(eds, xsi, commissioning));
 
         return new XDocument(
             new XDeclaration("1.0", "utf-8", null),
@@ -94,7 +105,7 @@ public class XddWriter
 
     [SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Calls virtual members via instance dispatch.")]
-    private XElement BuildCommNetProfile(ElectronicDataSheet eds, XNamespace xsi)
+    private XElement BuildCommNetProfile(ElectronicDataSheet eds, XNamespace xsi, DeviceCommissioning? commissioning)
     {
         var profileBody = new XElement("ProfileBody",
             new XAttribute(xsi + "type", "ProfileBody_CommunicationNetwork_CANopen"));
@@ -108,7 +119,7 @@ public class XddWriter
         profileBody.Add(BuildTransportLayers(eds.DeviceInfo));
 
         // NetworkManagement
-        profileBody.Add(BuildNetworkManagement(eds));
+        profileBody.Add(BuildNetworkManagement(eds, commissioning));
 
         return BuildProfile("CommunicationNetwork", profileBody);
     }
@@ -357,13 +368,25 @@ public class XddWriter
 
     private static XElement BuildTransportLayers(DeviceInfo deviceInfo)
     {
-        var baudRateElem = new XElement("baudRate",
-            new XAttribute("defaultValue", GetDefaultBaudRateString(deviceInfo.SupportedBaudRates)));
+        var defaultBaudRate = GetDefaultBaudRateString(deviceInfo.SupportedBaudRates);
 
+        var baudRateElem = new XElement("baudRate",
+            new XAttribute("defaultValue", defaultBaudRate));
+
+        var hasSupported = false;
         foreach (var kbps in GetSupportedBaudRates(deviceInfo.SupportedBaudRates))
         {
+            hasSupported = true;
             baudRateElem.Add(new XElement("supportedBaudRate",
                 new XAttribute("value", FormatBaudRate(kbps))));
+        }
+
+        if (!hasSupported)
+        {
+            // No baud-rate flags set: emit the fallback default as a supported entry
+            // so the XML is self-consistent (defaultValue must appear in supportedBaudRate).
+            baudRateElem.Add(new XElement("supportedBaudRate",
+                new XAttribute("value", defaultBaudRate)));
         }
 
         return new XElement("TransportLayers",
@@ -372,9 +395,11 @@ public class XddWriter
     }
 
     /// <summary>
-    /// Builds the NetworkManagement element. Override in subclasses to add deviceCommissioning.
+    /// Builds the NetworkManagement element.
+    /// Subclasses can override to inspect <paramref name="commissioning"/> and append
+    /// a deviceCommissioning child when it is non-null.
     /// </summary>
-    protected virtual XElement BuildNetworkManagement(ElectronicDataSheet eds)
+    protected virtual XElement BuildNetworkManagement(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
         var networkMgmt = new XElement("NetworkManagement");
         networkMgmt.Add(BuildGeneralFeatures(eds.DeviceInfo));

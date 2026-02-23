@@ -12,8 +12,6 @@ using EdsDcfNet.Models;
 /// </summary>
 public class XdcWriter : XddWriter
 {
-    private DeviceCommissioning? _commissioning;
-
     /// <summary>
     /// Writes a DeviceConfigurationFile as an XDC file to the specified path.
     /// </summary>
@@ -32,15 +30,7 @@ public class XdcWriter : XddWriter
     /// <returns>XDC content as string</returns>
     public string GenerateString(DeviceConfigurationFile dcf)
     {
-        _commissioning = dcf.DeviceCommissioning;
-        try
-        {
-            return base.GenerateString(CreateEdsView(dcf));
-        }
-        finally
-        {
-            _commissioning = null;
-        }
+        return base.GenerateString(CreateEdsView(dcf), dcf.DeviceCommissioning);
     }
 
     /// <inheritdoc/>
@@ -66,12 +56,12 @@ public class XdcWriter : XddWriter
     }
 
     /// <inheritdoc/>
-    protected override XElement BuildNetworkManagement(ElectronicDataSheet eds)
+    protected override XElement BuildNetworkManagement(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
-        var networkMgmt = base.BuildNetworkManagement(eds);
+        var networkMgmt = base.BuildNetworkManagement(eds, commissioning);
 
-        if (_commissioning != null)
-            networkMgmt.Add(BuildDeviceCommissioning(_commissioning));
+        if (commissioning != null)
+            networkMgmt.Add(BuildDeviceCommissioning(commissioning));
 
         return networkMgmt;
     }

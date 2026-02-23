@@ -556,14 +556,17 @@ public class XddWriterTests
     }
 
     [Fact]
-    public void GenerateString_DefaultBaudRate_NoneSet_FallsBackTo250()
+    public void GenerateString_DefaultBaudRate_NoneSet_FallsBackTo250AndEmitsSupportedEntry()
     {
+        // When no baud-rate flags are set the fallback "250 Kbps" must appear both as
+        // defaultValue AND as a supportedBaudRate child so the XML is self-consistent.
         var eds = CreateSampleEds();
         eds.DeviceInfo.SupportedBaudRates = new BaudRates();
 
         var result = _writer.GenerateString(eds);
 
         result.Should().Contain("defaultValue=\"250 Kbps\"");
+        result.Should().Contain("<supportedBaudRate value=\"250 Kbps\"");
     }
 
     #endregion
