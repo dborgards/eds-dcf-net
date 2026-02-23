@@ -61,7 +61,8 @@ public class DeviceConfigurationFile
 
     /// <summary>
     /// Opaque XML string for the XDD/XDC ApplicationProcess element.
-    /// Populated when reading XDD/XDC files; written back verbatim when writing XDD/XDC files.
+    /// Populated when reading XDD/XDC files and re-serialized when writing XDD/XDC files.
+    /// The logical XML content is preserved, but formatting, whitespace, and namespace prefixes may be normalized.
     /// Null when the source was a DCF file or when no ApplicationProcess element was present.
     /// </summary>
     public string? ApplicationProcessXml { get; set; }

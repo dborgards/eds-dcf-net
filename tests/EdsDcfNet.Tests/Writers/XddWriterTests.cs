@@ -60,7 +60,7 @@ public class XddWriterTests
     {
         // Arrange
         var eds = CreateSampleEds();
-        var filePath = Path.GetTempFileName() + ".xdd";
+        var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdd");
 
         try
         {

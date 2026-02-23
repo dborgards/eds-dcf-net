@@ -155,7 +155,7 @@ public class XdcWriterTests
     {
         // Arrange
         var dcf = CreateSampleDcf();
-        var filePath = Path.GetTempFileName() + ".xdc";
+        var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdc");
 
         try
         {

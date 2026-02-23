@@ -33,7 +33,14 @@ public class XdcWriter : XddWriter
     public string GenerateString(DeviceConfigurationFile dcf)
     {
         _commissioning = dcf.DeviceCommissioning;
-        return base.GenerateString(CreateEdsView(dcf));
+        try
+        {
+            return base.GenerateString(CreateEdsView(dcf));
+        }
+        finally
+        {
+            _commissioning = null;
+        }
     }
 
     /// <inheritdoc/>

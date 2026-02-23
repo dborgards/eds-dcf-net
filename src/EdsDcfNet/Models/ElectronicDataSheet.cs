@@ -49,7 +49,8 @@ public class ElectronicDataSheet
 
     /// <summary>
     /// Opaque XML string for the XDD ApplicationProcess element.
-    /// Populated when reading XDD files; written back verbatim when writing XDD files.
+    /// Populated when reading XDD files; written back as a normalized XML representation when writing XDD files.
+    /// Formatting, attribute ordering, and namespace prefixes may change, but the semantic content is preserved.
     /// Null when the source was an EDS file or when no ApplicationProcess element was present.
     /// </summary>
     public string? ApplicationProcessXml { get; set; }

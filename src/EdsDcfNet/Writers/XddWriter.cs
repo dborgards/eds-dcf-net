@@ -83,9 +83,9 @@ public class XddWriter
                 var appProcessElem = XElement.Parse(eds.ApplicationProcessXml);
                 profileBody.Add(appProcessElem);
             }
-            catch
+            catch (XmlException)
             {
-                // If it can't be parsed back, skip it
+                // If it can't be parsed as valid XML, skip it
             }
         }
 

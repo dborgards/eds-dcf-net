@@ -936,7 +936,7 @@ PDOMapping=0
             ObjectType = 0x7, DataType = 0x0007, AccessType = AccessType.ReadOnly
         };
 
-        var filePath = Path.GetTempFileName() + ".xdd";
+        var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdd");
         try
         {
             CanOpenFile.WriteXdd(eds, filePath);
@@ -998,7 +998,7 @@ PDOMapping=0
             ObjectType = 0x7, DataType = 0x0007, AccessType = AccessType.ReadOnly
         };
 
-        var filePath = Path.GetTempFileName() + ".xdc";
+        var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdc");
         try
         {
             CanOpenFile.WriteXdc(dcf, filePath);
