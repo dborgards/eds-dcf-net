@@ -254,4 +254,25 @@ public class XdcWriterTests
     }
 
     #endregion
+
+    #region NodeId validation
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(128)]
+    [InlineData(255)]
+    public void GenerateString_InvalidNodeId_ThrowsInvalidOperationException(byte nodeId)
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = nodeId }
+        };
+
+        var act = () => _writer.GenerateString(dcf);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*NodeId*");
+    }
+
+    #endregion
 }

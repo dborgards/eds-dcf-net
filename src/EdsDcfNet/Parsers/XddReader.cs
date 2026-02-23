@@ -3,6 +3,7 @@ namespace EdsDcfNet.Parsers;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
@@ -47,7 +48,7 @@ public class XddReader
         {
             doc = XDocument.Parse(content);
         }
-        catch (Exception ex)
+        catch (XmlException ex)
         {
             throw new EdsParseException("Failed to parse XDD XML content.", ex);
         }
@@ -333,20 +334,17 @@ public class XddReader
         // Mandatory objects: 1000h and 1001h
         if (index == 0x1000 || index == 0x1001)
         {
-            if (!dict.MandatoryObjects.Contains(index))
-                dict.MandatoryObjects.Add(index);
+            dict.MandatoryObjects.Add(index);
         }
         // Manufacturer-specific objects: 2000h-5FFFh
         else if (index >= 0x2000 && index <= 0x5FFF)
         {
-            if (!dict.ManufacturerObjects.Contains(index))
-                dict.ManufacturerObjects.Add(index);
+            dict.ManufacturerObjects.Add(index);
         }
         // Everything else goes to optional
         else
         {
-            if (!dict.OptionalObjects.Contains(index))
-                dict.OptionalObjects.Add(index);
+            dict.OptionalObjects.Add(index);
         }
     }
 
@@ -533,7 +531,7 @@ public class XddReader
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
-    private static string GetXsiType(XElement element)
+    internal static string GetXsiType(XElement element)
     {
         foreach (var attr in element.Attributes())
         {
@@ -555,28 +553,32 @@ public class XddReader
     /// </summary>
     internal static ushort ParseHexIndex(string value)
     {
-        value = value.Trim();
+        var trimmed = value.Trim();
+        var hex = trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? trimmed.Substring(2) : trimmed;
 
-        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            value = value.Substring(2);
-
-        if (ushort.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
+        if (ushort.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
             return result;
 
-        return 0;
+        throw new EdsParseException(
+            string.Format(CultureInfo.InvariantCulture,
+                "Malformed CANopen object index '{0}'. Expected a 4-digit hex value (e.g. '1000' or '0x1000').",
+                value));
     }
 
     private static byte ParseHexSubIndex(string value)
     {
-        value = value.Trim();
+        var trimmed = value.Trim();
+        var hex = trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? trimmed.Substring(2) : trimmed;
 
-        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            value = value.Substring(2);
-
-        if (byte.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
+        if (byte.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
             return result;
 
-        return 0;
+        throw new EdsParseException(
+            string.Format(CultureInfo.InvariantCulture,
+                "Malformed CANopen sub-object subIndex '{0}'. Expected a 2-digit hex value (e.g. '00' or '0x00').",
+                value));
     }
 
     private static ushort ParseHexDataType(string value)

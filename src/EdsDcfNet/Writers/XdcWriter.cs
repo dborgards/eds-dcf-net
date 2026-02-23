@@ -68,6 +68,12 @@ public class XdcWriter : XddWriter
 
     private static XElement BuildDeviceCommissioning(DeviceCommissioning dc)
     {
+        if (dc.NodeId < 1 || dc.NodeId > 127)
+            throw new InvalidOperationException(
+                string.Format(CultureInfo.InvariantCulture,
+                    "Cannot write XDC: NodeId {0} is outside the valid CANopen range 1..127.",
+                    dc.NodeId));
+
         var elem = new XElement("deviceCommissioning");
 
         elem.Add(new XAttribute("nodeID",
