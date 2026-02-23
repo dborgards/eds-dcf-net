@@ -58,4 +58,11 @@ public class DeviceConfigurationFile
     /// Key is section name, value is dictionary of key-value pairs.
     /// </summary>
     public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } = new();
+
+    /// <summary>
+    /// Opaque XML string for the XDD/XDC ApplicationProcess element.
+    /// Populated when reading XDD/XDC files; written back verbatim when writing XDD/XDC files.
+    /// Null when the source was a DCF file or when no ApplicationProcess element was present.
+    /// </summary>
+    public string? ApplicationProcessXml { get; set; }
 }
