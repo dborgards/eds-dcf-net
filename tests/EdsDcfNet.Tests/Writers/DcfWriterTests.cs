@@ -511,6 +511,48 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void GenerateString_CompactPdo_WrittenWhenGreaterThanZero()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo.CompactPdo = 1;
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("CompactPDO=0x1");
+    }
+
+    [Fact]
+    public void GenerateString_ObjectLowLimit_WrittenWhenSet()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.Objects[0x1000].LowLimit = "0";
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("LowLimit=0");
+    }
+
+    [Fact]
+    public void GenerateString_ObjectHighLimit_WrittenWhenSet()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.Objects[0x1000].HighLimit = "0xFFFFFFFF";
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("HighLimit=0xFFFFFFFF");
+    }
+
+    [Fact]
     public void GenerateString_SrdoMapping_WrittenOnObjectAndSubObject()
     {
         // Arrange
