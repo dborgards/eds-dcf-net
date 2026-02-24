@@ -346,6 +346,17 @@ public class XdcReaderTests
     }
 
     [Fact]
+    public void ParseDeviceCommissioning_MissingNodeIdAttribute_DefaultsToZero()
+    {
+        var xdc = MinimalXdc.Replace(@"nodeID=""3"" ", string.Empty);
+
+        var result = _reader.ReadString(xdc);
+
+        result.DeviceCommissioning.NodeId.Should().Be(0);
+        result.DeviceCommissioning.NodeName.Should().Be("MyDevice");
+    }
+
+    [Fact]
     public void ParseDeviceCommissioning_ProfileWithoutProfileBody_IsSkipped()
     {
         const string xdc = @"<?xml version=""1.0"" encoding=""utf-8""?>
