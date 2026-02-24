@@ -123,6 +123,32 @@ public class XdcWriterTests
     }
 
     [Fact]
+    public void GenerateString_DeviceCommissioning_OptionalFieldsOmitted_AndManagerTrue()
+    {
+        // Arrange
+        var dcf = CreateSampleDcf();
+        dcf.DeviceCommissioning = new DeviceCommissioning
+        {
+            NodeId = 5,
+            Baudrate = 0,
+            NetNumber = 7,
+            CANopenManager = true
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("deviceCommissioning");
+        result.Should().Contain("nodeID=\"5\"");
+        result.Should().Contain("networkNumber=\"7\"");
+        result.Should().Contain("CANopenManager=\"true\"");
+        result.Should().NotContain("nodeName=");
+        result.Should().NotContain("actualBaudRate=");
+        result.Should().NotContain("networkName=");
+    }
+
+    [Fact]
     public void GenerateString_DeviceCommissioning_Null_ElementOmitted()
     {
         // Arrange

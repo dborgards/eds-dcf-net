@@ -240,6 +240,19 @@ public class XdcReaderTests
     }
 
     [Fact]
+    public void ParseDeviceCommissioning_DocumentWithoutRoot_ReturnsNull()
+    {
+        var method = typeof(XdcReader).GetMethod(
+            "ParseDeviceCommissioning",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var result = method!.Invoke(null, new object[] { new System.Xml.Linq.XDocument() });
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
     public void ParseDeviceCommissioning_NoNetworkManagementElement_ReturnsDefault()
     {
         // XDC without a deviceCommissioning element → ParseDeviceCommissioning returns null → default

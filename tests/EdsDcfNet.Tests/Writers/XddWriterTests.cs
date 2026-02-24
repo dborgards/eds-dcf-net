@@ -211,6 +211,36 @@ public class XddWriterTests
     }
 
     [Fact]
+    public void GenerateString_GeneralFeatures_GroupMessagingAndLssSupported_WrittenAsTrue()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        eds.DeviceInfo.GroupMessaging = true;
+        eds.DeviceInfo.LssSupported = true;
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("groupMessaging=\"true\"");
+        result.Should().Contain("layerSettingServiceSlave=\"true\"");
+    }
+
+    [Fact]
+    public void GenerateString_MasterFeatures_BootUpMaster_WrittenAsTrue()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        eds.DeviceInfo.SimpleBootUpMaster = true;
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("bootUpMaster=\"true\"");
+    }
+
+    [Fact]
     public void GenerateString_ApplicationProcessXml_PreservedRoundTrip()
     {
         // Arrange
