@@ -789,6 +789,95 @@ public class XddReaderTests
         result.FileInfo.CreationDate.Should().Be("15/01/2025");
     }
 
+    [Fact]
+    public void ParseDocument_WithoutRoot_ThrowsEdsParseException()
+    {
+        var emptyDoc = new System.Xml.Linq.XDocument();
+        var method = typeof(XddReader).GetMethod(
+            "ParseDocument",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var act = () => method!.Invoke(null, new object[] { emptyDoc, false });
+
+        act.Should().Throw<System.Reflection.TargetInvocationException>()
+            .WithInnerException<EdsParseException>()
+            .WithMessage("*no root element*");
+    }
+
+    [Fact]
+    public void ParseCanOpenSubObject_InvalidObjectType_DefaultsToVar()
+    {
+        // Invalid objectType should fall back to 0x7 in sub-object parsing.
+        var xdd = MinimalXdd.Replace(
+            @"<CANopenObjectList mandatoryObjects=""1"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" defaultValue=""0x00000000"" PDOmapping=""no""/>",
+            @"<CANopenObjectList mandatoryObjects=""0"" optionalObjects=""1"" manufacturerObjects=""0"">
+          <CANopenObject index=""1018"" name=""Identity"" objectType=""9"" subNumber=""1"">
+            <CANopenSubObject subIndex=""00"" name=""Count"" objectType=""invalid"" dataType=""0005""
+                              accessType=""ro"" defaultValue=""1"" PDOmapping=""no""/>
+          </CANopenObject>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.Objects[0x1018].SubObjects[0].ObjectType.Should().Be(0x7);
+    }
+
+    [Fact]
+    public void ParseDummyUsage_InvalidKeyFormat_IsSkipped()
+    {
+        var xdd = File.ReadAllText("Fixtures/sample_device.xdd")
+            .Replace(@"<dummy entry=""Dummy0005=1""/>", @"<dummy entry=""Bad0005=1""/>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.DummyUsage.Should().ContainKey(0x0002);
+        result.ObjectDictionary.DummyUsage.Should().NotContainKey(0x0005);
+    }
+
+    [Fact]
+    public void ParseDummyUsage_InvalidHexSuffix_IsSkipped()
+    {
+        var xdd = File.ReadAllText("Fixtures/sample_device.xdd")
+            .Replace(@"<dummy entry=""Dummy0005=1""/>", @"<dummy entry=""DummyGGGG=1""/>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.DummyUsage.Should().ContainKey(0x0002);
+        result.ObjectDictionary.DummyUsage.Should().NotContainKey(0x0005);
+    }
+
+    [Fact]
+    public void ParseHexDataType_WithPrefix_ParsedCorrectly()
+    {
+        var xdd = MinimalXdd.Replace(@"dataType=""0007""", @"dataType=""0x0007""");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.Objects[0x1000].DataType.Should().Be(0x0007);
+    }
+
+    [Fact]
+    public void ParseHexDataType_InvalidValue_DefaultsToZero()
+    {
+        var xdd = MinimalXdd.Replace(@"dataType=""0007""", @"dataType=""nope""");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.Objects[0x1000].DataType.Should().Be(0);
+    }
+
+    [Fact]
+    public void ParseHexId_InvalidVendorId_DefaultsToZero()
+    {
+        var xdd = MinimalXdd.Replace(@"<vendorID>0x00000100</vendorID>", @"<vendorID>nothex</vendorID>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DeviceInfo.VendorNumber.Should().Be(0);
+    }
+
     #endregion
 
     #region Malformed required hex fields
