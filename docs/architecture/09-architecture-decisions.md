@@ -8,7 +8,8 @@ The library needs a clearly defined entry point for consumers.
 
 ### Decision
 
-`CanOpenFile` is a **static class** with static methods (`ReadEds`, `ReadDcf`, `WriteDcf`, `EdsToDcf`).
+`CanOpenFile` is a **static class** with static methods for all supported formats
+(`ReadEds`, `ReadDcf`, `ReadCpj`, `ReadXdd`, `ReadXdc`, write counterparts, and `EdsToDcf`).
 
 ### Rationale
 
@@ -20,7 +21,7 @@ The library needs a clearly defined entry point for consumers.
 
 - (+) Minimal API surface, easy to discover and use.
 - (+) No dependency injection setup needed for simple use cases.
-- (-) Harder to mock in consumer unit tests (workaround: use `ReadEdsFromString`/`WriteDcfToString`).
+- (-) Harder to mock in consumer unit tests (workaround: use `Read*FromString`/`Write*ToString` methods).
 
 ---
 
@@ -28,7 +29,7 @@ The library needs a clearly defined entry point for consumers.
 
 ### Context
 
-EDS/DCF files are based on the INI format. Numerous INI parser libraries exist for .NET.
+EDS/DCF/CPJ files are based on the INI format. Numerous INI parser libraries exist for .NET.
 
 ### Decision
 
@@ -37,14 +38,16 @@ A **custom, minimal INI parser** (`IniParser`) is implemented.
 ### Rationale
 
 - **Zero-dependency principle**: No external NuGet dependencies.
-- EDS/DCF uses only a subset of the INI format (sections, key-value pairs, comments with `;`).
+- EDS/DCF/CPJ use only a subset of the INI format (sections, key-value pairs, comments with `;`).
 - A tailored parser can natively support case-insensitive section names.
 
 ### Consequences
 
 - (+) No dependency conflicts, lean package.
-- (+) Full control over parsing behavior.
+- (+) Full control over INI parsing behavior.
 - (-) Maintenance overhead for the custom parser.
+
+For CiA 311 XML formats (XDD/XDC), the implementation uses built-in `.NET` XML APIs (`System.Xml.Linq`) rather than a third-party XML dependency.
 
 ---
 
@@ -100,7 +103,7 @@ The library should support as many .NET platforms as possible while benefiting f
 
 ### Context
 
-EDS/DCF files can contain vendor-specific or future sections not represented in the model.
+INI-based formats (EDS/DCF/CPJ) can contain vendor-specific or future sections not represented in the model.
 
 ### Decision
 
@@ -115,12 +118,12 @@ Unknown sections are stored in a `Dictionary<string, Dictionary<string, string>>
 ### Consequences
 
 - (+) No unintentional removal of information.
-- (+) Compatibility with extended EDS/DCF files.
+- (+) Compatibility with extended EDS/DCF/CPJ files.
 - (-) No typed validation for unknown sections.
 
 ---
 
-## ADR-6: UTF-8 (without BOM) for DCF/CPJ File Output
+## ADR-6: UTF-8 (without BOM) for INI/XML File Output
 
 ### Context
 
@@ -129,13 +132,13 @@ real-world files often contain extended characters from vendor/device names.
 
 ### Decision
 
-`DcfWriter` and `CpjWriter` use **UTF-8 without BOM** when writing files.
+All writers (`DcfWriter`, `CpjWriter`, `XddWriter`, `XdcWriter`) use **UTF-8 without BOM** when writing files.
 
 ### Rationale
 
 - UTF-8 is ASCII-compatible for the 7-bit subset required by classic tooling.
 - Non-ASCII characters are preserved instead of being replaced during write.
-- Reader and writer behavior stay symmetric (UTF-8-based text processing).
+- Reader and writer behavior stays symmetric across INI and XML formats (UTF-8-based text processing).
 
 ### Consequences
 

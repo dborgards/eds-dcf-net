@@ -7,9 +7,10 @@
 | **.NET Standard 2.0 compatibility** | The library must compile against `netstandard2.0` for maximum platform coverage (.NET Framework 4.6.1+, .NET Core 2.0+, Mono, Xamarin, Unity). |
 | **.NET 10.0 dual target**          | Additional target `net10.0` for access to current .NET APIs and optimizations.                   |
 | **No external dependencies**       | The main library must not reference any third-party NuGet packages (zero dependencies).          |
+| **BCL-only XML processing**        | CiA 311 XDD/XDC support must use built-in .NET XML APIs (`System.Xml.Linq`) only.                |
 | **C# latest language version**     | Use of current C# language features where compatible with `netstandard2.0`.                      |
 | **Nullable reference types**       | Nullable annotations are enabled (`<Nullable>enable</Nullable>`).                                |
-| **InvariantCulture**               | All numeric and date formatting/parsing must use `CultureInfo.InvariantCulture`, as EDS/DCF files are culture-independent. |
+| **InvariantCulture**               | All numeric and date formatting/parsing must use `CultureInfo.InvariantCulture` across INI and XML format handling. |
 
 ### Unavailable APIs (netstandard2.0)
 
