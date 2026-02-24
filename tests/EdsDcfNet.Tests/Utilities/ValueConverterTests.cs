@@ -447,6 +447,16 @@ public class ValueConverterTests
         result.Should().Be("const");
     }
 
+    [Fact]
+    public void AccessTypeToString_InvalidEnumValue_FallsBackToRo()
+    {
+        // Act
+        var result = ValueConverter.AccessTypeToString((AccessType)999);
+
+        // Assert
+        result.Should().Be("ro");
+    }
+
     #endregion
 
     #region FormatInteger Tests

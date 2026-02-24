@@ -345,6 +345,79 @@ public class XdcReaderTests
         result.ObjectDictionary.Objects[0x1018].SubObjects[0].Denotation.Should().Be("SubDenotation");
     }
 
+    [Fact]
+    public void ParseDeviceCommissioning_MissingNodeIdAttribute_DefaultsToZero()
+    {
+        var xdc = MinimalXdc.Replace(@"nodeID=""3"" ", string.Empty);
+
+        var result = _reader.ReadString(xdc);
+
+        result.DeviceCommissioning.NodeId.Should().Be(0);
+        result.DeviceCommissioning.NodeName.Should().Be("MyDevice");
+    }
+
+    [Fact]
+    public void ParseDeviceCommissioning_ProfileWithoutProfileBody_IsSkipped()
+    {
+        const string xdc = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>Ignored</ProfileClassID></ProfileHeader>
+    <!-- intentionally no ProfileBody -->
+  </ISO15745Profile>
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>Device</ProfileClassID></ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""t.xdc"" fileVersion=""1"">
+      <DeviceIdentity><vendorName>V</vendorName><vendorID>0x1</vendorID><productName>P</productName><productID>0x1</productID></DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+  </ISO15745Profile>
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>CommunicationNetwork</ProfileClassID></ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""t.xdc"" fileVersion=""1"">
+      <ApplicationLayers><CANopenObjectList mandatoryObjects=""0"" optionalObjects=""0"" manufacturerObjects=""0""/></ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""250 Kbps""><supportedBaudRate value=""250 Kbps""/></baudRate></PhysicalLayer></TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0"" bootUpSlave=""false"" layerSettingServiceSlave=""false"" groupMessaging=""false"" dynamicChannels=""0""/>
+        <CANopenMasterFeatures bootUpMaster=""false""/>
+        <deviceCommissioning nodeID=""9"" networkNumber=""1"" CANopenManager=""false""/>
+      </NetworkManagement>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>";
+
+        var result = _reader.ReadString(xdc);
+
+        result.DeviceCommissioning.NodeId.Should().Be(9);
+    }
+
+    [Fact]
+    public void ParseDeviceCommissioning_NetworkManagementMissing_ReturnsDefaultCommissioning()
+    {
+        const string xdc = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>Device</ProfileClassID></ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""t.xdc"" fileVersion=""1"">
+      <DeviceIdentity><vendorName>V</vendorName><vendorID>0x1</vendorID><productName>P</productName><productID>0x1</productID></DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+  </ISO15745Profile>
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>CommunicationNetwork</ProfileClassID></ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""t.xdc"" fileVersion=""1"">
+      <ApplicationLayers><CANopenObjectList mandatoryObjects=""0"" optionalObjects=""0"" manufacturerObjects=""0""/></ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""250 Kbps""><supportedBaudRate value=""250 Kbps""/></baudRate></PhysicalLayer></TransportLayers>
+      <!-- intentionally no NetworkManagement -->
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>";
+
+        var result = _reader.ReadString(xdc);
+
+        result.DeviceCommissioning.NodeId.Should().Be(0);
+    }
+
     [Theory]
     [InlineData("0")]
     [InlineData("128")]

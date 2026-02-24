@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Writers;
 
+using System.Reflection;
 using System.Xml.Linq;
 using EdsDcfNet.Models;
 using EdsDcfNet.Writers;
@@ -414,6 +415,17 @@ public class XddWriterTests
     }
 
     [Fact]
+    public void GenerateString_AccessType_UnknownEnumValue_DefaultsToRw()
+    {
+        var eds = CreateSampleEds();
+        eds.ObjectDictionary.Objects[0x1000].AccessType = (AccessType)99;
+
+        var result = _writer.GenerateString(eds);
+
+        result.Should().Contain("accessType=\"rw\"");
+    }
+
+    [Fact]
     public void GenerateString_Object_LowLimitHighLimit_Written()
     {
         // Arrange
@@ -567,6 +579,30 @@ public class XddWriterTests
 
         result.Should().Contain("defaultValue=\"250 Kbps\"");
         result.Should().Contain("<supportedBaudRate value=\"250 Kbps\"");
+    }
+
+    [Fact]
+    public void StringBuilderWriter_WriteCharAndString_AreCallable()
+    {
+        var nestedType = typeof(XddWriter).GetNestedType("StringBuilderWriter", BindingFlags.NonPublic);
+        nestedType.Should().NotBeNull();
+
+        var instance = Activator.CreateInstance(nestedType!);
+        instance.Should().NotBeNull();
+
+        var writeChar = nestedType!.GetMethod("Write", new[] { typeof(char) });
+        var writeString = nestedType.GetMethod("Write", new[] { typeof(string) });
+        var toString = nestedType.GetMethod("ToString");
+
+        writeChar.Should().NotBeNull();
+        writeString.Should().NotBeNull();
+        toString.Should().NotBeNull();
+
+        writeChar!.Invoke(instance, new object[] { 'A' });
+        writeString!.Invoke(instance, new object[] { "BC" });
+
+        var value = toString!.Invoke(instance, Array.Empty<object>()) as string;
+        value.Should().Be("ABC");
     }
 
     #endregion
