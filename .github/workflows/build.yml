@@ -52,24 +52,51 @@ jobs:
           exit 1
         fi
 
-        coverage_file="${coverage_files[0]}"
         coverage_files_csv="$(IFS=,; echo "${coverage_files[*]}")"
         echo "coverage_files=${coverage_files_csv}" >> "$GITHUB_OUTPUT"
+        echo "Found ${#coverage_files[@]} coverage report(s)."
 
-        line_rate="$(awk '
-          /line-rate="/ {
-            match($0, /line-rate="[^"]+"/)
-            value = substr($0, RSTART + 11, RLENGTH - 12)
-            print value
-            exit
-          }
-        ' "$coverage_file")"
-        if [[ -z "$line_rate" ]]; then
-          echo "Could not read line-rate from $coverage_file"
+        total_lines_covered=0
+        total_lines_valid=0
+        for coverage_file in "${coverage_files[@]}"; do
+          lines_covered="$(awk '
+            /<coverage / {
+              if (match($0, /lines-covered="[0-9]+"/)) {
+                value = substr($0, RSTART, RLENGTH)
+                sub(/lines-covered="/, "", value)
+                sub(/"$/, "", value)
+                print value
+                exit
+              }
+            }
+          ' "$coverage_file")"
+          lines_valid="$(awk '
+            /<coverage / {
+              if (match($0, /lines-valid="[0-9]+"/)) {
+                value = substr($0, RSTART, RLENGTH)
+                sub(/lines-valid="/, "", value)
+                sub(/"$/, "", value)
+                print value
+                exit
+              }
+            }
+          ' "$coverage_file")"
+
+          if [[ -z "$lines_covered" || -z "$lines_valid" ]]; then
+            echo "Could not read lines-covered/lines-valid from $coverage_file"
+            exit 1
+          fi
+
+          total_lines_covered=$((total_lines_covered + lines_covered))
+          total_lines_valid=$((total_lines_valid + lines_valid))
+        done
+
+        if (( total_lines_valid == 0 )); then
+          echo "Could not calculate coverage: lines-valid sum is zero."
           exit 1
         fi
 
-        coverage_percent="$(awk "BEGIN { printf \"%.2f\", $line_rate * 100 }")"
+        coverage_percent="$(awk "BEGIN { printf \"%.2f\", ($total_lines_covered / $total_lines_valid) * 100 }")"
         echo "Line coverage: ${coverage_percent}% (required: >= ${COVERAGE_MIN_PERCENT}%)"
         echo "coverage_percent=${coverage_percent}" >> "$GITHUB_OUTPUT"
 
