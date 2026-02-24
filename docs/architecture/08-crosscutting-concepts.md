@@ -8,11 +8,12 @@ The library uses **exceptions** as its primary error mechanism:
 
 | Exception               | Use Case                                                    | Additional Information       |
 |-------------------------|-------------------------------------------------------------|------------------------------|
-| `EdsParseException`     | Errors during EDS/DCF parsing                               | `LineNumber`, `SectionName`  |
+| `EdsParseException`     | Errors during EDS/DCF/CPJ/XDD/XDC parsing                   | `LineNumber`, `SectionName`  |
 | `DcfWriteException`     | Errors during DCF writing                                   | `SectionName`                |
+| `InvalidOperationException` | Validation failures during XDC writing (e.g., invalid NodeId) | Standard .NET message |
 | `ArgumentException`     | Invalid input parameters where validation is performed by the API | Standard .NET          |
 
-> **Note:** `CanOpenFile.EdsToDcf` and DCF parsing enforce the CANopen Node-ID range (`1..127`) for provided `NodeID` values and reject out-of-range values with clear exceptions. If a DCF omits the entire `[DeviceCommissioning]` section (no `NodeID` provided), parsing succeeds and leaves `DeviceCommissioning.NodeId` at the default value (`0`) without throwing.
+> **Note:** `CanOpenFile.EdsToDcf`, DCF parsing, and XDC writing enforce CANopen Node-ID constraints for explicit commissioning data. `EdsToDcf` and DCF parsing require `1..127`; XDC writing emits commissioning only when a configured NodeId is present and valid.
 
 > **Compatibility note (AccessType):** Parsing of invalid or unknown `AccessType` values is intentionally tolerant and falls back to `ReadOnly` instead of failing. This is a deliberate trade-off to maximize interoperability with non-compliant manufacturer EDS/DCF files.
 
@@ -20,7 +21,7 @@ The library uses **exceptions** as its primary error mechanism:
 
 ```mermaid
 flowchart TD
-    A["Read EDS/DCF file"] --> B{Required section present?}
+    A["Read CANopen file (INI/XML)"] --> B{Required structure present?}
     B -->|No| C["EdsParseException"]
     B -->|Yes| D{Optional section present?}
     D -->|No| E["Use default value / null"]
@@ -32,11 +33,12 @@ flowchart TD
 
 - **Required fields**: Missing required sections result in an `EdsParseException`.
 - **Optional fields**: Missing optional values result in `null` or default values.
-- **Unknown sections**: Preserved in `AdditionalSections` (no warning, no error).
+- **Unknown INI sections**: Preserved in `AdditionalSections` (no warning, no error).
+- **CiA 311 XML**: Parsed against supported profile structures; unsupported XML nodes are not represented as generic passthrough data.
 
 ## 8.2 Culture Independence (InvariantCulture)
 
-EDS/DCF files are culture-independent INI files. Numeric values always use the period as a decimal separator, and there are no localized formats.
+CANopen INI/XML files are culture-independent. Numeric values use deterministic formats and must not depend on OS locale.
 
 ### Rule
 
@@ -91,11 +93,26 @@ flowchart LR
     style D fill:#F5A623,color:#fff
 ```
 
-Mechanisms:
+Mechanisms (INI formats):
 - **`AdditionalSections`**: All sections not mapped by the model are stored as raw key-value pairs and written back during output.
 - **`LastEds`**: DCF files store the filename of the source EDS.
 
-## 8.5 Modular Devices (CiA DS 306)
+For CiA 311 XML, round-trip behavior is guaranteed for the currently mapped schema subset used by `XddReader`/`XdcReader` and `XddWriter`/`XdcWriter`.
+
+## 8.5 CiA 311 XML Mapping
+
+CiA 311 support is implemented through explicit mapping of ISO 15745 profile elements to shared domain models:
+
+- `CANopenObject` / `CANopenSubObject` attributes map to Object Dictionary objects/sub-objects.
+- XDC `actualValue` and `denotation` map to `ParameterValue` and `Denotation`.
+- `deviceCommissioning` maps to `DeviceCommissioning`.
+
+XDC writer behavior:
+- NodeId `0` means "commissioning not configured" and omits the XML `deviceCommissioning` element.
+- NodeId `1..127` emits a valid `deviceCommissioning` element.
+- Out-of-range NodeId values cause an exception.
+
+## 8.6 Modular Devices (CiA DS 306)
 
 CANopen supports modular devices (e.g., bus couplers with pluggable I/O modules). EdsDcfNet fully represents this concept:
 
@@ -120,7 +137,7 @@ graph TD
     style DCF fill:#E74C3C,color:#fff
 ```
 
-## 8.6 CANopen Object Dictionary Structure
+## 8.7 CANopen Object Dictionary Structure
 
 The Object Dictionary is the heart of every CANopen device:
 

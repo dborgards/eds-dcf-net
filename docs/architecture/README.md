@@ -9,7 +9,7 @@
 | **Repository**      | https://github.com/dborgards/eds-dcf-net                 |
 | **License**         | MIT                                                      |
 | **Platform**        | .NET Standard 2.0 / .NET 10.0                            |
-| **Specification**   | CiA DS 306 v1.4.0 (December 15, 2021) incl. CiA 306-3    |
+| **Specification**   | CiA DS 306 v1.4.0 (incl. CiA 306-3) and CiA 311 (XDD/XDC) |
 
 ---
 

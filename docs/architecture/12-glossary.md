@@ -6,8 +6,12 @@
 | **CAN (Controller Area Network)** | Serial bus system for networking control units, widely used in vehicles and industrial automation. |
 | **CiA**                       | CAN in Automation e.V. -- international manufacturer and user association that maintains the CANopen specifications. |
 | **CiA DS 306**                | Specification for Electronic Data Sheets (EDS) and Device Configuration Files (DCF) for CANopen devices. |
+| **CiA 311**                   | XML-based CANopen device description/configuration specification family (XDD/XDC, based on ISO 15745 profiles). |
 | **EDS (Electronic Data Sheet)** | Device description file in INI format that defines the communication capabilities and configurable parameters of a CANopen device. Serves as a template. |
 | **DCF (Device Configuration File)** | Configured instance of an EDS file for a specific network node. Contains concrete parameter values, node ID, and baud rate. |
+| **XDD (XML Device Description)** | XML representation of CANopen device description data (CiA 311). Roughly analogous to EDS content. |
+| **XDC (XML Device Configuration)** | XML representation of configured CANopen device data (CiA 311). Roughly analogous to DCF content. |
+| **ISO 15745 Profile**         | XML profile container concept used by CiA 311 to structure device and communication-network descriptions. |
 | **Object Dictionary (OD)**    | Central data object directory of a CANopen device. Each entry is addressable by a 16-bit index and optional 8-bit sub-index. |
 | **Node ID**                   | Unique identifier (1-127) of a CANopen device on the network.                                    |
 | **Baud rate**                 | Transmission speed on the CAN bus (typical values: 125, 250, 500, 1000 kbit/s).                  |

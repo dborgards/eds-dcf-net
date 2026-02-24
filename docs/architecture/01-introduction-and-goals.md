@@ -2,7 +2,8 @@
 
 ## 1.1 Requirements Overview
 
-EdsDcfNet is a C# library for reading and writing **CiA DS 306 EDS** (Electronic Data Sheet), **DCF** (Device Configuration File) and **CPJ** (Nodelist Project) files for CANopen devices.
+EdsDcfNet is a C# library for reading and writing CANopen configuration formats:
+**CiA DS 306** (`.eds`, `.dcf`, `.cpj`) and **CiA 311** (`.xdd`, `.xdc`).
 
 CANopen is a communication protocol for industrial automation systems based on the CAN bus. Every CANopen device is described by an EDS file that defines its communication capabilities and configurable parameters. A DCF file is a configured instance of an EDS file containing concrete values for a specific network node.
 
@@ -13,10 +14,11 @@ CANopen is a communication protocol for industrial automation systems based on t
 | Read EDS                    | Complete parsing of Electronic Data Sheets                      |
 | Read and write DCF          | Processing and generation of Device Configuration Files         |
 | Read and write CPJ          | Parsing and generation of CiA 306-3 Nodelist Project files (network topologies) |
+| Read and write XDD/XDC      | Parsing and generation of CiA 311 XML device descriptions/configurations |
 | EDS-to-DCF conversion       | Conversion with configuration parameters (node ID, baud rate)   |
 | Type safety                 | Fully typed models for all CANopen objects                      |
 | Modular devices             | Support for bus couplers with pluggable modules                 |
-| CiA DS 306 v1.4 compliant   | Implementation according to official specification              |
+| CiA DS 306 / CiA 311 support| Implementation aligned with current supported standards          |
 
 ## 1.2 Quality Goals
 
@@ -24,7 +26,7 @@ The following table describes the core quality goals, sorted by priority:
 
 | Priority | Quality Goal            | Description                                                                    |
 |----------|-------------------------|--------------------------------------------------------------------------------|
-| 1        | **Correctness**         | Specification-compliant processing of EDS/DCF/CPJ per CiA DS 306 v1.4         |
+| 1        | **Correctness**         | Specification-compliant processing of EDS/DCF/CPJ (CiA DS 306) and XDD/XDC (CiA 311 subset) |
 | 2        | **Portability**         | Runs on all .NET platforms via `netstandard2.0` and `net10.0`                  |
 | 3        | **Simplicity**          | Intuitive, easy-to-understand API with minimal learning curve                  |
 | 4        | **Reliability**         | Robust error handling with meaningful error messages                           |
@@ -34,8 +36,8 @@ The following table describes the core quality goals, sorted by priority:
 
 | Role                          | Expectation / Interest                                                      |
 |-------------------------------|-----------------------------------------------------------------------------|
-| **CANopen device developers**  | Reliable tool for reading and validating EDS/DCF files                     |
-| **System integrators**         | Programmatic creation and modification of DCF files for networks           |
+| **CANopen device developers**  | Reliable tool for reading and validating EDS/DCF/XDD/XDC files             |
+| **System integrators**         | Programmatic creation and modification of DCF/XDC files for networks       |
 | **Tool vendors**               | Embeddable library for CANopen configuration tools                         |
 | **Library maintainers**        | Maintainable, extensible codebase with clear architecture                  |
 | **NuGet consumers**            | Stable API, semantic versioning, easy integration via package manager      |

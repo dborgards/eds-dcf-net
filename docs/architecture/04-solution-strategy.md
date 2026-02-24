@@ -9,6 +9,7 @@
 | **No external dependencies**   | Minimizes risk of version conflicts, simplifies deployment and auditing.         |
 | **Static facade (`CanOpenFile`)** | Simple entry point that hides internal complexity.                            |
 | **INI parser as foundation**   | EDS/DCF/CPJ files are based on the INI format; a custom parser avoids external dependencies. |
+| **BCL XML stack for CiA 311**  | XDD/XDC are implemented with `System.Xml.Linq` and `XDocument` (no third-party XML stack). |
 
 ## 4.2 Architecture Patterns and Style
 
@@ -20,9 +21,11 @@ The library follows a clean **layered architecture**:
 graph TD
     A["<b>API Layer</b><br/>CanOpenFile (static facade)"] --> B
     A --> D
-    B["<b>Parser Layer</b><br/>EdsReader / DcfReader / CpjReader"] --> C
+    B["<b>Parser Layer</b><br/>EdsReader / DcfReader / CpjReader / XddReader / XdcReader"] --> C
     C["<b>INI Layer</b><br/>IniParser"]
-    D["<b>Writer Layer</b><br/>DcfWriter / CpjWriter"]
+    B --> G["<b>XML Layer</b><br/>XDocument / XElement"]
+    D["<b>Writer Layer</b><br/>DcfWriter / CpjWriter / XddWriter / XdcWriter"]
+    D --> G
     B --> E["<b>Utilities</b><br/>ValueConverter"]
     D --> E
     B --> F["<b>Model Layer</b><br/>ElectronicDataSheet / DeviceConfigurationFile / NodelistProject<br/>ObjectDictionary / NetworkTopology / ..."]
@@ -34,6 +37,7 @@ graph TD
     style D fill:#7AB648,color:#fff
     style E fill:#9B59B6,color:#fff
     style F fill:#E74C3C,color:#fff
+    style G fill:#16A085,color:#fff
 ```
 
 ### Facade Pattern
@@ -47,6 +51,7 @@ Processing follows a linear pipeline:
 ```
 EDS/DCF file --> IniParser --> EdsReader/DcfReader --> Models --> DcfWriter --> DCF file
 CPJ file -----> IniParser --> CpjReader ------------> Models --> CpjWriter --> CPJ file
+XDD/XDC file --> XDocument -> XddReader/XdcReader -> Models -> XddWriter/XdcWriter -> XDD/XDC file
 ```
 
 ## 4.3 Key Design Decisions
@@ -55,6 +60,7 @@ CPJ file -----> IniParser --> CpjReader ------------> Models --> CpjWriter --> C
 |---------------------------------------|--------------------------------------------------------------------------|
 | **Separate EDS/DCF models**           | EDS (template) and DCF (configured instance) have different semantics. DCF extends EDS with `DeviceCommissioning` and `ParameterValue`. |
 | **Round-trip fidelity**               | Unknown sections are preserved as `AdditionalSections` to avoid losing information during write-back. |
+| **Format-specific parsing stacks**    | INI and XML formats use dedicated parsing/writing paths while sharing common domain models. |
 | **Culture-independent processing**    | Consistent use of `InvariantCulture` ensures files are processed identically on all systems. |
 | **Static methods over instances**     | Since the library holds no state between calls, static methods are the natural choice. |
 | **Extension methods for convenience** | `ObjectDictionaryExtensions` provide commonly needed access patterns without bloating the core model. |
