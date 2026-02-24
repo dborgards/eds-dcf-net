@@ -750,6 +750,91 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ReadString_XddActualValueAndDenotation_AreIgnored()
+    {
+        // XDD reader parses with includeActualValues=false, so actualValue/denotation must not be mapped.
+        var xdd = MinimalXdd.Replace(
+            @"<CANopenObjectList mandatoryObjects=""1"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" defaultValue=""0x00000000"" PDOmapping=""no""/>",
+            @"<CANopenObjectList mandatoryObjects=""0"" optionalObjects=""1"" manufacturerObjects=""0"">
+          <CANopenObject index=""1018"" name=""Identity"" objectType=""9"" subNumber=""1""
+                         actualValue=""ignored"" denotation=""ignored-too"">
+            <CANopenSubObject subIndex=""00"" name=""Count"" objectType=""7"" dataType=""0005""
+                              accessType=""ro"" defaultValue=""1"" PDOmapping=""no""
+                              actualValue=""7"" denotation=""SubText""/>
+          </CANopenObject>");
+
+        var result = _reader.ReadString(xdd);
+
+        var obj = result.ObjectDictionary.Objects[0x1018];
+        obj.ParameterValue.Should().BeNull();
+        obj.Denotation.Should().BeNull();
+        obj.SubObjects[0].ParameterValue.Should().BeNull();
+        obj.SubObjects[0].Denotation.Should().BeNull();
+    }
+
+    [Fact]
+    public void FileInfo_FileVersionWithMinorPart_UsesMajorAndParsesModificationMetadata()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"fileCreationDate=""2025-01-15"" fileVersion=""1""",
+            @"fileCreationDate=""2025-01-15"" fileVersion=""7.3"" fileModifiedBy=""Editor"" fileModificationDate=""2025-02-20"" fileModificationTime=""16:45""");
+
+        var result = _reader.ReadString(xdd);
+
+        result.FileInfo.FileVersion.Should().Be(7);
+        result.FileInfo.ModifiedBy.Should().Be("Editor");
+        result.FileInfo.ModificationDate.Should().Be("02-20-2025");
+        result.FileInfo.ModificationTime.Should().Be("16:45");
+    }
+
+    [Fact]
+    public void ParseNetworkManagement_InvalidNumericValues_AreIgnored_BooleanOnesAreAccepted()
+    {
+        var xdd = MinimalXdd
+            .Replace(@"granularity=""8""", @"granularity=""invalid""")
+            .Replace(@"nrOfRxPDO=""2""", @"nrOfRxPDO=""oops""")
+            .Replace(@"nrOfTxPDO=""2""", @"nrOfTxPDO=""nope""")
+            .Replace(@"dynamicChannels=""0""", @"dynamicChannels=""bad""")
+            .Replace(@"bootUpSlave=""true""", @"bootUpSlave=""1""")
+            .Replace(@"layerSettingServiceSlave=""false""", @"layerSettingServiceSlave=""1""")
+            .Replace(@"groupMessaging=""false""", @"groupMessaging=""1""")
+            .Replace(@"bootUpMaster=""false""", @"bootUpMaster=""1""");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DeviceInfo.Granularity.Should().Be(8);
+        result.DeviceInfo.NrOfRxPdo.Should().Be(0);
+        result.DeviceInfo.NrOfTxPdo.Should().Be(0);
+        result.DeviceInfo.DynamicChannelsSupported.Should().Be(0);
+        result.DeviceInfo.SimpleBootUpSlave.Should().BeTrue();
+        result.DeviceInfo.LssSupported.Should().BeTrue();
+        result.DeviceInfo.GroupMessaging.Should().BeTrue();
+        result.DeviceInfo.SimpleBootUpMaster.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseDynamicChannels_EndIndexWithoutStartIndex_DoesNotBuildRangeAndInvalidOffsetIgnored()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dynamicChannels>
+            <dynamicChannel dataType=""0007"" accessType=""ro"" endIndex=""17FF"" pDOmappingIndex=""not-a-number""/>
+          </dynamicChannels>
+        </ApplicationLayers>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DynamicChannels.Should().NotBeNull();
+        result.DynamicChannels!.Segments.Should().HaveCount(1);
+        result.DynamicChannels.Segments[0].Type.Should().Be(0x0007);
+        result.DynamicChannels.Segments[0].Dir.Should().Be(AccessType.ReadOnly);
+        result.DynamicChannels.Segments[0].Range.Should().BeEmpty();
+        result.DynamicChannels.Segments[0].PPOffset.Should().Be(0);
+    }
+
+    [Fact]
     public void ParseXddAccessType_Unknown_DefaultsToReadOnly()
     {
         // An unrecognized accessType should fall through to the default (ReadOnly)
