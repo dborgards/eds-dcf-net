@@ -46,11 +46,15 @@ jobs:
       id: coverage_gate
       shell: bash
       run: |
-        coverage_file="$(find . -type f -name 'coverage.cobertura.xml' -print -quit)"
-        if [[ -z "$coverage_file" ]]; then
+        mapfile -t coverage_files < <(find . -type f -name 'coverage.cobertura.xml' -print | sort)
+        if (( ${#coverage_files[@]} == 0 )); then
           echo "No coverage.cobertura.xml found."
           exit 1
         fi
+
+        coverage_file="${coverage_files[0]}"
+        coverage_files_csv="$(IFS=,; echo "${coverage_files[*]}")"
+        echo "coverage_files=${coverage_files_csv}" >> "$GITHUB_OUTPUT"
 
         line_rate="$(awk '
           /line-rate="/ {
@@ -75,11 +79,14 @@ jobs:
         }
 
     - name: Upload coverage reports to Codecov
-      if: always()
+      if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: '**/coverage.cobertura.xml'
+        files: ${{ steps.coverage_gate.outputs.coverage_files }}
+        disable_search: true
+        override_branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+        override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
         fail_ci_if_error: false
 
