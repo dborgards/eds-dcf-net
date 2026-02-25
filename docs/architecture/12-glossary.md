@@ -11,6 +11,7 @@
 | **DCF (Device Configuration File)** | Configured instance of an EDS file for a specific network node. Contains concrete parameter values, node ID, and baud rate. |
 | **XDD (XML Device Description)** | XML representation of CANopen device description data (CiA 311). Roughly analogous to EDS content. |
 | **XDC (XML Device Configuration)** | XML representation of configured CANopen device data (CiA 311). Roughly analogous to DCF content. |
+| **ApplicationProcess** | Optional CiA 311 §6.4.5 element inside an XDD/XDC profile body that describes device services and parameters at the application level, independent of communication technology. Modelled in EdsDcfNet as the typed `ApplicationProcess` class. |
 | **ISO 15745 Profile**         | XML profile container concept used by CiA 311 to structure device and communication-network descriptions. |
 | **Object Dictionary (OD)**    | Central data object directory of a CANopen device. Each entry is addressable by a 16-bit index and optional 8-bit sub-index. |
 | **Node ID**                   | Unique identifier (1-127) of a CANopen device on the network.                                    |

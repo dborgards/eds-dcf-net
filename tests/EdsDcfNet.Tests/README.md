@@ -74,6 +74,16 @@ Tests for CiA 311 XML parsers:
 - Mapping object dictionary entries from XML
 - XDC-specific `actualValue`, `denotation`, and `deviceCommissioning`
 
+#### Parsers/ApplicationProcessTests.cs
+Tests for the CiA 311 `ApplicationProcess` model and its parser:
+- Full round-trip parsing and writing of all `ApplicationProcess` sub-constructs
+- `dataTypeList`: array, struct, enum, and derived type definitions
+- `functionTypeList` and `functionInstanceList`
+- `templateList` with parameter and allowed-values templates
+- `parameterList`: individual parameters with data type, access, labels, allowed values, and default/actual values
+- `parameterGroupList`: hierarchical HMI classification groups
+- Edge-case branches (missing attributes, empty sub-elements, all known `g_simple` type names)
+
 #### Writers/XddWriterTests.cs and Writers/XdcWriterTests.cs
 Tests for CiA 311 XML writers:
 - Generating valid XDD/XDC XML output
