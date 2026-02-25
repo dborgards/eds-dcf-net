@@ -26,6 +26,54 @@
       </DeviceIdentity>
       <DeviceManager/>
       <DeviceFunction/>
+      <ApplicationProcess>
+        <dataTypeList>
+          <struct name="IoStatus" uniqueID="uid_str_iostatus">
+            <label lang="en">IO Status</label>
+            <varDeclaration name="InputState" uniqueID="uid_vd_input">
+              <label lang="en">Digital Input State</label>
+              <WORD/>
+            </varDeclaration>
+            <varDeclaration name="OutputState" uniqueID="uid_vd_output">
+              <label lang="en">Digital Output State</label>
+              <WORD/>
+            </varDeclaration>
+          </struct>
+          <enum name="ControlMode" uniqueID="uid_enum_ctrl" size="2">
+            <label lang="en">Control Mode</label>
+            <USINT/>
+            <enumValue value="0"><label lang="en">Disabled</label></enumValue>
+            <enumValue value="1"><label lang="en">Manual</label></enumValue>
+            <enumValue value="2"><label lang="en">Automatic</label></enumValue>
+          </enum>
+        </dataTypeList>
+        <parameterList>
+          <parameter uniqueID="uid_p_mode" access="readWrite" persistent="true">
+            <label lang="en">Operating Mode</label>
+            <dataTypeIDRef uniqueIDRef="uid_enum_ctrl"/>
+            <defaultValue value="0"/>
+            <allowedValues>
+              <value value="0"/>
+              <value value="1"/>
+              <value value="2"/>
+            </allowedValues>
+          </parameter>
+          <parameter uniqueID="uid_p_status" access="read">
+            <label lang="en">IO Status Word</label>
+            <dataTypeIDRef uniqueIDRef="uid_str_iostatus"/>
+          </parameter>
+        </parameterList>
+        <parameterGroupList>
+          <parameterGroup uniqueID="uid_pg_config" kindOfAccess="readWrite">
+            <label lang="en">Configuration</label>
+            <parameterRef uniqueIDRef="uid_p_mode"/>
+            <parameterGroup uniqueID="uid_pg_status">
+              <label lang="en">Status</label>
+              <parameterRef uniqueIDRef="uid_p_status"/>
+            </parameterGroup>
+          </parameterGroup>
+        </parameterGroupList>
+      </ApplicationProcess>
     </ProfileBody>
   </ISO15745Profile>
   <ISO15745Profile>

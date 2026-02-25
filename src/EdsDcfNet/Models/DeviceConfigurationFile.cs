@@ -60,10 +60,10 @@ public class DeviceConfigurationFile
     public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } = new();
 
     /// <summary>
-    /// Opaque XML string for the XDD/XDC ApplicationProcess element.
-    /// Populated when reading XDD/XDC files and re-serialized when writing XDD/XDC files.
-    /// The logical XML content is preserved, but formatting, whitespace, and namespace prefixes may be normalized.
-    /// Null when the source was a DCF file or when no ApplicationProcess element was present.
+    /// Parsed <c>ApplicationProcess</c> element from the XDC device-profile body (CiA 311 §6.4.5).
+    /// Populated when reading XDD/XDC files that contain an <c>ApplicationProcess</c> element.
+    /// <see langword="null"/> when the source was a DCF file or when no
+    /// <c>ApplicationProcess</c> element was present in the XDD/XDC file.
     /// </summary>
-    public string? ApplicationProcessXml { get; set; }
+    public ApplicationProcess? ApplicationProcess { get; set; }
 }

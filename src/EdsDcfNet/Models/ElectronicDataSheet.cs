@@ -48,10 +48,10 @@ public class ElectronicDataSheet
     public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } = new();
 
     /// <summary>
-    /// Opaque XML string for the XDD ApplicationProcess element.
-    /// Populated when reading XDD files; written back as a normalized XML representation when writing XDD files.
-    /// Formatting, attribute ordering, and namespace prefixes may change, but the semantic content is preserved.
-    /// Null when the source was an EDS file or when no ApplicationProcess element was present.
+    /// Parsed <c>ApplicationProcess</c> element from the XDD device-profile body (CiA 311 §6.4.5).
+    /// Populated when reading XDD/XDC files that contain an <c>ApplicationProcess</c> element.
+    /// <see langword="null"/> when the source was an EDS file or when no
+    /// <c>ApplicationProcess</c> element was present in the XDD/XDC file.
     /// </summary>
-    public string? ApplicationProcessXml { get; set; }
+    public ApplicationProcess? ApplicationProcess { get; set; }
 }

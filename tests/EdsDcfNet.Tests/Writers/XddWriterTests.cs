@@ -241,11 +241,16 @@ public class XddWriterTests
     }
 
     [Fact]
-    public void GenerateString_ApplicationProcessXml_PreservedRoundTrip()
+    public void GenerateString_ApplicationProcess_WritesTypedModel()
     {
         // Arrange
         var eds = CreateSampleEds();
-        eds.ApplicationProcessXml = "<ApplicationProcess><dataTypeList/></ApplicationProcess>";
+        var ap = new ApplicationProcess();
+        var dtl = new ApDataTypeList();
+        dtl.Structs.Add(new ApStructType { Name = "MyStruct", UniqueId = "uid_s1" });
+        ap.DataTypeList = dtl;
+        ap.ParameterList.Add(new ApParameter { UniqueId = "uid_p1", Access = "read" });
+        eds.ApplicationProcess = ap;
 
         // Act
         var result = _writer.GenerateString(eds);
@@ -253,6 +258,8 @@ public class XddWriterTests
         // Assert
         result.Should().Contain("ApplicationProcess");
         result.Should().Contain("dataTypeList");
+        result.Should().Contain("MyStruct");
+        result.Should().Contain("uid_p1");
     }
 
     [Fact]
@@ -501,18 +508,18 @@ public class XddWriterTests
     }
 
     [Fact]
-    public void GenerateString_InvalidApplicationProcessXml_IsSkipped()
+    public void GenerateString_NullApplicationProcess_OmitsElement()
     {
-        // Arrange — malformed XML should be silently skipped (catch block)
+        // Arrange — ApplicationProcess is null (default); no element should be emitted
         var eds = CreateSampleEds();
-        eds.ApplicationProcessXml = "<notclosed";
+        eds.ApplicationProcess = null;
 
-        // Act — should not throw
+        // Act
         var result = _writer.GenerateString(eds);
 
-        // Assert — result is still valid XML, invalid app process not included
-        result.Should().NotContain("notclosed");
-        var act = () => System.Xml.Linq.XDocument.Parse(result);
+        // Assert — output is valid XML and contains no ApplicationProcess element
+        result.Should().NotContain("ApplicationProcess");
+        var act = () => XDocument.Parse(result);
         act.Should().NotThrow();
     }
 

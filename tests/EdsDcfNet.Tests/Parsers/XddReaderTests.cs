@@ -418,7 +418,7 @@ public class XddReaderTests
     #region ApplicationProcess Tests
 
     [Fact]
-    public void ApplicationProcess_PreservedAsOpaqueXml()
+    public void ApplicationProcess_ParsedToTypedModel()
     {
         // Arrange
         const string xdd = @"<?xml version=""1.0"" encoding=""utf-8""?>
@@ -429,7 +429,20 @@ public class XddReaderTests
       <DeviceManager/>
       <DeviceFunction/>
       <ApplicationProcess>
-        <dataTypeList><dataType index=""1"" name=""BOOLEAN""/></dataTypeList>
+        <dataTypeList>
+          <struct name=""MyStruct"" uniqueID=""uid_s1"">
+            <varDeclaration name=""Field1"" uniqueID=""uid_v1""><BOOL/></varDeclaration>
+          </struct>
+          <enum name=""MyEnum"" uniqueID=""uid_e1"">
+            <enumValue value=""0""/>
+            <enumValue value=""1""/>
+          </enum>
+        </dataTypeList>
+        <parameterList>
+          <parameter uniqueID=""uid_p1"" access=""read"">
+            <UINT/>
+          </parameter>
+        </parameterList>
       </ApplicationProcess>
     </ProfileBody>
   </ISO15745Profile>
@@ -456,9 +469,19 @@ public class XddReaderTests
         var result = _reader.ReadString(xdd);
 
         // Assert
-        result.ApplicationProcessXml.Should().NotBeNullOrEmpty();
-        result.ApplicationProcessXml.Should().Contain("ApplicationProcess");
-        result.ApplicationProcessXml.Should().Contain("BOOLEAN");
+        result.ApplicationProcess.Should().NotBeNull();
+        result.ApplicationProcess!.DataTypeList.Should().NotBeNull();
+        result.ApplicationProcess.DataTypeList!.Structs.Should().HaveCount(1);
+        result.ApplicationProcess.DataTypeList.Structs[0].Name.Should().Be("MyStruct");
+        result.ApplicationProcess.DataTypeList.Structs[0].UniqueId.Should().Be("uid_s1");
+        result.ApplicationProcess.DataTypeList.Structs[0].VarDeclarations.Should().HaveCount(1);
+        result.ApplicationProcess.DataTypeList.Structs[0].VarDeclarations[0].Name.Should().Be("Field1");
+        result.ApplicationProcess.DataTypeList.Enums.Should().HaveCount(1);
+        result.ApplicationProcess.DataTypeList.Enums[0].Name.Should().Be("MyEnum");
+        result.ApplicationProcess.DataTypeList.Enums[0].EnumValues.Should().HaveCount(2);
+        result.ApplicationProcess.ParameterList.Should().HaveCount(1);
+        result.ApplicationProcess.ParameterList[0].UniqueId.Should().Be("uid_p1");
+        result.ApplicationProcess.ParameterList[0].Access.Should().Be("read");
     }
 
     #endregion
@@ -499,6 +522,20 @@ public class XddReaderTests
         // Assert — BaudRates
         result.DeviceInfo.SupportedBaudRates.BaudRate250.Should().BeTrue();
         result.DeviceInfo.SupportedBaudRates.BaudRate500.Should().BeTrue();
+
+        // Assert — ApplicationProcess (typed model)
+        result.ApplicationProcess.Should().NotBeNull();
+        var ap = result.ApplicationProcess!;
+        ap.DataTypeList.Should().NotBeNull();
+        ap.DataTypeList!.Structs.Should().ContainSingle(s => s.Name == "IoStatus");
+        ap.DataTypeList.Enums.Should().ContainSingle(e => e.Name == "ControlMode");
+        ap.DataTypeList.Enums[0].EnumValues.Should().HaveCount(3);
+        ap.ParameterList.Should().HaveCount(2);
+        ap.ParameterList.Should().Contain(p => p.UniqueId == "uid_p_mode");
+        ap.ParameterList.Should().Contain(p => p.UniqueId == "uid_p_status");
+        ap.ParameterGroupList.Should().HaveCount(1);
+        ap.ParameterGroupList[0].UniqueId.Should().Be("uid_pg_config");
+        ap.ParameterGroupList[0].SubGroups.Should().HaveCount(1);
     }
 
     #endregion
@@ -961,6 +998,310 @@ public class XddReaderTests
         var result = _reader.ReadString(xdd);
 
         result.DeviceInfo.VendorNumber.Should().Be(0);
+    }
+
+    [Fact]
+    public void FileInfo_MissingAttributes_DefaultsAreUsed()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<ProfileBody xsi:type=""ProfileBody_Device_CANopen""
+                 fileName=""test.xdd"" fileCreator=""TestCreator""
+                 fileCreationDate=""2025-01-15"" fileVersion=""1"">",
+            @"<ProfileBody xsi:type=""ProfileBody_Device_CANopen"">");
+
+        var result = _reader.ReadString(xdd);
+
+        result.FileInfo.FileName.Should().BeEmpty();
+        result.FileInfo.CreatedBy.Should().BeEmpty();
+        result.FileInfo.FileVersion.Should().Be(1);
+    }
+
+    [Fact]
+    public void ParseDeviceIdentity_MissingChildren_DefaultsToEmptyOrZero()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<DeviceIdentity>
+        <vendorName>Test Vendor</vendorName>
+        <vendorID>0x00000100</vendorID>
+        <productName>Test Product</productName>
+        <productID>0x00001001</productID>
+      </DeviceIdentity>",
+            @"<DeviceIdentity>
+        <vendorName>Only Vendor Name</vendorName>
+      </DeviceIdentity>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DeviceInfo.VendorName.Should().Be("Only Vendor Name");
+        result.DeviceInfo.VendorNumber.Should().Be(0);
+        result.DeviceInfo.ProductName.Should().BeEmpty();
+        result.DeviceInfo.ProductNumber.Should().Be(0);
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_MissingIndexAndName_DefaultsAreApplied()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<CANopenObjectList mandatoryObjects=""1"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" defaultValue=""0x00000000"" PDOmapping=""no""/>
+        </CANopenObjectList>",
+            @"<CANopenObjectList mandatoryObjects=""0"" optionalObjects=""1"" manufacturerObjects=""0"">
+          <CANopenObject objectType=""9"">
+            <CANopenSubObject/>
+          </CANopenObject>
+        </CANopenObjectList>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.Objects.Should().ContainKey(0);
+        var obj = result.ObjectDictionary.Objects[0];
+        obj.ParameterName.Should().BeEmpty();
+        obj.ObjectType.Should().Be(9);
+        obj.SubObjects.Should().ContainKey(0);
+
+        var sub = obj.SubObjects[0];
+        sub.SubIndex.Should().Be(0);
+        sub.ParameterName.Should().BeEmpty();
+        sub.ObjectType.Should().Be(0x7);
+        sub.DataType.Should().Be(0);
+        sub.AccessType.Should().Be(AccessType.ReadOnly);
+        sub.DefaultValue.Should().BeNull();
+        sub.LowLimit.Should().BeNull();
+        sub.HighLimit.Should().BeNull();
+        sub.PdoMapping.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ParseCanOpenSubObject_WithHexPrefixedSubIndex_ParsesCorrectly()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<CANopenObjectList mandatoryObjects=""1"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" defaultValue=""0x00000000"" PDOmapping=""no""/>
+        </CANopenObjectList>",
+            @"<CANopenObjectList mandatoryObjects=""0"" optionalObjects=""1"" manufacturerObjects=""0"">
+          <CANopenObject index=""1018"" name=""Identity"" objectType=""9"" subNumber=""2"">
+            <CANopenSubObject subIndex=""0x01"" name=""Vendor ID"" objectType=""7"" dataType=""0007"" accessType=""ro"" PDOmapping=""no""/>
+          </CANopenObject>
+        </CANopenObjectList>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.Objects[0x1018].SubObjects.Should().ContainKey(1);
+    }
+
+    [Fact]
+    public void ParseCanOpenSubObject_IncludeActualValuesWithoutAttributes_LeavesValuesNull()
+    {
+        const string xdc = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>Device</ProfileClassID></ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""t.xdc"" fileVersion=""1"">
+      <DeviceIdentity><vendorName>V</vendorName></DeviceIdentity>
+    </ProfileBody>
+  </ISO15745Profile>
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>CommunicationNetwork</ProfileClassID></ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""t.xdc"" fileVersion=""1"">
+      <ApplicationLayers>
+        <CANopenObjectList mandatoryObjects=""0"" optionalObjects=""1"" manufacturerObjects=""0"">
+          <CANopenObject index=""1018"" name=""Identity"" objectType=""9"" subNumber=""1"">
+            <CANopenSubObject subIndex=""00"" name=""Count"" objectType=""7"" dataType=""0005"" accessType=""ro"" PDOmapping=""no""/>
+          </CANopenObject>
+        </CANopenObjectList>
+      </ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""250 Kbps""/></PhysicalLayer></TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0"" bootUpSlave=""false"" layerSettingServiceSlave=""false"" groupMessaging=""false"" dynamicChannels=""0""/>
+        <CANopenMasterFeatures bootUpMaster=""false""/>
+      </NetworkManagement>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>";
+
+        var dcf = new XdcReader().ReadString(xdc);
+
+        var sub = dcf.ObjectDictionary.Objects[0x1018].SubObjects[0];
+        sub.ParameterValue.Should().BeNull();
+        sub.Denotation.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseCanOpenSubObject_LowAndHighLimits_AreParsed()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<CANopenObjectList mandatoryObjects=""1"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" defaultValue=""0x00000000"" PDOmapping=""no""/>
+        </CANopenObjectList>",
+            @"<CANopenObjectList mandatoryObjects=""0"" optionalObjects=""1"" manufacturerObjects=""0"">
+          <CANopenObject index=""1018"" name=""Identity"" objectType=""9"" subNumber=""1"">
+            <CANopenSubObject subIndex=""00"" name=""Count"" objectType=""7"" dataType=""0005""
+                              accessType=""ro"" lowLimit=""1"" highLimit=""9"" PDOmapping=""no""/>
+          </CANopenObject>
+        </CANopenObjectList>");
+
+        var result = _reader.ReadString(xdd);
+
+        var sub = result.ObjectDictionary.Objects[0x1018].SubObjects[0];
+        sub.LowLimit.Should().Be("1");
+        sub.HighLimit.Should().Be("9");
+    }
+
+    [Fact]
+    public void ParseDummyUsage_EntryAttributeMissing_IsSkipped()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dummyUsage>
+            <dummy/>
+            <dummy entry=""Dummy0002=1""/>
+          </dummyUsage>
+        </ApplicationLayers>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.DummyUsage.Should().ContainKey((ushort)0x0002);
+        result.ObjectDictionary.DummyUsage.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void ParseDynamicChannels_EmptyElement_ResultsInNull()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dynamicChannels/>
+        </ApplicationLayers>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DynamicChannels.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseDynamicChannels_ChannelWithoutTypeAndAccess_UsesDefaults()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dynamicChannels>
+            <dynamicChannel startIndex=""2000""/>
+          </dynamicChannels>
+        </ApplicationLayers>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DynamicChannels.Should().NotBeNull();
+        result.DynamicChannels!.Segments.Should().ContainSingle();
+        result.DynamicChannels.Segments[0].Type.Should().Be(0);
+        result.DynamicChannels.Segments[0].Dir.Should().Be(AccessType.ReadOnly);
+        result.DynamicChannels.Segments[0].Range.Should().Be("2000");
+    }
+
+    [Fact]
+    public void ParseBaudRates_MissingValueIsIgnored_AndTenKbpsIsParsed()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<baudRate defaultValue=""250 Kbps"">
+            <supportedBaudRate value=""250 Kbps""/>
+            <supportedBaudRate value=""500 Kbps""/>
+          </baudRate>",
+            @"<baudRate defaultValue=""250 Kbps"">
+            <supportedBaudRate/>
+            <supportedBaudRate value=""10 Kbps""/>
+          </baudRate>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DeviceInfo.SupportedBaudRates.BaudRate10.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate250.Should().BeFalse();
+        result.DeviceInfo.SupportedBaudRates.BaudRate500.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ParseBaudRates_AllSupportedValues_AreMapped()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<baudRate defaultValue=""250 Kbps"">
+            <supportedBaudRate value=""250 Kbps""/>
+            <supportedBaudRate value=""500 Kbps""/>
+          </baudRate>",
+            @"<baudRate defaultValue=""250 Kbps"">
+            <supportedBaudRate value=""10 Kbps""/>
+            <supportedBaudRate value=""20 Kbps""/>
+            <supportedBaudRate value=""50 Kbps""/>
+            <supportedBaudRate value=""125 Kbps""/>
+            <supportedBaudRate value=""250 Kbps""/>
+            <supportedBaudRate value=""500 Kbps""/>
+            <supportedBaudRate value=""800 Kbps""/>
+            <supportedBaudRate value=""1000 Kbps""/>
+          </baudRate>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DeviceInfo.SupportedBaudRates.BaudRate10.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate20.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate50.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate125.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate250.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate500.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate800.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate1000.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseNetworkManagement_MissingAttributes_KeepDeviceDefaults()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""2"" nrOfTxPDO=""2""
+                                bootUpSlave=""true"" layerSettingServiceSlave=""false""
+                                groupMessaging=""false"" dynamicChannels=""0""/>",
+            @"<CANopenGeneralFeatures/>")
+            .Replace(@"<CANopenMasterFeatures bootUpMaster=""false""/>", @"<CANopenMasterFeatures/>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DeviceInfo.Granularity.Should().Be(8);
+        result.DeviceInfo.NrOfRxPdo.Should().Be(0);
+        result.DeviceInfo.NrOfTxPdo.Should().Be(0);
+        result.DeviceInfo.SimpleBootUpSlave.Should().BeFalse();
+        result.DeviceInfo.GroupMessaging.Should().BeFalse();
+        result.DeviceInfo.LssSupported.Should().BeFalse();
+        result.DeviceInfo.DynamicChannelsSupported.Should().Be(0);
+        result.DeviceInfo.SimpleBootUpMaster.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ParseDeviceCommissioning_OptionalNetworkNumberAndManager_MissingUseDefaults()
+    {
+        const string xdc = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""t.xdc"" fileVersion=""1"">
+      <DeviceIdentity><vendorName>V</vendorName></DeviceIdentity>
+    </ProfileBody>
+  </ISO15745Profile>
+  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""t.xdc"" fileVersion=""1"">
+      <ApplicationLayers>
+        <CANopenObjectList mandatoryObjects=""0"" optionalObjects=""0"" manufacturerObjects=""0""/>
+      </ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""250 Kbps""/></PhysicalLayer></TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0"" bootUpSlave=""false"" layerSettingServiceSlave=""false"" groupMessaging=""false"" dynamicChannels=""0""/>
+        <CANopenMasterFeatures bootUpMaster=""false""/>
+        <deviceCommissioning nodeID=""5""/>
+      </NetworkManagement>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>";
+
+        var dcf = new XdcReader().ReadString(xdc);
+
+        dcf.DeviceCommissioning.NodeId.Should().Be(5);
+        dcf.DeviceCommissioning.NetNumber.Should().Be(0u);
+        dcf.DeviceCommissioning.CANopenManager.Should().BeFalse();
     }
 
     #endregion
