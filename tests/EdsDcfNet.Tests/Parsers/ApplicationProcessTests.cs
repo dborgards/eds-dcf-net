@@ -189,6 +189,39 @@ public class ApplicationProcessTests
         vd.IsSigned.Should().BeFalse();
     }
 
+    [Fact]
+    public void Parse_VarDeclaration_WithConditionalSupportDefaultAllowedValuesAndUnit()
+    {
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <dataTypeList>
+    <struct name=""S"" uniqueID=""uid_s"">
+      <varDeclaration name=""Cfg"" uniqueID=""uid_cfg"">
+        <UINT/>
+        <conditionalSupport paramIDRef=""uid_dep_cfg""/>
+        <defaultValue value=""4""/>
+        <allowedValues>
+          <value value=""4""/>
+        </allowedValues>
+        <unit multiplier=""1.0"" unitURI=""urn:example:cfg""/>
+      </varDeclaration>
+    </struct>
+  </dataTypeList>
+  <parameterList/>
+</ApplicationProcess>");
+
+        var vd = result.ApplicationProcess!.DataTypeList!.Structs[0].VarDeclarations[0];
+        vd.ConditionalSupports.Should().ContainSingle().Which.Should().Be("uid_dep_cfg");
+        vd.DefaultValue.Should().NotBeNull();
+        vd.DefaultValue!.Value.Should().Be("4");
+        vd.AllowedValues.Should().NotBeNull();
+        vd.AllowedValues!.Values.Should().ContainSingle();
+        vd.AllowedValues.Values[0].Value.Should().Be("4");
+        vd.Unit.Should().NotBeNull();
+        vd.Unit!.Multiplier.Should().Be("1.0");
+        vd.Unit.UnitUri.Should().Be("urn:example:cfg");
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // Reader — dataTypeList / enum
     // ═══════════════════════════════════════════════════════════════════════════
@@ -248,6 +281,37 @@ public class ApplicationProcessTests
         dt.Count.Access.Should().Be("readWrite");
         dt.Count.DefaultValue!.Value.Should().Be("3");
         dt.BaseType!.SimpleTypeName.Should().Be("USINT");
+    }
+
+    [Fact]
+    public void Parse_DerivedType_CountWithAllowedValues_IsParsed()
+    {
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <dataTypeList>
+    <derived name=""NodeList2"" uniqueID=""uid_der2"">
+      <count uniqueID=""uid_cnt2"">
+        <allowedValues>
+          <value value=""1""/>
+          <range>
+            <minValue value=""1""/>
+            <maxValue value=""10""/>
+          </range>
+        </allowedValues>
+      </count>
+      <USINT/>
+    </derived>
+  </dataTypeList>
+  <parameterList/>
+</ApplicationProcess>");
+
+        var count = result.ApplicationProcess!.DataTypeList!.Derived[0].Count!;
+        count.AllowedValues.Should().NotBeNull();
+        count.AllowedValues!.Values.Should().ContainSingle();
+        count.AllowedValues.Values[0].Value.Should().Be("1");
+        count.AllowedValues.Ranges.Should().ContainSingle();
+        count.AllowedValues.Ranges[0].MinValue!.Value.Should().Be("1");
+        count.AllowedValues.Ranges[0].MaxValue!.Value.Should().Be("10");
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -359,6 +423,30 @@ public class ApplicationProcessTests
         ft.InterfaceList.ConfigVars[0].Name.Should().Be("MaxStep");
     }
 
+    [Fact]
+    public void Parse_FunctionType_WithNestedFunctionInstanceList_IsParsed()
+    {
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <functionTypeList>
+    <functionType name=""Linker"" uniqueID=""uid_ft_link"">
+      <functionInstanceList>
+        <functionInstance name=""fi1"" uniqueID=""uid_fi1"" typeIDRef=""uid_ft_link""/>
+        <connection source=""fi1.Out"" destination=""fi1.In"" description=""self-loop""/>
+      </functionInstanceList>
+    </functionType>
+  </functionTypeList>
+  <parameterList/>
+</ApplicationProcess>");
+
+        var fil = result.ApplicationProcess!.FunctionTypeList[0].FunctionInstanceList;
+        fil.Should().NotBeNull();
+        fil!.FunctionInstances.Should().ContainSingle();
+        fil.FunctionInstances[0].Name.Should().Be("fi1");
+        fil.Connections.Should().ContainSingle();
+        fil.Connections[0].Description.Should().Be("self-loop");
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // Reader — functionInstanceList
     // ═══════════════════════════════════════════════════════════════════════════
@@ -452,6 +540,32 @@ public class ApplicationProcessTests
         avt.Values[2].Value.Should().Be("2");
     }
 
+    [Fact]
+    public void Parse_TemplateList_ParameterTemplate_WithConditionalSupportActualAndSubstituteValues()
+    {
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <templateList>
+    <parameterTemplate uniqueID=""uid_tpl2"">
+      <dataTypeIDRef uniqueIDRef=""uid_type_1""/>
+      <conditionalSupport paramIDRef=""uid_dep_1""/>
+      <actualValue value=""11""/>
+      <substituteValue value=""0""/>
+    </parameterTemplate>
+  </templateList>
+  <parameterList/>
+</ApplicationProcess>");
+
+        var pt = result.ApplicationProcess!.TemplateList!.ParameterTemplates[0];
+        pt.TypeRef.Should().NotBeNull();
+        pt.TypeRef!.DataTypeIdRef.Should().Be("uid_type_1");
+        pt.ConditionalSupports.Should().ContainSingle().Which.Should().Be("uid_dep_1");
+        pt.ActualValue.Should().NotBeNull();
+        pt.ActualValue!.Value.Should().Be("11");
+        pt.SubstituteValue.Should().NotBeNull();
+        pt.SubstituteValue!.Value.Should().Be("0");
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // Reader — parameterList
     // ═══════════════════════════════════════════════════════════════════════════
@@ -481,6 +595,41 @@ public class ApplicationProcessTests
         p.TemplateIdRef.Should().Be("uid_tpl1");
         p.LabelGroup.GetDisplayName().Should().Be("My Param");
         p.TypeRef!.SimpleTypeName.Should().Be("DINT");
+    }
+
+    [Fact]
+    public void Parse_Parameter_WithConditionalSupportAndActualValue_AndWithoutTypeRef()
+    {
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <parameterList>
+    <parameter uniqueID=""uid_p_cond"" access=""readWrite"">
+      <conditionalSupport paramIDRef=""uid_dep_p""/>
+      <actualValue value=""77""/>
+    </parameter>
+  </parameterList>
+</ApplicationProcess>");
+
+        var p = result.ApplicationProcess!.ParameterList[0];
+        p.TypeRef.Should().BeNull();
+        p.ConditionalSupports.Should().ContainSingle().Which.Should().Be("uid_dep_p");
+        p.ActualValue.Should().NotBeNull();
+        p.ActualValue!.Value.Should().Be("77");
+    }
+
+    [Fact]
+    public void Parse_Parameter_WithDataTypeRefMissingUniqueId_ReturnsNullTypeRef()
+    {
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <parameterList>
+    <parameter uniqueID=""uid_p_missing_ref"" access=""read"">
+      <dataTypeIDRef/>
+    </parameter>
+  </parameterList>
+</ApplicationProcess>");
+
+        result.ApplicationProcess!.ParameterList[0].TypeRef.Should().BeNull();
     }
 
     [Fact]
@@ -830,6 +979,233 @@ public class ApplicationProcessTests
         xml.Should().Contain("minValue");
         xml.Should().Contain("maxValue");
         xml.Should().Contain("step");
+    }
+
+    [Fact]
+    public void Write_ComplexApplicationProcess_EmitsFunctionTemplateAndParameterDetails()
+    {
+        var eds = CreateBaseEds();
+        var ap = new ApplicationProcess();
+
+        var dataTypeList = new ApDataTypeList();
+        var derived = new ApDerivedType
+        {
+            Name = "DerivedCounter",
+            UniqueId = "uid_der_writer",
+            Count = new ApDerivedCount
+            {
+                UniqueId = "uid_cnt_writer",
+                AllowedValues = new ApAllowedValues(),
+            },
+            BaseType = new ApTypeRef { DataTypeIdRef = "uid_base_type" },
+        };
+        derived.Count!.AllowedValues!.Values.Add(new ApParameterValue { Value = "1" });
+        dataTypeList.Derived.Add(derived);
+        ap.DataTypeList = dataTypeList;
+
+        var functionType = new ApFunctionType
+        {
+            Name = "Controller",
+            UniqueId = "uid_ft_writer",
+            Package = "pkg.ctrl",
+            InterfaceList = new ApInterfaceList(),
+            FunctionInstanceList = new ApFunctionInstanceList(),
+        };
+        functionType.VersionInfos.Add(new ApVersionInfo
+        {
+            Organization = "Org",
+            Version = "1.0",
+            Author = "Dev",
+            Date = "2025-01-01",
+        });
+        var cfgVar = new ApVarDeclaration
+        {
+            Name = "Cfg",
+            UniqueId = "uid_cfg_writer",
+            Start = "0",
+            Size = "16",
+            IsSigned = false,
+            Offset = "1",
+            Multiplier = "2",
+            InitialValue = "3",
+            Type = new ApTypeRef { SimpleTypeName = "UINT" },
+            DefaultValue = new ApParameterValue { Value = "4", Offset = "1", Multiplier = "2" },
+            AllowedValues = new ApAllowedValues(),
+            Unit = new ApUnit { Multiplier = "1.0", UnitUri = "urn:example:cfg" },
+        };
+        cfgVar.ConditionalSupports.Add("uid_dep_cfg");
+        cfgVar.AllowedValues!.Values.Add(new ApParameterValue { Value = "4" });
+        functionType.InterfaceList.ConfigVars.Add(cfgVar);
+        var nestedInstance = new ApFunctionInstance
+        {
+            Name = "fiNested",
+            UniqueId = "uid_fi_nested",
+            TypeIdRef = "uid_ft_writer",
+        };
+        nestedInstance.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Nested" });
+        functionType.FunctionInstanceList.FunctionInstances.Add(nestedInstance);
+        functionType.FunctionInstanceList.Connections.Add(new ApConnection
+        {
+            Source = "fiNested.Out",
+            Destination = "fiNested.In",
+            Description = "loop",
+        });
+        ap.FunctionTypeList.Add(functionType);
+
+        ap.FunctionInstanceList = new ApFunctionInstanceList();
+        ap.FunctionInstanceList.FunctionInstances.Add(new ApFunctionInstance
+        {
+            Name = "fiTop",
+            UniqueId = "uid_fi_top",
+            TypeIdRef = "uid_ft_writer",
+        });
+        ap.FunctionInstanceList.Connections.Add(new ApConnection
+        {
+            Source = "fiTop.Out",
+            Destination = "fiTop.In",
+            Description = "top-loop",
+        });
+
+        ap.TemplateList = new ApTemplateList();
+        var parameterTemplate = new ApParameterTemplate
+        {
+            UniqueId = "uid_tpl_writer",
+            Access = "readWrite",
+            AccessList = "read write",
+            Support = "optional",
+            Persistent = true,
+            Offset = "10",
+            Multiplier = "0.5",
+            TypeRef = new ApTypeRef { DataTypeIdRef = "uid_data_type_writer" },
+            ActualValue = new ApParameterValue { Value = "12", Offset = "1", Multiplier = "3" },
+            DefaultValue = new ApParameterValue { Value = "8" },
+            SubstituteValue = new ApParameterValue { Value = "0" },
+            AllowedValues = new ApAllowedValues { TemplateIdRef = "uid_avt_writer" },
+            Unit = new ApUnit { Multiplier = "1.0", UnitUri = "urn:example:rpm" },
+        };
+        parameterTemplate.ConditionalSupports.Add("uid_dep_tpl");
+        parameterTemplate.AllowedValues!.Values.Add(new ApParameterValue { Value = "8" });
+        parameterTemplate.AllowedValues.Ranges.Add(new ApAllowedRange
+        {
+            MinValue = new ApParameterValue { Value = "0" },
+            MaxValue = new ApParameterValue { Value = "100" },
+            Step = new ApParameterValue { Value = "5" },
+        });
+        parameterTemplate.Properties.Add(new ApProperty { Name = "Category", Value = "Motion" });
+        parameterTemplate.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Template Label" });
+        parameterTemplate.LabelGroup.Descriptions.Add(new ApDescription
+        {
+            Lang = "en",
+            Text = "Template description",
+            Uri = "https://example.com/template",
+        });
+        parameterTemplate.LabelGroup.TextRefs.Add(new ApTextRef
+        {
+            DictId = "dict1",
+            TextId = "txt1",
+            Uri = "urn:label",
+        });
+        parameterTemplate.LabelGroup.TextRefs.Add(new ApTextRef
+        {
+            DictId = "dict1",
+            TextId = "txt2",
+            IsDescriptionRef = true,
+            Uri = "urn:desc",
+        });
+        ap.TemplateList.ParameterTemplates.Add(parameterTemplate);
+        var allowedValuesTemplate = new ApAllowedValuesTemplate { UniqueId = "uid_avt_writer" };
+        allowedValuesTemplate.Values.Add(new ApParameterValue { Value = "1" });
+        allowedValuesTemplate.Ranges.Add(new ApAllowedRange
+        {
+            MinValue = new ApParameterValue { Value = "1" },
+            MaxValue = new ApParameterValue { Value = "9" },
+            Step = new ApParameterValue { Value = "1" },
+        });
+        ap.TemplateList.AllowedValuesTemplates.Add(allowedValuesTemplate);
+
+        var parameter = new ApParameter
+        {
+            UniqueId = "uid_param_writer",
+            Access = "write",
+            AccessList = "write",
+            Support = "mandatory",
+            Persistent = true,
+            Offset = "2",
+            Multiplier = "4",
+            TemplateIdRef = "uid_tpl_writer",
+            TypeRef = new ApTypeRef { DataTypeIdRef = "uid_data_type_writer" },
+            Denotation = new ApLabelGroup(),
+            ActualValue = new ApParameterValue { Value = "15", Offset = "1", Multiplier = "2" },
+            DefaultValue = new ApParameterValue { Value = "10" },
+            SubstituteValue = new ApParameterValue { Value = "0" },
+            AllowedValues = new ApAllowedValues { TemplateIdRef = "uid_avt_writer" },
+            Unit = new ApUnit { Multiplier = "0.1", UnitUri = "urn:example:param" },
+        };
+        parameter.ConditionalSupports.Add("uid_cond_param");
+        parameter.Denotation!.Labels.Add(new ApLabel { Lang = "de", Text = "Sollwert" });
+        parameter.AllowedValues!.Values.Add(new ApParameterValue { Value = "10" });
+        parameter.Properties.Add(new ApProperty { Name = "Group", Value = "Runtime" });
+        parameter.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Parameter Label" });
+        parameter.LabelGroup.Descriptions.Add(new ApDescription
+        {
+            Lang = "en",
+            Text = "Parameter description",
+            Uri = "https://example.com/parameter",
+        });
+        parameter.LabelGroup.TextRefs.Add(new ApTextRef
+        {
+            DictId = "dictP",
+            TextId = "txtP",
+            Uri = "urn:param-label",
+        });
+        var variableRef = new ApVariableRef
+        {
+            Position = 2,
+            VariableIdRef = "uid_var_writer",
+            MemberRef = new ApMemberRef { UniqueIdRef = "uid_member_writer", Index = 3 },
+        };
+        variableRef.InstanceIdRefs.Add("uid_inst_writer");
+        parameter.VariableRefs.Add(variableRef);
+        ap.ParameterList.Add(parameter);
+
+        var rootGroup = new ApParameterGroup
+        {
+            UniqueId = "uid_pg_root",
+            KindOfAccess = "read",
+        };
+        rootGroup.ParameterRefs.Add("uid_param_writer");
+        rootGroup.SubGroups.Add(new ApParameterGroup
+        {
+            UniqueId = "uid_pg_child",
+            ParameterRefs = { "uid_param_writer" },
+        });
+        ap.ParameterGroupList.Add(rootGroup);
+
+        eds.ApplicationProcess = ap;
+
+        var xml = Writer.GenerateString(eds);
+
+        xml.Should().Contain("functionTypeList");
+        xml.Should().Contain("package=\"pkg.ctrl\"");
+        xml.Should().Contain("configVars");
+        xml.Should().Contain("paramIDRef=\"uid_dep_cfg\"");
+        xml.Should().Contain("functionInstance name=\"fiTop\"");
+        xml.Should().Contain("description=\"top-loop\"");
+        xml.Should().Contain("templateList");
+        xml.Should().Contain("parameterTemplate");
+        xml.Should().Contain("templateIDRef=\"uid_avt_writer\"");
+        xml.Should().Contain("actualValue value=\"12\"");
+        xml.Should().Contain("descriptionRef");
+        xml.Should().Contain("urn:desc");
+        xml.Should().Contain("labelRef");
+        xml.Should().Contain("uid_param_writer");
+        xml.Should().Contain("templateIDRef=\"uid_tpl_writer\"");
+        xml.Should().Contain("variableRef position=\"2\"");
+        xml.Should().Contain("instanceIDRef");
+        xml.Should().Contain("memberRef uniqueIDRef=\"uid_member_writer\" index=\"3\"");
+        xml.Should().Contain("denotation");
+        xml.Should().Contain("unitURI=\"urn:example:param\"");
+        xml.Should().Contain("parameterGroup uniqueID=\"uid_pg_root\"");
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
