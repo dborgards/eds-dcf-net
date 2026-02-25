@@ -253,6 +253,30 @@ public class XdcReaderTests
     }
 
     [Fact]
+    public void CopyAdditionalSections_WithEntries_CopiesValues()
+    {
+        var method = typeof(XdcReader).GetMethod(
+            "CopyAdditionalSections",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var source = new Dictionary<string, Dictionary<string, string>>
+        {
+            ["CustomSection"] = new Dictionary<string, string>
+            {
+                ["Key"] = "Value"
+            }
+        };
+        var destination = new Dictionary<string, Dictionary<string, string>>();
+
+        method!.Invoke(null, new object[] { source, destination });
+
+        destination.Should().ContainKey("CustomSection");
+        destination["CustomSection"].Should().ContainKey("Key");
+        destination["CustomSection"]["Key"].Should().Be("Value");
+    }
+
+    [Fact]
     public void ParseDeviceCommissioning_NoNetworkManagementElement_ReturnsDefault()
     {
         // XDC without a deviceCommissioning element → ParseDeviceCommissioning returns null → default

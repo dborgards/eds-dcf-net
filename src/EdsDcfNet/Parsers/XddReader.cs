@@ -1264,7 +1264,10 @@ public class XddReader
     private static string GetChildText(XElement parent, string localName)
     {
         var child = parent.Elements().FirstOrDefault(e => e.Name.LocalName == localName);
-        return child?.Value?.Trim() ?? string.Empty;
+        if (child == null)
+            return string.Empty;
+
+        return child.Value.Trim();
     }
 
     /// <summary>

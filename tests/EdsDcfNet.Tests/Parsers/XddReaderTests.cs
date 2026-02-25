@@ -714,6 +714,58 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ParseBaudRates_AllKnownRates_AreParsed()
+    {
+        var xdd = MinimalXdd
+            .Replace(
+                "<supportedBaudRate value=\"250 Kbps\"/>",
+                "<supportedBaudRate value=\"10 Kbps\"/>\n            <supportedBaudRate value=\"20 Kbps\"/>\n            <supportedBaudRate value=\"50 Kbps\"/>\n            <supportedBaudRate value=\"125 Kbps\"/>\n            <supportedBaudRate value=\"250 Kbps\"/>")
+            .Replace(
+                "<supportedBaudRate value=\"500 Kbps\"/>",
+                "<supportedBaudRate value=\"500 Kbps\"/>\n            <supportedBaudRate value=\"800 Kbps\"/>\n            <supportedBaudRate value=\"1000 Kbps\"/>");
+
+        var result = _reader.ReadString(xdd);
+        var baudRates = result.DeviceInfo.SupportedBaudRates;
+
+        baudRates.BaudRate10.Should().BeTrue();
+        baudRates.BaudRate20.Should().BeTrue();
+        baudRates.BaudRate50.Should().BeTrue();
+        baudRates.BaudRate125.Should().BeTrue();
+        baudRates.BaudRate250.Should().BeTrue();
+        baudRates.BaudRate500.Should().BeTrue();
+        baudRates.BaudRate800.Should().BeTrue();
+        baudRates.BaudRate1000.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SetBaudRate_SwitchBranches_AreExercised()
+    {
+        var method = typeof(XddReader).GetMethod(
+            "SetBaudRate",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var baudRates = new BaudRates();
+        ushort[] valuesToProbe =
+        {
+            0, 1, 9, 10, 11, 19, 20, 21, 49, 50, 51, 124, 125, 126,
+            249, 250, 251, 499, 500, 501, 799, 800, 801, 999, 1000, 1001
+        };
+
+        foreach (var value in valuesToProbe)
+            method!.Invoke(null, new object[] { baudRates, value });
+
+        baudRates.BaudRate10.Should().BeTrue();
+        baudRates.BaudRate20.Should().BeTrue();
+        baudRates.BaudRate50.Should().BeTrue();
+        baudRates.BaudRate125.Should().BeTrue();
+        baudRates.BaudRate250.Should().BeTrue();
+        baudRates.BaudRate500.Should().BeTrue();
+        baudRates.BaudRate800.Should().BeTrue();
+        baudRates.BaudRate1000.Should().BeTrue();
+    }
+
+    [Fact]
     public void ParseBaudRates_UnknownBaudRate_IsIgnored()
     {
         // An unknown baud rate string should not throw; kbps=0 is ignored by SetBaudRate
