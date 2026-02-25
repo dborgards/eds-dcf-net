@@ -6,7 +6,7 @@ namespace EdsDcfNet.Models;
 /// </summary>
 public class ApLabel
 {
-    /// <summary>ISO 639-2 language code, e.g. "en", "de", "fr".</summary>
+    /// <summary>IETF BCP 47 language tag, e.g. "en", "de", "fr".</summary>
     public string Lang { get; set; } = string.Empty;
 
     /// <summary>The label text in the specified language.</summary>
@@ -19,7 +19,7 @@ public class ApLabel
 /// </summary>
 public class ApDescription
 {
-    /// <summary>ISO 639-2 language code.</summary>
+    /// <summary>IETF BCP 47 language tag, e.g. "en", "de", "fr".</summary>
     public string Lang { get; set; } = string.Empty;
 
     /// <summary>The description text in the specified language.</summary>
@@ -74,7 +74,7 @@ public class ApLabelGroup
 
     /// <summary>
     /// Gets the first label text, preferring English; falls back to the first available label.
-    /// Returns <see langword="null"/> when <see cref="IsEmpty"/> is <see langword="true"/>.
+    /// Returns <see langword="null"/> when no <c>label</c> elements are present.
     /// </summary>
     public string? GetDisplayName()
     {
