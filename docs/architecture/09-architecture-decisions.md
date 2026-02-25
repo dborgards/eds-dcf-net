@@ -123,6 +123,31 @@ Unknown sections are stored in a `Dictionary<string, Dictionary<string, string>>
 
 ---
 
+## ADR-6: UTF-8 (without BOM) for INI/XML File Output
+
+### Context
+
+CiA DS 306 historically describes EDS/DCF as ASCII-oriented text files, while
+real-world files often contain extended characters from vendor/device names.
+
+### Decision
+
+All writers (`DcfWriter`, `CpjWriter`, `XddWriter`, `XdcWriter`) use **UTF-8 without BOM** when writing files.
+
+### Rationale
+
+- UTF-8 is ASCII-compatible for the 7-bit subset required by classic tooling.
+- Non-ASCII characters are preserved instead of being replaced during write.
+- Reader and writer behavior stays symmetric across INI and XML formats (UTF-8-based text processing).
+
+### Consequences
+
+- (+) Preserves Unicode content in names/comments for modern toolchains.
+- (+) Keeps ASCII compatibility for standard-compliant content.
+- (-) A very strict ASCII-only consumer may reject UTF-8 files with non-ASCII characters.
+
+---
+
 ## ADR-7: Typed ApplicationProcess Model Instead of Raw XML Passthrough
 
 ### Context
@@ -146,28 +171,3 @@ Replace the raw `string? ApplicationProcessXml` property on `ElectronicDataSheet
 - (+) Consistent model-first design: no internal raw XML state.
 - (-) Breaking change: consumers who used `ApplicationProcessXml` directly must migrate to the typed API (`ApplicationProcess.ParameterList`, etc.).
 - (-) Increased model surface area (several new `Ap*` classes).
-
----
-
-## ADR-6: UTF-8 (without BOM) for INI/XML File Output
-
-### Context
-
-CiA DS 306 historically describes EDS/DCF as ASCII-oriented text files, while
-real-world files often contain extended characters from vendor/device names.
-
-### Decision
-
-All writers (`DcfWriter`, `CpjWriter`, `XddWriter`, `XdcWriter`) use **UTF-8 without BOM** when writing files.
-
-### Rationale
-
-- UTF-8 is ASCII-compatible for the 7-bit subset required by classic tooling.
-- Non-ASCII characters are preserved instead of being replaced during write.
-- Reader and writer behavior stays symmetric across INI and XML formats (UTF-8-based text processing).
-
-### Consequences
-
-- (+) Preserves Unicode content in names/comments for modern toolchains.
-- (+) Keeps ASCII compatibility for standard-compliant content.
-- (-) A very strict ASCII-only consumer may reject UTF-8 files with non-ASCII characters.
