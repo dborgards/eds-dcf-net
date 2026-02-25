@@ -68,20 +68,14 @@ public class XdcReader
         };
 
         dcf.SupportedModules.AddRange(eds.SupportedModules);
-        CopyAdditionalSections(eds.AdditionalSections, dcf.AdditionalSections);
+        eds.AdditionalSections
+            .ToList()
+            .ForEach(kvp => dcf.AdditionalSections[kvp.Key] = kvp.Value);
 
         // Parse deviceCommissioning from XDC NetworkManagement
         dcf.DeviceCommissioning = ParseDeviceCommissioning(doc) ?? new DeviceCommissioning();
 
         return dcf;
-    }
-
-    private static void CopyAdditionalSections(
-        IReadOnlyDictionary<string, Dictionary<string, string>> source,
-        Dictionary<string, Dictionary<string, string>> destination)
-    {
-        foreach (var kvp in source)
-            destination[kvp.Key] = kvp.Value;
     }
 
     private static DeviceCommissioning? ParseDeviceCommissioning(XDocument doc)

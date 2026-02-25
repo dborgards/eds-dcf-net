@@ -17,6 +17,19 @@ using EdsDcfNet.Models;
 /// </summary>
 public class XddReader
 {
+    private static readonly Dictionary<ushort, Action<BaudRates>> BaudRateSetters =
+        new Dictionary<ushort, Action<BaudRates>>
+        {
+            [10] = br => br.BaudRate10 = true,
+            [20] = br => br.BaudRate20 = true,
+            [50] = br => br.BaudRate50 = true,
+            [125] = br => br.BaudRate125 = true,
+            [250] = br => br.BaudRate250 = true,
+            [500] = br => br.BaudRate500 = true,
+            [800] = br => br.BaudRate800 = true,
+            [1000] = br => br.BaudRate1000 = true
+        };
+
     /// <summary>
     /// Reads an XDD file from the specified path.
     /// </summary>
@@ -1376,17 +1389,8 @@ public class XddReader
 
     private static void SetBaudRate(BaudRates baudRates, ushort kbps)
     {
-        switch (kbps)
-        {
-            case 10: baudRates.BaudRate10 = true; break;
-            case 20: baudRates.BaudRate20 = true; break;
-            case 50: baudRates.BaudRate50 = true; break;
-            case 125: baudRates.BaudRate125 = true; break;
-            case 250: baudRates.BaudRate250 = true; break;
-            case 500: baudRates.BaudRate500 = true; break;
-            case 800: baudRates.BaudRate800 = true; break;
-            case 1000: baudRates.BaudRate1000 = true; break;
-        }
+        if (BaudRateSetters.TryGetValue(kbps, out var setter))
+            setter(baudRates);
     }
 
     private static string ConvertXsdDateToEds(string xsdDate)
