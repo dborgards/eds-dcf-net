@@ -109,7 +109,7 @@ public class XdcWriter : XddWriter
             ObjectDictionary = dcf.ObjectDictionary,
             Comments = dcf.Comments,
             DynamicChannels = dcf.DynamicChannels,
-            ApplicationProcessXml = dcf.ApplicationProcessXml
+            ApplicationProcess = dcf.ApplicationProcess
         };
 
         eds.SupportedModules.AddRange(dcf.SupportedModules);

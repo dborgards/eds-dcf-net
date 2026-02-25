@@ -418,7 +418,7 @@ public class XddReaderTests
     #region ApplicationProcess Tests
 
     [Fact]
-    public void ApplicationProcess_PreservedAsOpaqueXml()
+    public void ApplicationProcess_ParsedToTypedModel()
     {
         // Arrange
         const string xdd = @"<?xml version=""1.0"" encoding=""utf-8""?>
@@ -429,7 +429,20 @@ public class XddReaderTests
       <DeviceManager/>
       <DeviceFunction/>
       <ApplicationProcess>
-        <dataTypeList><dataType index=""1"" name=""BOOLEAN""/></dataTypeList>
+        <dataTypeList>
+          <struct name=""MyStruct"" uniqueID=""uid_s1"">
+            <varDeclaration name=""Field1"" uniqueID=""uid_v1""><BOOL/></varDeclaration>
+          </struct>
+          <enum name=""MyEnum"" uniqueID=""uid_e1"">
+            <enumValue value=""0""/>
+            <enumValue value=""1""/>
+          </enum>
+        </dataTypeList>
+        <parameterList>
+          <parameter uniqueID=""uid_p1"" access=""read"">
+            <UINT/>
+          </parameter>
+        </parameterList>
       </ApplicationProcess>
     </ProfileBody>
   </ISO15745Profile>
@@ -456,9 +469,19 @@ public class XddReaderTests
         var result = _reader.ReadString(xdd);
 
         // Assert
-        result.ApplicationProcessXml.Should().NotBeNullOrEmpty();
-        result.ApplicationProcessXml.Should().Contain("ApplicationProcess");
-        result.ApplicationProcessXml.Should().Contain("BOOLEAN");
+        result.ApplicationProcess.Should().NotBeNull();
+        result.ApplicationProcess!.DataTypeList.Should().NotBeNull();
+        result.ApplicationProcess.DataTypeList!.Structs.Should().HaveCount(1);
+        result.ApplicationProcess.DataTypeList.Structs[0].Name.Should().Be("MyStruct");
+        result.ApplicationProcess.DataTypeList.Structs[0].UniqueId.Should().Be("uid_s1");
+        result.ApplicationProcess.DataTypeList.Structs[0].VarDeclarations.Should().HaveCount(1);
+        result.ApplicationProcess.DataTypeList.Structs[0].VarDeclarations[0].Name.Should().Be("Field1");
+        result.ApplicationProcess.DataTypeList.Enums.Should().HaveCount(1);
+        result.ApplicationProcess.DataTypeList.Enums[0].Name.Should().Be("MyEnum");
+        result.ApplicationProcess.DataTypeList.Enums[0].EnumValues.Should().HaveCount(2);
+        result.ApplicationProcess.ParameterList.Should().HaveCount(1);
+        result.ApplicationProcess.ParameterList[0].UniqueId.Should().Be("uid_p1");
+        result.ApplicationProcess.ParameterList[0].Access.Should().Be("read");
     }
 
     #endregion
@@ -499,6 +522,20 @@ public class XddReaderTests
         // Assert — BaudRates
         result.DeviceInfo.SupportedBaudRates.BaudRate250.Should().BeTrue();
         result.DeviceInfo.SupportedBaudRates.BaudRate500.Should().BeTrue();
+
+        // Assert — ApplicationProcess (typed model)
+        result.ApplicationProcess.Should().NotBeNull();
+        var ap = result.ApplicationProcess!;
+        ap.DataTypeList.Should().NotBeNull();
+        ap.DataTypeList!.Structs.Should().ContainSingle(s => s.Name == "IoStatus");
+        ap.DataTypeList.Enums.Should().ContainSingle(e => e.Name == "ControlMode");
+        ap.DataTypeList.Enums[0].EnumValues.Should().HaveCount(3);
+        ap.ParameterList.Should().HaveCount(2);
+        ap.ParameterList.Should().Contain(p => p.UniqueId == "uid_p_mode");
+        ap.ParameterList.Should().Contain(p => p.UniqueId == "uid_p_status");
+        ap.ParameterGroupList.Should().HaveCount(1);
+        ap.ParameterGroupList[0].UniqueId.Should().Be("uid_pg_config");
+        ap.ParameterGroupList[0].SubGroups.Should().HaveCount(1);
     }
 
     #endregion

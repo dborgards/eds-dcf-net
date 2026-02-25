@@ -64,7 +64,7 @@ public class XdcReader
             ObjectDictionary = eds.ObjectDictionary,
             Comments = eds.Comments,
             DynamicChannels = eds.DynamicChannels,
-            ApplicationProcessXml = eds.ApplicationProcessXml
+            ApplicationProcess = eds.ApplicationProcess
         };
 
         dcf.SupportedModules.AddRange(eds.SupportedModules);
