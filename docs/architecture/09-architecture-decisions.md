@@ -145,3 +145,29 @@ All writers (`DcfWriter`, `CpjWriter`, `XddWriter`, `XdcWriter`) use **UTF-8 wit
 - (+) Preserves Unicode content in names/comments for modern toolchains.
 - (+) Keeps ASCII compatibility for standard-compliant content.
 - (-) A very strict ASCII-only consumer may reject UTF-8 files with non-ASCII characters.
+
+---
+
+## ADR-7: Typed ApplicationProcess Model Instead of Raw XML Passthrough
+
+### Context
+
+CiA 311 XDD/XDC files can contain an `ApplicationProcess` element (§6.4.5) that describes the device's services and parameters at the application level, independently of communication technology. An initial implementation stored this element as a raw XML string (`ApplicationProcessXml`) to achieve round-trip fidelity without the complexity of full type modelling.
+
+### Decision
+
+Replace the raw `string? ApplicationProcessXml` property on `ElectronicDataSheet` and `DeviceConfigurationFile` with a fully typed `ApplicationProcess? ApplicationProcess` object graph covering all sub-constructs defined by CiA 311 §6.4.5 (`dataTypeList`, `functionTypeList`, `functionInstanceList`, `templateList`, `parameterList`, `parameterGroupList`).
+
+### Rationale
+
+- A typed model enables consumers to read and write individual parameters, function types, and data type definitions programmatically — something the raw string approach did not support.
+- Type safety and XML doc comments make the API self-describing and discoverable.
+- The writer regenerates well-formed XML from the typed model, so round-trip fidelity is preserved without storing an internal raw string.
+- Consistent with ADR-3 (separate, fully typed models for each domain concept).
+
+### Consequences
+
+- (+) Full programmatic access to all ApplicationProcess sub-constructs.
+- (+) Consistent model-first design: no internal raw XML state.
+- (-) Breaking change: consumers who used `ApplicationProcessXml` directly must migrate to the typed API (`ApplicationProcess.ParameterList`, etc.).
+- (-) Increased model surface area (several new `Ap*` classes).

@@ -28,7 +28,7 @@ CiA DS 306 (EDS, DCF, CPJ) and CiA 311 (XDD, XDC).
 
 📦 **Modular** - Support for modular devices (bus couplers + modules)
 
-✅ **CiA DS 306 v1.4 Compliant** - Implemented according to official specification
+✅ **CiA DS 306 v1.4 / DS 311 v1.1 Compliant** - Implemented according to official specification
 
 ## Quick Start
 
@@ -80,6 +80,35 @@ var xdc = CanOpenFile.ReadXdc("configured_device.xdc");
 
 Console.WriteLine($"Node ID: {xdc.DeviceCommissioning.NodeId}");
 Console.WriteLine($"Baudrate: {xdc.DeviceCommissioning.Baudrate} kbit/s");
+```
+
+### Working with ApplicationProcess (CiA 311 §6.4.5)
+
+XDD/XDC files may include an `ApplicationProcess` element describing device parameters
+at the application level. The typed model gives full programmatic access to all
+sub-constructs.
+
+```csharp
+using EdsDcfNet;
+
+var xdd = CanOpenFile.ReadXdd("device.xdd");
+
+if (xdd.ApplicationProcess is { } ap)
+{
+    // Iterate parameters
+    foreach (var param in ap.ParameterList)
+    {
+        var displayName = param.LabelGroup.GetDisplayName() ?? param.UniqueId;
+        Console.WriteLine($"Parameter: {displayName}");
+    }
+
+    // Inspect data type definitions
+    if (ap.DataTypeList is { } dtl)
+    {
+        foreach (var enumType in dtl.Enums)
+            Console.WriteLine($"Enum type: {enumType.Name}");
+    }
+}
 ```
 
 ### Converting EDS to DCF

@@ -110,7 +110,7 @@ classDiagram
 
 **CpjReader** parses CiA 306-3 nodelist projects by reading `[Topology]`, `[Topology2]`, ... sections and mapping node entries (`NodeXPresent`, `NodeXName`, `NodeXDCFName`, `NodeXRefd`) to `NetworkTopology`/`NetworkNode`.
 
-**XddReader** parses CiA 311 XML device descriptions into `ElectronicDataSheet`, including object dictionary, baud-rate capabilities, and optional `ApplicationProcessXml`.
+**XddReader** parses CiA 311 XML device descriptions into `ElectronicDataSheet`, including object dictionary, baud-rate capabilities, and optional typed `ApplicationProcess` (CiA 311 §6.4.5).
 
 **XdcReader** parses CiA 311 XML device configurations into `DeviceConfigurationFile` and maps `actualValue`/`denotation` plus `deviceCommissioning`.
 
@@ -161,7 +161,7 @@ classDiagram
         +List~ModuleInfo~ SupportedModules
         +DynamicChannels? DynamicChannels
         +List~ToolInfo~ Tools
-        +string? ApplicationProcessXml
+        +ApplicationProcess? ApplicationProcess
         +Dictionary~string, Dictionary~string, string~~ AdditionalSections
     }
 
@@ -175,7 +175,7 @@ classDiagram
         +List~ModuleInfo~ SupportedModules
         +DynamicChannels? DynamicChannels
         +List~ToolInfo~ Tools
-        +string? ApplicationProcessXml
+        +ApplicationProcess? ApplicationProcess
         +Dictionary~string, Dictionary~string, string~~ AdditionalSections
     }
 
@@ -186,6 +186,20 @@ classDiagram
 ```
 
 Core models are shared across INI and XML formats, enabling cross-format conversion scenarios without duplicate object graphs.
+
+`ApplicationProcess` is populated exclusively when reading XDD/XDC files that contain an `ApplicationProcess` element (CiA 311 §6.4.5). It is `null` for EDS/DCF sources. The typed object graph covers all sub-constructs defined by the specification:
+
+| Class | CiA 311 element | Description |
+|---|---|---|
+| `ApplicationProcess` | `ApplicationProcess` | Root container with data types, function types, templates, parameters, and parameter groups |
+| `ApDataTypeList` | `dataTypeList` | Complex type definitions (arrays, structs, enums, derived types) |
+| `ApFunctionType` | `functionType` | Device function description with optional nested instances |
+| `ApFunctionInstanceList` | `functionInstanceList` | Function instances at ApplicationProcess level |
+| `ApTemplateList` | `templateList` | Parameter and allowed-values templates |
+| `ApParameter` | `parameter` | Individual parameter with data type, access, labels, allowed values, and default/actual values |
+| `ApParameterGroup` | `parameterGroup` | HMI classification hierarchy for parameters |
+| `ApLabelGroup` / `ApLabel` / `ApDescription` | `label` / `description` | Localised display names and descriptions (IETF BCP 47 language tags) |
+| `ApTextRef` | `labelRef` / `descriptionRef` | References into an external dictionary resource |
 
 ### 5.2.4 Utilities
 
