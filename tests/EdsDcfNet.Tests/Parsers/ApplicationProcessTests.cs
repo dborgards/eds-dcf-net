@@ -222,6 +222,181 @@ public class ApplicationProcessTests
         vd.Unit.UnitUri.Should().Be("urn:example:cfg");
     }
 
+    [Fact]
+    public void Parse_WithSparseAndMalformedOptionalAttributes_UsesSafeDefaults()
+    {
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <dataTypeList>
+    <array>
+      <subrange lowerLimit=""bad"" upperLimit=""also-bad""/>
+    </array>
+    <struct>
+      <varDeclaration signed=""0"">
+        <conditionalSupport/>
+        <defaultValue/>
+        <allowedValues><value/></allowedValues>
+        <unit/>
+      </varDeclaration>
+    </struct>
+    <enum>
+      <enumValue/>
+      <NOT_A_SIMPLE_TYPE/>
+    </enum>
+    <derived>
+      <count>
+        <allowedValues><value/></allowedValues>
+      </count>
+    </derived>
+  </dataTypeList>
+  <functionTypeList>
+    <functionType>
+      <versionInfo/>
+      <interfaceList>
+        <inputVars><varDeclaration/></inputVars>
+      </interfaceList>
+      <functionInstanceList>
+        <functionInstance/>
+        <connection/>
+      </functionInstanceList>
+    </functionType>
+  </functionTypeList>
+  <templateList>
+    <parameterTemplate persistent=""false"">
+      <conditionalSupport/>
+      <actualValue/>
+      <substituteValue/>
+      <allowedValues><value/></allowedValues>
+      <unit/>
+      <property/>
+    </parameterTemplate>
+    <allowedValuesTemplate>
+      <value/>
+      <range><minValue/><maxValue/></range>
+    </allowedValuesTemplate>
+  </templateList>
+  <parameterList>
+    <parameter persistent=""false"">
+      <variableRef position=""not-a-byte"">
+        <instanceIDRef/>
+        <variableIDRef/>
+        <memberRef index=""not-an-int""/>
+      </variableRef>
+      <conditionalSupport/>
+      <denotation>
+        <label/>
+        <description/>
+        <labelRef dictID="""" textID=""""/>
+        <descriptionRef dictID="""" textID=""""/>
+      </denotation>
+      <actualValue/>
+      <allowedValues><range/></allowedValues>
+      <unit/>
+      <property/>
+    </parameter>
+  </parameterList>
+  <parameterGroupList>
+    <parameterGroup>
+      <parameterRef/>
+      <parameterGroup/>
+    </parameterGroup>
+  </parameterGroupList>
+</ApplicationProcess>");
+
+        var ap = result.ApplicationProcess!;
+
+        var arr = ap.DataTypeList!.Arrays[0];
+        arr.Name.Should().BeEmpty();
+        arr.UniqueId.Should().BeEmpty();
+        arr.Subranges[0].LowerLimit.Should().Be(0);
+        arr.Subranges[0].UpperLimit.Should().Be(0);
+
+        var structVar = ap.DataTypeList.Structs[0].VarDeclarations[0];
+        structVar.Name.Should().BeEmpty();
+        structVar.UniqueId.Should().BeEmpty();
+        structVar.IsSigned.Should().BeFalse();
+        structVar.ConditionalSupports.Should().BeEmpty();
+        structVar.DefaultValue!.Value.Should().BeEmpty();
+        structVar.AllowedValues!.Values[0].Value.Should().BeEmpty();
+        structVar.Unit!.Multiplier.Should().BeEmpty();
+
+        var en = ap.DataTypeList.Enums[0];
+        en.Name.Should().BeEmpty();
+        en.UniqueId.Should().BeEmpty();
+        en.EnumValues[0].Value.Should().BeNull();
+        en.SimpleTypeName.Should().BeNull();
+
+        var derivedCount = ap.DataTypeList.Derived[0].Count!;
+        derivedCount.UniqueId.Should().BeEmpty();
+        derivedCount.Access.Should().Be("read");
+        derivedCount.AllowedValues!.Values[0].Value.Should().BeEmpty();
+
+        var ft = ap.FunctionTypeList[0];
+        ft.Name.Should().BeEmpty();
+        ft.UniqueId.Should().BeEmpty();
+        ft.Package.Should().BeNull();
+        ft.VersionInfos[0].Organization.Should().BeEmpty();
+        ft.FunctionInstanceList!.FunctionInstances[0].Name.Should().BeEmpty();
+        ft.FunctionInstanceList.Connections[0].Source.Should().BeEmpty();
+        ft.FunctionInstanceList.Connections[0].Destination.Should().BeEmpty();
+        ft.FunctionInstanceList.Connections[0].Description.Should().BeNull();
+
+        var pt = ap.TemplateList!.ParameterTemplates[0];
+        pt.UniqueId.Should().BeEmpty();
+        pt.Persistent.Should().BeFalse();
+        pt.ConditionalSupports.Should().BeEmpty();
+        pt.ActualValue!.Value.Should().BeEmpty();
+        pt.SubstituteValue!.Value.Should().BeEmpty();
+        pt.AllowedValues!.Values[0].Value.Should().BeEmpty();
+        pt.Unit!.Multiplier.Should().BeEmpty();
+        pt.Properties[0].Name.Should().BeEmpty();
+        pt.Properties[0].Value.Should().BeEmpty();
+
+        var avt = ap.TemplateList.AllowedValuesTemplates[0];
+        avt.UniqueId.Should().BeEmpty();
+        avt.Values[0].Value.Should().BeEmpty();
+        avt.Ranges[0].MinValue.Should().NotBeNull();
+        avt.Ranges[0].MinValue!.Value.Should().BeEmpty();
+        avt.Ranges[0].MaxValue.Should().NotBeNull();
+        avt.Ranges[0].MaxValue!.Value.Should().BeEmpty();
+        avt.Ranges[0].Step.Should().BeNull();
+
+        var parameter = ap.ParameterList[0];
+        parameter.UniqueId.Should().BeEmpty();
+        parameter.Persistent.Should().BeFalse();
+        parameter.ConditionalSupports.Should().BeEmpty();
+        parameter.ActualValue!.Value.Should().BeEmpty();
+        parameter.TypeRef.Should().BeNull();
+        parameter.Properties[0].Name.Should().BeEmpty();
+        parameter.Properties[0].Value.Should().BeEmpty();
+        parameter.Unit!.Multiplier.Should().BeEmpty();
+        parameter.Denotation!.Labels[0].Text.Should().BeEmpty();
+        parameter.Denotation.Descriptions[0].Text.Should().BeEmpty();
+        parameter.Denotation.TextRefs.Should().HaveCount(2);
+        parameter.Denotation.TextRefs[0].Uri.Should().BeNull();
+        parameter.Denotation.TextRefs[1].Uri.Should().BeNull();
+        parameter.AllowedValues!.Ranges[0].MinValue.Should().NotBeNull();
+        parameter.AllowedValues.Ranges[0].MinValue.Value.Should().BeEmpty();
+        parameter.AllowedValues.Ranges[0].MaxValue.Should().NotBeNull();
+        parameter.AllowedValues.Ranges[0].MaxValue.Value.Should().BeEmpty();
+        parameter.AllowedValues.Ranges[0].Step.Should().BeNull();
+
+        var variableRef = parameter.VariableRefs[0];
+        variableRef.Position.Should().Be(1);
+        variableRef.InstanceIdRefs.Should().BeEmpty();
+        variableRef.VariableIdRef.Should().BeEmpty();
+        variableRef.MemberRef.Should().NotBeNull();
+        variableRef.MemberRef!.UniqueIdRef.Should().BeNull();
+        variableRef.MemberRef.Index.Should().BeNull();
+
+        var pg = ap.ParameterGroupList[0];
+        pg.UniqueId.Should().BeEmpty();
+        pg.KindOfAccess.Should().BeNull();
+        pg.ParameterRefs.Should().BeEmpty();
+        pg.SubGroups.Should().ContainSingle();
+        pg.SubGroups[0].UniqueId.Should().BeEmpty();
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // Reader — dataTypeList / enum
     // ═══════════════════════════════════════════════════════════════════════════
@@ -630,6 +805,45 @@ public class ApplicationProcessTests
 </ApplicationProcess>");
 
         result.ApplicationProcess!.ParameterList[0].TypeRef.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("BOOL")]
+    [InlineData("SINT")]
+    [InlineData("INT")]
+    [InlineData("DINT")]
+    [InlineData("LINT")]
+    [InlineData("USINT")]
+    [InlineData("UINT")]
+    [InlineData("UDINT")]
+    [InlineData("ULINT")]
+    [InlineData("REAL")]
+    [InlineData("LREAL")]
+    [InlineData("BYTE")]
+    [InlineData("WORD")]
+    [InlineData("DWORD")]
+    [InlineData("LWORD")]
+    [InlineData("STRING")]
+    [InlineData("WSTRING")]
+    [InlineData("CHAR")]
+    [InlineData("WCHAR")]
+    [InlineData("TIME")]
+    [InlineData("DATE")]
+    [InlineData("DATE_AND_TIME")]
+    [InlineData("TIME_OF_DAY")]
+    [InlineData("BITSTRING")]
+    public void Parse_TypeRef_AllKnownSimpleTypes_AreRecognized(string simpleTypeName)
+    {
+        var result = ParseAp($@"
+<ApplicationProcess>
+  <parameterList>
+    <parameter uniqueID=""uid_t"" access=""read"">
+      <{simpleTypeName}/>
+    </parameter>
+  </parameterList>
+</ApplicationProcess>");
+
+        result.ApplicationProcess!.ParameterList[0].TypeRef!.SimpleTypeName.Should().Be(simpleTypeName);
     }
 
     [Fact]
