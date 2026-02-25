@@ -28,7 +28,7 @@ CiA DS 306 (EDS, DCF, CPJ) and CiA 311 (XDD, XDC).
 
 📦 **Modular** - Support for modular devices (bus couplers + modules)
 
-✅ **CiA DS 306 v1.4 Compliant** - Implemented according to official specification
+✅ **CiA DS 306 v1.4 / DS 311 v1.1 Compliant** - Implemented according to official specification
 
 ## Quick Start
 
