@@ -1588,4 +1588,168 @@ public class ApplicationProcessTests
         ft.InterfaceList!.InputVars[0].Name.Should().Be("Raw");
         ft.InterfaceList.OutputVars[0].Name.Should().Be("Filtered");
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Branch-coverage gap closers — targeted tests for partial branches
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Parse_Subrange_MissingLowerAndUpperLimit_DefaultsToZero()
+    {
+        // subrange with no lowerLimit/upperLimit attributes → TryParse(null) → false → stay at 0
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <dataTypeList>
+    <array name=""A"" uniqueID=""uid_a"">
+      <subrange/>
+      <UINT/>
+    </array>
+  </dataTypeList>
+  <parameterList/>
+</ApplicationProcess>");
+
+        var sr = result.ApplicationProcess!.DataTypeList!.Arrays[0].Subranges[0];
+        sr.LowerLimit.Should().Be(0);
+        sr.UpperLimit.Should().Be(0);
+    }
+
+    [Fact]
+    public void Parse_ParameterTemplate_WithAccessListSupportOffsetMultiplier_ParsesCorrectly()
+    {
+        // parameterTemplate with accessList, support, offset, and multiplier attributes present
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <templateList>
+    <parameterTemplate uniqueID=""uid_tpl3"" access=""readWrite""
+                       accessList=""1 2 3"" support=""optional""
+                       offset=""10"" multiplier=""0.5"">
+      <UINT/>
+    </parameterTemplate>
+  </templateList>
+  <parameterList/>
+</ApplicationProcess>");
+
+        var pt = result.ApplicationProcess!.TemplateList!.ParameterTemplates[0];
+        pt.AccessList.Should().Be("1 2 3");
+        pt.Support.Should().Be("optional");
+        pt.Offset.Should().Be("10");
+        pt.Multiplier.Should().Be("0.5");
+    }
+
+    [Fact]
+    public void Parse_VariableRef_WithoutPosition_DefaultsToOne()
+    {
+        // variableRef with no position attribute → posStr is null → Position stays at default 1
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <parameterList>
+    <parameter uniqueID=""uid_p"" access=""read"">
+      <UINT/>
+      <variableRef>
+        <variableIDRef uniqueIDRef=""uid_var1""/>
+      </variableRef>
+    </parameter>
+  </parameterList>
+</ApplicationProcess>");
+
+        var vr = result.ApplicationProcess!.ParameterList[0].VariableRefs[0];
+        vr.Position.Should().Be(1);
+        vr.VariableIdRef.Should().Be("uid_var1");
+    }
+
+    [Fact]
+    public void Parse_MemberRef_WithoutIndex_LeavesIndexNull()
+    {
+        // memberRef with no index attribute → idxStr is null → MemberRef.Index stays null
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <parameterList>
+    <parameter uniqueID=""uid_p"" access=""read"">
+      <UINT/>
+      <variableRef>
+        <variableIDRef uniqueIDRef=""uid_var1""/>
+        <memberRef uniqueIDRef=""uid_member1""/>
+      </variableRef>
+    </parameter>
+  </parameterList>
+</ApplicationProcess>");
+
+        var mr = result.ApplicationProcess!.ParameterList[0].VariableRefs[0].MemberRef!;
+        mr.UniqueIdRef.Should().Be("uid_member1");
+        mr.Index.Should().BeNull();
+    }
+
+    [Fact]
+    public void Parse_ParameterValue_WithOffsetAndMultiplier_ParsesCorrectly()
+    {
+        // defaultValue/value elements with offset and multiplier attributes (non-null paths)
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <parameterList>
+    <parameter uniqueID=""uid_p"" access=""read"">
+      <UINT/>
+      <defaultValue value=""42"" offset=""5"" multiplier=""2.0""/>
+      <allowedValues>
+        <value value=""10"" offset=""1"" multiplier=""0.5""/>
+      </allowedValues>
+    </parameter>
+  </parameterList>
+</ApplicationProcess>");
+
+        var p = result.ApplicationProcess!.ParameterList[0];
+        p.DefaultValue!.Value.Should().Be("42");
+        p.DefaultValue.Offset.Should().Be("5");
+        p.DefaultValue.Multiplier.Should().Be("2.0");
+        p.AllowedValues!.Values[0].Offset.Should().Be("1");
+        p.AllowedValues.Values[0].Multiplier.Should().Be("0.5");
+    }
+
+    [Fact]
+    public void Parse_LabelGroup_UriContent_InLabelAndDescriptionRefs()
+    {
+        // labelRef/descriptionRef with non-empty text content → used as URI (true branch of ternary)
+        // description with URI attribute → non-null URI path
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <dataTypeList>
+    <struct name=""S"" uniqueID=""uid_s"">
+      <description lang=""en"" URI=""urn:struct-desc"">A structure</description>
+      <labelRef dictID=""d1"" textID=""t1"">urn:label-uri</labelRef>
+      <descriptionRef dictID=""d2"" textID=""t2"">urn:desc-uri</descriptionRef>
+    </struct>
+  </dataTypeList>
+  <parameterList/>
+</ApplicationProcess>");
+
+        var lg = result.ApplicationProcess!.DataTypeList!.Structs[0].LabelGroup;
+        lg.Descriptions[0].Uri.Should().Be("urn:struct-desc");
+        lg.TextRefs[0].Uri.Should().Be("urn:label-uri");
+        lg.TextRefs[0].IsDescriptionRef.Should().BeFalse();
+        lg.TextRefs[1].Uri.Should().Be("urn:desc-uri");
+        lg.TextRefs[1].IsDescriptionRef.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Parse_LabelGroup_LabelRefWithoutDictIdOrTextId_DefaultsToEmpty()
+    {
+        // labelRef/descriptionRef with no dictID or textID attributes → null paths → default to empty
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <dataTypeList>
+    <struct name=""S"" uniqueID=""uid_s"">
+      <labelRef/>
+      <descriptionRef/>
+    </struct>
+  </dataTypeList>
+  <parameterList/>
+</ApplicationProcess>");
+
+        var lg = result.ApplicationProcess!.DataTypeList!.Structs[0].LabelGroup;
+        lg.TextRefs.Should().HaveCount(2);
+        lg.TextRefs[0].DictId.Should().BeEmpty();
+        lg.TextRefs[0].TextId.Should().BeEmpty();
+        lg.TextRefs[0].Uri.Should().BeNull();
+        lg.TextRefs[1].IsDescriptionRef.Should().BeTrue();
+        lg.TextRefs[1].Uri.Should().BeNull();
+    }
 }
