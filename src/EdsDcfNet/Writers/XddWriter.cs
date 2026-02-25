@@ -457,13 +457,11 @@ public class XddWriter
         if (ap.TemplateList != null)
             elem.Add(BuildTemplateList(ap.TemplateList));
 
-        if (ap.ParameterList.Count > 0)
-        {
-            var plElem = new XElement("parameterList");
-            foreach (var p in ap.ParameterList)
-                plElem.Add(BuildParameter(p));
-            elem.Add(plElem);
-        }
+        // parameterList is mandatory per DS311 §6.4.5 when ApplicationProcess is present
+        var plElem = new XElement("parameterList");
+        foreach (var p in ap.ParameterList)
+            plElem.Add(BuildParameter(p));
+        elem.Add(plElem);
 
         if (ap.ParameterGroupList.Count > 0)
         {
@@ -884,12 +882,12 @@ public class XddWriter
 
         ApAddLabelGroup(elem, pg.LabelGroup);
 
-        foreach (var sub in pg.SubGroups)
-            elem.Add(BuildParameterGroup(sub));
-
         foreach (var pref in pg.ParameterRefs)
             elem.Add(new XElement("parameterRef",
                 new XAttribute("uniqueIDRef", pref)));
+
+        foreach (var sub in pg.SubGroups)
+            elem.Add(BuildParameterGroup(sub));
 
         return elem;
     }
@@ -930,8 +928,10 @@ public class XddWriter
         foreach (var r in ranges)
         {
             var rangeElem = new XElement("range");
-            rangeElem.Add(BuildParameterValueElem("minValue", r.MinValue));
-            rangeElem.Add(BuildParameterValueElem("maxValue", r.MaxValue));
+            if (r.MinValue != null)
+                rangeElem.Add(BuildParameterValueElem("minValue", r.MinValue));
+            if (r.MaxValue != null)
+                rangeElem.Add(BuildParameterValueElem("maxValue", r.MaxValue));
             if (r.Step != null)
                 rangeElem.Add(BuildParameterValueElem("step", r.Step));
             elem.Add(rangeElem);

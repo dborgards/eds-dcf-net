@@ -375,10 +375,9 @@ public class ApplicationProcessTests
         parameter.Denotation.TextRefs.Should().HaveCount(2);
         parameter.Denotation.TextRefs[0].Uri.Should().BeNull();
         parameter.Denotation.TextRefs[1].Uri.Should().BeNull();
-        parameter.AllowedValues!.Ranges[0].MinValue.Should().NotBeNull();
-        parameter.AllowedValues.Ranges[0].MinValue.Value.Should().BeEmpty();
-        parameter.AllowedValues.Ranges[0].MaxValue.Should().NotBeNull();
-        parameter.AllowedValues.Ranges[0].MaxValue.Value.Should().BeEmpty();
+        // <range/> has no minValue/maxValue children → both are null after making them nullable
+        parameter.AllowedValues!.Ranges[0].MinValue.Should().BeNull();
+        parameter.AllowedValues.Ranges[0].MaxValue.Should().BeNull();
         parameter.AllowedValues.Ranges[0].Step.Should().BeNull();
 
         var variableRef = parameter.VariableRefs[0];

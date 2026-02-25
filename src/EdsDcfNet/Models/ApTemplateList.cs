@@ -81,9 +81,9 @@ public class ApAllowedValuesTemplate
 /// </summary>
 public class ApTemplateList
 {
-    /// <summary>Parameter templates keyed by uniqueID for O(1) lookup.</summary>
+    /// <summary>Parameter templates (ordered as in the source document).</summary>
     public List<ApParameterTemplate> ParameterTemplates { get; } = new();
 
-    /// <summary>Allowed-values templates keyed by uniqueID for O(1) lookup.</summary>
+    /// <summary>Allowed-values templates (ordered as in the source document).</summary>
     public List<ApAllowedValuesTemplate> AllowedValuesTemplates { get; } = new();
 }

@@ -30,11 +30,11 @@ public class ApParameterValue
 /// <summary>A continuous range of allowed values defined by min, max, and optional step.</summary>
 public class ApAllowedRange
 {
-    /// <summary>Lower bound of the allowed range.</summary>
-    public ApParameterValue MinValue { get; set; } = new();
+    /// <summary>Lower bound of the allowed range. <see langword="null"/> when absent in source XML.</summary>
+    public ApParameterValue? MinValue { get; set; }
 
-    /// <summary>Upper bound of the allowed range.</summary>
-    public ApParameterValue MaxValue { get; set; } = new();
+    /// <summary>Upper bound of the allowed range. <see langword="null"/> when absent in source XML.</summary>
+    public ApParameterValue? MaxValue { get; set; }
 
     /// <summary>Optional equidistant step between min and max.</summary>
     public ApParameterValue? Step { get; set; }
