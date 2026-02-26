@@ -714,6 +714,30 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ParseBaudRates_AllKnownRates_AreParsed()
+    {
+        var xdd = MinimalXdd
+            .Replace(
+                "<supportedBaudRate value=\"250 Kbps\"/>",
+                "<supportedBaudRate value=\"10 Kbps\"/>\n            <supportedBaudRate value=\"20 Kbps\"/>\n            <supportedBaudRate value=\"50 Kbps\"/>\n            <supportedBaudRate value=\"125 Kbps\"/>\n            <supportedBaudRate value=\"250 Kbps\"/>")
+            .Replace(
+                "<supportedBaudRate value=\"500 Kbps\"/>",
+                "<supportedBaudRate value=\"500 Kbps\"/>\n            <supportedBaudRate value=\"800 Kbps\"/>\n            <supportedBaudRate value=\"1000 Kbps\"/>");
+
+        var result = _reader.ReadString(xdd);
+        var baudRates = result.DeviceInfo.SupportedBaudRates;
+
+        baudRates.BaudRate10.Should().BeTrue();
+        baudRates.BaudRate20.Should().BeTrue();
+        baudRates.BaudRate50.Should().BeTrue();
+        baudRates.BaudRate125.Should().BeTrue();
+        baudRates.BaudRate250.Should().BeTrue();
+        baudRates.BaudRate500.Should().BeTrue();
+        baudRates.BaudRate800.Should().BeTrue();
+        baudRates.BaudRate1000.Should().BeTrue();
+    }
+
+    [Fact]
     public void ParseBaudRates_UnknownBaudRate_IsIgnored()
     {
         // An unknown baud rate string should not throw; kbps=0 is ignored by SetBaudRate

@@ -183,6 +183,39 @@ public class XddWriterTests
     }
 
     [Fact]
+    public void GenerateString_SubObjectPdoMappingTrue_WrittenAsOptional()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        var parentObj = new CanOpenObject
+        {
+            Index = 0x1018,
+            ParameterName = "Identity Object",
+            ObjectType = 0x9,
+            SubNumber = 2
+        };
+        var subObj = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Number of Entries",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            PdoMapping = true
+        };
+        parentObj.SubObjects[0] = subObj;
+        eds.ObjectDictionary.Objects[0x1018] = parentObj;
+        eds.ObjectDictionary.OptionalObjects.Add(0x1018);
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("<CANopenSubObject");
+        result.Should().Contain("PDOmapping=\"optional\"");
+    }
+
+    [Fact]
     public void GenerateString_DummyUsage_WrittenCorrectly()
     {
         // Arrange
