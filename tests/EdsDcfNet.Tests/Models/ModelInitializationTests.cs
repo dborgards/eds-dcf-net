@@ -216,6 +216,43 @@ public class ModelInitializationTests
 
     #endregion
 
+    #region ApplicationProcess Models
+
+    [Fact]
+    public void ApLabelGroup_GetDisplayName_ReturnsNull_WhenNoLabels()
+    {
+        var group = new ApLabelGroup();
+
+        group.GetDisplayName().Should().BeNull();
+    }
+
+    [Fact]
+    public void ApLabelGroup_GetDisplayName_FallsBackToFirstLabel_WhenNoEnglishLabelExists()
+    {
+        var group = new ApLabelGroup();
+        group.Labels.Add(new ApLabel { Lang = "de", Text = "Deutsch" });
+        group.Labels.Add(new ApLabel { Lang = "fr", Text = "Francais" });
+
+        group.GetDisplayName().Should().Be("Deutsch");
+    }
+
+    [Fact]
+    public void ApParameterTemplate_ActualAndSubstituteValue_CanBeAssigned()
+    {
+        var template = new ApParameterTemplate
+        {
+            ActualValue = new ApParameterValue { Value = "42" },
+            SubstituteValue = new ApParameterValue { Value = "0" },
+        };
+
+        template.ActualValue.Should().NotBeNull();
+        template.ActualValue!.Value.Should().Be("42");
+        template.SubstituteValue.Should().NotBeNull();
+        template.SubstituteValue!.Value.Should().Be("0");
+    }
+
+    #endregion
+
     #region ModuleInfo
 
     [Fact]

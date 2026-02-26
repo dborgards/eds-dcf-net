@@ -511,6 +511,83 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void GenerateString_CompactPdo_WrittenWhenGreaterThanZero()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo.CompactPdo = 1;
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("CompactPDO=0x1");
+    }
+
+    [Fact]
+    public void GenerateString_ObjectLowLimit_WrittenWhenSet()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.Objects[0x1000].LowLimit = "0";
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("LowLimit=0");
+    }
+
+    [Fact]
+    public void GenerateString_ObjectHighLimit_WrittenWhenSet()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.Objects[0x1000].HighLimit = "0xFFFFFFFF";
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("HighLimit=0xFFFFFFFF");
+    }
+
+    [Fact]
+    public void GenerateString_SubObjectLowAndHighLimit_WrittenWhenSet()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.OptionalObjects.Add(0x1018);
+        dcf.ObjectDictionary.Objects[0x1018] = new CanOpenObject
+        {
+            Index = 0x1018,
+            ParameterName = "Identity Object",
+            ObjectType = 0x9,
+            SubNumber = 1
+        };
+        dcf.ObjectDictionary.Objects[0x1018].SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Number of Entries",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "1",
+            LowLimit = "0",
+            HighLimit = "0xFF",
+            PdoMapping = false
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[1018sub0]");
+        result.Should().Contain("LowLimit=0");
+        result.Should().Contain("HighLimit=0xFF");
+    }
+
+    [Fact]
     public void GenerateString_SrdoMapping_WrittenOnObjectAndSubObject()
     {
         // Arrange

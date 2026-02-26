@@ -58,4 +58,12 @@ public class DeviceConfigurationFile
     /// Key is section name, value is dictionary of key-value pairs.
     /// </summary>
     public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } = new();
+
+    /// <summary>
+    /// Parsed <c>ApplicationProcess</c> element from the XDC device-profile body (CiA 311 §6.4.5).
+    /// Populated when reading XDD/XDC files that contain an <c>ApplicationProcess</c> element.
+    /// <see langword="null"/> when the source was a DCF file or when no
+    /// <c>ApplicationProcess</c> element was present in the XDD/XDC file.
+    /// </summary>
+    public ApplicationProcess? ApplicationProcess { get; set; }
 }

@@ -6,8 +6,8 @@
 graph LR
     subgraph EdsDcfNet ["EdsDcfNet (NuGet Package)"]
         API["CanOpenFile<br/><i>Static Facade</i>"]
-        Parsers["Parsers<br/><i>IniParser, EdsReader, DcfReader, CpjReader</i>"]
-        Writers["Writers<br/><i>DcfWriter, CpjWriter</i>"]
+        Parsers["Parsers<br/><i>IniParser, CanOpenReaderBase,<br/>EdsReader, DcfReader, CpjReader,<br/>XddReader, XdcReader</i>"]
+        Writers["Writers<br/><i>DcfWriter, CpjWriter, XddWriter, XdcWriter</i>"]
         Models["Models<br/><i>Domain Models</i>"]
         Utilities["Utilities<br/><i>ValueConverter</i>"]
         Extensions["Extensions<br/><i>ObjectDictionaryExtensions</i>"]
@@ -17,8 +17,12 @@ graph LR
     EDS["EDS File"] --> API
     DCF_In["DCF File"] --> API
     CPJ_In["CPJ File"] --> API
+    XDD_In["XDD File"] --> API
+    XDC_In["XDC File"] --> API
     API --> DCF_Out["DCF File"]
     API --> CPJ_Out["CPJ File"]
+    API --> XDD_Out["XDD File"]
+    API --> XDC_Out["XDC File"]
     API --> Parsers
     API --> Writers
     Parsers --> Models
@@ -38,15 +42,15 @@ graph LR
 
 ### Building Block Overview
 
-| Building Block        | Responsibility                                                            |
-|-----------------------|---------------------------------------------------------------------------|
-| `CanOpenFile`         | Public API facade; coordinates parsers and writers                        |
-| `Parsers/`            | Reading and interpreting EDS/DCF/CPJ files                                |
-| `Writers/`            | Serializing models back to DCF and CPJ file formats                       |
-| `Models/`             | Domain models representing the structure of EDS/DCF/CPJ files             |
-| `Utilities/`          | Helper functions for type conversion (numbers, booleans, formulas)        |
-| `Extensions/`         | Extension methods for convenient ObjectDictionary access                  |
-| `Exceptions/`         | Specific exception types for parse and write errors                       |
+| Building Block        | Responsibility                                                                    |
+|-----------------------|-----------------------------------------------------------------------------------|
+| `CanOpenFile`         | Public API facade; coordinates parsers and writers                                |
+| `Parsers/`            | Reading and interpreting EDS/DCF/CPJ (INI) and XDD/XDC (XML) files               |
+| `Writers/`            | Serializing models back to DCF/CPJ (INI) and XDD/XDC (XML)                        |
+| `Models/`             | Domain models representing the structure of CANopen description/configuration data |
+| `Utilities/`          | Helper functions for type conversion (numbers, booleans, formulas)                |
+| `Extensions/`         | Extension methods for convenient ObjectDictionary access                           |
+| `Exceptions/`         | Specific exception types for parse and write errors                                |
 
 ## 5.2 Level 2: Detailed Building Blocks
 
@@ -55,59 +59,60 @@ graph LR
 ```mermaid
 classDiagram
     class IniParser {
-        +ParseFile(string filePath) Dictionary~string, Dictionary~string, string~~
-        +ParseString(string content) Dictionary~string, Dictionary~string, string~~
+        +ParseFile(string filePath) Dictionary~string, Dictionary~string, string~~$
+        +ParseString(string content) Dictionary~string, Dictionary~string, string~~$
         +GetValue(sections, sectionName, key, defaultValue) string$
         +HasSection(sections, sectionName) bool$
         +GetKeys(sections, sectionName) IEnumerable~string~$
     }
 
+    class CanOpenReaderBase {
+        #ParseSectionsFromFile(string filePath) Dictionary~string, Dictionary~string, string~~
+        #ParseSectionsFromString(string content) Dictionary~string, Dictionary~string, string~~
+        #ParseObjectDictionary(sections) ObjectDictionary
+        #ParseObject(sections, ushort index) CanOpenObject?
+        #ParseSubObject(sections, ushort index, byte subIndex) CanOpenSubObject?
+    }
+
     class EdsReader {
-        -IniParser _iniParser
         +ReadFile(string filePath) ElectronicDataSheet
         +ReadString(string content) ElectronicDataSheet
-        -ParseEds(sections) ElectronicDataSheet
-        -ParseFileInfo(sections) EdsFileInfo
-        -ParseDeviceInfo(sections) DeviceInfo
-        -ParseObjectDictionary(sections) ObjectDictionary
-        -ParseObject(sections, ushort index) CanOpenObject?
-        -ParseComments(sections) Comments?
-        -ParseSupportedModules(sections) List~ModuleInfo~
-        -ParseDynamicChannels(sections) DynamicChannels?
-        -ParseTools(sections) List~ToolInfo~
     }
 
     class DcfReader {
-        -IniParser _iniParser
-        -EdsReader _edsReader
         +ReadFile(string filePath) DeviceConfigurationFile
         +ReadString(string content) DeviceConfigurationFile
-        -ParseDcf(sections) DeviceConfigurationFile
-        -ParseDeviceCommissioning(sections) DeviceCommissioning
-        -ParseConnectedModules(sections) List~int~
     }
 
     class CpjReader {
-        -IniParser _iniParser
         +ReadFile(string filePath) NodelistProject
         +ReadString(string content) NodelistProject
-        -ParseCpj(sections) NodelistProject
-        -ParseTopology(sections, sectionName) NetworkTopology
     }
 
-    IniParser <-- EdsReader : uses
-    IniParser <-- DcfReader : uses
-    IniParser <-- CpjReader : uses
-    EdsReader <-- DcfReader : delegates shared parsing
+    class XddReader {
+        +ReadFile(string filePath) ElectronicDataSheet
+        +ReadString(string content) ElectronicDataSheet
+    }
+
+    class XdcReader {
+        +ReadFile(string filePath) DeviceConfigurationFile
+        +ReadString(string content) DeviceConfigurationFile
+    }
+
+    IniParser <-- CanOpenReaderBase : uses static methods
+    CanOpenReaderBase <|-- EdsReader
+    CanOpenReaderBase <|-- DcfReader
 ```
 
-**IniParser** is the base component that transforms raw INI text into a sections dictionary (`Dictionary<string, Dictionary<string, string>>`) that preserves section names as they appear in the file while using a case-insensitive comparer (`StringComparer.OrdinalIgnoreCase`) for lookups. It provides instance methods (`ParseFile`, `ParseString`) for parsing and static helper methods (`GetValue`, `HasSection`, `GetKeys`) for querying the resulting dictionary.
+**IniParser** is a static component that transforms raw INI text into a sections dictionary (`Dictionary<string, Dictionary<string, string>>`). It uses a case-insensitive comparer for section/key lookups.
 
-**EdsReader** holds an internal `IniParser` instance. Its public methods (`ReadFile`, `ReadString`) parse the input into a sections dictionary and then build a complete `ElectronicDataSheet` model from it. Unknown sections are preserved in `AdditionalSections`.
+**CanOpenReaderBase** centralizes shared EDS/DCF parsing logic (object dictionary, modules, comments, dynamic channels) and is specialized by `EdsReader` and `DcfReader`.
 
-**DcfReader** holds its own `IniParser` and an `EdsReader` instance (for delegating shared parsing like `ParseDeviceInfo` and `ParseDynamicChannels`). It adds DCF-specific sections (`DeviceCommissioning`, `ConnectedModules`) and fields (`ParameterValue`, `Denotation`).
+**CpjReader** parses CiA 306-3 nodelist projects by reading `[Topology]`, `[Topology2]`, ... sections and mapping node entries (`NodeXPresent`, `NodeXName`, `NodeXDCFName`, `NodeXRefd`) to `NetworkTopology`/`NetworkNode`.
 
-**CpjReader** holds an internal `IniParser` instance. It parses CiA 306-3 nodelist project files by iterating over all sections and identifying `[Topology]` sections (including numbered variants like `[Topology2]`). Each topology section is parsed into a `NetworkTopology` with its associated `NetworkNode` entries. Unknown sections are preserved in `AdditionalSections`.
+**XddReader** parses CiA 311 XML device descriptions into `ElectronicDataSheet`, including object dictionary, baud-rate capabilities, and optional typed `ApplicationProcess` (CiA 311 §6.4.5).
+
+**XdcReader** parses CiA 311 XML device configurations into `DeviceConfigurationFile` and maps `actualValue`/`denotation` plus `deviceCommissioning`.
 
 ### 5.2.2 Writers
 
@@ -116,36 +121,33 @@ classDiagram
     class DcfWriter {
         +WriteFile(DeviceConfigurationFile dcf, string filePath) void
         +GenerateString(DeviceConfigurationFile dcf) string
-        -GenerateDcfContent(DeviceConfigurationFile dcf) string
-        -WriteFileInfo(StringBuilder sb, EdsFileInfo fileInfo) void
-        -WriteDeviceInfo(StringBuilder sb, DeviceInfo deviceInfo) void
-        -WriteDeviceCommissioning(StringBuilder sb, DeviceCommissioning dc) void
-        -WriteDummyUsage(StringBuilder sb, ObjectDictionary objDict) void
-        -WriteComments(StringBuilder sb, Comments comments) void
-        -WriteObjectLists(StringBuilder sb, ObjectDictionary objDict) void
-        -WriteObjects(StringBuilder sb, ObjectDictionary objDict) void
-        -WriteObject(StringBuilder sb, CanOpenObject obj) void
-        -WriteSubObject(StringBuilder sb, ushort index, CanOpenSubObject subObj) void
-        -WriteSupportedModules(StringBuilder sb, List~ModuleInfo~ modules) void
-        -WriteConnectedModules(StringBuilder sb, List~int~ modules) void
-        -WriteDynamicChannels(StringBuilder sb, DynamicChannels dc) void
-        -WriteTools(StringBuilder sb, List~ToolInfo~ tools) void
     }
-```
 
-**DcfWriter** is a stateless class that serializes a `DeviceConfigurationFile` model back into the INI-based DCF format. The `DeviceConfigurationFile` is passed as a parameter to each public method rather than stored in the writer. Output can be written either to a file (UTF-8 without BOM) or returned as a string.
-
-```mermaid
-classDiagram
     class CpjWriter {
         +WriteFile(NodelistProject cpj, string filePath) void
         +GenerateString(NodelistProject cpj) string
-        -GenerateCpjContent(NodelistProject cpj) string
-        -WriteTopology(StringBuilder sb, NetworkTopology topology, string sectionName) void$
     }
+
+    class XddWriter {
+        +WriteFile(ElectronicDataSheet eds, string filePath) void
+        +GenerateString(ElectronicDataSheet eds) string
+    }
+
+    class XdcWriter {
+        +WriteFile(DeviceConfigurationFile dcf, string filePath) void
+        +GenerateString(DeviceConfigurationFile dcf) string
+    }
+
+    XddWriter <|-- XdcWriter
 ```
 
-**CpjWriter** is a stateless class that serializes a `NodelistProject` model into the INI-based CPJ format. It writes topology sections with nodes ordered by node ID and the `Nodes` count formatted as hexadecimal. Multiple networks are written as `[Topology]`, `[Topology2]`, etc.
+**DcfWriter** serializes `DeviceConfigurationFile` to INI-based DCF and preserves unknown INI sections through `AdditionalSections` (except object-link sections for known objects, which are regenerated from typed model data).
+
+**CpjWriter** serializes `NodelistProject` to INI-based CPJ, writing topology sections in deterministic order and formatting node count as hexadecimal.
+
+**XddWriter** serializes `ElectronicDataSheet` into CiA 311 XML (`ISO15745ProfileContainer`) using UTF-8 without BOM.
+
+**XdcWriter** extends `XddWriter` for configuration data and emits `actualValue`, `denotation`, and `deviceCommissioning` (NodeID must be `1..127` when present).
 
 ### 5.2.3 Models
 
@@ -159,6 +161,7 @@ classDiagram
         +List~ModuleInfo~ SupportedModules
         +DynamicChannels? DynamicChannels
         +List~ToolInfo~ Tools
+        +ApplicationProcess? ApplicationProcess
         +Dictionary~string, Dictionary~string, string~~ AdditionalSections
     }
 
@@ -172,144 +175,31 @@ classDiagram
         +List~ModuleInfo~ SupportedModules
         +DynamicChannels? DynamicChannels
         +List~ToolInfo~ Tools
+        +ApplicationProcess? ApplicationProcess
         +Dictionary~string, Dictionary~string, string~~ AdditionalSections
-    }
-
-    class ObjectDictionary {
-        +List~ushort~ MandatoryObjects
-        +List~ushort~ OptionalObjects
-        +List~ushort~ ManufacturerObjects
-        +Dictionary~ushort, CanOpenObject~ Objects
-        +Dictionary~ushort, bool~ DummyUsage
-    }
-
-    class CanOpenObject {
-        +ushort Index
-        +string ParameterName
-        +byte ObjectType
-        +ushort? DataType
-        +AccessType AccessType
-        +string? DefaultValue
-        +string? ParameterValue
-        +string? Denotation
-        +string? LowLimit
-        +string? HighLimit
-        +bool PdoMapping
-        +bool SrdoMapping
-        +string? InvertedSrad
-        +uint ObjFlags
-        +byte? SubNumber
-        +byte? CompactSubObj
-        +Dictionary~byte, CanOpenSubObject~ SubObjects
-        +List~ushort~ ObjectLinks
-        +string? UploadFile
-        +string? DownloadFile
-        +string? ParamRefd
-    }
-
-    class CanOpenSubObject {
-        +byte SubIndex
-        +string ParameterName
-        +byte ObjectType
-        +ushort DataType
-        +AccessType AccessType
-        +string? DefaultValue
-        +string? ParameterValue
-        +string? Denotation
-        +string? LowLimit
-        +string? HighLimit
-        +bool PdoMapping
-        +bool SrdoMapping
-        +string? InvertedSrad
-        +string? ParamRefd
-    }
-
-    class DeviceInfo {
-        +string VendorName
-        +uint VendorNumber
-        +string ProductName
-        +uint ProductNumber
-        +uint RevisionNumber
-        +string OrderCode
-        +BaudRates SupportedBaudRates
-        +bool SimpleBootUpMaster
-        +bool SimpleBootUpSlave
-        +byte Granularity
-        +byte DynamicChannelsSupported
-        +bool GroupMessaging
-        +ushort NrOfRxPdo
-        +ushort NrOfTxPdo
-        +bool LssSupported
-        +byte CompactPdo
-        +bool CANopenSafetySupported
-    }
-
-    class DeviceCommissioning {
-        +byte NodeId
-        +string NodeName
-        +ushort Baudrate
-        +uint NetNumber
-        +string NetworkName
-        +bool CANopenManager
-        +uint? LssSerialNumber
-        +string? NodeRefd
-        +string? NetRefd
-    }
-
-    class EdsFileInfo {
-        +string FileName
-        +byte FileVersion
-        +byte FileRevision
-        +string EdsVersion
-        +string Description
-        +string CreationTime
-        +string CreationDate
-        +string CreatedBy
-        +string ModificationTime
-        +string ModificationDate
-        +string ModifiedBy
-        +string? LastEds
     }
 
     class NodelistProject {
         +List~NetworkTopology~ Networks
         +Dictionary~string, Dictionary~string, string~~ AdditionalSections
     }
-
-    class NetworkTopology {
-        +string? NetName
-        +string? NetRefd
-        +string? EdsBaseName
-        +Dictionary~byte, NetworkNode~ Nodes
-    }
-
-    class NetworkNode {
-        +byte NodeId
-        +bool Present
-        +string? Name
-        +string? Refd
-        +string? DcfFileName
-    }
-
-    ElectronicDataSheet *-- EdsFileInfo
-    ElectronicDataSheet *-- DeviceInfo
-    ElectronicDataSheet *-- ObjectDictionary
-    ElectronicDataSheet *-- Comments
-    ElectronicDataSheet *-- ModuleInfo
-    ElectronicDataSheet *-- DynamicChannels
-    ElectronicDataSheet *-- ToolInfo
-
-    DeviceConfigurationFile *-- EdsFileInfo
-    DeviceConfigurationFile *-- DeviceInfo
-    DeviceConfigurationFile *-- ObjectDictionary
-    DeviceConfigurationFile *-- DeviceCommissioning
-
-    NodelistProject *-- NetworkTopology
-    NetworkTopology *-- NetworkNode
-
-    ObjectDictionary *-- CanOpenObject
-    CanOpenObject *-- CanOpenSubObject
 ```
+
+Core models are shared across INI and XML formats, enabling cross-format conversion scenarios without duplicate object graphs.
+
+`ApplicationProcess` is populated exclusively when reading XDD/XDC files that contain an `ApplicationProcess` element (CiA 311 §6.4.5). It is `null` for EDS/DCF sources. The typed object graph covers all sub-constructs defined by the specification:
+
+| Class | CiA 311 element | Description |
+|---|---|---|
+| `ApplicationProcess` | `ApplicationProcess` | Root container with data types, function types, templates, parameters, and parameter groups |
+| `ApDataTypeList` | `dataTypeList` | Complex type definitions (arrays, structs, enums, derived types) |
+| `ApFunctionType` | `functionType` | Device function description with optional nested instances |
+| `ApFunctionInstanceList` | `functionInstanceList` | Function instances at ApplicationProcess level |
+| `ApTemplateList` | `templateList` | Parameter and allowed-values templates |
+| `ApParameter` | `parameter` | Individual parameter with data type, access, labels, allowed values, and default/actual values |
+| `ApParameterGroup` | `parameterGroup` | HMI classification hierarchy for parameters |
+| `ApLabelGroup` / `ApLabel` / `ApDescription` | `label` / `description` | Localised display names and descriptions (IETF BCP 47 language tags) |
+| `ApTextRef` | `labelRef` / `descriptionRef` | References into an external dictionary resource |
 
 ### 5.2.4 Utilities
 
@@ -327,12 +217,7 @@ classDiagram
     }
 ```
 
-**ValueConverter** is a static utility class that encapsulates all type-specific conversions:
-
-- **Number formats**: Decimal (`123`), hexadecimal (`0x7B`), octal (`0173`)
-- **Boolean values**: `"1"`, `"true"`, `"yes"` are interpreted as `true`
-- **`$NODEID` formulas**: Expressions like `$NODEID+0x200` are evaluated at runtime
-- **AccessType mapping**: String-to-enum conversion (`"rw"` -> `ReadWrite`)
+`ValueConverter` encapsulates number parsing (decimal/hex/octal), `$NODEID` formula evaluation, and AccessType conversions.
 
 ### 5.2.5 Extensions
 
@@ -348,13 +233,6 @@ classDiagram
         +GetObjectsByType(ObjectCategory category) IEnumerable~CanOpenObject~$
         +GetPdoCommunicationParameters(bool transmit) IEnumerable~CanOpenObject~$
         +GetPdoMappingParameters(bool transmit) IEnumerable~CanOpenObject~$
-    }
-
-    class ObjectCategory {
-        <<enumeration>>
-        Mandatory
-        Optional
-        Manufacturer
     }
 ```
 
@@ -375,6 +253,5 @@ classDiagram
     }
 ```
 
-**EdsParseException** is thrown on parsing errors and optionally contains line number and section name for diagnostics.
-
-**DcfWriteException** is thrown on errors during DCF generation.
+`EdsParseException` is used for EDS/DCF/XDD/XDC parsing errors.  
+`DcfWriteException` is used for DCF write/generation failures.

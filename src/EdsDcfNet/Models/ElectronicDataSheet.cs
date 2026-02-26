@@ -46,4 +46,12 @@ public class ElectronicDataSheet
     /// Key is section name, value is dictionary of key-value pairs.
     /// </summary>
     public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } = new();
+
+    /// <summary>
+    /// Parsed <c>ApplicationProcess</c> element from the XDD device-profile body (CiA 311 §6.4.5).
+    /// Populated when reading XDD/XDC files that contain an <c>ApplicationProcess</c> element.
+    /// <see langword="null"/> when the source was an EDS file or when no
+    /// <c>ApplicationProcess</c> element was present in the XDD/XDC file.
+    /// </summary>
+    public ApplicationProcess? ApplicationProcess { get; set; }
 }

@@ -411,6 +411,20 @@ public class ObjectDictionaryExtensionsTests
         result.Should().BeEmpty();
     }
 
+    [Fact]
+    public void GetObjectsByType_InvalidCategory_FallsBackToEmptyEnumerable()
+    {
+        // Arrange
+        var dict = CreateTestDictionary();
+        var invalidCategory = (ObjectCategory)999;
+
+        // Act
+        var result = dict.GetObjectsByType(invalidCategory).ToList();
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
     #endregion
 
     #region GetPdoCommunicationParameters Tests

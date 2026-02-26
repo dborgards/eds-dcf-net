@@ -7,7 +7,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![codecov](https://codecov.io/gh/dborgards/eds-dcf-net/branch/main/graph/badge.svg)](https://codecov.io/gh/dborgards/eds-dcf-net)
 
-A comprehensive, easy-to-use C# .NET library for CiA DS 306 - Electronic Data Sheet (EDS), Device Configuration File (DCF) and Nodelist Project (CPJ) for CANopen devices.
+A comprehensive, easy-to-use C# .NET library for CANopen file formats:
+CiA DS 306 (EDS, DCF, CPJ) and CiA 311 (XDD, XDC).
 
 ## Features
 
@@ -19,13 +20,15 @@ A comprehensive, easy-to-use C# .NET library for CiA DS 306 - Electronic Data Sh
 
 🌐 **Read & Write CPJ** - Parse and create Nodelist Project files (CiA 306-3 network topologies)
 
+🧩 **Read & Write XDD/XDC** - Parse and generate CiA 311 XML device descriptions/configurations
+
 🔄 **EDS to DCF Conversion** - Easy conversion with configuration parameters
 
 🎯 **Type-Safe** - Fully typed models for all CANopen objects
 
 📦 **Modular** - Support for modular devices (bus couplers + modules)
 
-✅ **CiA DS 306 v1.4 Compliant** - Implemented according to official specification
+✅ **CiA DS 306 v1.4 / CiA 311 v1.1 Compliant** - Implemented according to official specification
 
 ## Quick Start
 
@@ -43,6 +46,18 @@ Console.WriteLine($"Vendor: {eds.DeviceInfo.VendorName}");
 Console.WriteLine($"Product Number: 0x{eds.DeviceInfo.ProductNumber:X}");
 ```
 
+### Reading an XDD File (CiA 311 XML)
+
+```csharp
+using EdsDcfNet;
+
+// Read XDD file
+var xdd = CanOpenFile.ReadXdd("device.xdd");
+
+Console.WriteLine($"Device: {xdd.DeviceInfo.ProductName}");
+Console.WriteLine($"Vendor: {xdd.DeviceInfo.VendorName}");
+```
+
 ### Reading a DCF File
 
 ```csharp
@@ -53,6 +68,47 @@ var dcf = CanOpenFile.ReadDcf("configured_device.dcf");
 
 Console.WriteLine($"Node ID: {dcf.DeviceCommissioning.NodeId}");
 Console.WriteLine($"Baudrate: {dcf.DeviceCommissioning.Baudrate} kbit/s");
+```
+
+### Reading an XDC File (CiA 311 XML)
+
+```csharp
+using EdsDcfNet;
+
+// Read XDC file
+var xdc = CanOpenFile.ReadXdc("configured_device.xdc");
+
+Console.WriteLine($"Node ID: {xdc.DeviceCommissioning.NodeId}");
+Console.WriteLine($"Baudrate: {xdc.DeviceCommissioning.Baudrate} kbit/s");
+```
+
+### Working with ApplicationProcess (CiA 311 §6.4.5)
+
+XDD/XDC files may include an `ApplicationProcess` element describing device parameters
+at the application level. The typed model gives full programmatic access to all
+sub-constructs.
+
+```csharp
+using EdsDcfNet;
+
+var xdd = CanOpenFile.ReadXdd("device.xdd");
+
+if (xdd.ApplicationProcess is { } ap)
+{
+    // Iterate parameters
+    foreach (var param in ap.ParameterList)
+    {
+        var displayName = param.LabelGroup.GetDisplayName() ?? param.UniqueId;
+        Console.WriteLine($"Parameter: {displayName}");
+    }
+
+    // Inspect data type definitions
+    if (ap.DataTypeList is { } dtl)
+    {
+        foreach (var enumType in dtl.Enums)
+            Console.WriteLine($"Enum type: {enumType.Name}");
+    }
+}
 ```
 
 ### Converting EDS to DCF
@@ -144,6 +200,22 @@ NodelistProject ReadCpjFromString(string content)
 void WriteCpj(NodelistProject cpj, string filePath)
 string WriteCpjToString(NodelistProject cpj)
 
+// Read XDD (CiA 311 XML Device Description)
+ElectronicDataSheet ReadXdd(string filePath)
+ElectronicDataSheet ReadXddFromString(string content)
+
+// Write XDD
+void WriteXdd(ElectronicDataSheet xdd, string filePath)
+string WriteXddToString(ElectronicDataSheet xdd)
+
+// Read XDC (CiA 311 XML Device Configuration)
+DeviceConfigurationFile ReadXdc(string filePath)
+DeviceConfigurationFile ReadXdcFromString(string content)
+
+// Write XDC
+void WriteXdc(DeviceConfigurationFile xdc, string filePath)
+string WriteXdcToString(DeviceConfigurationFile xdc)
+
 // Convert EDS to DCF
 DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
                                   ushort baudrate = 250, string? nodeName = null)
@@ -154,6 +226,8 @@ DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
 - ✅ Complete EDS parsing
 - ✅ Complete DCF parsing and writing
 - ✅ CPJ nodelist project parsing and writing (CiA 306-3 network topologies)
+- ✅ XDD parsing and writing (CiA 311 XML device description)
+- ✅ XDC parsing and writing (CiA 311 XML device configuration)
 - ✅ All Object Types (NULL, DOMAIN, DEFTYPE, DEFSTRUCT, VAR, ARRAY, RECORD)
 - ✅ Sub-objects and sub-indexes
 - ✅ Compact Storage (CompactSubObj, CompactPDO)
@@ -175,8 +249,8 @@ eds-dcf-net/
 ├── src/
 │   └── EdsDcfNet/              # Main library
 │       ├── Models/             # Data models
-│       ├── Parsers/            # EDS/DCF/CPJ parsers
-│       ├── Writers/            # DCF/CPJ writers
+│       ├── Parsers/            # EDS/DCF/CPJ/XDD/XDC parsers
+│       ├── Writers/            # DCF/CPJ/XDD/XDC writers
 │       ├── Utilities/          # Helper classes
 │       ├── Exceptions/         # Custom exceptions
 │       └── Extensions/         # Extension methods
@@ -205,8 +279,9 @@ MIT License - see [LICENSE](LICENSE) file
 
 ## Specification
 
-Based on **CiA DS 306 Version 1.4.0** (December 15, 2021)
-"Electronic data sheet specification for CANopen"
+Based on:
+- **CiA DS 306 Version 1.4.0** (December 15, 2021)
+- **CiA 311** XML device description/configuration concepts (XDD/XDC)
 
 ## Support
 
@@ -215,4 +290,4 @@ For questions or issues:
 
 ---
 
-**EdsDcfNet** - Professional CANopen EDS/DCF processing in C# .NET
+**EdsDcfNet** - Professional CANopen EDS/DCF/CPJ/XDD/XDC processing in C# .NET

@@ -2,6 +2,7 @@ name: Build and Test
 
 permissions:
   contents: read
+  statuses: write
 
 env:
   COVERAGE_MIN_PERCENT: "95.0"
@@ -10,7 +11,6 @@ on:
   push:
     branches-ignore:
       - main
-      - develop
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -43,29 +43,62 @@ jobs:
       run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
 
     - name: Enforce coverage threshold
+      id: coverage_gate
       shell: bash
       run: |
-        coverage_file="$(find . -type f -name 'coverage.cobertura.xml' -print -quit)"
-        if [[ -z "$coverage_file" ]]; then
+        mapfile -t coverage_files < <(find . -type f -name 'coverage.cobertura.xml' -print | sort)
+        if (( ${#coverage_files[@]} == 0 )); then
           echo "No coverage.cobertura.xml found."
           exit 1
         fi
 
-        line_rate="$(awk '
-          /line-rate="/ {
-            match($0, /line-rate="[^"]+"/)
-            value = substr($0, RSTART + 11, RLENGTH - 12)
-            print value
-            exit
-          }
-        ' "$coverage_file")"
-        if [[ -z "$line_rate" ]]; then
-          echo "Could not read line-rate from $coverage_file"
+        coverage_files_csv="$(IFS=,; echo "${coverage_files[*]}")"
+        echo "coverage_files=${coverage_files_csv}" >> "$GITHUB_OUTPUT"
+        echo "Found ${#coverage_files[@]} coverage report(s)."
+
+        total_lines_covered=0
+        total_lines_valid=0
+        for coverage_file in "${coverage_files[@]}"; do
+          lines_covered="$(awk '
+            /<coverage / {
+              if (match($0, /lines-covered="[0-9]+"/)) {
+                value = substr($0, RSTART, RLENGTH)
+                sub(/lines-covered="/, "", value)
+                sub(/"$/, "", value)
+                print value
+                exit
+              }
+            }
+          ' "$coverage_file")"
+          lines_valid="$(awk '
+            /<coverage / {
+              if (match($0, /lines-valid="[0-9]+"/)) {
+                value = substr($0, RSTART, RLENGTH)
+                sub(/lines-valid="/, "", value)
+                sub(/"$/, "", value)
+                print value
+                exit
+              }
+            }
+          ' "$coverage_file")"
+
+          if [[ -z "$lines_covered" || -z "$lines_valid" ]]; then
+            echo "Could not read lines-covered/lines-valid from $coverage_file"
+            exit 1
+          fi
+
+          total_lines_covered=$((total_lines_covered + lines_covered))
+          total_lines_valid=$((total_lines_valid + lines_valid))
+        done
+
+        if (( total_lines_valid == 0 )); then
+          echo "Could not calculate coverage: lines-valid sum is zero."
           exit 1
         fi
 
-        coverage_percent="$(awk "BEGIN { printf \"%.2f\", $line_rate * 100 }")"
+        coverage_percent="$(awk "BEGIN { printf \"%.2f\", ($total_lines_covered / $total_lines_valid) * 100 }")"
         echo "Line coverage: ${coverage_percent}% (required: >= ${COVERAGE_MIN_PERCENT}%)"
+        echo "coverage_percent=${coverage_percent}" >> "$GITHUB_OUTPUT"
 
         awk "BEGIN { exit !($coverage_percent >= $COVERAGE_MIN_PERCENT) }" || {
           echo "Coverage gate failed."
@@ -73,8 +106,40 @@ jobs:
         }
 
     - name: Upload coverage reports to Codecov
+      if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: '**/coverage.cobertura.xml'
+        files: ${{ steps.coverage_gate.outputs.coverage_files }}
+        disable_search: true
+        override_branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+        override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
         fail_ci_if_error: false
+
+    - name: Post codecov/patch status
+      if: always()
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      run: |
+        outcome="${{ steps.coverage_gate.outcome }}"
+        if [[ "$outcome" == "success" ]]; then
+          state="success"
+          description="Coverage ${{ steps.coverage_gate.outputs.coverage_percent }}% >= ${COVERAGE_MIN_PERCENT}%"
+        elif [[ "$outcome" == "failure" ]]; then
+          state="failure"
+          description="Coverage gate failed (< ${COVERAGE_MIN_PERCENT}%)"
+        else
+          echo "Coverage gate was skipped (build/test failed earlier); not posting status."
+          exit 0
+        fi
+
+        gh api "repos/${{ github.repository }}/statuses/${COMMIT_SHA}" \
+          --method POST \
+          -f state="${state}" \
+          -f context="codecov/patch" \
+          -f description="${description}" \
+          -f target_url="https://app.codecov.io/github/${{ github.repository }}"

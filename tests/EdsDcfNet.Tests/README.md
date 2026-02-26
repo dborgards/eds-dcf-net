@@ -56,6 +56,40 @@ Tests for the `DcfWriter` class:
 - Writing Comments section
 - Writing to files with error handling
 
+#### Parsers/CpjReaderTests.cs
+Tests for the `CpjReader` class:
+- Parsing topology sections (`[Topology]`, `[Topology2]`, ...)
+- Parsing node presence/name/DCF reference data
+- Preserving unknown sections as additional sections
+
+#### Writers/CpjWriterTests.cs
+Tests for the `CpjWriter` class:
+- Serializing network topologies and node entries
+- Deterministic node ordering
+- Round-trip behavior for CPJ data
+
+#### Parsers/XddReaderTests.cs and Parsers/XdcReaderTests.cs
+Tests for CiA 311 XML parsers:
+- Parsing `ISO15745ProfileContainer` content
+- Mapping object dictionary entries from XML
+- XDC-specific `actualValue`, `denotation`, and `deviceCommissioning`
+
+#### Parsers/ApplicationProcessTests.cs
+Tests for the CiA 311 `ApplicationProcess` model and its parser:
+- Full round-trip parsing and writing of all `ApplicationProcess` sub-constructs
+- `dataTypeList`: array, struct, enum, and derived type definitions
+- `functionTypeList` and `functionInstanceList`
+- `templateList` with parameter and allowed-values templates
+- `parameterList`: individual parameters with data type, access, labels, allowed values, and default/actual values
+- `parameterGroupList`: hierarchical HMI classification groups
+- Edge-case branches (missing attributes, empty sub-elements, all known `g_simple` type names)
+
+#### Writers/XddWriterTests.cs and Writers/XdcWriterTests.cs
+Tests for CiA 311 XML writers:
+- Generating valid XDD/XDC XML output
+- Emitting commissioning and actual-value attributes
+- Validating out-of-range NodeId behavior for XDC
+
 ### Integration Tests
 
 #### Integration/CanOpenFileTests.cs
@@ -66,6 +100,13 @@ Tests for the `CanOpenFile` API:
 - EdsToDcf conversion with commissioning parameters
 - Round-trip tests (EDS → DCF → String → DCF)
 - Data preservation through conversions
+
+#### Integration/XddXdcIntegrationTests.cs
+Integration tests for XML and cross-format flows:
+- XDD ↔ XDD round-trip
+- XDC ↔ XDC round-trip
+- EDS → XDD → model verification
+- XDD/XDC → DCF conversion paths
 
 ## Running Tests
 
@@ -102,15 +143,20 @@ The test suite provides comprehensive coverage of:
 - ✅ INI file parsing with various edge cases
 - ✅ EDS file reading and structure parsing
 - ✅ DCF file writing and formatting
+- ✅ CPJ parsing/writing and network topology handling
+- ✅ XDD/XDC XML parsing and writing (CiA 311)
 - ✅ Object dictionary manipulation
 - ✅ Main API entry points
-- ✅ Round-trip conversion scenarios
+- ✅ Round-trip and cross-format conversion scenarios
 - ✅ Error handling and validation
 
 ## Test Fixtures
 
 The `Fixtures/` directory contains:
-- `sample_device.eds` - Sample CANopen Electronic Data Sheet used for integration tests
+- `sample_device.eds` - Sample CANopen Electronic Data Sheet
+- `sample_device.xdd` - Sample CiA 311 XML device description
+- `minimal.dcf` / `minimal.xdc` - Minimal configuration files for INI/XML paths
+- `modular_device.dcf` / `full_features.dcf` - Extended DCF fixtures for feature coverage
 
 ## Dependencies
 

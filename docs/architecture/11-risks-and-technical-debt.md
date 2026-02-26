@@ -2,14 +2,14 @@
 
 ## 11.1 Risks
 
-### R-1: Specification Changes (CiA DS 306)
+### R-1: Specification Changes (CiA DS 306 / CiA 311)
 
 | Aspect           | Description                                                                 |
 |------------------|-----------------------------------------------------------------------------|
-| **Risk**         | Future versions of the CiA DS 306 specification introduce new sections or fields. |
+| **Risk**         | Future versions of CiA DS 306 or CiA 311 introduce new sections/elements or attributes. |
 | **Likelihood**   | Medium (specification is periodically updated).                             |
 | **Impact**       | New fields could be ignored or misinterpreted.                              |
-| **Mitigation**   | `AdditionalSections` preserves unknown sections. New fields in known sections are treated as `null` (forward-compatible). |
+| **Mitigation**   | INI unknown sections are preserved in `AdditionalSections`; XML handling is kept strict to the supported mapped profile subset and extended incrementally with tests. |
 
 ### R-2: netstandard2.0 API Limitations
 
@@ -29,6 +29,15 @@
 | **Impact**       | `EdsParseException` on otherwise usable files.                              |
 | **Mitigation**   | Tolerant parsing for optional fields. Support for common deviations (e.g., misspelling `"DeviceComissioning"` instead of `"DeviceCommissioning"`). |
 
+### R-4: Non-Compliant or Tool-Specific XDD/XDC XML
+
+| Aspect           | Description                                                                 |
+|------------------|-----------------------------------------------------------------------------|
+| **Risk**         | Real-world XDD/XDC exports can vary between tooling vendors and may include unsupported XML constructs. |
+| **Likelihood**   | Medium.                                                                     |
+| **Impact**       | Parse failures or partial data mapping.                                     |
+| **Mitigation**   | Keep parser behavior explicit, add fixture-based compatibility tests for encountered variants, and extend mappings conservatively. |
+
 ## 11.2 Technical Debt
 
 ### TD-1: No Inheritance Hierarchy Between EDS and DCF
@@ -43,7 +52,7 @@
 
 | Aspect           | Description                                                                 |
 |------------------|-----------------------------------------------------------------------------|
-| **Description**  | Only a `DcfWriter` exists, no `EdsWriter`. EDS files can only be read.      |
+| **Description**  | There is no INI EDS writer (`.eds`). While XDD/XDC XML writing is supported, DS-306 EDS text generation is not implemented. |
 | **Impact**       | Users who want to programmatically create EDS files cannot do so.           |
 | **Priority**     | Medium (no demand expressed so far, as EDS is typically supplied by the manufacturer). |
 
@@ -51,6 +60,6 @@
 
 | Aspect           | Description                                                                 |
 |------------------|-----------------------------------------------------------------------------|
-| **Description**  | All file operations (`ReadEds`, `WriteDcf`) are synchronous.                |
+| **Description**  | All file operations (`ReadEds`, `ReadXdd`, `WriteDcf`, `WriteXdc`, etc.) are synchronous. |
 | **Impact**       | In async-based applications (e.g., ASP.NET), this may block the thread pool. |
 | **Priority**     | Low (EDS/DCF files are typically small, I/O is negligible).                 |

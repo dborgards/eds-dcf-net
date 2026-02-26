@@ -1248,6 +1248,26 @@ NrOfEntries=3
     }
 
     [Fact]
+    public void ReadString_ConnectedModules_InvalidEntries_AreSkipped()
+    {
+        // Arrange
+        var content = BuildMinimalDcf(extraSections: @"
+[ConnectedModules]
+NrOfEntries=4
+1=1
+2=abc
+3=
+4=2
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.ConnectedModules.Should().ContainInOrder(1, 2);
+    }
+
+    [Fact]
     public void ReadString_NoConnectedModules_EmptyList()
     {
         // Arrange
