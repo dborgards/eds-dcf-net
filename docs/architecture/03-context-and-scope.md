@@ -21,7 +21,7 @@ C4Context
     System_Ext(canopen_devices, "CANopen Devices", "Physical devices on the CAN network")
 
     Rel(developer, edsdcfnet, "Uses API")
-    Rel(edsdcfnet, eds_files, "Reads")
+    Rel(edsdcfnet, eds_files, "Reads / Writes")
     Rel(edsdcfnet, dcf_files, "Reads / Writes")
     Rel(edsdcfnet, cpj_files, "Reads / Writes")
     Rel(edsdcfnet, xdd_files, "Reads / Writes")
@@ -40,7 +40,7 @@ C4Context
 
 | Interface            | Description                                                                  |
 |----------------------|------------------------------------------------------------------------------|
-| **EDS files**        | Input: INI-formatted device descriptions per CiA DS 306. Provided by device manufacturers. |
+| **EDS files**        | Input/Output: INI-formatted device descriptions per CiA DS 306. Can be read, created, and written. |
 | **DCF files**        | Input/Output: Configured device instances. Can be read, created, and written. |
 | **CPJ files**        | Input/Output: CiA 306-3 nodelist projects describing network topologies. Can be read, created, and written. |
 | **XDD files**        | Input/Output: XML device descriptions per CiA 311. Can be read and written. |

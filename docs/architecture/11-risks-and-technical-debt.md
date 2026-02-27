@@ -48,18 +48,10 @@
 | **Impact**       | Code duplication in model classes.                                          |
 | **Priority**     | Low (deliberate design decision favoring clear semantics, see ADR-3).       |
 
-### TD-2: No EDS Writer
+### TD-2: No Asynchronous API Variants
 
 | Aspect           | Description                                                                 |
 |------------------|-----------------------------------------------------------------------------|
-| **Description**  | There is no INI EDS writer (`.eds`). While XDD/XDC XML writing is supported, DS-306 EDS text generation is not implemented. |
-| **Impact**       | Users who want to programmatically create EDS files cannot do so.           |
-| **Priority**     | Medium (no demand expressed so far, as EDS is typically supplied by the manufacturer). |
-
-### TD-3: No Asynchronous API Variants
-
-| Aspect           | Description                                                                 |
-|------------------|-----------------------------------------------------------------------------|
-| **Description**  | All file operations (`ReadEds`, `ReadXdd`, `WriteDcf`, `WriteXdc`, etc.) are synchronous. |
+| **Description**  | All file operations (`ReadEds`, `ReadXdd`, `WriteEds`, `WriteDcf`, `WriteXdc`, etc.) are synchronous. |
 | **Impact**       | In async-based applications (e.g., ASP.NET), this may block the thread pool. |
 | **Priority**     | Low (EDS/DCF files are typically small, I/O is negligible).                 |

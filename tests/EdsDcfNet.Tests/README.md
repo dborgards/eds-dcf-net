@@ -56,6 +56,15 @@ Tests for the `DcfWriter` class:
 - Writing Comments section
 - Writing to files with error handling
 
+#### Writers/EdsWriterTests.cs
+Tests for the `EdsWriter` class:
+- Generating EDS content as strings
+- Writing FileInfo and DeviceInfo sections
+- Writing object lists, objects, and sub-objects
+- Ensuring DCF-only fields are omitted in EDS output
+- Writing supported modules, dynamic channels, and tools
+- Writing to files with error handling
+
 #### Parsers/CpjReaderTests.cs
 Tests for the `CpjReader` class:
 - Parsing topology sections (`[Topology]`, `[Topology2]`, ...)
@@ -95,11 +104,18 @@ Tests for CiA 311 XML writers:
 #### Integration/CanOpenFileTests.cs
 Tests for the `CanOpenFile` API:
 - ReadEds and ReadEdsFromString
+- WriteEds and WriteEdsToString
 - ReadDcf and ReadDcfFromString
 - WriteDcf and WriteDcfToString
 - EdsToDcf conversion with commissioning parameters
 - Round-trip tests (EDS → DCF → String → DCF)
 - Data preservation through conversions
+
+#### Integration/RoundTripEdsTests.cs
+Round-trip tests for EDS:
+- Read EDS fixture -> write EDS string -> read back
+- Verifies preservation of FileInfo, DeviceInfo, object dictionary, comments, and unknown sections
+- Verifies EDS output omits DCF-only fields
 
 #### Integration/XddXdcIntegrationTests.cs
 Integration tests for XML and cross-format flows:
@@ -142,6 +158,7 @@ The test suite provides comprehensive coverage of:
 - ✅ All value parsing and formatting functions
 - ✅ INI file parsing with various edge cases
 - ✅ EDS file reading and structure parsing
+- ✅ EDS file writing and formatting
 - ✅ DCF file writing and formatting
 - ✅ CPJ parsing/writing and network topology handling
 - ✅ XDD/XDC XML parsing and writing (CiA 311)

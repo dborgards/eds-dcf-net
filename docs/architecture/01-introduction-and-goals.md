@@ -11,7 +11,7 @@ CANopen is a communication protocol for industrial automation systems based on t
 
 | Feature                      | Description                                                     |
 |-----------------------------|-----------------------------------------------------------------|
-| Read EDS                    | Complete parsing of Electronic Data Sheets                      |
+| Read and write EDS          | Parsing and generation of Electronic Data Sheets                |
 | Read and write DCF          | Processing and generation of Device Configuration Files         |
 | Read and write CPJ          | Parsing and generation of CiA 306-3 Nodelist Project files (network topologies) |
 | Read and write XDD/XDC      | Parsing and generation of CiA 311 XML device descriptions/configurations |
@@ -37,7 +37,7 @@ The following table describes the core quality goals, sorted by priority:
 | Role                          | Expectation / Interest                                                      |
 |-------------------------------|-----------------------------------------------------------------------------|
 | **CANopen device developers**  | Reliable tool for reading and validating EDS/DCF/XDD/XDC files             |
-| **System integrators**         | Programmatic creation and modification of DCF/XDC files for networks       |
+| **System integrators**         | Programmatic creation and modification of EDS/DCF/XDC files for networks   |
 | **Tool vendors**               | Embeddable library for CANopen configuration tools                         |
 | **Library maintainers**        | Maintainable, extensible codebase with clear architecture                  |
 | **NuGet consumers**            | Stable API, semantic versioning, easy integration via package manager      |

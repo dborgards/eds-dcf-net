@@ -9,6 +9,7 @@ The library uses **exceptions** as its primary error mechanism:
 | Exception               | Use Case                                                    | Additional Information       |
 |-------------------------|-------------------------------------------------------------|------------------------------|
 | `EdsParseException`     | Errors during EDS/DCF/CPJ/XDD/XDC parsing                   | `LineNumber`, `SectionName`  |
+| `EdsWriteException`     | Errors during EDS writing                                   | `SectionName`                |
 | `DcfWriteException`     | Errors during DCF writing                                   | `SectionName`                |
 | `InvalidOperationException` | Validation failures during XDC writing (e.g., invalid NodeId) | Standard .NET message |
 | `ArgumentException`     | Invalid input parameters where validation is performed by the API | Standard .NET          |
@@ -81,12 +82,12 @@ DCF files can contain values computed relative to the node ID:
 
 ## 8.4 Round-Trip Fidelity
 
-A core design principle is **round-trip fidelity**: a DCF file that is read and written back unchanged should not lose any information.
+A core design principle is **round-trip fidelity**: EDS/DCF/CPJ files that are read and written back unchanged should not lose any information.
 
 ```mermaid
 flowchart LR
-    A["DCF File<br/>(Original)"] -->|ReadDcf| B["DeviceConfigurationFile<br/>(Model)"]
-    B -->|WriteDcf| C["DCF File<br/>(Output)"]
+    A["INI File<br/>(EDS/DCF/CPJ)"] -->|Read*| B["Model<br/>(Typed objects)"]
+    B -->|Write*| C["INI File<br/>(Output)"]
 
     B --- D["AdditionalSections<br/>preserves unknown sections"]
 

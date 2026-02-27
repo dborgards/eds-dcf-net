@@ -77,6 +77,7 @@ An **example console application** (`examples/EdsDcfNet.Examples/`) demonstrates
 
 ```
 ReadEds(filePath) / ReadEdsFromString(content) → ElectronicDataSheet
+WriteEds(eds, filePath) / WriteEdsToString(eds) → EDS output
 ReadDcf(filePath) / ReadDcfFromString(content) → DeviceConfigurationFile
 WriteDcf(dcf, filePath) / WriteDcfToString(dcf) → DCF output
 ReadCpj(filePath) / ReadCpjFromString(content) → NodelistProject

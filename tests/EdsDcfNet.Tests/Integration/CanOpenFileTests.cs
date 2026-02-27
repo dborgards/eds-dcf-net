@@ -85,6 +85,104 @@ PDOMapping=0
 
     #endregion
 
+    #region WriteEds Tests
+
+    [Fact]
+    public void WriteEdsToString_ValidEds_GeneratesString()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo
+            {
+                FileName = "test.eds",
+                FileVersion = 1,
+                FileRevision = 0,
+                EdsVersion = "4.0"
+            },
+            DeviceInfo = new DeviceInfo
+            {
+                VendorName = "Test Vendor",
+                ProductName = "Test Product",
+                VendorNumber = 0x100,
+                ProductNumber = 0x1001
+            },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0x191",
+            PdoMapping = false,
+            ParameterValue = "0x999"
+        };
+
+        // Act
+        var result = CanOpenFile.WriteEdsToString(eds);
+
+        // Assert
+        result.Should().NotBeNullOrEmpty();
+        result.Should().Contain("[FileInfo]");
+        result.Should().Contain("[DeviceInfo]");
+        result.Should().Contain("[MandatoryObjects]");
+        result.Should().Contain("[1000]");
+        result.Should().NotContain("[DeviceCommissioning]");
+        result.Should().NotContain("ParameterValue=");
+    }
+
+    [Fact]
+    public void WriteEds_ValidEds_WritesAndReadsBackFile()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "roundtrip.eds" },
+            DeviceInfo = new DeviceInfo { VendorName = "Test Vendor", ProductName = "Test Product" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0x191",
+            PdoMapping = false
+        };
+
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            // Act
+            CanOpenFile.WriteEds(eds, tempFile);
+            var result = CanOpenFile.ReadEds(tempFile);
+
+            // Assert
+            result.FileInfo.FileName.Should().Be("roundtrip.eds");
+            result.DeviceInfo.VendorName.Should().Be("Test Vendor");
+            result.ObjectDictionary.Objects.Should().ContainKey(0x1000);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    #endregion
+
     #region ReadDcfFromString Tests
 
     [Fact]
