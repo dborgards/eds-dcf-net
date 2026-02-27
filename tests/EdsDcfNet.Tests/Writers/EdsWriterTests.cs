@@ -1,0 +1,324 @@
+namespace EdsDcfNet.Tests.Writers;
+
+using EdsDcfNet.Exceptions;
+using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
+using EdsDcfNet.Writers;
+
+public class EdsWriterTests
+{
+    private readonly EdsWriter _writer = new();
+
+    private static ElectronicDataSheet CreateMinimalEds()
+    {
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo
+            {
+                FileName = "test.eds",
+                FileVersion = 1,
+                FileRevision = 0,
+                EdsVersion = "4.0",
+                Description = "Test EDS"
+            },
+            DeviceInfo = new DeviceInfo
+            {
+                VendorName = "Test Vendor",
+                ProductName = "Test Product",
+                VendorNumber = 0x100,
+                ProductNumber = 0x1001
+            },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0x191",
+            PdoMapping = false
+        };
+
+        return eds;
+    }
+
+    [Fact]
+    public void GenerateString_MinimalEds_GeneratesValidContent()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("[FileInfo]");
+        result.Should().Contain("[DeviceInfo]");
+        result.Should().Contain("[MandatoryObjects]");
+        result.Should().NotContain("[DeviceCommissioning]");
+        result.Should().NotContain("[ConnectedModules]");
+    }
+
+    [Fact]
+    public void GenerateString_FileInfo_DoesNotWriteLastEds()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.FileInfo.LastEds = "template.eds";
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("FileName=test.eds");
+        result.Should().Contain("EDSVersion=4.0");
+        result.Should().NotContain("LastEDS=");
+    }
+
+    [Fact]
+    public void GenerateString_DcfSpecificObjectFields_AreOmitted()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        var obj = eds.ObjectDictionary.Objects[0x1000];
+        obj.ParameterValue = "0x1234";
+        obj.Denotation = "Configured";
+        obj.ParamRefd = "X1.A1";
+        obj.UploadFile = "in.bin";
+        obj.DownloadFile = "out.bin";
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().NotContain("ParameterValue=");
+        result.Should().NotContain("Denotation=");
+        result.Should().NotContain("ParamRefd=");
+        result.Should().NotContain("UploadFile=");
+        result.Should().NotContain("DownloadFile=");
+    }
+
+    [Fact]
+    public void GenerateString_DcfSpecificSubObjectFields_AreOmitted()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.ObjectDictionary.OptionalObjects.Add(0x1018);
+        eds.ObjectDictionary.Objects[0x1018] = new CanOpenObject
+        {
+            Index = 0x1018,
+            ParameterName = "Identity",
+            ObjectType = 0x9,
+            SubNumber = 1
+        };
+
+        eds.ObjectDictionary.Objects[0x1018].SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Entries",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "1",
+            ParameterValue = "5",
+            Denotation = "Configured",
+            ParamRefd = "X1.A2"
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("[1018sub0]");
+        result.Should().NotContain("ParameterValue=");
+        result.Should().NotContain("Denotation=");
+        result.Should().NotContain("ParamRefd=");
+    }
+
+    [Fact]
+    public void GenerateString_DynamicChannelsAndTools_WritesSections()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.DynamicChannels = new DynamicChannels();
+        eds.DynamicChannels.Segments.Add(new DynamicChannelSegment
+        {
+            Type = 0x0007,
+            Dir = AccessType.ReadOnly,
+            Range = "0xA000-0xA0FF",
+            PPOffset = 0
+        });
+        eds.Tools.Add(new ToolInfo { Name = "EDS Checker", Command = "checker.exe $EDS" });
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("[DynamicChannels]");
+        result.Should().Contain("NrOfSeg=1");
+        result.Should().Contain("Type1=0x7");
+        result.Should().Contain("[Tools]");
+        result.Should().Contain("Items=1");
+        result.Should().Contain("[Tool1]");
+        result.Should().Contain("Command=checker.exe $EDS");
+    }
+
+    [Fact]
+    public void GenerateString_SupportedModules_WritesSections()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.SupportedModules.Add(new ModuleInfo
+        {
+            ModuleNumber = 1,
+            ProductName = "Input Module",
+            ProductVersion = 1,
+            ProductRevision = 0,
+            OrderCode = "MOD-IN-8",
+            FixedObjects = { 0x6000 }
+        });
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("[SupportedModules]");
+        result.Should().Contain("NrOfEntries=1");
+        result.Should().Contain("[M1ModuleInfo]");
+        result.Should().Contain("[M1FixedObjects]");
+        result.Should().Contain("1=0x6000");
+    }
+
+    [Fact]
+    public void GenerateString_RoundTripWithEdsReader_PreservesCoreData()
+    {
+        // Arrange
+        var original = CreateMinimalEds();
+        original.Comments = new Comments { Lines = 1 };
+        original.Comments.CommentLines[1] = "Created by test";
+
+        // Act
+        var output = _writer.GenerateString(original);
+        var parsed = new EdsReader().ReadString(output);
+
+        // Assert
+        parsed.FileInfo.FileName.Should().Be(original.FileInfo.FileName);
+        parsed.DeviceInfo.ProductName.Should().Be(original.DeviceInfo.ProductName);
+        parsed.ObjectDictionary.MandatoryObjects.Should().BeEquivalentTo(original.ObjectDictionary.MandatoryObjects);
+        parsed.Comments.Should().NotBeNull();
+        parsed.Comments!.CommentLines[1].Should().Be("Created by test");
+    }
+
+    [Fact]
+    public void GenerateString_ObjectLinksInAdditionalSections_FilteredForExistingObjects()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.ObjectDictionary.Objects[0x1000].ObjectLinks.Add(0x2000);
+        eds.AdditionalSections["1000ObjectLinks"] = new Dictionary<string, string>
+        {
+            { "ObjectLinks", "1" },
+            { "1", "0x2000" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        var matches = result.Split(new[] { "[1000ObjectLinks]" }, StringSplitOptions.None);
+        matches.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void GenerateString_ObjectLinksInAdditionalSections_KeptForOrphanObjects()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.AdditionalSections["9999ObjectLinks"] = new Dictionary<string, string>
+        {
+            { "ObjectLinks", "1" },
+            { "1", "0x1000" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("[9999ObjectLinks]");
+    }
+
+    [Fact]
+    public void WriteFile_ValidPath_CreatesFile()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            // Act
+            _writer.WriteFile(eds, tempFile);
+
+            // Assert
+            File.Exists(tempFile).Should().BeTrue();
+            var content = File.ReadAllText(tempFile);
+            content.Should().Contain("[FileInfo]");
+            content.Should().Contain("[DeviceInfo]");
+            content.Should().NotContain("[DeviceCommissioning]");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Fact]
+    public void WriteFile_InvalidPath_ThrowsEdsWriteException()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        var invalidPath = "/invalid/path/that/does/not/exist/test.eds";
+
+        // Act
+        var act = () => _writer.WriteFile(eds, invalidPath);
+
+        // Assert
+        act.Should().Throw<EdsWriteException>()
+            .WithMessage("*Failed to write EDS file*");
+    }
+
+    [Fact]
+    public void WriteFile_NonAsciiCharacters_PreservesCharacters()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.DeviceInfo.VendorName = "Müller GmbH & Söhne";
+        eds.DeviceInfo.ProductName = "Schütz-Relä Ä5";
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            // Act
+            _writer.WriteFile(eds, tempFile);
+
+            // Assert
+            var content = File.ReadAllText(tempFile, System.Text.Encoding.UTF8);
+            content.Should().Contain("Müller GmbH & Söhne");
+            content.Should().Contain("Schütz-Relä Ä5");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+}

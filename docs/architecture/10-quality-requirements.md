@@ -96,11 +96,13 @@ Quality is ensured through automated tests:
 | **Unit tests**           | `ValueConverterTests`            | Number formats, booleans, AccessType conversion   |
 | **Unit tests**           | `IniParserTests`                 | INI parsing, sections, comments                   |
 | **Unit tests**           | `EdsReaderTests`                 | EDS sections, ObjectDictionary                    |
+| **Unit tests**           | `EdsWriterTests`                 | EDS output and formatting                         |
 | **Unit tests**           | `DcfReaderTests`                 | DCF-specific sections                             |
 | **Unit tests**           | `DcfWriterTests`                 | DCF output and formatting                         |
 | **Unit tests**           | `ModelInitializationTests`       | Model defaults and instantiation                  |
 | **Unit tests**           | `ObjectDictionaryExtensionsTests`| Extension method behavior                         |
 | **Unit tests**           | `EdsParseExceptionTests`         | Exception constructors and properties             |
+| **Unit tests**           | `EdsWriteExceptionTests`         | Exception constructors and properties             |
 | **Unit tests**           | `DcfWriteExceptionTests`         | Exception constructors and properties             |
 | **Unit tests**           | `CpjReaderTests`                 | CPJ topology parsing, multi-network, node IDs     |
 | **Unit tests**           | `CpjWriterTests`                 | CPJ output, round-trip fidelity                   |
@@ -109,6 +111,7 @@ Quality is ensured through automated tests:
 | **Unit tests**           | `XddWriterTests`                 | XDD XML generation                                 |
 | **Unit tests**           | `XdcWriterTests`                 | XDC XML generation and NodeId validation           |
 | **Integration tests**    | `CanOpenFileTests`               | End-to-end: read file, verify model               |
+| **Integration tests**    | `RoundTripEdsTests`              | Read -> write -> read again                       |
 | **Integration tests**    | `RoundTripDcfTests`              | Read -> write -> read again                       |
 | **Integration tests**    | `CpjIntegrationTests`            | CPJ end-to-end via CanOpenFile facade              |
 | **Integration tests**    | `XddXdcIntegrationTests`         | XDD/XDC round-trip and cross-format conversion     |
