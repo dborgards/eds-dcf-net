@@ -25,6 +25,10 @@ public class EdsWriter
             var content = GenerateEdsContent(eds);
             File.WriteAllText(filePath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         }
+        catch (EdsWriteException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             throw new EdsWriteException($"Failed to write EDS file to {filePath}", ex);
@@ -47,45 +51,45 @@ public class EdsWriter
         var sb = new StringBuilder();
 
         // Write FileInfo section
-        WriteFileInfo(sb, eds.FileInfo);
+        WriteSection("FileInfo", () => WriteFileInfo(sb, eds.FileInfo));
 
         // Write DeviceInfo section
-        WriteDeviceInfo(sb, eds.DeviceInfo);
+        WriteSection("DeviceInfo", () => WriteDeviceInfo(sb, eds.DeviceInfo));
 
         // Write DummyUsage section if present
         if (eds.ObjectDictionary.DummyUsage.Count > 0)
         {
-            WriteDummyUsage(sb, eds.ObjectDictionary);
+            WriteSection("DummyUsage", () => WriteDummyUsage(sb, eds.ObjectDictionary));
         }
 
         // Write object lists
-        WriteObjectLists(sb, eds.ObjectDictionary);
+        WriteSection("ObjectLists", () => WriteObjectLists(sb, eds.ObjectDictionary));
 
         // Write all objects
-        WriteObjects(sb, eds.ObjectDictionary);
+        WriteSection("Objects", () => WriteObjects(sb, eds.ObjectDictionary));
 
         // Write SupportedModules if present
         if (eds.SupportedModules.Count > 0)
         {
-            WriteSupportedModules(sb, eds.SupportedModules);
+            WriteSection("SupportedModules", () => WriteSupportedModules(sb, eds.SupportedModules));
         }
 
         // Write DynamicChannels if present
         if (eds.DynamicChannels != null && eds.DynamicChannels.Segments.Count > 0)
         {
-            WriteDynamicChannels(sb, eds.DynamicChannels);
+            WriteSection("DynamicChannels", () => WriteDynamicChannels(sb, eds.DynamicChannels));
         }
 
         // Write Tools if present
         if (eds.Tools.Count > 0)
         {
-            WriteTools(sb, eds.Tools);
+            WriteSection("Tools", () => WriteTools(sb, eds.Tools));
         }
 
         // Write Comments section if present
         if (eds.Comments != null && eds.Comments.CommentLines.Count > 0)
         {
-            WriteComments(sb, eds.Comments);
+            WriteSection("Comments", () => WriteComments(sb, eds.Comments));
         }
 
         // Write additional sections
@@ -96,7 +100,7 @@ public class EdsWriter
                 continue;
             }
 
-            WriteAdditionalSection(sb, section.Key, section.Value);
+            WriteSection(section.Key, () => WriteAdditionalSection(sb, section.Key, section.Value));
         }
 
         return sb.ToString();
@@ -224,7 +228,8 @@ public class EdsWriter
 
         foreach (var objEntry in allObjects)
         {
-            WriteObject(sb, objEntry.Value);
+            var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", objEntry.Key);
+            WriteSection(sectionName, () => WriteObject(sb, objEntry.Value));
         }
     }
 
@@ -291,22 +296,28 @@ public class EdsWriter
         {
             foreach (var subObjEntry in obj.SubObjects.OrderBy(s => s.Key))
             {
-                WriteSubObject(sb, obj.Index, subObjEntry.Value);
+                var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", obj.Index, subObjEntry.Key);
+                WriteSection(sectionName, () => WriteSubObject(sb, obj.Index, subObjEntry.Value));
             }
         }
 
         // Write object links
         if (obj.ObjectLinks.Count > 0)
         {
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}ObjectLinks]", obj.Index));
-            WriteKeyValue(sb, "ObjectLinks", obj.ObjectLinks.Count.ToString(CultureInfo.InvariantCulture));
+            WriteSection(
+                string.Format(CultureInfo.InvariantCulture, "{0:X}ObjectLinks", obj.Index),
+                () =>
+                {
+                    sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}ObjectLinks]", obj.Index));
+                    WriteKeyValue(sb, "ObjectLinks", obj.ObjectLinks.Count.ToString(CultureInfo.InvariantCulture));
 
-            for (int i = 0; i < obj.ObjectLinks.Count; i++)
-            {
-                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(obj.ObjectLinks[i]));
-            }
+                    for (int i = 0; i < obj.ObjectLinks.Count; i++)
+                    {
+                        WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(obj.ObjectLinks[i]));
+                    }
 
-            sb.AppendLine();
+                    sb.AppendLine();
+                });
         }
     }
 
@@ -469,5 +480,26 @@ public class EdsWriter
         }
 
         return objDict.Objects.ContainsKey(index);
+    }
+
+    private static void WriteSection(string sectionName, Action writeAction)
+    {
+        try
+        {
+            writeAction();
+        }
+        catch (EdsWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new EdsWriteException(
+                $"Failed to write section [{sectionName}]",
+                ex)
+            {
+                SectionName = sectionName
+            };
+        }
     }
 }

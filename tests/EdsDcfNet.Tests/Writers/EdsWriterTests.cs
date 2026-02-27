@@ -295,6 +295,48 @@ public class EdsWriterTests
     }
 
     [Fact]
+    public void GenerateString_InvalidDeviceInfo_ThrowsEdsWriteExceptionWithSectionName()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.DeviceInfo = null!;
+
+        // Act
+        var act = () => _writer.GenerateString(eds);
+
+        // Assert
+        var ex = act.Should().Throw<EdsWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+        ex.Message.Should().Contain("DeviceInfo");
+    }
+
+    [Fact]
+    public void WriteFile_GenerationFailure_PreservesSectionName()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.DeviceInfo = null!;
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            // Act
+            var act = () => _writer.WriteFile(eds, tempFile);
+
+            // Assert
+            var ex = act.Should().Throw<EdsWriteException>().Which;
+            ex.SectionName.Should().Be("DeviceInfo");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Fact]
     public void WriteFile_NonAsciiCharacters_PreservesCharacters()
     {
         // Arrange
