@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using EdsDcfNet.Exceptions;
 
-#pragma warning disable CA1865, CA1866 // char overloads not available in netstandard2.0
-
 /// <summary>
 /// Low-level INI file parser for EDS/DCF files.
 /// Parses INI-style files with sections and key-value pairs.
@@ -138,13 +136,13 @@ public static class IniParser
             var line = rawLine.Trim();
 
             // Skip empty lines and comments
-            if (string.IsNullOrWhiteSpace(line) || line.StartsWith(";", StringComparison.Ordinal))
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith(';'))
                 continue;
 
             // Check for section header
-            if (line.StartsWith("[", StringComparison.Ordinal) && line.EndsWith("]", StringComparison.Ordinal))
+            if (line.StartsWith('[') && line.EndsWith(']'))
             {
-                currentSection = line.Substring(1, line.Length - 2).Trim();
+                currentSection = line[1..^1].Trim();
 
                 if (!sections.ContainsKey(currentSection))
                 {
@@ -163,9 +161,9 @@ public static class IniParser
                     throw new EdsParseException($"Key-value pair found outside of any section at line {lineNumber}", lineNumber);
                 }
 
-                var key = line.Substring(0, equalIndex).Trim();
+                var key = line[..equalIndex].Trim();
                 var value = equalIndex < line.Length - 1
-                    ? line.Substring(equalIndex + 1).Trim()
+                    ? line[(equalIndex + 1)..].Trim()
                     : string.Empty;
 
                 sections[currentSection][key] = value;
@@ -175,5 +173,3 @@ public static class IniParser
         return sections;
     }
 }
-
-#pragma warning restore CA1865, CA1866 // char overloads not available in netstandard2.0
