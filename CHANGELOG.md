@@ -95,6 +95,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Bug Fixes
 
+* restrict Polyfill IncludeAssets to compile/build/analyzers ([#85](https://github.com/dborgards/eds-dcf-net/issues/85)) ([03d362a](https://github.com/dborgards/eds-dcf-net/commit/03d362a3e8d2eecebad65e4780229570a7c9d374))
+
+## [1.6.1-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.6.0...v1.6.1-beta.1) (2026-02-28)
+
+### 🐛 Bug Fixes
+
 * restrict Polyfill IncludeAssets to compile/build/analyzers ([#85](https://github.com/dborgards/eds-dcf-net/issues/85)) ([4d625ff](https://github.com/dborgards/eds-dcf-net/commit/4d625fff07397f0e2a2a685b539858d01eabe336))
 
 ## [1.6.0](https://github.com/dborgards/eds-dcf-net/compare/v1.5.0...v1.6.0) (2026-02-28)
