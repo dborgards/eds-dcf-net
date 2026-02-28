@@ -84,6 +84,30 @@ public class XdcReaderTests
         act.Should().Throw<FileNotFoundException>();
     }
 
+    [Fact]
+    public async Task ReadFileAsync_ValidXdcFile_ParsesSuccessfully()
+    {
+        // Act
+        var result = await _reader.ReadFileAsync("Fixtures/minimal.xdc");
+
+        // Assert
+        result.Should().NotBeNull();
+        result.FileInfo.Should().NotBeNull();
+        result.DeviceInfo.Should().NotBeNull();
+        result.ObjectDictionary.Should().NotBeNull();
+        result.DeviceCommissioning.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task ReadFileAsync_NonExistentFile_ThrowsFileNotFoundException()
+    {
+        // Act
+        var act = () => _reader.ReadFileAsync("NonExistent.xdc");
+
+        // Assert
+        await act.Should().ThrowAsync<FileNotFoundException>();
+    }
+
     #endregion
 
     #region ReadString Tests

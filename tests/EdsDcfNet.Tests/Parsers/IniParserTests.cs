@@ -405,6 +405,59 @@ DataType=0x0005
         }
     }
 
+    [Fact]
+    public async Task ParseFileAsync_ValidFile_ParsesCorrectly()
+    {
+        // Arrange
+        var filePath = "Fixtures/sample_device.eds";
+
+        // Act
+        var result = await IniParser.ParseFileAsync(filePath);
+
+        // Assert
+        result.Should().NotBeEmpty();
+        result.Should().ContainKey("FileInfo");
+        result.Should().ContainKey("DeviceInfo");
+        result.Should().ContainKey("1000");
+    }
+
+    [Fact]
+    public async Task ParseFileAsync_NonExistentFile_ThrowsFileNotFoundException()
+    {
+        // Arrange
+        var filePath = "NonExistent.eds";
+
+        // Act
+        var act = () => IniParser.ParseFileAsync(filePath);
+
+        // Assert
+        await act.Should().ThrowAsync<FileNotFoundException>()
+            .WithMessage("*EDS/DCF file not found*");
+    }
+
+    [Fact]
+    public async Task ParseFileAsync_FileTooLarge_ThrowsEdsParseException()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "[Section1]\nKey1=Value1"); // 22 bytes > 10
+
+            // Act
+            var act = () => IniParser.ParseFileAsync(tempFile, maxInputSize: 10);
+
+            // Assert
+            await act.Should().ThrowAsync<EdsParseException>()
+                .WithMessage("*too large*");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     #endregion
 
     #region GetValue Tests

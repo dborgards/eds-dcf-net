@@ -83,6 +83,29 @@ public class XddReaderTests
         act.Should().Throw<FileNotFoundException>();
     }
 
+    [Fact]
+    public async Task ReadFileAsync_ValidXddFile_ParsesSuccessfully()
+    {
+        // Act
+        var result = await _reader.ReadFileAsync("Fixtures/sample_device.xdd");
+
+        // Assert
+        result.Should().NotBeNull();
+        result.FileInfo.Should().NotBeNull();
+        result.DeviceInfo.Should().NotBeNull();
+        result.ObjectDictionary.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task ReadFileAsync_NonExistentFile_ThrowsFileNotFoundException()
+    {
+        // Act
+        var act = () => _reader.ReadFileAsync("NonExistent.xdd");
+
+        // Assert
+        await act.Should().ThrowAsync<FileNotFoundException>();
+    }
+
     #endregion
 
     #region ReadString Tests
