@@ -3,6 +3,7 @@ name: Build and Test
 permissions:
   contents: read
   statuses: write
+  checks: write
 
 env:
   COVERAGE_MIN_PERCENT: "95.0"
@@ -14,9 +15,18 @@ on:
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
+  # Relay required check statuses for release commits (chore(release): ... [skip ci]).
+  # Those commits skip the push trigger, but the Semantic Release workflow already built
+  # and tested the code. Once that workflow finishes, this trigger fires and the
+  # relay-release-status job posts the required check runs for the release commit SHA.
+  workflow_run:
+    workflows: ["Semantic Release"]
+    types: [completed]
+    branches: [main, develop, alpha]
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run'
     runs-on: ubuntu-latest
 
     steps:
@@ -24,26 +34,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    # Release commits (chore(release): ...) are created by semantic-release after a
-    # successful Semantic Release workflow run that already built, tested, and verified
-    # coverage. Skip the redundant work but still post the required PR statuses so that
-    # release-branch PRs (e.g. develop → main) are not blocked.
-    - name: Detect release commit
-      id: release_check
-      shell: bash
-      run: |
-        sha="${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
-        msg=$(git show --no-patch --format='%s' "$sha")
-        author_email=$(git show --no-patch --format='%ae' "$sha")
-        if [[ "$msg" == chore\(release\):* && "$author_email" == "${{ vars.SEMANTIC_RELEASE_BOT_EMAIL }}" ]]; then
-          echo "Release commit by semantic-release-bot detected — skipping redundant build/test."
-          echo "is_release=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "is_release=false" >> "$GITHUB_OUTPUT"
-        fi
-
     - name: Setup .NET
-      if: steps.release_check.outputs.is_release != 'true'
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: |
@@ -51,21 +42,17 @@ jobs:
           10.0.x
 
     - name: Restore dependencies
-      if: steps.release_check.outputs.is_release != 'true'
       run: dotnet restore
 
     - name: Build
-      if: steps.release_check.outputs.is_release != 'true'
       env:
         CI: true
       run: dotnet build --configuration Release --no-restore
 
     - name: Test
-      if: steps.release_check.outputs.is_release != 'true'
       run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
 
     - name: Enforce coverage threshold
-      if: steps.release_check.outputs.is_release != 'true'
       id: coverage_gate
       shell: bash
       run: |
@@ -129,7 +116,7 @@ jobs:
         }
 
     - name: Upload coverage reports to Codecov
-      if: steps.release_check.outputs.is_release != 'true' && always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
+      if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -148,22 +135,16 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       run: |
-        if [[ "${{ steps.release_check.outputs.is_release }}" == "true" ]]; then
-          # Release commit: build and tests already verified by the Semantic Release workflow
+        outcome="${{ steps.coverage_gate.outcome }}"
+        if [[ "$outcome" == "success" ]]; then
           state="success"
-          description="Release commit — build verified by Semantic Release workflow"
+          description="Coverage ${{ steps.coverage_gate.outputs.coverage_percent }}% >= ${COVERAGE_MIN_PERCENT}%"
+        elif [[ "$outcome" == "failure" ]]; then
+          state="failure"
+          description="Coverage gate failed (< ${COVERAGE_MIN_PERCENT}%)"
         else
-          outcome="${{ steps.coverage_gate.outcome }}"
-          if [[ "$outcome" == "success" ]]; then
-            state="success"
-            description="Coverage ${{ steps.coverage_gate.outputs.coverage_percent }}% >= ${COVERAGE_MIN_PERCENT}%"
-          elif [[ "$outcome" == "failure" ]]; then
-            state="failure"
-            description="Coverage gate failed (< ${COVERAGE_MIN_PERCENT}%)"
-          else
-            echo "Coverage gate was skipped (build/test failed earlier); not posting status."
-            exit 0
-          fi
+          echo "Coverage gate was skipped (build/test failed earlier); not posting status."
+          exit 0
         fi
 
         gh api "repos/${{ github.repository }}/statuses/${COMMIT_SHA}" \
@@ -172,3 +153,60 @@ jobs:
           -f context="codecov/patch" \
           -f description="${description}" \
           -f target_url="https://app.codecov.io/github/${{ github.repository }}"
+
+  # Relays required check statuses for release commits that carry [skip ci].
+  # The Semantic Release workflow already built and tested the code; this job simply
+  # forwards its outcome to the release commit SHA so PR required checks are satisfied.
+  relay-release-status:
+    if: github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Post build check run for release commit
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        sha="${{ github.event.workflow_run.head_sha }}"
+        conclusion="${{ github.event.workflow_run.conclusion }}"
+
+        if [[ "$conclusion" == "success" ]]; then
+          check_conclusion="success"
+          summary="Build and tests passed in Semantic Release workflow."
+        else
+          check_conclusion="failure"
+          summary="Semantic Release workflow did not succeed (conclusion: ${conclusion})."
+        fi
+
+        gh api repos/${{ github.repository }}/check-runs \
+          --method POST \
+          -H "Accept: application/vnd.github+json" \
+          -f name="build" \
+          -f head_sha="$sha" \
+          -f status="completed" \
+          -f conclusion="$check_conclusion" \
+          -f "output[title]=Build (relayed from Semantic Release)" \
+          -f "output[summary]=$summary"
+
+    - name: Post codecov/patch status for release commit
+      if: always()
+      continue-on-error: true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        sha="${{ github.event.workflow_run.head_sha }}"
+        conclusion="${{ github.event.workflow_run.conclusion }}"
+
+        if [[ "$conclusion" == "success" ]]; then
+          state="success"
+          description="Release commit — build verified by Semantic Release workflow"
+        else
+          state="failure"
+          description="Semantic Release workflow did not succeed"
+        fi
+
+        gh api "repos/${{ github.repository }}/statuses/${sha}" \
+          --method POST \
+          -f state="${state}" \
+          -f context="codecov/patch" \
+          -f description="${description}" \
+          -f target_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}"
