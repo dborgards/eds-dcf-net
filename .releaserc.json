@@ -4,10 +4,6 @@
     {
       "name": "develop",
       "prerelease": "beta"
-    },
-    {
-      "name": "alpha",
-      "prerelease": true
     }
   ],
   "plugins": [
@@ -70,8 +66,8 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "if echo '${nextRelease.version}' | grep -q -- '-'; then git checkout HEAD -- CHANGELOG.md; fi && sed -i 's|<Version>.*</Version>|<Version>${nextRelease.version}</Version>|g' src/EdsDcfNet/EdsDcfNet.csproj",
-        "publishCmd": "dotnet pack src/EdsDcfNet/EdsDcfNet.csproj --configuration Release --no-restore --output ./packages /p:PackageVersion=${nextRelease.version} && dotnet nuget push './packages/*.nupkg' --api-key $NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate"
+        "prepareCmd": "bash ./tools/semantic-release-prepare.sh ${nextRelease.version}",
+        "publishCmd": "bash ./tools/semantic-release-publish.sh ${nextRelease.version}"
       }
     ],
     [

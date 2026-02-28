@@ -22,7 +22,7 @@ on:
   workflow_run:
     workflows: ["Semantic Release"]
     types: [completed]
-    branches: [main, develop, alpha]
+    branches: [main, develop]
 
 jobs:
   build:
