@@ -14,7 +14,7 @@ CiA DS 306 (EDS, DCF, CPJ) and CiA 311 (XDD, XDC).
 
 ✨ **Simple API** - Intuitive, fluent API style for quick integration
 
-📖 **Read EDS** - Complete parsing of Electronic Data Sheets
+📖 **Read & Write EDS** - Parse and generate Electronic Data Sheets
 
 📝 **Read & Write DCF** - Process and create Device Configuration Files
 
@@ -44,6 +44,16 @@ var eds = CanOpenFile.ReadEds("device.eds");
 Console.WriteLine($"Device: {eds.DeviceInfo.ProductName}");
 Console.WriteLine($"Vendor: {eds.DeviceInfo.VendorName}");
 Console.WriteLine($"Product Number: 0x{eds.DeviceInfo.ProductNumber:X}");
+```
+
+### Writing an EDS File
+
+```csharp
+using EdsDcfNet;
+
+var eds = CanOpenFile.ReadEds("device.eds");
+eds.FileInfo.FileRevision++;
+CanOpenFile.WriteEds(eds, "device_updated.eds");
 ```
 
 ### Reading an XDD File (CiA 311 XML)
@@ -184,6 +194,10 @@ var tpdos = dcf.ObjectDictionary.GetPdoCommunicationParameters(transmit: true);
 ElectronicDataSheet ReadEds(string filePath)
 ElectronicDataSheet ReadEdsFromString(string content)
 
+// Write EDS
+void WriteEds(ElectronicDataSheet eds, string filePath)
+string WriteEdsToString(ElectronicDataSheet eds)
+
 // Read DCF
 DeviceConfigurationFile ReadDcf(string filePath)
 DeviceConfigurationFile ReadDcfFromString(string content)
@@ -223,7 +237,7 @@ DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
 
 ## Supported Features
 
-- ✅ Complete EDS parsing
+- ✅ Complete EDS parsing and writing
 - ✅ Complete DCF parsing and writing
 - ✅ CPJ nodelist project parsing and writing (CiA 306-3 network topologies)
 - ✅ XDD parsing and writing (CiA 311 XML device description)
@@ -250,7 +264,7 @@ eds-dcf-net/
 │   └── EdsDcfNet/              # Main library
 │       ├── Models/             # Data models
 │       ├── Parsers/            # EDS/DCF/CPJ/XDD/XDC parsers
-│       ├── Writers/            # DCF/CPJ/XDD/XDC writers
+│       ├── Writers/            # EDS/DCF/CPJ/XDD/XDC writers
 │       ├── Utilities/          # Helper classes
 │       ├── Exceptions/         # Custom exceptions
 │       └── Extensions/         # Extension methods

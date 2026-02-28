@@ -24,7 +24,7 @@ graph TD
     B["<b>Parser Layer</b><br/>EdsReader / DcfReader / CpjReader / XddReader / XdcReader"] --> C
     C["<b>INI Layer</b><br/>IniParser"]
     B --> G["<b>XML Layer</b><br/>XDocument / XElement"]
-    D["<b>Writer Layer</b><br/>DcfWriter / CpjWriter / XddWriter / XdcWriter"]
+    D["<b>Writer Layer</b><br/>EdsWriter / DcfWriter / CpjWriter / XddWriter / XdcWriter"]
     D --> G
     B --> E["<b>Utilities</b><br/>ValueConverter"]
     D --> E
@@ -49,7 +49,7 @@ graph TD
 Processing follows a linear pipeline:
 
 ```
-EDS/DCF file --> IniParser --> EdsReader/DcfReader --> Models --> DcfWriter --> DCF file
+EDS/DCF file --> IniParser --> EdsReader/DcfReader --> Models --> EdsWriter/DcfWriter --> EDS/DCF file
 CPJ file -----> IniParser --> CpjReader ------------> Models --> CpjWriter --> CPJ file
 XDD/XDC file --> XDocument -> XddReader/XdcReader -> Models -> XddWriter/XdcWriter -> XDD/XDC file
 ```

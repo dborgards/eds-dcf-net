@@ -132,7 +132,7 @@ real-world files often contain extended characters from vendor/device names.
 
 ### Decision
 
-All writers (`DcfWriter`, `CpjWriter`, `XddWriter`, `XdcWriter`) use **UTF-8 without BOM** when writing files.
+All writers (`EdsWriter`, `DcfWriter`, `CpjWriter`, `XddWriter`, `XdcWriter`) use **UTF-8 without BOM** when writing files.
 
 ### Rationale
 

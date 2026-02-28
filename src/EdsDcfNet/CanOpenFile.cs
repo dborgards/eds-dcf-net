@@ -40,6 +40,35 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes an Electronic Data Sheet (EDS) to disk.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="filePath">Path where the EDS file should be written</param>
+    /// <example>
+    /// <code>
+    /// var eds = CanOpenFile.ReadEds("template.eds");
+    /// eds.FileInfo.FileRevision++;
+    /// CanOpenFile.WriteEds(eds, "updated.eds");
+    /// </code>
+    /// </example>
+    public static void WriteEds(ElectronicDataSheet eds, string filePath)
+    {
+        var writer = new EdsWriter();
+        writer.WriteFile(eds, filePath);
+    }
+
+    /// <summary>
+    /// Generates an EDS file content as string.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to convert</param>
+    /// <returns>EDS content as string</returns>
+    public static string WriteEdsToString(ElectronicDataSheet eds)
+    {
+        var writer = new EdsWriter();
+        return writer.GenerateString(eds);
+    }
+
+    /// <summary>
     /// Reads a Device Configuration File (DCF).
     /// </summary>
     /// <param name="filePath">Path to the DCF file</param>

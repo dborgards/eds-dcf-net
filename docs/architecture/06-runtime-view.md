@@ -44,7 +44,32 @@ sequenceDiagram
     CF-->>App: DeviceConfigurationFile
 ```
 
-## 6.3 Writing a DCF File
+## 6.3 Writing an EDS File
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant CF as CanOpenFile
+    participant EW as EdsWriter
+    participant VC as ValueConverter
+
+    App->>CF: WriteEds(eds, filePath)
+    CF->>EW: new EdsWriter()
+    CF->>EW: WriteFile(eds, filePath)
+    EW->>EW: GenerateEdsContent(eds)
+
+    loop For each object/sub-object
+        EW->>VC: FormatInteger(), FormatBoolean(), AccessTypeToString()
+        VC-->>EW: formatted text
+    end
+
+    EW->>EW: Write known sections + AdditionalSections
+    EW->>EW: File.WriteAllText(... UTF-8 without BOM)
+    EW-->>CF: void
+    CF-->>App: void
+```
+
+## 6.4 Writing a DCF File
 
 ```mermaid
 sequenceDiagram
@@ -69,7 +94,7 @@ sequenceDiagram
     CF-->>App: void
 ```
 
-## 6.4 Reading and Writing CPJ Files
+## 6.5 Reading and Writing CPJ Files
 
 ```mermaid
 sequenceDiagram
@@ -96,7 +121,7 @@ sequenceDiagram
     CF-->>App: void
 ```
 
-## 6.5 Reading an XDD File
+## 6.6 Reading an XDD File
 
 ```mermaid
 sequenceDiagram
@@ -115,7 +140,7 @@ sequenceDiagram
     CF-->>App: ElectronicDataSheet
 ```
 
-## 6.6 Reading and Writing XDC Files
+## 6.7 Reading and Writing XDC Files
 
 ```mermaid
 sequenceDiagram
@@ -140,7 +165,7 @@ sequenceDiagram
     CF-->>App: void
 ```
 
-## 6.7 Parse Error Handling
+## 6.8 Parse Error Handling
 
 ```mermaid
 sequenceDiagram

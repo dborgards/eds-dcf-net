@@ -7,11 +7,11 @@ graph LR
     subgraph EdsDcfNet ["EdsDcfNet (NuGet Package)"]
         API["CanOpenFile<br/><i>Static Facade</i>"]
         Parsers["Parsers<br/><i>IniParser, CanOpenReaderBase,<br/>EdsReader, DcfReader, CpjReader,<br/>XddReader, XdcReader</i>"]
-        Writers["Writers<br/><i>DcfWriter, CpjWriter, XddWriter, XdcWriter</i>"]
+        Writers["Writers<br/><i>EdsWriter, DcfWriter, CpjWriter,<br/>XddWriter, XdcWriter</i>"]
         Models["Models<br/><i>Domain Models</i>"]
         Utilities["Utilities<br/><i>ValueConverter</i>"]
         Extensions["Extensions<br/><i>ObjectDictionaryExtensions</i>"]
-        Exceptions["Exceptions<br/><i>EdsParseException, DcfWriteException</i>"]
+        Exceptions["Exceptions<br/><i>EdsParseException, EdsWriteException,<br/>DcfWriteException</i>"]
     end
 
     EDS["EDS File"] --> API
@@ -19,6 +19,7 @@ graph LR
     CPJ_In["CPJ File"] --> API
     XDD_In["XDD File"] --> API
     XDC_In["XDC File"] --> API
+    API --> EDS_Out["EDS File"]
     API --> DCF_Out["DCF File"]
     API --> CPJ_Out["CPJ File"]
     API --> XDD_Out["XDD File"]
@@ -46,7 +47,7 @@ graph LR
 |-----------------------|-----------------------------------------------------------------------------------|
 | `CanOpenFile`         | Public API facade; coordinates parsers and writers                                |
 | `Parsers/`            | Reading and interpreting EDS/DCF/CPJ (INI) and XDD/XDC (XML) files               |
-| `Writers/`            | Serializing models back to DCF/CPJ (INI) and XDD/XDC (XML)                        |
+| `Writers/`            | Serializing models back to EDS/DCF/CPJ (INI) and XDD/XDC (XML)                    |
 | `Models/`             | Domain models representing the structure of CANopen description/configuration data |
 | `Utilities/`          | Helper functions for type conversion (numbers, booleans, formulas)                |
 | `Extensions/`         | Extension methods for convenient ObjectDictionary access                           |
@@ -123,6 +124,11 @@ classDiagram
         +GenerateString(DeviceConfigurationFile dcf) string
     }
 
+    class EdsWriter {
+        +WriteFile(ElectronicDataSheet eds, string filePath) void
+        +GenerateString(ElectronicDataSheet eds) string
+    }
+
     class CpjWriter {
         +WriteFile(NodelistProject cpj, string filePath) void
         +GenerateString(NodelistProject cpj) string
@@ -140,6 +146,8 @@ classDiagram
 
     XddWriter <|-- XdcWriter
 ```
+
+**EdsWriter** serializes `ElectronicDataSheet` to INI-based EDS and preserves unknown INI sections through `AdditionalSections` (except object-link sections for known objects, which are regenerated from typed model data).
 
 **DcfWriter** serializes `DeviceConfigurationFile` to INI-based DCF and preserves unknown INI sections through `AdditionalSections` (except object-link sections for known objects, which are regenerated from typed model data).
 
@@ -241,10 +249,15 @@ classDiagram
 ```mermaid
 classDiagram
     Exception <|-- EdsParseException
+    Exception <|-- EdsWriteException
     Exception <|-- DcfWriteException
 
     class EdsParseException {
         +int? LineNumber
+        +string? SectionName
+    }
+
+    class EdsWriteException {
         +string? SectionName
     }
 
@@ -254,4 +267,5 @@ classDiagram
 ```
 
 `EdsParseException` is used for EDS/DCF/XDD/XDC parsing errors.  
+`EdsWriteException` is used for EDS write/generation failures.  
 `DcfWriteException` is used for DCF write/generation failures.
