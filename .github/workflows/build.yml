@@ -157,16 +157,45 @@ jobs:
   # Relays required check statuses for release commits that carry [skip ci].
   # The Semantic Release workflow already built and tested the code; this job simply
   # forwards its outcome to the release commit SHA so PR required checks are satisfied.
+  #
+  # Why resolve the branch HEAD instead of using head_sha:
+  # github.event.workflow_run.head_sha is the commit that *triggered* the Semantic
+  # Release workflow. During that run, semantic-release creates and pushes a new
+  # "chore(release): … [skip ci]" commit. By the time workflow_run fires, the branch
+  # HEAD is that new release commit — which is the SHA that actually needs the required
+  # checks. If the branch HEAD equals head_sha, semantic-release did not publish a
+  # release this run and there is nothing to relay.
   relay-release-status:
     if: github.event_name == 'workflow_run'
     runs-on: ubuntu-latest
 
     steps:
-    - name: Post build check run for release commit
+    - name: Resolve release commit SHA
+      id: resolve_sha
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        sha="${{ github.event.workflow_run.head_sha }}"
+        branch="${{ github.event.workflow_run.head_branch }}"
+        trigger_sha="${{ github.event.workflow_run.head_sha }}"
+
+        # Fetch the current HEAD of the branch — this will be the [skip ci] release
+        # commit if semantic-release published a new version during the workflow run.
+        current_sha=$(gh api "repos/${{ github.repository }}/git/refs/heads/${branch}" --jq '.object.sha')
+
+        if [[ "$current_sha" == "$trigger_sha" ]]; then
+          echo "Branch HEAD unchanged — semantic-release did not publish a release. Nothing to relay."
+          echo "release_sha=" >> "$GITHUB_OUTPUT"
+        else
+          echo "Release commit detected: ${current_sha} (trigger was ${trigger_sha})"
+          echo "release_sha=${current_sha}" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Post build check run for release commit
+      if: steps.resolve_sha.outputs.release_sha != ''
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        sha="${{ steps.resolve_sha.outputs.release_sha }}"
         conclusion="${{ github.event.workflow_run.conclusion }}"
 
         if [[ "$conclusion" == "success" ]]; then
@@ -188,12 +217,12 @@ jobs:
           -f "output[summary]=$summary"
 
     - name: Post codecov/patch status for release commit
-      if: always()
+      if: always() && steps.resolve_sha.outputs.release_sha != ''
       continue-on-error: true
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        sha="${{ github.event.workflow_run.head_sha }}"
+        sha="${{ steps.resolve_sha.outputs.release_sha }}"
         conclusion="${{ github.event.workflow_run.conclusion }}"
 
         if [[ "$conclusion" == "success" ]]; then
