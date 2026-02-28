@@ -24,7 +24,25 @@ jobs:
       with:
         fetch-depth: 0
 
+    # Release commits (chore(release): ...) are created by semantic-release after a
+    # successful Semantic Release workflow run that already built, tested, and verified
+    # coverage. Skip the redundant work but still post the required PR statuses so that
+    # release-branch PRs (e.g. develop → main) are not blocked.
+    - name: Detect release commit
+      id: release_check
+      shell: bash
+      run: |
+        sha="${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+        msg=$(git show --no-patch --format='%s' "$sha")
+        if [[ "$msg" == chore\(release\):* ]]; then
+          echo "Release commit detected — skipping redundant build/test."
+          echo "is_release=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "is_release=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Setup .NET
+      if: steps.release_check.outputs.is_release != 'true'
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: |
@@ -32,17 +50,21 @@ jobs:
           10.0.x
 
     - name: Restore dependencies
+      if: steps.release_check.outputs.is_release != 'true'
       run: dotnet restore
 
     - name: Build
+      if: steps.release_check.outputs.is_release != 'true'
       env:
         CI: true
       run: dotnet build --configuration Release --no-restore
 
     - name: Test
+      if: steps.release_check.outputs.is_release != 'true'
       run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
 
     - name: Enforce coverage threshold
+      if: steps.release_check.outputs.is_release != 'true'
       id: coverage_gate
       shell: bash
       run: |
@@ -106,7 +128,7 @@ jobs:
         }
 
     - name: Upload coverage reports to Codecov
-      if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
+      if: steps.release_check.outputs.is_release != 'true' && always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -125,16 +147,22 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       run: |
-        outcome="${{ steps.coverage_gate.outcome }}"
-        if [[ "$outcome" == "success" ]]; then
+        if [[ "${{ steps.release_check.outputs.is_release }}" == "true" ]]; then
+          # Release commit: build and tests already verified by the Semantic Release workflow
           state="success"
-          description="Coverage ${{ steps.coverage_gate.outputs.coverage_percent }}% >= ${COVERAGE_MIN_PERCENT}%"
-        elif [[ "$outcome" == "failure" ]]; then
-          state="failure"
-          description="Coverage gate failed (< ${COVERAGE_MIN_PERCENT}%)"
+          description="Release commit — build verified by Semantic Release workflow"
         else
-          echo "Coverage gate was skipped (build/test failed earlier); not posting status."
-          exit 0
+          outcome="${{ steps.coverage_gate.outcome }}"
+          if [[ "$outcome" == "success" ]]; then
+            state="success"
+            description="Coverage ${{ steps.coverage_gate.outputs.coverage_percent }}% >= ${COVERAGE_MIN_PERCENT}%"
+          elif [[ "$outcome" == "failure" ]]; then
+            state="failure"
+            description="Coverage gate failed (< ${COVERAGE_MIN_PERCENT}%)"
+          else
+            echo "Coverage gate was skipped (build/test failed earlier); not posting status."
+            exit 0
+          fi
         fi
 
         gh api "repos/${{ github.repository }}/statuses/${COMMIT_SHA}" \
