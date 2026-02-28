@@ -93,7 +93,7 @@ public class XdcReader
 
             // Only look in the CommunicationNetwork profile body
             var xsiType = XddReader.GetXsiType(profileBody);
-            if (xsiType.IndexOf("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase) < 0)
+            if (!xsiType.Contains("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase))
                 continue;
 
             var networkMgmt = profileBody.Elements()
