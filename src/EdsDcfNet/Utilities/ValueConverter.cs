@@ -4,9 +4,6 @@ using System.Globalization;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 
-#pragma warning disable CA1845, CA1865, CA1866 // span-based and char overloads not available in netstandard2.0
-#pragma warning disable CA2249 // string.Contains(char) not available in netstandard2.0; IndexOf(char) >= 0 is the correct alternative
-
 /// <summary>
 /// Utility class for converting string values from EDS/DCF files to typed values.
 /// </summary>
@@ -44,7 +41,7 @@ public static class ValueConverter
             if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ||
                 value.StartsWith("0X", StringComparison.OrdinalIgnoreCase))
             {
-                return Convert.ToUInt32(value.Substring(2), 16);
+                return Convert.ToUInt32(value[2..], 16);
             }
 
             // Octal (leading 0, but not 0x)
@@ -92,7 +89,7 @@ public static class ValueConverter
             // Hexadecimal
             if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             {
-                return Convert.ToByte(value.Substring(2), 16);
+                return Convert.ToByte(value[2..], 16);
             }
 
             // Octal
@@ -125,7 +122,7 @@ public static class ValueConverter
             // Hexadecimal
             if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             {
-                return Convert.ToUInt16(value.Substring(2), 16);
+                return Convert.ToUInt16(value[2..], 16);
             }
 
             // Octal
@@ -207,12 +204,12 @@ public static class ValueConverter
             return nodeId;
 
         const string token = "$NODEID";
-        var suffix = formula.Substring(token.Length).Trim();
+        var suffix = formula[token.Length..].Trim();
 
         if (suffix[0] == '+' || suffix[0] == '-')
         {
-            var rightSide = suffix.Substring(1).Trim();
-            if (string.IsNullOrEmpty(rightSide) || rightSide.IndexOf('+') >= 0 || rightSide.IndexOf('-') >= 0)
+            var rightSide = suffix[1..].Trim();
+            if (string.IsNullOrEmpty(rightSide) || rightSide.Contains('+') || rightSide.Contains('-'))
             {
                 throw new EdsParseException(
                     $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
@@ -246,5 +243,3 @@ public static class ValueConverter
             $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
     }
 }
-
-#pragma warning restore CA1845, CA1865, CA1866, CA2249 // span-based and char overloads not available in netstandard2.0
