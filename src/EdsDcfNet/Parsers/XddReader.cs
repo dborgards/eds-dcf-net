@@ -39,7 +39,7 @@ public class XddReader
             throw new FileNotFoundException($"XDD file not found: {filePath}", filePath);
 
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD");
-        var content = File.ReadAllText(filePath, Encoding.UTF8);
+        var content = File.ReadAllText(filePath);
         return ReadString(content);
     }
 
