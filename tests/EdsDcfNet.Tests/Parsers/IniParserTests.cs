@@ -181,6 +181,26 @@ Key1=Value=With=Equals
     }
 
     [Fact]
+    public void ParseString_LineWithoutEqualSign_IsIgnored()
+    {
+        // Arrange
+        var content = @"
+LineWithoutEqual
+[Section1]
+AnotherInvalidLine
+Key1=Value1
+";
+
+        // Act
+        var result = IniParser.ParseString(content);
+
+        // Assert
+        result.Should().ContainKey("Section1");
+        result["Section1"].Should().ContainSingle();
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
+    [Fact]
     public void ParseString_HexadecimalValues_PreservesFormat()
     {
         // Arrange
