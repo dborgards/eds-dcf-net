@@ -6,6 +6,7 @@ using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Writer for CiA 311 XDD (XML Device Description) files.
@@ -20,7 +21,23 @@ public class XddWriter
     public void WriteFile(ElectronicDataSheet eds, string filePath)
     {
         var content = GenerateString(eds);
-        File.WriteAllText(filePath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+    }
+
+    /// <summary>
+    /// Writes an ElectronicDataSheet as an XDD file to the specified path asynchronously.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="filePath">Path where the XDD file should be written</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    public async Task WriteFileAsync(
+        ElectronicDataSheet eds,
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var content = GenerateString(eds);
+        await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

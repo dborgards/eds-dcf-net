@@ -83,6 +83,54 @@ public class XddReaderTests
         act.Should().Throw<FileNotFoundException>();
     }
 
+    [Fact]
+    public async Task ReadFileAsync_ValidXddFile_ParsesSuccessfully()
+    {
+        // Act
+        var result = await _reader.ReadFileAsync("Fixtures/sample_device.xdd");
+
+        // Assert
+        result.Should().NotBeNull();
+        result.FileInfo.Should().NotBeNull();
+        result.DeviceInfo.Should().NotBeNull();
+        result.ObjectDictionary.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task ReadFileAsync_Utf16EncodedXdd_ParsesSuccessfully()
+    {
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, MinimalXdd, System.Text.Encoding.Unicode);
+
+            var syncResult = _reader.ReadFile(tempFile);
+            var asyncResult = await _reader.ReadFileAsync(tempFile);
+
+            asyncResult.FileInfo.FileName.Should().Be(syncResult.FileInfo.FileName);
+            asyncResult.DeviceInfo.VendorName.Should().Be("Test Vendor");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ReadFileAsync_NonExistentFile_ThrowsFileNotFoundException()
+    {
+        const string filePath = "NonExistent.xdd";
+
+        // Act
+        var act = () => _reader.ReadFileAsync(filePath);
+
+        // Assert
+        await act.Should().ThrowAsync<FileNotFoundException>()
+            .Where(ex => ex.FileName == filePath);
+    }
+
     #endregion
 
     #region ReadString Tests

@@ -111,6 +111,7 @@ Quality is ensured through automated tests:
 | **Unit tests**           | `XddWriterTests`                 | XDD XML generation                                 |
 | **Unit tests**           | `XdcWriterTests`                 | XDC XML generation and NodeId validation           |
 | **Integration tests**    | `CanOpenFileTests`               | End-to-end: read file, verify model               |
+| **Integration tests**    | `CanOpenFileAsyncTests`          | End-to-end async I/O with cancellation token paths |
 | **Integration tests**    | `RoundTripEdsTests`              | Read -> write -> read again                       |
 | **Integration tests**    | `RoundTripDcfTests`              | Read -> write -> read again                       |
 | **Integration tests**    | `CpjIntegrationTests`            | CPJ end-to-end via CanOpenFile facade              |

@@ -111,6 +111,15 @@ Tests for the `CanOpenFile` API:
 - Round-trip tests (EDS → DCF → String → DCF)
 - Data preservation through conversions
 
+#### Integration/CanOpenFileAsyncTests.cs
+Tests for async `CanOpenFile` file I/O APIs:
+- ReadEdsAsync / WriteEdsAsync
+- ReadDcfAsync / WriteDcfAsync
+- ReadCpjAsync / WriteCpjAsync
+- ReadXddAsync / WriteXddAsync
+- ReadXdcAsync / WriteXdcAsync
+- Cancellation token handling (`OperationCanceledException`)
+
 #### Integration/RoundTripEdsTests.cs
 Round-trip tests for EDS:
 - Read EDS fixture -> write EDS string -> read back

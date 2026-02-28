@@ -9,7 +9,7 @@ graph LR
         Parsers["Parsers<br/><i>IniParser, CanOpenReaderBase,<br/>EdsReader, DcfReader, CpjReader,<br/>XddReader, XdcReader</i>"]
         Writers["Writers<br/><i>EdsWriter, DcfWriter, CpjWriter,<br/>XddWriter, XdcWriter</i>"]
         Models["Models<br/><i>Domain Models</i>"]
-        Utilities["Utilities<br/><i>ValueConverter</i>"]
+        Utilities["Utilities<br/><i>ValueConverter, TextFileIo</i>"]
         Extensions["Extensions<br/><i>ObjectDictionaryExtensions</i>"]
         Exceptions["Exceptions<br/><i>EdsParseException, EdsWriteException,<br/>DcfWriteException</i>"]
     end
@@ -49,7 +49,7 @@ graph LR
 | `Parsers/`            | Reading and interpreting EDS/DCF/CPJ (INI) and XDD/XDC (XML) files               |
 | `Writers/`            | Serializing models back to EDS/DCF/CPJ (INI) and XDD/XDC (XML)                    |
 | `Models/`             | Domain models representing the structure of CANopen description/configuration data |
-| `Utilities/`          | Helper functions for type conversion (numbers, booleans, formulas)                |
+| `Utilities/`          | Helper functions for type conversion and shared UTF-8 file I/O (`ValueConverter`, `TextFileIo`) |
 | `Extensions/`         | Extension methods for convenient ObjectDictionary access                           |
 | `Exceptions/`         | Specific exception types for parse and write errors                                |
 
@@ -61,6 +61,7 @@ graph LR
 classDiagram
     class IniParser {
         +ParseFile(string filePath) Dictionary~string, Dictionary~string, string~~$
+        +ParseFileAsync(string filePath, CancellationToken ct) Task$
         +ParseString(string content) Dictionary~string, Dictionary~string, string~~$
         +GetValue(sections, sectionName, key, defaultValue) string$
         +HasSection(sections, sectionName) bool$
@@ -69,6 +70,7 @@ classDiagram
 
     class CanOpenReaderBase {
         #ParseSectionsFromFile(string filePath) Dictionary~string, Dictionary~string, string~~
+        #ParseSectionsFromFileAsync(string filePath, CancellationToken ct) Task
         #ParseSectionsFromString(string content) Dictionary~string, Dictionary~string, string~~
         #ParseObjectDictionary(sections) ObjectDictionary
         #ParseObject(sections, ushort index) CanOpenObject?
@@ -77,26 +79,31 @@ classDiagram
 
     class EdsReader {
         +ReadFile(string filePath) ElectronicDataSheet
+        +ReadFileAsync(string filePath, CancellationToken ct) Task
         +ReadString(string content) ElectronicDataSheet
     }
 
     class DcfReader {
         +ReadFile(string filePath) DeviceConfigurationFile
+        +ReadFileAsync(string filePath, CancellationToken ct) Task
         +ReadString(string content) DeviceConfigurationFile
     }
 
     class CpjReader {
         +ReadFile(string filePath) NodelistProject
+        +ReadFileAsync(string filePath, CancellationToken ct) Task
         +ReadString(string content) NodelistProject
     }
 
     class XddReader {
         +ReadFile(string filePath) ElectronicDataSheet
+        +ReadFileAsync(string filePath, CancellationToken ct) Task
         +ReadString(string content) ElectronicDataSheet
     }
 
     class XdcReader {
         +ReadFile(string filePath) DeviceConfigurationFile
+        +ReadFileAsync(string filePath, CancellationToken ct) Task
         +ReadString(string content) DeviceConfigurationFile
     }
 
@@ -121,26 +128,31 @@ classDiagram
 classDiagram
     class DcfWriter {
         +WriteFile(DeviceConfigurationFile dcf, string filePath) void
+        +WriteFileAsync(DeviceConfigurationFile dcf, string filePath, CancellationToken ct) Task
         +GenerateString(DeviceConfigurationFile dcf) string
     }
 
     class EdsWriter {
         +WriteFile(ElectronicDataSheet eds, string filePath) void
+        +WriteFileAsync(ElectronicDataSheet eds, string filePath, CancellationToken ct) Task
         +GenerateString(ElectronicDataSheet eds) string
     }
 
     class CpjWriter {
         +WriteFile(NodelistProject cpj, string filePath) void
+        +WriteFileAsync(NodelistProject cpj, string filePath, CancellationToken ct) Task
         +GenerateString(NodelistProject cpj) string
     }
 
     class XddWriter {
         +WriteFile(ElectronicDataSheet eds, string filePath) void
+        +WriteFileAsync(ElectronicDataSheet eds, string filePath, CancellationToken ct) Task
         +GenerateString(ElectronicDataSheet eds) string
     }
 
     class XdcWriter {
         +WriteFile(DeviceConfigurationFile dcf, string filePath) void
+        +WriteFileAsync(DeviceConfigurationFile dcf, string filePath, CancellationToken ct) Task
         +GenerateString(DeviceConfigurationFile dcf) string
     }
 
@@ -226,6 +238,7 @@ classDiagram
 ```
 
 `ValueConverter` encapsulates number parsing (decimal/hex/octal), `$NODEID` formula evaluation, and AccessType conversions.
+`TextFileIo` centralizes asynchronous UTF-8 file access with cancellation support and consistent no-BOM output handling.
 
 ### 5.2.5 Extensions
 

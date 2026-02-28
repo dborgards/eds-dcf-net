@@ -77,15 +77,25 @@ An **example console application** (`examples/EdsDcfNet.Examples/`) demonstrates
 
 ```
 ReadEds(filePath) / ReadEdsFromString(content) → ElectronicDataSheet
+ReadEdsAsync(filePath, cancellationToken) → Task<ElectronicDataSheet>
 WriteEds(eds, filePath) / WriteEdsToString(eds) → EDS output
+WriteEdsAsync(eds, filePath, cancellationToken) → Task
 ReadDcf(filePath) / ReadDcfFromString(content) → DeviceConfigurationFile
+ReadDcfAsync(filePath, cancellationToken) → Task<DeviceConfigurationFile>
 WriteDcf(dcf, filePath) / WriteDcfToString(dcf) → DCF output
+WriteDcfAsync(dcf, filePath, cancellationToken) → Task
 ReadCpj(filePath) / ReadCpjFromString(content) → NodelistProject
+ReadCpjAsync(filePath, cancellationToken) → Task<NodelistProject>
 WriteCpj(cpj, filePath) / WriteCpjToString(cpj) → CPJ output
+WriteCpjAsync(cpj, filePath, cancellationToken) → Task
 ReadXdd(filePath) / ReadXddFromString(content) → ElectronicDataSheet
+ReadXddAsync(filePath, cancellationToken) → Task<ElectronicDataSheet>
 WriteXdd(xdd, filePath) / WriteXddToString(xdd) → XDD output
+WriteXddAsync(xdd, filePath, cancellationToken) → Task
 ReadXdc(filePath) / ReadXdcFromString(content) → DeviceConfigurationFile
+ReadXdcAsync(filePath, cancellationToken) → Task<DeviceConfigurationFile>
 WriteXdc(xdc, filePath) / WriteXdcToString(xdc) → XDC output
+WriteXdcAsync(xdc, filePath, cancellationToken) → Task
 EdsToDcf(eds, nodeId, baudrate, nodeName) → DeviceConfigurationFile
 ```
 
@@ -142,7 +152,7 @@ EdsToDcf(eds, nodeId, baudrate, nodeName) → DeviceConfigurationFile
 |---|---|
 | **Version control** | Git |
 | **Commit convention** | Conventional Commits |
-| **Branching strategy** | `main` (stable) · `develop` (beta) · `alpha` (experimental) · feature branches |
+| **Branching strategy** | `main` (stable) · `develop` (beta) · feature branches |
 | **Release automation** | semantic-release with commit-analyzer, changelog, exec, git, github plugins |
 | **Documentation** | ARC42 architecture docs (12 chapters), CiA DS 306 specification PDF, CiA format notes in README |
 | **IDE support** | Visual Studio 2017+ (.sln), VS Code |

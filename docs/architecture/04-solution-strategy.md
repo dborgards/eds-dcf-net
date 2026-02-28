@@ -42,7 +42,7 @@ graph TD
 
 ### Facade Pattern
 
-`CanOpenFile` serves as the sole public entry point and encapsulates the coordination of internal components. Consumers do not need to instantiate parsers or writers directly.
+`CanOpenFile` serves as the sole public entry point and encapsulates the coordination of internal components. Consumers do not need to instantiate parsers or writers directly. The facade exposes synchronous and asynchronous file-I/O variants (`Read*`/`Write*` and `Read*Async`/`Write*Async`).
 
 ### Pipeline Pattern
 

@@ -29,6 +29,20 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) file asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the EDS file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadEdsAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new EdsReader();
+        return reader.ReadFileAsync(filePath, cancellationToken);
+    }
+
+    /// <summary>
     /// Reads an Electronic Data Sheet (EDS) from a string.
     /// </summary>
     /// <param name="content">EDS file content as string</param>
@@ -58,6 +72,21 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes an Electronic Data Sheet (EDS) to disk asynchronously.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="filePath">Path where the EDS file should be written</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    public static Task WriteEdsAsync(
+        ElectronicDataSheet eds,
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new EdsWriter();
+        return writer.WriteFileAsync(eds, filePath, cancellationToken);
+    }
+
+    /// <summary>
     /// Generates an EDS file content as string.
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to convert</param>
@@ -84,6 +113,20 @@ public static class CanOpenFile
     {
         var reader = new DcfReader();
         return reader.ReadFile(filePath);
+    }
+
+    /// <summary>
+    /// Reads a Device Configuration File (DCF) asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the DCF file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadDcfAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new DcfReader();
+        return reader.ReadFileAsync(filePath, cancellationToken);
     }
 
     /// <summary>
@@ -117,6 +160,21 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes a Device Configuration File (DCF) to disk asynchronously.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="filePath">Path where the DCF file should be written</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    public static Task WriteDcfAsync(
+        DeviceConfigurationFile dcf,
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new DcfWriter();
+        return writer.WriteFileAsync(dcf, filePath, cancellationToken);
+    }
+
+    /// <summary>
     /// Generates a DCF file content as string.
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to convert</param>
@@ -136,6 +194,20 @@ public static class CanOpenFile
     {
         var reader = new CpjReader();
         return reader.ReadFile(filePath);
+    }
+
+    /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) file asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the CPJ file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static Task<NodelistProject> ReadCpjAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new CpjReader();
+        return reader.ReadFileAsync(filePath, cancellationToken);
     }
 
     /// <summary>
@@ -161,6 +233,21 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes a CiA 306-3 nodelist project (.cpj) to disk asynchronously.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write</param>
+    /// <param name="filePath">Path where the CPJ file should be written</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    public static Task WriteCpjAsync(
+        NodelistProject cpj,
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new CpjWriter();
+        return writer.WriteFileAsync(cpj, filePath, cancellationToken);
+    }
+
+    /// <summary>
     /// Generates CPJ file content as string.
     /// </summary>
     /// <param name="cpj">The NodelistProject to convert</param>
@@ -180,6 +267,20 @@ public static class CanOpenFile
     {
         var reader = new XddReader();
         return reader.ReadFile(filePath);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDD (XML Device Description) file asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the XDD file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadXddAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XddReader();
+        return reader.ReadFileAsync(filePath, cancellationToken);
     }
 
     /// <summary>
@@ -205,6 +306,20 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the XDC file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XdcReader();
+        return reader.ReadFileAsync(filePath, cancellationToken);
+    }
+
+    /// <summary>
     /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
     /// </summary>
     /// <param name="content">XDC file content as string</param>
@@ -227,6 +342,21 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes an ElectronicDataSheet as a CiA 311 XDD file asynchronously.
+    /// </summary>
+    /// <param name="xdd">The ElectronicDataSheet to write</param>
+    /// <param name="filePath">Path where the XDD file should be written</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    public static Task WriteXddAsync(
+        ElectronicDataSheet xdd,
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new XddWriter();
+        return writer.WriteFileAsync(xdd, filePath, cancellationToken);
+    }
+
+    /// <summary>
     /// Generates XDD file content as string.
     /// </summary>
     /// <param name="xdd">The ElectronicDataSheet to convert</param>
@@ -246,6 +376,21 @@ public static class CanOpenFile
     {
         var writer = new XdcWriter();
         writer.WriteFile(xdc, filePath);
+    }
+
+    /// <summary>
+    /// Writes a DeviceConfigurationFile as a CiA 311 XDC file asynchronously.
+    /// </summary>
+    /// <param name="xdc">The DeviceConfigurationFile to write</param>
+    /// <param name="filePath">Path where the XDC file should be written</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    public static Task WriteXdcAsync(
+        DeviceConfigurationFile xdc,
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new XdcWriter();
+        return writer.WriteFileAsync(xdc, filePath, cancellationToken);
     }
 
     /// <summary>
