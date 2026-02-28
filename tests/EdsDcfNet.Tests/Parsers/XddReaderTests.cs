@@ -128,6 +128,58 @@ public class XddReaderTests
 
     #endregion
 
+    #region Security Hardening Tests
+
+    [Fact]
+    public void ReadString_WithDoctype_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<?xml version=""1.0"" encoding=""utf-8""?>",
+            @"<?xml version=""1.0"" encoding=""utf-8""?>
+<!DOCTYPE ISO15745ProfileContainer [<!ENTITY test ""x"">]>");
+
+        var act = () => _reader.ReadString(xdd);
+
+        act.Should().Throw<EdsParseException>();
+    }
+
+    [Fact]
+    public void ReadString_ContentExceedsMaximumSize_ThrowsEdsParseException()
+    {
+        var oversizedContent = new string('A', checked((int)IniParser.DefaultMaxInputSize + 1));
+
+        var act = () => _reader.ReadString(oversizedContent);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public void ReadFile_ContentExceedsMaximumSize_ThrowsEdsParseException()
+    {
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            using (var stream = new FileStream(tempFile, FileMode.Open, FileAccess.Write, FileShare.None))
+            {
+                stream.SetLength(IniParser.DefaultMaxInputSize + 1);
+            }
+
+            var act = () => _reader.ReadFile(tempFile);
+
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*too large*");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    #endregion
+
     #region FileInfo Tests
 
     [Fact]
