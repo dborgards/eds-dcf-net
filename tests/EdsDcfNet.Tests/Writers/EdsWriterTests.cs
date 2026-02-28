@@ -194,6 +194,68 @@ public class EdsWriterTests
     }
 
     [Fact]
+    public void GenerateString_WithOptionalWriterFields_WritesConditionalSectionsAndKeys()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.DeviceInfo.CompactPdo = 2;
+        eds.DeviceInfo.CANopenSafetySupported = true;
+
+        eds.ObjectDictionary.ManufacturerObjects.Add(0x2000);
+        eds.ObjectDictionary.Objects[0x2000] = new CanOpenObject
+        {
+            Index = 0x2000,
+            ParameterName = "Manufacturer Parameter",
+            ObjectType = 0x9,
+            DataType = 0x0006,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "5",
+            LowLimit = "1",
+            HighLimit = "10",
+            PdoMapping = true,
+            SrdoMapping = true,
+            InvertedSrad = "0x2000",
+            ObjFlags = 0x10,
+            CompactSubObj = 2,
+            SubNumber = 1
+        };
+
+        eds.ObjectDictionary.Objects[0x2000].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "Sub Parameter",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "3",
+            LowLimit = "0",
+            HighLimit = "5",
+            PdoMapping = true,
+            SrdoMapping = true,
+            InvertedSrad = "0x3000"
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("CompactPDO=0x2");
+        result.Should().Contain("CANopenSafetySupported=1");
+        result.Should().Contain("[ManufacturerObjects]");
+        result.Should().Contain("[2000]");
+        result.Should().Contain("LowLimit=1");
+        result.Should().Contain("HighLimit=10");
+        result.Should().Contain("SRDOMapping=1");
+        result.Should().Contain("InvertedSRAD=0x2000");
+        result.Should().Contain("ObjFlags=0x10");
+        result.Should().Contain("CompactSubObj=2");
+        result.Should().Contain("[2000sub1]");
+        result.Should().Contain("LowLimit=0");
+        result.Should().Contain("HighLimit=5");
+        result.Should().Contain("InvertedSRAD=0x3000");
+    }
+
+    [Fact]
     public void GenerateString_RoundTripWithEdsReader_PreservesCoreData()
     {
         // Arrange
@@ -249,6 +311,57 @@ public class EdsWriterTests
 
         // Assert
         result.Should().Contain("[9999ObjectLinks]");
+    }
+
+    [Fact]
+    public void GenerateString_ObjectLinksInAdditionalSections_KeptForInvalidIndexFormats()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.AdditionalSections["ObjectLinks"] = new Dictionary<string, string>
+        {
+            { "ObjectLinks", "1" },
+            { "1", "0x1000" }
+        };
+        eds.AdditionalSections["ZZZZObjectLinks"] = new Dictionary<string, string>
+        {
+            { "ObjectLinks", "1" },
+            { "1", "0x1000" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("[ObjectLinks]");
+        result.Should().Contain("[ZZZZObjectLinks]");
+    }
+
+    [Fact]
+    public void GenerateString_NestedSectionFailure_RethrowsInnerEdsWriteException()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.ObjectDictionary.OptionalObjects.Add(0x2001);
+        var failingObject = new CanOpenObject
+        {
+            Index = 0x2001,
+            ParameterName = "Failing object",
+            ObjectType = 0x9,
+            SubNumber = 1,
+            AccessType = AccessType.ReadOnly,
+            PdoMapping = false
+        };
+        failingObject.SubObjects[1] = null!;
+        eds.ObjectDictionary.Objects[0x2001] = failingObject;
+
+        // Act
+        var act = () => _writer.GenerateString(eds);
+
+        // Assert
+        var ex = act.Should().Throw<EdsWriteException>().Which;
+        ex.SectionName.Should().Be("2001sub1");
+        ex.Message.Should().Contain("2001sub1");
     }
 
     [Fact]
