@@ -379,7 +379,8 @@ DataType=0x0005
 
         // Assert
         act.Should().Throw<FileNotFoundException>()
-            .WithMessage("*EDS/DCF file not found*");
+            .WithMessage("*EDS/DCF file not found*")
+            .Which.FileName.Should().Be(filePath);
     }
 
     [Fact]
@@ -432,7 +433,8 @@ DataType=0x0005
 
         // Assert
         await act.Should().ThrowAsync<FileNotFoundException>()
-            .WithMessage("*EDS/DCF file not found*");
+            .WithMessage("*EDS/DCF file not found*")
+            .Where(ex => ex.FileName == filePath);
     }
 
     [Fact]
@@ -456,6 +458,20 @@ DataType=0x0005
         {
             File.Delete(tempFile);
         }
+    }
+
+    [Fact]
+    public async Task ParseFileAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var act = () => IniParser.ParseFileAsync("Fixtures/sample_device.eds", cancellationToken: cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     #endregion

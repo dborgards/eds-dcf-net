@@ -99,11 +99,14 @@ public class XddReaderTests
     [Fact]
     public async Task ReadFileAsync_NonExistentFile_ThrowsFileNotFoundException()
     {
+        const string filePath = "NonExistent.xdd";
+
         // Act
-        var act = () => _reader.ReadFileAsync("NonExistent.xdd");
+        var act = () => _reader.ReadFileAsync(filePath);
 
         // Assert
-        await act.Should().ThrowAsync<FileNotFoundException>();
+        await act.Should().ThrowAsync<FileNotFoundException>()
+            .Where(ex => ex.FileName == filePath);
     }
 
     #endregion

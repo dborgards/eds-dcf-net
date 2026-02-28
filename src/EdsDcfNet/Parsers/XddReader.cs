@@ -59,7 +59,11 @@ public class XddReader
             throw new FileNotFoundException($"XDD file not found: {filePath}", filePath);
 
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD");
-        var content = await TextFileIo.ReadAllTextAsync(filePath, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+        var content = await TextFileIo.ReadAllTextAsync(
+            filePath,
+            Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: false,
+            cancellationToken).ConfigureAwait(false);
         return ReadString(content);
     }
 

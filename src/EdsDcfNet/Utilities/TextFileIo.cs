@@ -9,6 +9,7 @@ internal static class TextFileIo
     internal static async Task<string> ReadAllTextAsync(
         string filePath,
         Encoding encoding,
+        bool detectEncodingFromByteOrderMarks = true,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -20,12 +21,23 @@ internal static class TextFileIo
             FileShare.Read,
             bufferSize: 4096,
             options: FileOptions.Asynchronous | FileOptions.SequentialScan);
-        using var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks: true);
+        using var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks);
 
 #if NET10_0_OR_GREATER
         var content = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
 #else
-        var content = await reader.ReadToEndAsync().ConfigureAwait(false);
+        var builder = new StringBuilder();
+        var buffer = new char[4096];
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+            if (charsRead == 0)
+                break;
+
+            builder.Append(buffer, 0, charsRead);
+        }
+        var content = builder.ToString();
 #endif
         cancellationToken.ThrowIfCancellationRequested();
         return content;
@@ -52,7 +64,16 @@ internal static class TextFileIo
         await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);
         await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
 #else
-        await writer.WriteAsync(content).ConfigureAwait(false);
+        const int chunkSize = 4096;
+        for (var offset = 0; offset < content.Length; offset += chunkSize)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var length = Math.Min(chunkSize, content.Length - offset);
+            await writer.WriteAsync(content.Substring(offset, length)).ConfigureAwait(false);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
         await writer.FlushAsync().ConfigureAwait(false);
 #endif
         cancellationToken.ThrowIfCancellationRequested();
