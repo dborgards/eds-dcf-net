@@ -53,6 +53,10 @@ public class EdsWriter
             var content = GenerateEdsContent(eds);
             await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (EdsWriteException)
         {
             throw;

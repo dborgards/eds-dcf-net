@@ -49,6 +49,10 @@ public class DcfWriter
             var content = GenerateDcfContent(dcf);
             await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             throw new DcfWriteException($"Failed to write DCF file to {filePath}", ex);

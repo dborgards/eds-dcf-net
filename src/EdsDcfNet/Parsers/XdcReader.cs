@@ -49,8 +49,7 @@ public class XdcReader
         var content = await TextFileIo.ReadAllTextAsync(
             filePath,
             Encoding.UTF8,
-            detectEncodingFromByteOrderMarks: false,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken: cancellationToken).ConfigureAwait(false);
         return ReadString(content);
     }
 

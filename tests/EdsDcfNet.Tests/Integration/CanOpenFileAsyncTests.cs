@@ -204,6 +204,32 @@ public class CanOpenFileAsyncTests
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
+    [Fact]
+    public async Task WriteEdsAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+
+        var act = () => CanOpenFile.WriteEdsAsync(CreateMinimalEds(), filePath, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        File.Exists(filePath).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task WriteDcfAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+
+        var act = () => CanOpenFile.WriteDcfAsync(CreateMinimalDcf(), filePath, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        File.Exists(filePath).Should().BeFalse();
+    }
+
     private static ElectronicDataSheet CreateMinimalEds()
     {
         var eds = new ElectronicDataSheet

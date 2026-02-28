@@ -99,6 +99,28 @@ public class XdcReaderTests
     }
 
     [Fact]
+    public async Task ReadFileAsync_Utf16EncodedXdc_ParsesSuccessfully()
+    {
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, MinimalXdc, System.Text.Encoding.Unicode);
+
+            var syncResult = _reader.ReadFile(tempFile);
+            var asyncResult = await _reader.ReadFileAsync(tempFile);
+
+            asyncResult.FileInfo.FileName.Should().Be(syncResult.FileInfo.FileName);
+            asyncResult.DeviceCommissioning.NodeId.Should().Be(3);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public async Task ReadFileAsync_NonExistentFile_ThrowsFileNotFoundException()
     {
         const string filePath = "NonExistent.xdc";

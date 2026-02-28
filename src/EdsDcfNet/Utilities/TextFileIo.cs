@@ -65,12 +65,14 @@ internal static class TextFileIo
         await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
 #else
         const int chunkSize = 4096;
+        var buffer = new char[chunkSize];
         for (var offset = 0; offset < content.Length; offset += chunkSize)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var length = Math.Min(chunkSize, content.Length - offset);
-            await writer.WriteAsync(content.Substring(offset, length)).ConfigureAwait(false);
+            content.CopyTo(offset, buffer, 0, length);
+            await writer.WriteAsync(buffer, 0, length).ConfigureAwait(false);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
