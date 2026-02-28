@@ -26,7 +26,7 @@ public class XdcReader
             throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
 
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC");
-        var content = File.ReadAllText(filePath, Encoding.UTF8);
+        var content = File.ReadAllText(filePath);
         return ReadString(content);
     }
 
