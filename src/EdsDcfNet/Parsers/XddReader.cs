@@ -3,7 +3,6 @@ namespace EdsDcfNet.Parsers;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
-using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
@@ -38,6 +37,7 @@ public class XddReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"XDD file not found: {filePath}", filePath);
 
+        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD");
         var content = File.ReadAllText(filePath, Encoding.UTF8);
         return ReadString(content);
     }
@@ -52,16 +52,7 @@ public class XddReader
         Justification = "Public API — instance method for consistency with EdsReader pattern.")]
     public ElectronicDataSheet ReadString(string content)
     {
-        XDocument doc;
-        try
-        {
-            doc = XDocument.Parse(content);
-        }
-        catch (XmlException ex)
-        {
-            throw new EdsParseException("Failed to parse XDD XML content.", ex);
-        }
-
+        var doc = SecureXmlParser.ParseDocument(content, "XDD", "Failed to parse XDD XML content.");
         return ParseDocument(doc, includeActualValues: false);
     }
 

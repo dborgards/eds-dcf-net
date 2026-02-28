@@ -2,7 +2,6 @@ namespace EdsDcfNet.Parsers;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
-using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
@@ -25,6 +24,7 @@ public class XdcReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
 
+        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC");
         var content = File.ReadAllText(filePath, Encoding.UTF8);
         return ReadString(content);
     }
@@ -39,16 +39,7 @@ public class XdcReader
         Justification = "Public API — instance method for consistency with EdsReader pattern.")]
     public DeviceConfigurationFile ReadString(string content)
     {
-        XDocument doc;
-        try
-        {
-            doc = XDocument.Parse(content);
-        }
-        catch (XmlException ex)
-        {
-            throw new EdsParseException("Failed to parse XDC XML content.", ex);
-        }
-
+        var doc = SecureXmlParser.ParseDocument(content, "XDC", "Failed to parse XDC XML content.");
         return ParseXdcDocument(doc);
     }
 
