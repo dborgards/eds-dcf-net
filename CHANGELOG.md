@@ -13,12 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * add EDS writer API with tests and docs ([#78](https://github.com/dborgards/eds-dcf-net/issues/78)) ([a89f381](https://github.com/dborgards/eds-dcf-net/commit/a89f3812aceab09022f18af69a2e0e670c6fdcea))
 
-## [1.6.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.5.0...v1.6.0-beta.1) (2026-02-27)
-
-### ✨ Features
-
-* add EDS writer API with tests and docs ([#78](https://github.com/dborgards/eds-dcf-net/issues/78)) ([a89f381](https://github.com/dborgards/eds-dcf-net/commit/a89f3812aceab09022f18af69a2e0e670c6fdcea))
-
 ## [1.5.0](https://github.com/dborgards/eds-dcf-net/compare/v1.4.8...v1.5.0) (2026-02-26)
 
 ### ⚠ BREAKING CHANGES
@@ -40,38 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * align readme and architecture with current format support ([#65](https://github.com/dborgards/eds-dcf-net/issues/65)) ([e864566](https://github.com/dborgards/eds-dcf-net/commit/e864566621fee2d747e625582bb92e64792697fe))
 * update docs for typed ApplicationProcess model (CiA 311 §6.4.5) ([#71](https://github.com/dborgards/eds-dcf-net/issues/71)) ([7c18451](https://github.com/dborgards/eds-dcf-net/commit/7c184514266fdc42d7b87e1861fa05ae29f53914))
 
-## [1.5.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.5.0-beta.3...v1.5.0-beta.4) (2026-02-25)
-
-### ⚠ BREAKING CHANGES
-
-* replace ApplicationProcessXml with fully typed ApplicationProcess model (#69)
-
-### ✨ Features
-
-* replace ApplicationProcessXml with fully typed ApplicationProcess model ([#69](https://github.com/dborgards/eds-dcf-net/issues/69)) ([0e06378](https://github.com/dborgards/eds-dcf-net/commit/0e063781ff3f949bee8ac1537a0d7962729e86b9))
-
-## [1.5.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.5.0-beta.2...v1.5.0-beta.3) (2026-02-24)
-
-### 🐛 Bug Fixes
-
-* **ci:** stabilize codecov head report uploads ([#67](https://github.com/dborgards/eds-dcf-net/issues/67)) ([9fd0f85](https://github.com/dborgards/eds-dcf-net/commit/9fd0f851fbd1bc447ed2b85c6a715b736d5bf95d))
-
-### 📚 Documentation
-
-* align readme and architecture with current format support ([#65](https://github.com/dborgards/eds-dcf-net/issues/65)) ([e864566](https://github.com/dborgards/eds-dcf-net/commit/e864566621fee2d747e625582bb92e64792697fe))
-
-## [1.5.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.5.0-beta.1...v1.5.0-beta.2) (2026-02-23)
-
-### 🐛 Bug Fixes
-
-* restore BuildDocument extension hook and add nodeID range validation ([#64](https://github.com/dborgards/eds-dcf-net/issues/64)) ([1a83097](https://github.com/dborgards/eds-dcf-net/commit/1a83097d818df89b7b737984543c233b13f84bd0))
-
-## [1.5.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.4.8...v1.5.0-beta.1) (2026-02-23)
-
-### ✨ Features
-
-* add XDD/XDC support (CiA 311) ([#63](https://github.com/dborgards/eds-dcf-net/issues/63)) ([2f68ed3](https://github.com/dborgards/eds-dcf-net/commit/2f68ed395d8a2a0947c8b0b6ff7cdbe254f192c0))
-
 ## [1.4.8](https://github.com/dborgards/eds-dcf-net/compare/v1.4.7...v1.4.8) (2026-02-21)
 
 ### 🐛 Bug Fixes
@@ -82,12 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * add AccessType compatibility note and remove version drift hint ([#58](https://github.com/dborgards/eds-dcf-net/issues/58)) ([1d9ad04](https://github.com/dborgards/eds-dcf-net/commit/1d9ad0411982e63c1abf9d51672105a3ce3a8c50))
 * align docs with current encoding and dependency/version state ([#57](https://github.com/dborgards/eds-dcf-net/issues/57)) ([84c410b](https://github.com/dborgards/eds-dcf-net/commit/84c410b7ba844d42677588ad635897f0156e378a))
-
-## [1.4.8-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.4.7...v1.4.8-beta.1) (2026-02-21)
-
-### 🐛 Bug Fixes
-
-* harden node id and $NODEID formula validation ([#55](https://github.com/dborgards/eds-dcf-net/issues/55)) ([43163f2](https://github.com/dborgards/eds-dcf-net/commit/43163f2876630920d8f9efaf191f48e93c822b1a))
 
 ## [1.4.7](https://github.com/dborgards/eds-dcf-net/compare/v1.4.6...v1.4.7) (2026-02-21)
 

@@ -8,10 +8,6 @@ using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 
-#pragma warning disable CA1845, CA1865, CA1866 // span-based and char overloads not available in netstandard2.0
-#pragma warning disable CA2249 // string.Contains(string, StringComparison) not available in netstandard2.0; IndexOf is the correct alternative
-#pragma warning disable CA1846 // AsSpan not available in netstandard2.0
-
 /// <summary>
 /// Reader for CiA 311 XDD (XML Device Description) files.
 /// </summary>
@@ -96,9 +92,9 @@ public class XddReader
                 continue;
 
             var xsiType = GetXsiType(profileBody);
-            if (xsiType.IndexOf("ProfileBody_Device_CANopen", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (xsiType.Contains("ProfileBody_Device_CANopen", StringComparison.OrdinalIgnoreCase))
                 deviceProfileBody = profileBody;
-            else if (xsiType.IndexOf("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase) >= 0)
+            else if (xsiType.Contains("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase))
                 commNetProfileBody = profileBody;
         }
 
@@ -138,7 +134,7 @@ public class XddReader
         {
             // If it looks like "1.0", take the part before the dot
             var dotIdx = fileVersionStr.IndexOf('.');
-            var majorPart = dotIdx >= 0 ? fileVersionStr.Substring(0, dotIdx) : fileVersionStr;
+            var majorPart = dotIdx >= 0 ? fileVersionStr[..dotIdx] : fileVersionStr;
             if (byte.TryParse(majorPart, NumberStyles.None, CultureInfo.InvariantCulture, out var ver))
                 fileInfo.FileVersion = ver;
         }
@@ -1090,14 +1086,14 @@ public class XddReader
             if (eqIdx < 0)
                 continue;
 
-            var keyPart = entry.Substring(0, eqIdx).Trim();
-            var valPart = entry.Substring(eqIdx + 1).Trim();
+            var keyPart = entry[..eqIdx].Trim();
+            var valPart = entry[(eqIdx + 1)..].Trim();
 
             // keyPart must start with "Dummy" followed by 4 hex digits
             if (!keyPart.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase) || keyPart.Length < 9)
                 continue;
 
-            var hexPart = keyPart.Substring(5);
+            var hexPart = keyPart[5..];
             if (!ushort.TryParse(hexPart, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var dummyIndex))
                 continue;
 
@@ -1216,7 +1212,7 @@ public class XddReader
             byte nodeIdValue;
             bool parsed;
             if (nodeIdStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                parsed = byte.TryParse(nodeIdStr.Substring(2), NumberStyles.HexNumber,
+                parsed = byte.TryParse(nodeIdStr[2..], NumberStyles.HexNumber,
                     CultureInfo.InvariantCulture, out nodeIdValue);
             else
                 parsed = byte.TryParse(nodeIdStr, NumberStyles.None,
@@ -1290,7 +1286,7 @@ public class XddReader
     {
         var trimmed = value.Trim();
         var hex = trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
-            ? trimmed.Substring(2) : trimmed;
+            ? trimmed[2..] : trimmed;
 
         if (ushort.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
             return result;
@@ -1305,7 +1301,7 @@ public class XddReader
     {
         var trimmed = value.Trim();
         var hex = trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
-            ? trimmed.Substring(2) : trimmed;
+            ? trimmed[2..] : trimmed;
 
         if (byte.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
             return result;
@@ -1321,7 +1317,7 @@ public class XddReader
         value = value.Trim();
 
         if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            value = value.Substring(2);
+            value = value[2..];
 
         if (ushort.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
             return result;
@@ -1334,7 +1330,7 @@ public class XddReader
         value = value.Trim();
 
         if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            value = value.Substring(2);
+            value = value[2..];
 
         if (uint.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
             return result;
@@ -1402,16 +1398,12 @@ public class XddReader
         if (xsdDate.Length >= 10 &&
             xsdDate[4] == '-' && xsdDate[7] == '-')
         {
-            var year = xsdDate.Substring(0, 4);
-            var month = xsdDate.Substring(5, 2);
-            var day = xsdDate.Substring(8, 2);
+            var year = xsdDate[..4];
+            var month = xsdDate[5..7];
+            var day = xsdDate[8..10];
             return string.Format(CultureInfo.InvariantCulture, "{0}-{1}-{2}", month, day, year);
         }
 
         return xsdDate;
     }
 }
-
-#pragma warning restore CA1845, CA1865, CA1866
-#pragma warning restore CA2249
-#pragma warning restore CA1846

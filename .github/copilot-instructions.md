@@ -8,13 +8,21 @@ EdsDcfNet is a C# library for reading and writing CiA DS 306 EDS (Electronic Dat
 
 ### .NET Standard 2.0 Compatibility
 
-This library must compile against netstandard2.0. The following APIs are **not available** and must be avoided:
+This library must compile against netstandard2.0. The **Polyfill** package is included as a source generator with no runtime dependency for consumers:
+- `PrivateAssets="all"` — the package reference does not flow transitively to consumers.
+- `IncludeAssets="compile; build; analyzers; contentfiles"` — `native` and `buildtransitive` are excluded. `contentfiles` is required because Polyfill ships some polyfills (e.g. `System.Index`/`System.Range`) as source content files rather than purely through the Roslyn generator.
 
-- `string.Replace(string, string, StringComparison)` — use `IndexOf` + `Substring` for case-insensitive replacement
-- `string.Contains(string, StringComparison)` — use `IndexOf(string, StringComparison) >= 0`
-- `string.Contains(char)` — use `IndexOf(char) >= 0`
-- `string.StartsWith(char)` / `string.EndsWith(char)` — use the `string` overload instead
-- `[NotNullWhen]`, `[MemberNotNull]` attributes — not available without polyfill
+Thanks to Polyfill, modern APIs can be used directly:
+
+- `string.Contains(char)` ✓
+- `string.Contains(string, StringComparison)` ✓
+- `string.StartsWith(char)` / `string.EndsWith(char)` ✓
+- Range indexers (`[n..]`, `[..n]`, `[^n]`) ✓
+- `[NotNullWhen]`, `[MemberNotNull]` attributes ✓
+
+The following API is still **not available** and must be avoided:
+
+- `string.Replace(string, string, StringComparison)` — use `IndexOf` + range indexer for case-insensitive replacement
 
 ### Invariant Culture
 

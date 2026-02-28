@@ -7,8 +7,6 @@ using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
-#pragma warning disable CA1845, CA1846 // span-based overloads not available in netstandard2.0
-
 /// <summary>
 /// Abstract base class for EDS and DCF readers.
 /// Contains all shared CANopen INI parsing logic; format-specific behaviour
@@ -191,7 +189,7 @@ public abstract class CanOpenReaderBase
             {
                 if (key.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase) && key.Length > 5)
                 {
-                    var indexStr = key.Substring(5);
+                    var indexStr = key[5..];
                     if (ushort.TryParse(indexStr, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
                     {
                         objDict.DummyUsage[index] = ValueConverter.ParseBoolean(
@@ -509,7 +507,7 @@ public abstract class CanOpenReaderBase
         if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) || sectionName.Length <= 4)
             return false;
 
-        if (!int.TryParse(sectionName.Substring(4), NumberStyles.Integer, CultureInfo.InvariantCulture, out var toolNumber))
+        if (!int.TryParse(sectionName[4..], NumberStyles.Integer, CultureInfo.InvariantCulture, out var toolNumber))
             return false;
 
         return toolNumber >= 1 && toolNumber <= parsedToolCount;
@@ -524,7 +522,7 @@ public abstract class CanOpenReaderBase
         if (subPos < 1)
             return false;
 
-        var prefix = sectionName.Substring(0, subPos);
+        var prefix = sectionName[..subPos];
         return ushort.TryParse(prefix, NumberStyles.HexNumber,
             CultureInfo.InvariantCulture, out _);
     }
@@ -537,7 +535,7 @@ public abstract class CanOpenReaderBase
         if (!sectionName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
             return false;
 
-        var prefix = sectionName.Substring(0, sectionName.Length - suffix.Length);
+        var prefix = sectionName[..^suffix.Length];
         return prefix.Length > 0 && ushort.TryParse(prefix,
             NumberStyles.HexNumber,
             CultureInfo.InvariantCulture, out _);
@@ -561,7 +559,7 @@ public abstract class CanOpenReaderBase
             return false;
 
         // The suffix after "M{digits}" must be a known module suffix
-        var suffix = sectionName.Substring(i);
+        var suffix = sectionName[i..];
         return suffix.Equals("ModuleInfo", StringComparison.OrdinalIgnoreCase) ||
                suffix.Equals("FixedObjects", StringComparison.OrdinalIgnoreCase) ||
                suffix.StartsWith("SubExtend", StringComparison.OrdinalIgnoreCase) ||
@@ -569,5 +567,3 @@ public abstract class CanOpenReaderBase
                suffix.Equals("Comments", StringComparison.OrdinalIgnoreCase);
     }
 }
-
-#pragma warning restore CA1845, CA1846 // span-based overloads not available in netstandard2.0

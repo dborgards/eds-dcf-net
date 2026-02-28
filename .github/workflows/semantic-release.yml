@@ -97,7 +97,30 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           GIT_AUTHOR_NAME: semantic-release-bot
-          GIT_AUTHOR_EMAIL: semantic-release-bot@users.noreply.github.com
+          GIT_AUTHOR_EMAIL: ${{ vars.SEMANTIC_RELEASE_BOT_EMAIL }}
           GIT_COMMITTER_NAME: semantic-release-bot
-          GIT_COMMITTER_EMAIL: semantic-release-bot@users.noreply.github.com
-        run: npx semantic-release
+          GIT_COMMITTER_EMAIL: ${{ vars.SEMANTIC_RELEASE_BOT_EMAIL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          dry_run_log="$(mktemp)"
+          FORCE_COLOR=0 npx semantic-release --dry-run >"$dry_run_log" 2>&1 || {
+            cat "$dry_run_log"
+            exit 1
+          }
+
+          next_version="$(sed -nE 's/.*The next release version is ([^[:space:]]+).*/\1/p' "$dry_run_log" | tail -n 1)"
+          if [[ -n "$next_version" ]]; then
+            next_tag="v${next_version}"
+            if git rev-parse -q --verify "refs/tags/$next_tag" >/dev/null; then
+              tag_sha="$(git rev-list -n 1 "$next_tag")"
+              if ! git merge-base --is-ancestor "$tag_sha" HEAD; then
+                echo "Skipping semantic-release: tag $next_tag exists outside current branch history at $tag_sha."
+                echo "Likely stale protected prerelease tag after history rewrite."
+                exit 0
+              fi
+            fi
+          fi
+
+          npx semantic-release
