@@ -1,5 +1,9 @@
 # 6. Runtime View
 
+All read/write flows are available in synchronous and asynchronous variants.
+The sequence diagrams show the synchronous path and annotate the async equivalents
+(`Read*Async` / `Write*Async`) where file I/O is involved.
+
 ## 6.1 Reading an EDS File
 
 ```mermaid
@@ -10,10 +14,10 @@ sequenceDiagram
     participant IP as IniParser
     participant VC as ValueConverter
 
-    App->>CF: ReadEds(filePath)
+    App->>CF: ReadEds(filePath) / ReadEdsAsync(filePath, ct)
     CF->>ER: new EdsReader()
-    CF->>ER: ReadFile(filePath)
-    ER->>IP: ParseFile(filePath)
+    CF->>ER: ReadFile(filePath) / ReadFileAsync(filePath, ct)
+    ER->>IP: ParseFile(filePath) / ParseFileAsync(filePath, ct)
     IP-->>ER: sections dictionary
     ER->>ER: ParseEds(sections)
     ER->>ER: ParseDeviceInfo(), ParseObjectDictionary()
@@ -53,9 +57,9 @@ sequenceDiagram
     participant EW as EdsWriter
     participant VC as ValueConverter
 
-    App->>CF: WriteEds(eds, filePath)
+    App->>CF: WriteEds(eds, filePath) / WriteEdsAsync(eds, filePath, ct)
     CF->>EW: new EdsWriter()
-    CF->>EW: WriteFile(eds, filePath)
+    CF->>EW: WriteFile(eds, filePath) / WriteFileAsync(eds, filePath, ct)
     EW->>EW: GenerateEdsContent(eds)
 
     loop For each object/sub-object
@@ -64,7 +68,7 @@ sequenceDiagram
     end
 
     EW->>EW: Write known sections + AdditionalSections
-    EW->>EW: File.WriteAllText(... UTF-8 without BOM)
+    EW->>EW: File.WriteAllText(...) / TextFileIo.WriteAllTextAsync(...)
     EW-->>CF: void
     CF-->>App: void
 ```
@@ -78,9 +82,9 @@ sequenceDiagram
     participant DW as DcfWriter
     participant VC as ValueConverter
 
-    App->>CF: WriteDcf(dcf, filePath)
+    App->>CF: WriteDcf(dcf, filePath) / WriteDcfAsync(dcf, filePath, ct)
     CF->>DW: new DcfWriter()
-    CF->>DW: WriteFile(dcf, filePath)
+    CF->>DW: WriteFile(dcf, filePath) / WriteFileAsync(dcf, filePath, ct)
     DW->>DW: GenerateDcfContent(dcf)
 
     loop For each object/sub-object
@@ -89,7 +93,7 @@ sequenceDiagram
     end
 
     DW->>DW: Write known sections + AdditionalSections
-    DW->>DW: File.WriteAllText(... UTF-8 without BOM)
+    DW->>DW: File.WriteAllText(...) / TextFileIo.WriteAllTextAsync(...)
     DW-->>CF: void
     CF-->>App: void
 ```
@@ -104,19 +108,19 @@ sequenceDiagram
     participant CW as CpjWriter
     participant IP as IniParser
 
-    App->>CF: ReadCpj(filePath)
+    App->>CF: ReadCpj(filePath) / ReadCpjAsync(filePath, ct)
     CF->>CR: new CpjReader()
-    CR->>IP: ParseFile(filePath)
+    CR->>IP: ParseFile(filePath) / ParseFileAsync(filePath, ct)
     IP-->>CR: sections dictionary
     CR->>CR: Parse [Topology], [Topology2], ...
     CR-->>CF: NodelistProject
     CF-->>App: NodelistProject
 
-    App->>CF: WriteCpj(cpj, filePath)
+    App->>CF: WriteCpj(cpj, filePath) / WriteCpjAsync(cpj, filePath, ct)
     CF->>CW: new CpjWriter()
     CW->>CW: GenerateCpjContent()
     CW->>CW: Write topology sections ordered by node ID
-    CW->>CW: File.WriteAllText(... UTF-8 without BOM)
+    CW->>CW: File.WriteAllText(...) / TextFileIo.WriteAllTextAsync(...)
     CW-->>CF: void
     CF-->>App: void
 ```
@@ -130,8 +134,9 @@ sequenceDiagram
     participant XR as XddReader
     participant XML as XDocument
 
-    App->>CF: ReadXdd(filePath)
+    App->>CF: ReadXdd(filePath) / ReadXddAsync(filePath, ct)
     CF->>XR: new XddReader()
+    XR->>XR: Read file content (sync or async)
     XR->>XML: XDocument.Parse(content)
     XR->>XR: Locate ISO15745 profiles
     XR->>XR: Parse Device + CommunicationNetwork profile bodies
@@ -149,14 +154,15 @@ sequenceDiagram
     participant XR as XdcReader
     participant XW as XdcWriter
 
-    App->>CF: ReadXdc(filePath)
+    App->>CF: ReadXdc(filePath) / ReadXdcAsync(filePath, ct)
     CF->>XR: new XdcReader()
+    XR->>XR: Read file content (sync or async)
     XR->>XR: Parse via XddReader(includeActualValues: true)
     XR->>XR: Parse deviceCommissioning
     XR-->>CF: DeviceConfigurationFile
     CF-->>App: DeviceConfigurationFile
 
-    App->>CF: WriteXdc(dcf, filePath)
+    App->>CF: WriteXdc(dcf, filePath) / WriteXdcAsync(dcf, filePath, ct)
     CF->>XW: new XdcWriter()
     XW->>XW: GenerateString(dcf)
     XW->>XW: Validate NodeId when commissioning is emitted (1..127)
