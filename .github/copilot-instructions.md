@@ -8,7 +8,9 @@ EdsDcfNet is a C# library for reading and writing CiA DS 306 EDS (Electronic Dat
 
 ### .NET Standard 2.0 Compatibility
 
-This library must compile against netstandard2.0. The **Polyfill** package is included as a source generator: its polyfills are compiled directly into the library's own assembly (no separate Polyfill runtime DLL is shipped). `PrivateAssets="all"` ensures the package reference does not flow transitively to consumers of this library.
+This library must compile against netstandard2.0. The **Polyfill** package is included as a source generator with no runtime dependency for consumers:
+- `PrivateAssets="all"` — the package reference does not flow transitively to consumers.
+- `IncludeAssets="compile; build; analyzers; contentfiles"` — `native` and `buildtransitive` are excluded. `contentfiles` is required because Polyfill ships some polyfills (e.g. `System.Index`/`System.Range`) as source content files rather than purely through the Roslyn generator.
 
 Thanks to Polyfill, modern APIs can be used directly:
 
