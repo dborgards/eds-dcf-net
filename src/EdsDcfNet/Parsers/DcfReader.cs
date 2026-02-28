@@ -35,6 +35,20 @@ public class DcfReader : CanOpenReaderBase
     }
 
     /// <summary>
+    /// Reads a DCF file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the DCF file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public async Task<DeviceConfigurationFile> ReadFileAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var sections = await ParseSectionsFromFileAsync(filePath, cancellationToken).ConfigureAwait(false);
+        return ParseDcf(sections);
+    }
+
+    /// <summary>
     /// Reads a DCF from a string.
     /// </summary>
     /// <param name="content">DCF file content as string</param>

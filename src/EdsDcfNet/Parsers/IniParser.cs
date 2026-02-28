@@ -2,7 +2,9 @@ namespace EdsDcfNet.Parsers;
 
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using EdsDcfNet.Exceptions;
+using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Low-level INI file parser for EDS/DCF files.
@@ -44,6 +46,37 @@ public static class IniParser
                     filePath, fileInfo.Length, maxInputSize));
 
         return ParseLines(File.ReadLines(filePath));
+    }
+
+    /// <summary>
+    /// Parses an EDS/DCF file asynchronously and returns sections with their key-value pairs.
+    /// </summary>
+    /// <param name="filePath">Path to the EDS/DCF file</param>
+    /// <param name="maxInputSize">
+    /// Maximum file size in bytes before an <see cref="EdsParseException"/> is thrown.
+    /// Defaults to <see cref="DefaultMaxInputSize"/> (10 MB).
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
+    /// <exception cref="EdsParseException">Thrown when the file exceeds the configured size limit.</exception>
+    public static async Task<Dictionary<string, Dictionary<string, string>>> ParseFileAsync(
+        string filePath,
+        long maxInputSize = DefaultMaxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"EDS/DCF file not found: {filePath}");
+
+        var fileInfo = new FileInfo(filePath);
+        if (fileInfo.Length > maxInputSize)
+            throw new EdsParseException(
+                string.Format(CultureInfo.InvariantCulture,
+                    "File '{0}' is too large ({1:N0} bytes). Maximum supported size is {2:N0} bytes.",
+                    filePath, fileInfo.Length, maxInputSize));
+
+        var content = await TextFileIo.ReadAllTextAsync(filePath, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+        return ParseString(content, maxInputSize);
     }
 
     /// <summary>

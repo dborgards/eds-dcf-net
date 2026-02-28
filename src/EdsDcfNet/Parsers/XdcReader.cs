@@ -5,6 +5,7 @@ using System.Text;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Reader for CiA 311 XDC (XML Device Configuration) files.
@@ -26,6 +27,26 @@ public class XdcReader
 
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC");
         var content = File.ReadAllText(filePath, Encoding.UTF8);
+        return ReadString(content);
+    }
+
+    /// <summary>
+    /// Reads an XDC file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the XDC file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the file does not exist</exception>
+    /// <exception cref="EdsParseException">Thrown when the XDC content is invalid</exception>
+    public async Task<DeviceConfigurationFile> ReadFileAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
+
+        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC");
+        var content = await TextFileIo.ReadAllTextAsync(filePath, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
         return ReadString(content);
     }
 

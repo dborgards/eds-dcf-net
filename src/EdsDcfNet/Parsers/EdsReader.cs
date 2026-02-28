@@ -29,6 +29,20 @@ public class EdsReader : CanOpenReaderBase
     }
 
     /// <summary>
+    /// Reads an EDS file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the EDS file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public async Task<ElectronicDataSheet> ReadFileAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var sections = await ParseSectionsFromFileAsync(filePath, cancellationToken).ConfigureAwait(false);
+        return ParseEds(sections);
+    }
+
+    /// <summary>
     /// Reads an EDS from a string.
     /// </summary>
     /// <param name="content">EDS file content as string</param>

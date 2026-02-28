@@ -23,7 +23,35 @@ public class EdsWriter
         try
         {
             var content = GenerateEdsContent(eds);
-            File.WriteAllText(filePath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+        }
+        catch (EdsWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new EdsWriteException($"Failed to write EDS file to {filePath}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Writes an EDS to the specified file path asynchronously.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="filePath">Path where the EDS file should be written</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public async Task WriteFileAsync(
+        ElectronicDataSheet eds,
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = GenerateEdsContent(eds);
+            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
         }
         catch (EdsWriteException)
         {

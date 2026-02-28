@@ -25,6 +25,21 @@ public class CpjReader
     }
 
     /// <summary>
+    /// Reads a CPJ file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the CPJ file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public async Task<NodelistProject> ReadFileAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var sections = await IniParser.ParseFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
+        return ParseCpj(sections);
+    }
+
+    /// <summary>
     /// Reads a CPJ from a string.
     /// </summary>
     /// <param name="content">CPJ file content as string</param>
