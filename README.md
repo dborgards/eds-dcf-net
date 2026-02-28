@@ -56,6 +56,19 @@ eds.FileInfo.FileRevision++;
 CanOpenFile.WriteEds(eds, "device_updated.eds");
 ```
 
+### Async File I/O (`async`/`await`)
+
+```csharp
+using EdsDcfNet;
+using System.Threading;
+
+using var cts = new CancellationTokenSource();
+
+var eds = await CanOpenFile.ReadEdsAsync("device.eds", cts.Token);
+eds.FileInfo.FileRevision++;
+await CanOpenFile.WriteEdsAsync(eds, "device_updated.eds", cts.Token);
+```
+
 ### Reading an XDD File (CiA 311 XML)
 
 ```csharp
@@ -192,42 +205,52 @@ var tpdos = dcf.ObjectDictionary.GetPdoCommunicationParameters(transmit: true);
 ```csharp
 // Read EDS
 ElectronicDataSheet ReadEds(string filePath)
+Task<ElectronicDataSheet> ReadEdsAsync(string filePath, CancellationToken cancellationToken = default)
 ElectronicDataSheet ReadEdsFromString(string content)
 
 // Write EDS
 void WriteEds(ElectronicDataSheet eds, string filePath)
+Task WriteEdsAsync(ElectronicDataSheet eds, string filePath, CancellationToken cancellationToken = default)
 string WriteEdsToString(ElectronicDataSheet eds)
 
 // Read DCF
 DeviceConfigurationFile ReadDcf(string filePath)
+Task<DeviceConfigurationFile> ReadDcfAsync(string filePath, CancellationToken cancellationToken = default)
 DeviceConfigurationFile ReadDcfFromString(string content)
 
 // Write DCF
 void WriteDcf(DeviceConfigurationFile dcf, string filePath)
+Task WriteDcfAsync(DeviceConfigurationFile dcf, string filePath, CancellationToken cancellationToken = default)
 string WriteDcfToString(DeviceConfigurationFile dcf)
 
 // Read CPJ (CiA 306-3 Nodelist Project)
 NodelistProject ReadCpj(string filePath)
+Task<NodelistProject> ReadCpjAsync(string filePath, CancellationToken cancellationToken = default)
 NodelistProject ReadCpjFromString(string content)
 
 // Write CPJ
 void WriteCpj(NodelistProject cpj, string filePath)
+Task WriteCpjAsync(NodelistProject cpj, string filePath, CancellationToken cancellationToken = default)
 string WriteCpjToString(NodelistProject cpj)
 
 // Read XDD (CiA 311 XML Device Description)
 ElectronicDataSheet ReadXdd(string filePath)
+Task<ElectronicDataSheet> ReadXddAsync(string filePath, CancellationToken cancellationToken = default)
 ElectronicDataSheet ReadXddFromString(string content)
 
 // Write XDD
 void WriteXdd(ElectronicDataSheet xdd, string filePath)
+Task WriteXddAsync(ElectronicDataSheet xdd, string filePath, CancellationToken cancellationToken = default)
 string WriteXddToString(ElectronicDataSheet xdd)
 
 // Read XDC (CiA 311 XML Device Configuration)
 DeviceConfigurationFile ReadXdc(string filePath)
+Task<DeviceConfigurationFile> ReadXdcAsync(string filePath, CancellationToken cancellationToken = default)
 DeviceConfigurationFile ReadXdcFromString(string content)
 
 // Write XDC
 void WriteXdc(DeviceConfigurationFile xdc, string filePath)
+Task WriteXdcAsync(DeviceConfigurationFile xdc, string filePath, CancellationToken cancellationToken = default)
 string WriteXdcToString(DeviceConfigurationFile xdc)
 
 // Convert EDS to DCF

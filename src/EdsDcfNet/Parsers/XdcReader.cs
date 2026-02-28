@@ -2,10 +2,10 @@ namespace EdsDcfNet.Parsers;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
-using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Reader for CiA 311 XDC (XML Device Configuration) files.
@@ -25,7 +25,31 @@ public class XdcReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
 
-        var content = File.ReadAllText(filePath, Encoding.UTF8);
+        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC");
+        var content = File.ReadAllText(filePath);
+        return ReadString(content);
+    }
+
+    /// <summary>
+    /// Reads an XDC file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the XDC file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the file does not exist</exception>
+    /// <exception cref="EdsParseException">Thrown when the XDC content is invalid</exception>
+    public async Task<DeviceConfigurationFile> ReadFileAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
+
+        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC");
+        var content = await TextFileIo.ReadAllTextAsync(
+            filePath,
+            Encoding.UTF8,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
         return ReadString(content);
     }
 
@@ -39,16 +63,7 @@ public class XdcReader
         Justification = "Public API — instance method for consistency with EdsReader pattern.")]
     public DeviceConfigurationFile ReadString(string content)
     {
-        XDocument doc;
-        try
-        {
-            doc = XDocument.Parse(content);
-        }
-        catch (XmlException ex)
-        {
-            throw new EdsParseException("Failed to parse XDC XML content.", ex);
-        }
-
+        var doc = SecureXmlParser.ParseDocument(content, "XDC", "Failed to parse XDC XML content.");
         return ParseXdcDocument(doc);
     }
 

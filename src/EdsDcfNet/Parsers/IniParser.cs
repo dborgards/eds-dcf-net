@@ -34,7 +34,7 @@ public static class IniParser
         long maxInputSize = DefaultMaxInputSize)
     {
         if (!File.Exists(filePath))
-            throw new FileNotFoundException($"EDS/DCF file not found: {filePath}");
+            throw new FileNotFoundException($"EDS/DCF file not found: {filePath}", filePath);
 
         var fileInfo = new FileInfo(filePath);
         if (fileInfo.Length > maxInputSize)
@@ -44,6 +44,45 @@ public static class IniParser
                     filePath, fileInfo.Length, maxInputSize));
 
         return ParseLines(File.ReadLines(filePath));
+    }
+
+    /// <summary>
+    /// Parses an EDS/DCF file asynchronously and returns sections with their key-value pairs.
+    /// </summary>
+    /// <param name="filePath">Path to the EDS/DCF file</param>
+    /// <param name="maxInputSize">
+    /// Maximum file size in bytes before an <see cref="EdsParseException"/> is thrown.
+    /// Defaults to <see cref="DefaultMaxInputSize"/> (10 MB).
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
+    /// <exception cref="EdsParseException">Thrown when the file exceeds the configured size limit.</exception>
+    public static async Task<Dictionary<string, Dictionary<string, string>>> ParseFileAsync(
+        string filePath,
+        long maxInputSize = DefaultMaxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"EDS/DCF file not found: {filePath}", filePath);
+
+        var fileInfo = new FileInfo(filePath);
+        if (fileInfo.Length > maxInputSize)
+            throw new EdsParseException(
+                string.Format(CultureInfo.InvariantCulture,
+                    "File '{0}' is too large ({1:N0} bytes). Maximum supported size is {2:N0} bytes.",
+                    filePath, fileInfo.Length, maxInputSize));
+
+        using var stream = new FileStream(
+            filePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 4096,
+            options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+        using var reader = new StreamReader(stream);
+
+        return await ParseReaderAsync(reader, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -133,43 +172,79 @@ public static class IniParser
         foreach (var rawLine in lines)
         {
             lineNumber++;
-            var line = rawLine.Trim();
-
-            // Skip empty lines and comments
-            if (string.IsNullOrWhiteSpace(line) || line.StartsWith(';'))
-                continue;
-
-            // Check for section header
-            if (line.StartsWith('[') && line.EndsWith(']'))
-            {
-                currentSection = line[1..^1].Trim();
-
-                if (!sections.ContainsKey(currentSection))
-                {
-                    sections[currentSection] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                }
-
-                continue;
-            }
-
-            // Parse key-value pair
-            var equalIndex = line.IndexOf('=');
-            if (equalIndex > 0)
-            {
-                if (currentSection == null)
-                {
-                    throw new EdsParseException($"Key-value pair found outside of any section at line {lineNumber}", lineNumber);
-                }
-
-                var key = line[..equalIndex].Trim();
-                var value = equalIndex < line.Length - 1
-                    ? line[(equalIndex + 1)..].Trim()
-                    : string.Empty;
-
-                sections[currentSection][key] = value;
-            }
+            ParseLine(rawLine, lineNumber, ref currentSection, sections);
         }
 
         return sections;
+    }
+
+    private static async Task<Dictionary<string, Dictionary<string, string>>> ParseReaderAsync(
+        StreamReader reader,
+        CancellationToken cancellationToken)
+    {
+        var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        string? currentSection = null;
+        var lineNumber = 0;
+
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+#if NET10_0_OR_GREATER
+            var rawLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+#else
+            var rawLine = await reader.ReadLineAsync().ConfigureAwait(false);
+#endif
+            if (rawLine == null)
+                break;
+
+            lineNumber++;
+            ParseLine(rawLine, lineNumber, ref currentSection, sections);
+        }
+
+        return sections;
+    }
+
+    private static void ParseLine(
+        string rawLine,
+        int lineNumber,
+        ref string? currentSection,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+        var line = rawLine.Trim();
+
+        // Skip empty lines and comments
+        if (string.IsNullOrWhiteSpace(line) || line.StartsWith(';'))
+            return;
+
+        // Check for section header
+        if (line.StartsWith('[') && line.EndsWith(']'))
+        {
+            currentSection = line[1..^1].Trim();
+
+            if (!sections.ContainsKey(currentSection))
+            {
+                sections[currentSection] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            return;
+        }
+
+        // Parse key-value pair
+        var equalIndex = line.IndexOf('=');
+        if (equalIndex <= 0)
+            return;
+
+        if (currentSection == null)
+        {
+            throw new EdsParseException($"Key-value pair found outside of any section at line {lineNumber}", lineNumber);
+        }
+
+        var key = line[..equalIndex].Trim();
+        var value = equalIndex < line.Length - 1
+            ? line[(equalIndex + 1)..].Trim()
+            : string.Empty;
+
+        sections[currentSection][key] = value;
     }
 }

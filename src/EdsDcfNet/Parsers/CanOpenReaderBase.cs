@@ -28,6 +28,15 @@ public abstract class CanOpenReaderBase
         => IniParser.ParseFile(filePath);
 
     /// <summary>
+    /// Parses INI sections from a file path asynchronously.
+    /// </summary>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromFileAsync().")]
+    protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromFileAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+        => IniParser.ParseFileAsync(filePath, cancellationToken: cancellationToken);
+
+    /// <summary>
     /// Parses INI sections from a string.
     /// </summary>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromString().")]

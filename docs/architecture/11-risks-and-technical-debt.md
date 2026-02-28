@@ -47,11 +47,3 @@
 | **Description**  | `ElectronicDataSheet` and `DeviceConfigurationFile` share many properties but do not use a common base class. |
 | **Impact**       | Code duplication in model classes.                                          |
 | **Priority**     | Low (deliberate design decision favoring clear semantics, see ADR-3).       |
-
-### TD-2: No Asynchronous API Variants
-
-| Aspect           | Description                                                                 |
-|------------------|-----------------------------------------------------------------------------|
-| **Description**  | All file operations (`ReadEds`, `ReadXdd`, `WriteEds`, `WriteDcf`, `WriteXdc`, etc.) are synchronous. |
-| **Impact**       | In async-based applications (e.g., ASP.NET), this may block the thread pool. |
-| **Priority**     | Low (EDS/DCF files are typically small, I/O is negligible).                 |

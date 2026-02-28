@@ -181,6 +181,26 @@ Key1=Value=With=Equals
     }
 
     [Fact]
+    public void ParseString_LineWithoutEqualSign_IsIgnored()
+    {
+        // Arrange
+        var content = @"
+LineWithoutEqual
+[Section1]
+AnotherInvalidLine
+Key1=Value1
+";
+
+        // Act
+        var result = IniParser.ParseString(content);
+
+        // Assert
+        result.Should().ContainKey("Section1");
+        result["Section1"].Should().ContainSingle();
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
+    [Fact]
     public void ParseString_HexadecimalValues_PreservesFormat()
     {
         // Arrange
@@ -379,7 +399,8 @@ DataType=0x0005
 
         // Assert
         act.Should().Throw<FileNotFoundException>()
-            .WithMessage("*EDS/DCF file not found*");
+            .WithMessage("*EDS/DCF file not found*")
+            .Which.FileName.Should().Be(filePath);
     }
 
     [Fact]
@@ -403,6 +424,74 @@ DataType=0x0005
         {
             File.Delete(tempFile);
         }
+    }
+
+    [Fact]
+    public async Task ParseFileAsync_ValidFile_ParsesCorrectly()
+    {
+        // Arrange
+        var filePath = "Fixtures/sample_device.eds";
+
+        // Act
+        var result = await IniParser.ParseFileAsync(filePath);
+
+        // Assert
+        result.Should().NotBeEmpty();
+        result.Should().ContainKey("FileInfo");
+        result.Should().ContainKey("DeviceInfo");
+        result.Should().ContainKey("1000");
+    }
+
+    [Fact]
+    public async Task ParseFileAsync_NonExistentFile_ThrowsFileNotFoundException()
+    {
+        // Arrange
+        var filePath = "NonExistent.eds";
+
+        // Act
+        var act = () => IniParser.ParseFileAsync(filePath);
+
+        // Assert
+        await act.Should().ThrowAsync<FileNotFoundException>()
+            .WithMessage("*EDS/DCF file not found*")
+            .Where(ex => ex.FileName == filePath);
+    }
+
+    [Fact]
+    public async Task ParseFileAsync_FileTooLarge_ThrowsEdsParseException()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "[Section1]\nKey1=Value1"); // 22 bytes > 10
+
+            // Act
+            var act = () => IniParser.ParseFileAsync(tempFile, maxInputSize: 10);
+
+            // Assert
+            await act.Should().ThrowAsync<EdsParseException>()
+                .WithMessage("*too large*");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ParseFileAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var act = () => IniParser.ParseFileAsync("Fixtures/sample_device.eds", cancellationToken: cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     #endregion

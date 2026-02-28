@@ -8,8 +8,10 @@ The library needs a clearly defined entry point for consumers.
 
 ### Decision
 
-`CanOpenFile` is a **static class** with static methods for all supported formats
-(`ReadEds`, `ReadDcf`, `ReadCpj`, `ReadXdd`, `ReadXdc`, write counterparts, and `EdsToDcf`).
+`CanOpenFile` is a **static class** with static methods for all supported formats,
+including synchronous and asynchronous file-I/O variants
+(`ReadEds`/`ReadEdsAsync`, `ReadDcf`/`ReadDcfAsync`, `ReadCpj`/`ReadCpjAsync`,
+`ReadXdd`/`ReadXddAsync`, `ReadXdc`/`ReadXdcAsync`, corresponding write methods, and `EdsToDcf`).
 
 ### Rationale
 

@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Writer for CiA 311 XDC (XML Device Configuration) files.
@@ -20,7 +21,23 @@ public class XdcWriter : XddWriter
     public void WriteFile(DeviceConfigurationFile dcf, string filePath)
     {
         var content = GenerateString(dcf);
-        File.WriteAllText(filePath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+    }
+
+    /// <summary>
+    /// Writes a DeviceConfigurationFile as an XDC file to the specified path asynchronously.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="filePath">Path where the XDC file should be written</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    public async Task WriteFileAsync(
+        DeviceConfigurationFile dcf,
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var content = GenerateString(dcf);
+        await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

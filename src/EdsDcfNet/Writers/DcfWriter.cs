@@ -23,7 +23,35 @@ public class DcfWriter
         try
         {
             var content = GenerateDcfContent(dcf);
-            File.WriteAllText(filePath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+        }
+        catch (Exception ex)
+        {
+            throw new DcfWriteException($"Failed to write DCF file to {filePath}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Writes a DCF to the specified file path asynchronously.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="filePath">Path where the DCF file should be written</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public async Task WriteFileAsync(
+        DeviceConfigurationFile dcf,
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = GenerateDcfContent(dcf);
+            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

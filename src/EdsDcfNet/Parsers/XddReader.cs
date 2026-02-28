@@ -3,10 +3,10 @@ namespace EdsDcfNet.Parsers;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
-using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Reader for CiA 311 XDD (XML Device Description) files.
@@ -38,7 +38,31 @@ public class XddReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"XDD file not found: {filePath}", filePath);
 
-        var content = File.ReadAllText(filePath, Encoding.UTF8);
+        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD");
+        var content = File.ReadAllText(filePath);
+        return ReadString(content);
+    }
+
+    /// <summary>
+    /// Reads an XDD file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the XDD file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the file does not exist</exception>
+    /// <exception cref="EdsParseException">Thrown when the XDD content is invalid</exception>
+    public async Task<ElectronicDataSheet> ReadFileAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"XDD file not found: {filePath}", filePath);
+
+        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD");
+        var content = await TextFileIo.ReadAllTextAsync(
+            filePath,
+            Encoding.UTF8,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
         return ReadString(content);
     }
 
@@ -52,16 +76,7 @@ public class XddReader
         Justification = "Public API — instance method for consistency with EdsReader pattern.")]
     public ElectronicDataSheet ReadString(string content)
     {
-        XDocument doc;
-        try
-        {
-            doc = XDocument.Parse(content);
-        }
-        catch (XmlException ex)
-        {
-            throw new EdsParseException("Failed to parse XDD XML content.", ex);
-        }
-
+        var doc = SecureXmlParser.ParseDocument(content, "XDD", "Failed to parse XDD XML content.");
         return ParseDocument(doc, includeActualValues: false);
     }
 
