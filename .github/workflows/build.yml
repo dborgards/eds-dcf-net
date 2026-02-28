@@ -34,8 +34,9 @@ jobs:
       run: |
         sha="${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
         msg=$(git show --no-patch --format='%s' "$sha")
-        if [[ "$msg" == chore\(release\):* ]]; then
-          echo "Release commit detected — skipping redundant build/test."
+        author_email=$(git show --no-patch --format='%ae' "$sha")
+        if [[ "$msg" == chore\(release\):* && "$author_email" == "${{ vars.SEMANTIC_RELEASE_BOT_EMAIL }}" ]]; then
+          echo "Release commit by semantic-release-bot detected — skipping redundant build/test."
           echo "is_release=true" >> "$GITHUB_OUTPUT"
         else
           echo "is_release=false" >> "$GITHUB_OUTPUT"
