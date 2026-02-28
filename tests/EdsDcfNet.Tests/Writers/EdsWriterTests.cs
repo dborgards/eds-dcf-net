@@ -338,7 +338,7 @@ public class EdsWriterTests
     }
 
     [Fact]
-    public void GenerateString_NestedSectionFailure_RethrowsInnerEdsWriteException()
+    public void GenerateString_NestedSectionFailure_WrapsUnexpectedExceptionWithSectionName()
     {
         // Arrange
         var eds = CreateMinimalEds();
@@ -362,6 +362,8 @@ public class EdsWriterTests
         var ex = act.Should().Throw<EdsWriteException>().Which;
         ex.SectionName.Should().Be("2001sub1");
         ex.Message.Should().Contain("2001sub1");
+        ex.InnerException.Should().NotBeNull();
+        ex.InnerException.Should().BeOfType<NullReferenceException>();
     }
 
     [Fact]
