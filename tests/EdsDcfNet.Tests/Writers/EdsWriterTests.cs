@@ -399,7 +399,7 @@ public class EdsWriterTests
     {
         // Arrange
         var eds = CreateMinimalEds();
-        var invalidPath = "/invalid/path/that/does/not/exist/test.eds";
+        var invalidPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "test.eds");
 
         // Act
         var act = () => _writer.WriteFile(eds, invalidPath);
