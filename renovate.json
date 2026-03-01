@@ -2,5 +2,15 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "baseBranches": [
+    "develop"
+  ],
+  "semanticCommitType": "chore",
+  "packageRules": [
+    {
+      "matchManagers": ["nuget"],
+      "rangeStrategy": "in-range-only"
+    }
   ]
 }
