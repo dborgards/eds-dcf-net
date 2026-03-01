@@ -3,13 +3,15 @@
   "extends": [
     "config:recommended"
   ],
-  "baseBranches": [
+  "baseBranchPatterns": [
     "develop"
   ],
   "semanticCommitType": "chore",
   "packageRules": [
     {
-      "matchManagers": ["nuget"],
+      "matchManagers": [
+        "nuget"
+      ],
       "rangeStrategy": "in-range-only"
     }
   ]
