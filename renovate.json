@@ -10,7 +10,7 @@
   "packageRules": [
     {
       "matchManagers": ["nuget"],
-      "rangeStrategy": "replace"
+      "rangeStrategy": "in-range-only"
     }
   ]
 }
