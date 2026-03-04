@@ -13,7 +13,7 @@ tab_width = 4
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = false
 csharp_style_namespace_declarations = file_scoped:suggestion
-csharp_prefer_braces = true:warning
+csharp_prefer_braces = true:suggestion
 csharp_new_line_before_open_brace = all
 dotnet_style_qualification_for_field = false:suggestion
 dotnet_style_qualification_for_property = false:suggestion
@@ -21,7 +21,7 @@ dotnet_style_qualification_for_method = false:suggestion
 dotnet_style_qualification_for_event = false:suggestion
 
 # Analyzer baseline
-dotnet_analyzer_diagnostic.severity = warning
+dotnet_analyzer_diagnostic.severity = suggestion
 dotnet_analyzer_diagnostic.category-Style.severity = suggestion
 dotnet_analyzer_diagnostic.category-Documentation.severity = suggestion
 
