@@ -211,47 +211,7 @@ public class EdsWriter
 
     private static void WriteObjectLists(StringBuilder sb, ObjectDictionary objDict)
     {
-        // Write MandatoryObjects
-        if (objDict.MandatoryObjects.Count > 0)
-        {
-            sb.AppendLine("[MandatoryObjects]");
-            WriteKeyValue(sb, "SupportedObjects", objDict.MandatoryObjects.Count.ToString(CultureInfo.InvariantCulture));
-
-            for (int i = 0; i < objDict.MandatoryObjects.Count; i++)
-            {
-                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(objDict.MandatoryObjects[i]));
-            }
-
-            sb.AppendLine();
-        }
-
-        // Write OptionalObjects
-        if (objDict.OptionalObjects.Count > 0)
-        {
-            sb.AppendLine("[OptionalObjects]");
-            WriteKeyValue(sb, "SupportedObjects", objDict.OptionalObjects.Count.ToString(CultureInfo.InvariantCulture));
-
-            for (int i = 0; i < objDict.OptionalObjects.Count; i++)
-            {
-                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(objDict.OptionalObjects[i]));
-            }
-
-            sb.AppendLine();
-        }
-
-        // Write ManufacturerObjects
-        if (objDict.ManufacturerObjects.Count > 0)
-        {
-            sb.AppendLine("[ManufacturerObjects]");
-            WriteKeyValue(sb, "SupportedObjects", objDict.ManufacturerObjects.Count.ToString(CultureInfo.InvariantCulture));
-
-            for (int i = 0; i < objDict.ManufacturerObjects.Count; i++)
-            {
-                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(objDict.ManufacturerObjects[i]));
-            }
-
-            sb.AppendLine();
-        }
+        ObjectListSectionWriter.WriteObjectLists(sb, objDict, WriteKeyValue);
     }
 
     private static void WriteObjects(StringBuilder sb, ObjectDictionary objDict)
