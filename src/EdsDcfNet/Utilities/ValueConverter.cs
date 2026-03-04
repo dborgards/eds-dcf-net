@@ -200,11 +200,11 @@ public static class ValueConverter
     {
         formula = formula.Trim();
 
-        if (formula.Equals("$NODEID", StringComparison.OrdinalIgnoreCase))
-            return nodeId;
-
         const string token = "$NODEID";
         var suffix = formula[token.Length..].Trim();
+
+        if (suffix.Length == 0)
+            return nodeId;
 
         if (suffix[0] == '+' || suffix[0] == '-')
         {
