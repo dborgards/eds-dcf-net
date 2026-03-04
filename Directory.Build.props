@@ -3,10 +3,13 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'EdsDcfNet' Or '$(MSBuildProjectName)' == 'EdsDcfNet.Tests'">
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(IsTestProject)' != 'true'">
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'EdsDcfNet'">
     <AnalysisMode>Recommended</AnalysisMode>
   </PropertyGroup>
 </Project>
