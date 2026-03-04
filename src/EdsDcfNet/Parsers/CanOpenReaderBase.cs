@@ -134,47 +134,9 @@ public abstract class CanOpenReaderBase
     {
         var objDict = new ObjectDictionary();
 
-        // Parse mandatory objects
-        if (IniParser.HasSection(sections, "MandatoryObjects"))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "MandatoryObjects", "SupportedObjects", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var indexStr = IniParser.GetValue(sections, "MandatoryObjects", i.ToString(CultureInfo.InvariantCulture));
-                if (!string.IsNullOrEmpty(indexStr))
-                {
-                    objDict.MandatoryObjects.Add(ValueConverter.ParseUInt16(indexStr));
-                }
-            }
-        }
-
-        // Parse optional objects
-        if (IniParser.HasSection(sections, "OptionalObjects"))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "OptionalObjects", "SupportedObjects", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var indexStr = IniParser.GetValue(sections, "OptionalObjects", i.ToString(CultureInfo.InvariantCulture));
-                if (!string.IsNullOrEmpty(indexStr))
-                {
-                    objDict.OptionalObjects.Add(ValueConverter.ParseUInt16(indexStr));
-                }
-            }
-        }
-
-        // Parse manufacturer objects
-        if (IniParser.HasSection(sections, "ManufacturerObjects"))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "ManufacturerObjects", "SupportedObjects", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var indexStr = IniParser.GetValue(sections, "ManufacturerObjects", i.ToString(CultureInfo.InvariantCulture));
-                if (!string.IsNullOrEmpty(indexStr))
-                {
-                    objDict.ManufacturerObjects.Add(ValueConverter.ParseUInt16(indexStr));
-                }
-            }
-        }
+        ParseObjectListSection(sections, "MandatoryObjects", objDict.MandatoryObjects);
+        ParseObjectListSection(sections, "OptionalObjects", objDict.OptionalObjects);
+        ParseObjectListSection(sections, "ManufacturerObjects", objDict.ManufacturerObjects);
 
         // Parse all object definitions
         var allObjects = objDict.MandatoryObjects
@@ -209,6 +171,25 @@ public abstract class CanOpenReaderBase
         }
 
         return objDict;
+    }
+
+    private static void ParseObjectListSection(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        List<ushort> targetList)
+    {
+        if (!IniParser.HasSection(sections, sectionName))
+            return;
+
+        var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "SupportedObjects", "0"));
+        for (int i = 1; i <= count; i++)
+        {
+            var indexStr = IniParser.GetValue(sections, sectionName, i.ToString(CultureInfo.InvariantCulture));
+            if (!string.IsNullOrEmpty(indexStr))
+            {
+                targetList.Add(ValueConverter.ParseUInt16(indexStr));
+            }
+        }
     }
 
     /// <summary>
