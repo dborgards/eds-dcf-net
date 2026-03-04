@@ -47,6 +47,13 @@ Repository-wide formatting and baseline analyzer severities are defined in
 [`.editorconfig`](.editorconfig). Please keep local IDE formatting aligned with
 that file.
 
+## .NET SDK policy
+
+- SDK resolution is pinned in [`global.json`](global.json).
+- CI resolves the .NET SDK from that file in both workflows.
+- To update the SDK baseline, submit one PR that updates `global.json` and
+  briefly notes the change in the PR description.
+
 ## Commit convention
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/).
