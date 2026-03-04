@@ -127,7 +127,7 @@ public class EdsWriter
         // Write additional sections
         foreach (var section in eds.AdditionalSections)
         {
-            if (IsObjectLinksSectionForExistingObject(section.Key, eds.ObjectDictionary))
+            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, eds.ObjectDictionary))
             {
                 continue;
             }
@@ -489,29 +489,6 @@ public class EdsWriter
     private static void WriteKeyValue(StringBuilder sb, string key, string? value)
     {
         sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
-    }
-
-    private static bool IsObjectLinksSectionForExistingObject(string sectionName, ObjectDictionary objDict)
-    {
-        const string suffix = "ObjectLinks";
-
-        if (!sectionName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var indexPart = sectionName.Substring(0, sectionName.Length - suffix.Length);
-        if (string.IsNullOrWhiteSpace(indexPart))
-        {
-            return false;
-        }
-
-        if (!ushort.TryParse(indexPart, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
-        {
-            return false;
-        }
-
-        return objDict.Objects.ContainsKey(index);
     }
 
     private static void WriteSection(string sectionName, Action writeAction)
