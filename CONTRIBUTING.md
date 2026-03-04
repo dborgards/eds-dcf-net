@@ -41,6 +41,12 @@ refactor/xyz    ──┘      │           │
 
 6. Wait for CI (build + tests) to pass and for review.
 
+## Coding conventions
+
+Repository-wide formatting and baseline analyzer severities are defined in
+[`.editorconfig`](.editorconfig). Please keep local IDE formatting aligned with
+that file.
+
 ## Commit convention
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/).
