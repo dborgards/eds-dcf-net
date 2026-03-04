@@ -852,14 +852,15 @@ PDOMapping=0
     public void EdsToDcf_WithDynamicChannels_ClonesCorrectly()
     {
         // Arrange
+        var dynamicChannels = new DynamicChannels();
         var eds = new ElectronicDataSheet
         {
             FileInfo = new EdsFileInfo { FileName = "test.eds" },
             DeviceInfo = new DeviceInfo { ProductName = "Test" },
             ObjectDictionary = new ObjectDictionary(),
-            DynamicChannels = new DynamicChannels()
+            DynamicChannels = dynamicChannels
         };
-        eds.DynamicChannels.Segments.Add(new DynamicChannelSegment
+        dynamicChannels.Segments.Add(new DynamicChannelSegment
         {
             Type = 0x0007,
             Dir = AccessType.ReadOnly,
@@ -873,11 +874,12 @@ PDOMapping=0
         // Assert
         dcf.DynamicChannels.Should().NotBeNull();
         dcf.DynamicChannels.Should().NotBeSameAs(eds.DynamicChannels);
-        dcf.DynamicChannels!.Segments.Should().HaveCount(1);
-        dcf.DynamicChannels.Segments[0].Range.Should().Be("0xA000-0xA0FF");
+        var dcfDynamicChannels = dcf.DynamicChannels!;
+        dcfDynamicChannels.Segments.Should().HaveCount(1);
+        dcfDynamicChannels.Segments[0].Range.Should().Be("0xA000-0xA0FF");
 
         // Mutate DCF clone and verify source isolation
-        dcf.DynamicChannels.Segments[0].Range = "0xB000-0xB0FF";
+        dcfDynamicChannels.Segments[0].Range = "0xB000-0xB0FF";
         eds.DynamicChannels!.Segments[0].Range.Should().Be("0xA000-0xA0FF");
     }
 
@@ -917,7 +919,7 @@ PDOMapping=0
             ObjectDictionary = new ObjectDictionary(),
             ApplicationProcess = new ApplicationProcess()
         };
-        eds.ApplicationProcess.ParameterList.Add(new ApParameter { UniqueId = "P1", Access = "readWrite" });
+        eds.ApplicationProcess!.ParameterList.Add(new ApParameter { UniqueId = "P1", Access = "readWrite" });
 
         // Act
         var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
