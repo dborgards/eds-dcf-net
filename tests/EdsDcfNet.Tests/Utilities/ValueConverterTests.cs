@@ -85,6 +85,7 @@ public class ValueConverterTests
 
     [Theory]
     [InlineData("$NODEID", 5, 5u)]
+    [InlineData("$NODEID   ", 7, 7u)] // Trailing whitespace should still behave like plain $NODEID
     [InlineData("$nodeid", 10, 10u)] // Case insensitive
     [InlineData("$NODEID+0x200", 5, 517u)] // 5 + 512
     [InlineData("$NODEID+0x180", 5, 389u)] // 5 + 384
@@ -117,15 +118,20 @@ public class ValueConverterTests
     [Theory]
     [InlineData("$NODEID*2")]
     [InlineData("$NODEID+0x200+1")]
+    [InlineData("$NODEID+")]
+    [InlineData("$NODEID+   ")]
     [InlineData("$NODEID-")]
+    [InlineData("$NODEID-   ")]
     public void ParseInteger_UnsupportedNodeIdFormula_ThrowsEdsParseException(string formula)
     {
+        var normalizedFormula = formula.Trim();
+
         // Act
         var act = () => ValueConverter.ParseInteger(formula, 5);
 
         // Assert
         act.Should().Throw<EdsParseException>()
-            .WithMessage($"*Unsupported $NODEID formula*'{formula}'*");
+            .WithMessage($"*Unsupported $NODEID formula*'{normalizedFormula}'*");
     }
 
     #endregion
