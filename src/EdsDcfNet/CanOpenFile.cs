@@ -455,9 +455,15 @@ public static class CanOpenFile
             },
             ObjectDictionary = CloneObjectDictionary(eds.ObjectDictionary),
             Comments = CloneComments(eds.Comments),
+            DynamicChannels = CloneDynamicChannels(eds.DynamicChannels),
+            // Keep ApplicationProcess available after EDS -> DCF conversion.
+            // Intentional decision: preserve by reference (no deep clone yet) to avoid
+            // partial/fragile cloning of the large CiA 311 object graph.
+            ApplicationProcess = eds.ApplicationProcess
         };
 
         dcf.SupportedModules.AddRange(CloneSupportedModules(eds.SupportedModules));
+        dcf.Tools.AddRange(CloneTools(eds.Tools));
         foreach (var kvp in CloneAdditionalSections(eds.AdditionalSections))
             dcf.AdditionalSections[kvp.Key] = kvp.Value;
 
@@ -620,6 +626,41 @@ public static class CanOpenFile
 
             clone.Add(clonedModule);
         }
+        return clone;
+    }
+
+    private static DynamicChannels? CloneDynamicChannels(DynamicChannels? source)
+    {
+        if (source == null)
+            return null;
+
+        var clone = new DynamicChannels();
+        foreach (var segment in source.Segments)
+        {
+            clone.Segments.Add(new DynamicChannelSegment
+            {
+                Type = segment.Type,
+                Dir = segment.Dir,
+                Range = segment.Range,
+                PPOffset = segment.PPOffset
+            });
+        }
+
+        return clone;
+    }
+
+    private static List<ToolInfo> CloneTools(List<ToolInfo> source)
+    {
+        var clone = new List<ToolInfo>(source.Count);
+        foreach (var tool in source)
+        {
+            clone.Add(new ToolInfo
+            {
+                Name = tool.Name,
+                Command = tool.Command
+            });
+        }
+
         return clone;
     }
 

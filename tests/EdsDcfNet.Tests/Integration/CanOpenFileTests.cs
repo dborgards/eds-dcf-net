@@ -846,6 +846,91 @@ PDOMapping=0
 
     #endregion
 
+    #region EdsToDcf DynamicChannels/Tools/ApplicationProcess Tests
+
+    [Fact]
+    public void EdsToDcf_WithDynamicChannels_ClonesCorrectly()
+    {
+        // Arrange
+        var dynamicChannels = new DynamicChannels();
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary(),
+            DynamicChannels = dynamicChannels
+        };
+        dynamicChannels.Segments.Add(new DynamicChannelSegment
+        {
+            Type = 0x0007,
+            Dir = AccessType.ReadOnly,
+            Range = "0xA000-0xA0FF",
+            PPOffset = 16
+        });
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert
+        dcf.DynamicChannels.Should().NotBeNull();
+        dcf.DynamicChannels.Should().NotBeSameAs(eds.DynamicChannels);
+        var dcfDynamicChannels = dcf.DynamicChannels!;
+        dcfDynamicChannels.Segments.Should().HaveCount(1);
+        dcfDynamicChannels.Segments[0].Range.Should().Be("0xA000-0xA0FF");
+
+        // Mutate DCF clone and verify source isolation
+        dcfDynamicChannels.Segments[0].Range = "0xB000-0xB0FF";
+        eds.DynamicChannels!.Segments[0].Range.Should().Be("0xA000-0xA0FF");
+    }
+
+    [Fact]
+    public void EdsToDcf_WithTools_ClonesCorrectly()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+        eds.Tools.Add(new ToolInfo { Name = "Configurator", Command = "config.exe $DCF $NODEID" });
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert
+        dcf.Tools.Should().HaveCount(1);
+        dcf.Tools[0].Name.Should().Be("Configurator");
+        dcf.Tools[0].Should().NotBeSameAs(eds.Tools[0]);
+
+        // Mutate DCF clone and verify source isolation
+        dcf.Tools[0].Name = "Changed";
+        eds.Tools[0].Name.Should().Be("Configurator");
+    }
+
+    [Fact]
+    public void EdsToDcf_WithApplicationProcess_PreservesReferenceByDesign()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary(),
+            ApplicationProcess = new ApplicationProcess()
+        };
+        eds.ApplicationProcess!.ParameterList.Add(new ApParameter { UniqueId = "P1", Access = "readWrite" });
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert — preservation is intentional; deep clone is deferred.
+        dcf.ApplicationProcess.Should().BeSameAs(eds.ApplicationProcess);
+        dcf.ApplicationProcess!.ParameterList.Should().ContainSingle(p => p.UniqueId == "P1");
+    }
+
+    #endregion
+
     #region EdsToDcf AdditionalSections Tests
 
     [Fact]
