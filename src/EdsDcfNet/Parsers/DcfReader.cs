@@ -97,7 +97,9 @@ public class DcfReader : CanOpenReaderBase
         // Parse any additional unknown sections
         foreach (var sectionName in sections.Keys)
         {
-            if (!IsKnownSection(sectionName) && !IsToolSectionForParsedTools(sectionName, dcf.Tools.Count) && !IsObjectLinksSectionForExistingObject(sectionName, dcf.ObjectDictionary))
+            if (!IsKnownSection(sectionName) &&
+                !IsToolSectionForParsedTools(sectionName, dcf.Tools.Count) &&
+                !ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(sectionName, dcf.ObjectDictionary))
             {
                 dcf.AdditionalSections[sectionName] = new Dictionary<string, string>(sections[sectionName]);
             }
@@ -275,29 +277,6 @@ public class DcfReader : CanOpenReaderBase
         }
 
         return modules;
-    }
-
-    private static bool IsObjectLinksSectionForExistingObject(string sectionName, ObjectDictionary objectDictionary)
-    {
-        const string suffix = "ObjectLinks";
-
-        if (!sectionName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var indexPart = sectionName.Substring(0, sectionName.Length - suffix.Length);
-        if (string.IsNullOrWhiteSpace(indexPart))
-        {
-            return false;
-        }
-
-        if (!ushort.TryParse(indexPart, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
-        {
-            return false;
-        }
-
-        return objectDictionary.Objects.ContainsKey(index);
     }
 
     #endregion
