@@ -21,7 +21,7 @@ dotnet_style_qualification_for_method = false:suggestion
 dotnet_style_qualification_for_event = false:suggestion
 
 # Analyzer baseline
-dotnet_analyzer_diagnostic.severity = suggestion
+# Keep non-style analyzers at SDK/MSBuild-defined severities.
 dotnet_analyzer_diagnostic.category-Style.severity = suggestion
 dotnet_analyzer_diagnostic.category-Documentation.severity = suggestion
 
