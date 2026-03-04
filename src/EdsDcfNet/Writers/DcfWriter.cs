@@ -128,7 +128,7 @@ public class DcfWriter
         // Write additional sections
         foreach (var section in dcf.AdditionalSections)
         {
-            if (IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary))
+            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary))
             {
                 continue;
             }
@@ -247,47 +247,7 @@ public class DcfWriter
 
     private static void WriteObjectLists(StringBuilder sb, ObjectDictionary objDict)
     {
-        // Write MandatoryObjects
-        if (objDict.MandatoryObjects.Count > 0)
-        {
-            sb.AppendLine("[MandatoryObjects]");
-            WriteKeyValue(sb, "SupportedObjects", objDict.MandatoryObjects.Count.ToString(CultureInfo.InvariantCulture));
-
-            for (int i = 0; i < objDict.MandatoryObjects.Count; i++)
-            {
-                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(objDict.MandatoryObjects[i]));
-            }
-
-            sb.AppendLine();
-        }
-
-        // Write OptionalObjects
-        if (objDict.OptionalObjects.Count > 0)
-        {
-            sb.AppendLine("[OptionalObjects]");
-            WriteKeyValue(sb, "SupportedObjects", objDict.OptionalObjects.Count.ToString(CultureInfo.InvariantCulture));
-
-            for (int i = 0; i < objDict.OptionalObjects.Count; i++)
-            {
-                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(objDict.OptionalObjects[i]));
-            }
-
-            sb.AppendLine();
-        }
-
-        // Write ManufacturerObjects
-        if (objDict.ManufacturerObjects.Count > 0)
-        {
-            sb.AppendLine("[ManufacturerObjects]");
-            WriteKeyValue(sb, "SupportedObjects", objDict.ManufacturerObjects.Count.ToString(CultureInfo.InvariantCulture));
-
-            for (int i = 0; i < objDict.ManufacturerObjects.Count; i++)
-            {
-                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(objDict.ManufacturerObjects[i]));
-            }
-
-            sb.AppendLine();
-        }
+        ObjectListSectionWriter.WriteObjectLists(sb, objDict, WriteKeyValue);
     }
 
     private static void WriteObjects(StringBuilder sb, ObjectDictionary objDict)
@@ -575,26 +535,4 @@ public class DcfWriter
         sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
     }
 
-    private static bool IsObjectLinksSectionForExistingObject(string sectionName, ObjectDictionary objDict)
-    {
-        const string suffix = "ObjectLinks";
-
-        if (!sectionName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var indexPart = sectionName.Substring(0, sectionName.Length - suffix.Length);
-        if (string.IsNullOrWhiteSpace(indexPart))
-        {
-            return false;
-        }
-
-        if (!ushort.TryParse(indexPart, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
-        {
-            return false;
-        }
-
-        return objDict.Objects.ContainsKey(index);
-    }
 }

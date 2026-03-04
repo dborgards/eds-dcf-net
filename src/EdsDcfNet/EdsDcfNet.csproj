@@ -2,12 +2,9 @@
 
 	<PropertyGroup>
 		<TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
-		<LangVersion>latest</LangVersion>
-		<Nullable>enable</Nullable>
-		<ImplicitUsings>enable</ImplicitUsings>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<PackageId>EdsDcfNet</PackageId>
-		<Version>1.7.0</Version>
+		<Version>1.7.1-beta.1</Version>
 		<Authors>Dietmar Borgards</Authors>
 		<Description>A comprehensive C# .NET library for reading and writing CiA DS 306 EDS (Electronic Data Sheet) and DCF (Device Configuration File) files for CANopen devices.</Description>
 		<PackageTags>CANopen;EDS;DCF;CiA;DS306;Industrial Automation</PackageTags>
@@ -20,8 +17,6 @@
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<Deterministic>true</Deterministic>
 		<ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
-		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-		<AnalysisMode>Recommended</AnalysisMode>
 	</PropertyGroup>
 
 	<ItemGroup>

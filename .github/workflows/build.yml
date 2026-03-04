@@ -37,9 +37,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: |
-          8.0.x
-          10.0.x
+        global-json-file: global.json
 
     - name: Restore dependencies
       run: dotnet restore
@@ -125,7 +123,7 @@ jobs:
         override_branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
         override_commit: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-        fail_ci_if_error: false
+        fail_ci_if_error: true
 
     - name: Post codecov/patch status
       if: always()

@@ -35,9 +35,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          global-json-file: global.json
 
       - name: Install dependencies
         run: npm ci
@@ -88,7 +86,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: '**/coverage.cobertura.xml'
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
       - name: Configure git auth for release push
         env:
