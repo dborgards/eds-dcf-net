@@ -30,17 +30,20 @@ public class XddReader
     /// Reads an XDD file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the XDD file</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     /// <exception cref="FileNotFoundException">Thrown when the file does not exist</exception>
     /// <exception cref="EdsParseException">Thrown when the XDD content is invalid</exception>
-    public ElectronicDataSheet ReadFile(string filePath)
+    public ElectronicDataSheet ReadFile(
+        string filePath,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"XDD file not found: {filePath}", filePath);
 
-        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD");
+        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD", maxInputSize);
         var content = File.ReadAllText(filePath);
-        return ReadString(content);
+        return ReadString(content, maxInputSize);
     }
 
     /// <summary>
@@ -51,32 +54,50 @@ public class XddReader
     /// <returns>Parsed ElectronicDataSheet object</returns>
     /// <exception cref="FileNotFoundException">Thrown when the file does not exist</exception>
     /// <exception cref="EdsParseException">Thrown when the XDD content is invalid</exception>
+    public Task<ElectronicDataSheet> ReadFileAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+        => ReadFileAsync(filePath, IniParser.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads an XDD file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the XDD file</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the file does not exist</exception>
+    /// <exception cref="EdsParseException">Thrown when the XDD content is invalid</exception>
     public async Task<ElectronicDataSheet> ReadFileAsync(
         string filePath,
+        long maxInputSize,
         CancellationToken cancellationToken = default)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"XDD file not found: {filePath}", filePath);
 
-        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD");
+        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD", maxInputSize);
         var content = await TextFileIo.ReadAllTextAsync(
             filePath,
             Encoding.UTF8,
             cancellationToken: cancellationToken).ConfigureAwait(false);
-        return ReadString(content);
+        return ReadString(content, maxInputSize);
     }
 
     /// <summary>
     /// Reads an XDD from a string.
     /// </summary>
     /// <param name="content">XDD file content as string</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     /// <exception cref="EdsParseException">Thrown when the XDD content is invalid</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Public API — instance method for consistency with EdsReader pattern.")]
-    public ElectronicDataSheet ReadString(string content)
+    public ElectronicDataSheet ReadString(
+        string content,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
-        var doc = SecureXmlParser.ParseDocument(content, "XDD", "Failed to parse XDD XML content.");
+        var doc = SecureXmlParser.ParseDocument(content, "XDD", "Failed to parse XDD XML content.", maxInputSize);
         return ParseDocument(doc, includeActualValues: false);
     }
 

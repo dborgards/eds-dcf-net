@@ -12,10 +12,13 @@ internal static class SecureXmlParser
 {
     internal const long DefaultMaxInputSize = IniParser.DefaultMaxInputSize;
 
-    internal static void EnsureFileWithinSizeLimit(string filePath, string formatName)
+    internal static void EnsureFileWithinSizeLimit(
+        string filePath,
+        string formatName,
+        long maxInputSize = DefaultMaxInputSize)
     {
         var fileInfo = new FileInfo(filePath);
-        if (fileInfo.Length > DefaultMaxInputSize)
+        if (fileInfo.Length > maxInputSize)
         {
             throw new EdsParseException(
                 string.Format(
@@ -24,17 +27,21 @@ internal static class SecureXmlParser
                     formatName,
                     filePath,
                     fileInfo.Length,
-                    DefaultMaxInputSize));
+                    maxInputSize));
         }
     }
 
-    internal static XDocument ParseDocument(string content, string formatName, string parseErrorMessage)
+    internal static XDocument ParseDocument(
+        string content,
+        string formatName,
+        string parseErrorMessage,
+        long maxInputSize = DefaultMaxInputSize)
     {
-        EnsureContentWithinSizeLimit(content, formatName);
+        EnsureContentWithinSizeLimit(content, formatName, maxInputSize);
 
         try
         {
-            var settings = CreateSecureReaderSettings();
+            var settings = CreateSecureReaderSettings(maxInputSize);
             using var stringReader = new StringReader(content);
             using var xmlReader = XmlReader.Create(stringReader, settings);
             return XDocument.Load(xmlReader, LoadOptions.None);
@@ -45,9 +52,12 @@ internal static class SecureXmlParser
         }
     }
 
-    private static void EnsureContentWithinSizeLimit(string content, string formatName)
+    private static void EnsureContentWithinSizeLimit(
+        string content,
+        string formatName,
+        long maxInputSize)
     {
-        if (content.Length > DefaultMaxInputSize)
+        if (content.Length > maxInputSize)
         {
             throw new EdsParseException(
                 string.Format(
@@ -55,18 +65,18 @@ internal static class SecureXmlParser
                     "{0} content is too large ({1:N0} characters). Maximum supported size is {2:N0} characters.",
                     formatName,
                     content.Length,
-                    DefaultMaxInputSize));
+                    maxInputSize));
         }
     }
 
-    private static XmlReaderSettings CreateSecureReaderSettings()
+    private static XmlReaderSettings CreateSecureReaderSettings(long maxInputSize)
     {
         return new XmlReaderSettings
         {
             DtdProcessing = DtdProcessing.Prohibit,
             XmlResolver = null,
-            MaxCharactersInDocument = DefaultMaxInputSize,
-            MaxCharactersFromEntities = DefaultMaxInputSize
+            MaxCharactersInDocument = maxInputSize,
+            MaxCharactersFromEntities = maxInputSize
         };
     }
 }

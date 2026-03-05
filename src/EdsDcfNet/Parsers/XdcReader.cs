@@ -17,17 +17,20 @@ public class XdcReader
     /// Reads an XDC file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the XDC file</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     /// <exception cref="FileNotFoundException">Thrown when the file does not exist</exception>
     /// <exception cref="EdsParseException">Thrown when the XDC content is invalid</exception>
-    public DeviceConfigurationFile ReadFile(string filePath)
+    public DeviceConfigurationFile ReadFile(
+        string filePath,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
 
-        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC");
+        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC", maxInputSize);
         var content = File.ReadAllText(filePath);
-        return ReadString(content);
+        return ReadString(content, maxInputSize);
     }
 
     /// <summary>
@@ -38,32 +41,50 @@ public class XdcReader
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     /// <exception cref="FileNotFoundException">Thrown when the file does not exist</exception>
     /// <exception cref="EdsParseException">Thrown when the XDC content is invalid</exception>
+    public Task<DeviceConfigurationFile> ReadFileAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+        => ReadFileAsync(filePath, IniParser.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads an XDC file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the XDC file</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the file does not exist</exception>
+    /// <exception cref="EdsParseException">Thrown when the XDC content is invalid</exception>
     public async Task<DeviceConfigurationFile> ReadFileAsync(
         string filePath,
+        long maxInputSize,
         CancellationToken cancellationToken = default)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
 
-        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC");
+        SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC", maxInputSize);
         var content = await TextFileIo.ReadAllTextAsync(
             filePath,
             Encoding.UTF8,
             cancellationToken: cancellationToken).ConfigureAwait(false);
-        return ReadString(content);
+        return ReadString(content, maxInputSize);
     }
 
     /// <summary>
     /// Reads an XDC from a string.
     /// </summary>
     /// <param name="content">XDC file content as string</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     /// <exception cref="EdsParseException">Thrown when the XDC content is invalid</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Public API — instance method for consistency with EdsReader pattern.")]
-    public DeviceConfigurationFile ReadString(string content)
+    public DeviceConfigurationFile ReadString(
+        string content,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
-        var doc = SecureXmlParser.ParseDocument(content, "XDC", "Failed to parse XDC XML content.");
+        var doc = SecureXmlParser.ParseDocument(content, "XDC", "Failed to parse XDC XML content.", maxInputSize);
         return ParseXdcDocument(doc);
     }
 

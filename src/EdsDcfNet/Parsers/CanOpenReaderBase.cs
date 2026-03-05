@@ -24,8 +24,10 @@ public abstract class CanOpenReaderBase
     /// Parses INI sections from a file path.
     /// </summary>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromFile().")]
-    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromFile(string filePath)
-        => IniParser.ParseFile(filePath);
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromFile(
+        string filePath,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
+        => IniParser.ParseFile(filePath, maxInputSize);
 
     /// <summary>
     /// Parses INI sections from a file path asynchronously.
@@ -33,15 +35,18 @@ public abstract class CanOpenReaderBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromFileAsync().")]
     protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromFileAsync(
         string filePath,
+        long maxInputSize = IniParser.DefaultMaxInputSize,
         CancellationToken cancellationToken = default)
-        => IniParser.ParseFileAsync(filePath, cancellationToken: cancellationToken);
+        => IniParser.ParseFileAsync(filePath, maxInputSize, cancellationToken);
 
     /// <summary>
     /// Parses INI sections from a string.
     /// </summary>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromString().")]
-    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromString(string content)
-        => IniParser.ParseString(content);
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromString(
+        string content,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
+        => IniParser.ParseString(content, maxInputSize);
 
     /// <summary>
     /// Parses the <c>[FileInfo]</c> section into an <see cref="EdsFileInfo"/> object.

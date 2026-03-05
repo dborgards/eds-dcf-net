@@ -1,12 +1,141 @@
 namespace EdsDcfNet.Tests.Integration;
 
 using EdsDcfNet;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 using FluentAssertions;
 using Xunit;
 
 public class CanOpenFileTests
 {
+    [Fact]
+    public void SyncReadMethods_LegacySingleParameterOverloads_AreAvailableForBinaryCompatibility()
+    {
+        var singleStringSignature = new[] { typeof(string) };
+
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadEds), singleStringSignature).Should().NotBeNull();
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadDcf), singleStringSignature).Should().NotBeNull();
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadCpj), singleStringSignature).Should().NotBeNull();
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdd), singleStringSignature).Should().NotBeNull();
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdc), singleStringSignature).Should().NotBeNull();
+    }
+
+    [Fact]
+    public void SyncReadMethods_DefaultAndExplicitMaxInputSizeOverloads_BothWork()
+    {
+        var edsDefault = CanOpenFile.ReadEds("Fixtures/sample_device.eds");
+        var edsExplicit = CanOpenFile.ReadEds("Fixtures/sample_device.eds", IniParser.DefaultMaxInputSize);
+        edsDefault.FileInfo.FileName.Should().Be(edsExplicit.FileInfo.FileName);
+
+        var dcfDefault = CanOpenFile.ReadDcf("Fixtures/minimal.dcf");
+        var dcfExplicit = CanOpenFile.ReadDcf("Fixtures/minimal.dcf", IniParser.DefaultMaxInputSize);
+        dcfDefault.DeviceCommissioning.NodeId.Should().Be(dcfExplicit.DeviceCommissioning.NodeId);
+
+        var xddDefault = CanOpenFile.ReadXdd("Fixtures/sample_device.xdd");
+        var xddExplicit = CanOpenFile.ReadXdd("Fixtures/sample_device.xdd", IniParser.DefaultMaxInputSize);
+        xddDefault.DeviceInfo.ProductName.Should().Be(xddExplicit.DeviceInfo.ProductName);
+
+        var xdcDefault = CanOpenFile.ReadXdc("Fixtures/minimal.xdc");
+        var xdcExplicit = CanOpenFile.ReadXdc("Fixtures/minimal.xdc", IniParser.DefaultMaxInputSize);
+        xdcDefault.DeviceCommissioning.NodeId.Should().Be(xdcExplicit.DeviceCommissioning.NodeId);
+
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, "[Topology]\nNetName=Coverage Network\nNodes=0");
+
+            var cpjDefault = CanOpenFile.ReadCpj(tempFile);
+            var cpjExplicit = CanOpenFile.ReadCpj(tempFile, IniParser.DefaultMaxInputSize);
+
+            cpjDefault.Networks.Should().ContainSingle();
+            cpjDefault.Networks[0].NetName.Should().Be("Coverage Network");
+            cpjExplicit.Networks.Should().ContainSingle();
+            cpjExplicit.Networks[0].NetName.Should().Be("Coverage Network");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void SyncReadFromStringMethods_LegacySingleParameterOverloads_AreAvailableForBinaryCompatibility()
+    {
+        var singleStringSignature = new[] { typeof(string) };
+
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadEdsFromString), singleStringSignature).Should().NotBeNull();
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadDcfFromString), singleStringSignature).Should().NotBeNull();
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadCpjFromString), singleStringSignature).Should().NotBeNull();
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXddFromString), singleStringSignature).Should().NotBeNull();
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdcFromString), singleStringSignature).Should().NotBeNull();
+    }
+
+    [Fact]
+    public void SyncReadFromStringMethods_DefaultAndExplicitMaxInputSizeOverloads_BothWork()
+    {
+        const string edsContent = """
+                                  [FileInfo]
+                                  FileName=fromstring.eds
+                                  FileVersion=1
+                                  [DeviceInfo]
+                                  VendorName=Vendor
+                                  ProductName=Product
+                                  [MandatoryObjects]
+                                  SupportedObjects=1
+                                  1=0x1000
+                                  [1000]
+                                  ParameterName=Device Type
+                                  ObjectType=0x7
+                                  DataType=0x0007
+                                  AccessType=ro
+                                  PDOMapping=0
+                                  """;
+        var edsDefault = CanOpenFile.ReadEdsFromString(edsContent);
+        var edsExplicit = CanOpenFile.ReadEdsFromString(edsContent, IniParser.DefaultMaxInputSize);
+        edsDefault.FileInfo.FileName.Should().Be(edsExplicit.FileInfo.FileName);
+
+        const string dcfContent = """
+                                  [FileInfo]
+                                  FileName=fromstring.dcf
+                                  FileVersion=1
+                                  [DeviceInfo]
+                                  VendorName=Vendor
+                                  ProductName=Product
+                                  [DeviceCommissioning]
+                                  NodeID=5
+                                  Baudrate=500
+                                  [MandatoryObjects]
+                                  SupportedObjects=1
+                                  1=0x1000
+                                  [1000]
+                                  ParameterName=Device Type
+                                  ObjectType=0x7
+                                  DataType=0x0007
+                                  AccessType=ro
+                                  PDOMapping=0
+                                  """;
+        var dcfDefault = CanOpenFile.ReadDcfFromString(dcfContent);
+        var dcfExplicit = CanOpenFile.ReadDcfFromString(dcfContent, IniParser.DefaultMaxInputSize);
+        dcfDefault.DeviceCommissioning.NodeId.Should().Be(dcfExplicit.DeviceCommissioning.NodeId);
+
+        const string cpjContent = "[Topology]\nNetName=FromString\nNodes=0";
+        var cpjDefault = CanOpenFile.ReadCpjFromString(cpjContent);
+        var cpjExplicit = CanOpenFile.ReadCpjFromString(cpjContent, IniParser.DefaultMaxInputSize);
+        cpjDefault.Networks[0].NetName.Should().Be(cpjExplicit.Networks[0].NetName);
+
+        var xddContent = File.ReadAllText("Fixtures/sample_device.xdd");
+        var xddDefault = CanOpenFile.ReadXddFromString(xddContent);
+        var xddExplicit = CanOpenFile.ReadXddFromString(xddContent, IniParser.DefaultMaxInputSize);
+        xddDefault.DeviceInfo.ProductName.Should().Be(xddExplicit.DeviceInfo.ProductName);
+
+        var xdcContent = File.ReadAllText("Fixtures/minimal.xdc");
+        var xdcDefault = CanOpenFile.ReadXdcFromString(xdcContent);
+        var xdcExplicit = CanOpenFile.ReadXdcFromString(xdcContent, IniParser.DefaultMaxInputSize);
+        xdcDefault.DeviceCommissioning.NodeId.Should().Be(xdcExplicit.DeviceCommissioning.NodeId);
+    }
+
     #region ReadEds Tests
 
     [Fact]
@@ -36,6 +165,15 @@ public class CanOpenFileTests
 
         // Assert
         act.Should().Throw<FileNotFoundException>();
+    }
+
+    [Fact]
+    public void ReadEds_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var result = CanOpenFile.ReadEds("Fixtures/sample_device.eds", IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.FileInfo.FileName.Should().Be("sample_device.eds");
     }
 
     #endregion
@@ -81,6 +219,17 @@ PDOMapping=0
         result.FileInfo.FileName.Should().Be("test.eds");
         result.DeviceInfo.VendorName.Should().Be("Test Vendor");
         result.DeviceInfo.ProductName.Should().Be("Test Product");
+    }
+
+    [Fact]
+    public void ReadEdsFromString_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var content = "[FileInfo]\nFileName=size.eds\nFileVersion=1\n[DeviceInfo]\nVendorName=V\n[MandatoryObjects]\nSupportedObjects=1\n1=0x1000\n[1000]\nParameterName=Device Type\nObjectType=0x7\nDataType=0x0007\nAccessType=ro\nPDOMapping=0\n";
+
+        var result = CanOpenFile.ReadEdsFromString(content, IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.FileInfo.FileName.Should().Be("size.eds");
     }
 
     #endregion
@@ -231,9 +380,20 @@ PDOMapping=0
         result.DeviceCommissioning.Baudrate.Should().Be(500);
     }
 
+    [Fact]
+    public void ReadDcfFromString_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var content = "[FileInfo]\nFileName=size.dcf\nFileVersion=1\n[DeviceInfo]\nVendorName=V\n[DeviceCommissioning]\nNodeID=1\nBaudrate=250\n[MandatoryObjects]\nSupportedObjects=1\n1=0x1000\n[1000]\nParameterName=Device Type\nObjectType=0x7\nDataType=0x0007\nAccessType=ro\nPDOMapping=0\n";
+
+        var result = CanOpenFile.ReadDcfFromString(content, IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.FileInfo.FileName.Should().Be("size.dcf");
+    }
+
     #endregion
 
-    #region WriteDcfToString Tests
+    #region WriteDcf/ReadDcf Tests
 
     [Fact]
     public void WriteDcfToString_ValidDcf_GeneratesString()
@@ -319,6 +479,15 @@ PDOMapping=0
                 File.Delete(tempFile);
             }
         }
+    }
+
+    [Fact]
+    public void ReadDcf_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var result = CanOpenFile.ReadDcf("Fixtures/minimal.dcf", IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.DeviceCommissioning.NodeId.Should().Be(5);
     }
 
     #endregion
@@ -1073,6 +1242,15 @@ PDOMapping=0
     }
 
     [Fact]
+    public void ReadXdd_CustomMaxInputSizeTooSmall_ThrowsEdsParseException()
+    {
+        var act = () => CanOpenFile.ReadXdd("Fixtures/sample_device.xdd", maxInputSize: 256);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
     public void ReadXddFromString_ValidContent_ReturnsElectronicDataSheet()
     {
         var content = File.ReadAllText("Fixtures/sample_device.xdd");
@@ -1090,6 +1268,15 @@ PDOMapping=0
 
         result.Should().NotBeNull();
         result.DeviceCommissioning.NodeId.Should().Be(5);
+    }
+
+    [Fact]
+    public void ReadXdc_CustomMaxInputSizeTooSmall_ThrowsEdsParseException()
+    {
+        var act = () => CanOpenFile.ReadXdc("Fixtures/minimal.xdc", maxInputSize: 256);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
     }
 
     [Fact]

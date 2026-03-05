@@ -205,8 +205,11 @@ var tpdos = dcf.ObjectDictionary.GetPdoCommunicationParameters(transmit: true);
 ```csharp
 // Read EDS
 ElectronicDataSheet ReadEds(string filePath)
+ElectronicDataSheet ReadEds(string filePath, long maxInputSize)
 Task<ElectronicDataSheet> ReadEdsAsync(string filePath, CancellationToken cancellationToken = default)
+Task<ElectronicDataSheet> ReadEdsAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 ElectronicDataSheet ReadEdsFromString(string content)
+ElectronicDataSheet ReadEdsFromString(string content, long maxInputSize)
 
 // Write EDS
 void WriteEds(ElectronicDataSheet eds, string filePath)
@@ -215,8 +218,11 @@ string WriteEdsToString(ElectronicDataSheet eds)
 
 // Read DCF
 DeviceConfigurationFile ReadDcf(string filePath)
+DeviceConfigurationFile ReadDcf(string filePath, long maxInputSize)
 Task<DeviceConfigurationFile> ReadDcfAsync(string filePath, CancellationToken cancellationToken = default)
+Task<DeviceConfigurationFile> ReadDcfAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 DeviceConfigurationFile ReadDcfFromString(string content)
+DeviceConfigurationFile ReadDcfFromString(string content, long maxInputSize)
 
 // Write DCF
 void WriteDcf(DeviceConfigurationFile dcf, string filePath)
@@ -225,8 +231,11 @@ string WriteDcfToString(DeviceConfigurationFile dcf)
 
 // Read CPJ (CiA 306-3 Nodelist Project)
 NodelistProject ReadCpj(string filePath)
+NodelistProject ReadCpj(string filePath, long maxInputSize)
 Task<NodelistProject> ReadCpjAsync(string filePath, CancellationToken cancellationToken = default)
+Task<NodelistProject> ReadCpjAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 NodelistProject ReadCpjFromString(string content)
+NodelistProject ReadCpjFromString(string content, long maxInputSize)
 
 // Write CPJ
 void WriteCpj(NodelistProject cpj, string filePath)
@@ -235,8 +244,11 @@ string WriteCpjToString(NodelistProject cpj)
 
 // Read XDD (CiA 311 XML Device Description)
 ElectronicDataSheet ReadXdd(string filePath)
+ElectronicDataSheet ReadXdd(string filePath, long maxInputSize)
 Task<ElectronicDataSheet> ReadXddAsync(string filePath, CancellationToken cancellationToken = default)
+Task<ElectronicDataSheet> ReadXddAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 ElectronicDataSheet ReadXddFromString(string content)
+ElectronicDataSheet ReadXddFromString(string content, long maxInputSize)
 
 // Write XDD
 void WriteXdd(ElectronicDataSheet xdd, string filePath)
@@ -245,8 +257,11 @@ string WriteXddToString(ElectronicDataSheet xdd)
 
 // Read XDC (CiA 311 XML Device Configuration)
 DeviceConfigurationFile ReadXdc(string filePath)
+DeviceConfigurationFile ReadXdc(string filePath, long maxInputSize)
 Task<DeviceConfigurationFile> ReadXdcAsync(string filePath, CancellationToken cancellationToken = default)
+Task<DeviceConfigurationFile> ReadXdcAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 DeviceConfigurationFile ReadXdcFromString(string content)
+DeviceConfigurationFile ReadXdcFromString(string content, long maxInputSize)
 
 // Write XDC
 void WriteXdc(DeviceConfigurationFile xdc, string filePath)
@@ -257,6 +272,23 @@ string WriteXdcToString(DeviceConfigurationFile xdc)
 DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
                                   ushort baudrate = 250, string? nodeName = null)
 ```
+
+### Input Size Limits and Tuning
+
+All read APIs apply a safe default input-size limit of **10 MB**
+(`IniParser.DefaultMaxInputSize`) to reduce denial-of-service risk from
+unexpectedly large payloads.
+
+You can override this limit per operation when you need to process larger files:
+
+```csharp
+var xdd = CanOpenFile.ReadXdd("large-device.xdd", maxInputSize: 50L * 1024 * 1024);
+```
+
+Guidance:
+- Keep the default whenever possible.
+- Increase limits only for trusted sources and known use cases.
+- Set the limit just high enough for your expected maximum file size.
 
 ## Supported Features
 

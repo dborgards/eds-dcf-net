@@ -27,10 +27,13 @@ public class DcfReader : CanOpenReaderBase
     /// Reads a DCF file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the DCF file</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public DeviceConfigurationFile ReadFile(string filePath)
+    public DeviceConfigurationFile ReadFile(
+        string filePath,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromFile(filePath);
+        var sections = ParseSectionsFromFile(filePath, maxInputSize);
         return ParseDcf(sections);
     }
 
@@ -40,11 +43,24 @@ public class DcfReader : CanOpenReaderBase
     /// <param name="filePath">Path to the DCF file</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public async Task<DeviceConfigurationFile> ReadFileAsync(
+    public Task<DeviceConfigurationFile> ReadFileAsync(
         string filePath,
         CancellationToken cancellationToken = default)
+        => ReadFileAsync(filePath, IniParser.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads a DCF file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the DCF file</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public async Task<DeviceConfigurationFile> ReadFileAsync(
+        string filePath,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
     {
-        var sections = await ParseSectionsFromFileAsync(filePath, cancellationToken).ConfigureAwait(false);
+        var sections = await ParseSectionsFromFileAsync(filePath, maxInputSize, cancellationToken).ConfigureAwait(false);
         return ParseDcf(sections);
     }
 
@@ -52,10 +68,13 @@ public class DcfReader : CanOpenReaderBase
     /// Reads a DCF from a string.
     /// </summary>
     /// <param name="content">DCF file content as string</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public DeviceConfigurationFile ReadString(string content)
+    public DeviceConfigurationFile ReadString(
+        string content,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromString(content);
+        var sections = ParseSectionsFromString(content, maxInputSize);
         return ParseDcf(sections);
     }
 

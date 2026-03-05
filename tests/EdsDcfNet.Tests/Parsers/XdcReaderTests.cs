@@ -168,6 +168,17 @@ public class XdcReaderTests
             .Where(ex => ex.FileName == filePath);
     }
 
+    [Fact]
+    public async Task ReadFileAsync_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        const string path = "Fixtures/minimal.xdc";
+        var fileLength = new FileInfo(path).Length;
+        var act = () => _reader.ReadFileAsync(path, maxInputSize: fileLength - 1);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
     #endregion
 
     #region ReadString Tests
@@ -237,6 +248,24 @@ public class XdcReaderTests
     }
 
     [Fact]
+    public void ReadString_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        var contentLength = MinimalXdc.Length;
+        var act = () => _reader.ReadString(MinimalXdc, maxInputSize: contentLength - 1);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public void ReadString_ContentWithinCustomMaximumSize_ParsesSuccessfully()
+    {
+        var result = _reader.ReadString(MinimalXdc, maxInputSize: MinimalXdc.Length + 10);
+
+        result.FileInfo.FileName.Should().Be("test.xdc");
+    }
+
+    [Fact]
     public void ReadFile_ContentExceedsMaximumSize_ThrowsEdsParseException()
     {
         var tempFile = Path.GetTempFileName();
@@ -258,6 +287,17 @@ public class XdcReaderTests
             if (File.Exists(tempFile))
                 File.Delete(tempFile);
         }
+    }
+
+    [Fact]
+    public void ReadFile_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        const string path = "Fixtures/minimal.xdc";
+        var fileLength = new FileInfo(path).Length;
+        var act = () => _reader.ReadFile(path, maxInputSize: fileLength - 1);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
     }
 
     #endregion

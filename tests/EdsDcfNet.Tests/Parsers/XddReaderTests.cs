@@ -131,6 +131,15 @@ public class XddReaderTests
             .Where(ex => ex.FileName == filePath);
     }
 
+    [Fact]
+    public async Task ReadFileAsync_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        var act = () => _reader.ReadFileAsync("Fixtures/sample_device.xdd", maxInputSize: 256);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
     #endregion
 
     #region ReadString Tests
@@ -203,6 +212,23 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ReadString_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        var act = () => _reader.ReadString(MinimalXdd, maxInputSize: 128);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public void ReadString_ContentWithinCustomMaximumSize_ParsesSuccessfully()
+    {
+        var result = _reader.ReadString(MinimalXdd, maxInputSize: MinimalXdd.Length + 10);
+
+        result.FileInfo.FileName.Should().Be("test.xdd");
+    }
+
+    [Fact]
     public void ReadFile_ContentExceedsMaximumSize_ThrowsEdsParseException()
     {
         var tempFile = Path.GetTempFileName();
@@ -224,6 +250,15 @@ public class XddReaderTests
             if (File.Exists(tempFile))
                 File.Delete(tempFile);
         }
+    }
+
+    [Fact]
+    public void ReadFile_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        var act = () => _reader.ReadFile("Fixtures/sample_device.xdd", maxInputSize: 256);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
     }
 
     #endregion
