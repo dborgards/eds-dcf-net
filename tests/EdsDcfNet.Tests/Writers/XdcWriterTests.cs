@@ -355,5 +355,63 @@ public class XdcWriterTests
         result.Should().NotContain("deviceCommissioning");
     }
 
+    [Fact]
+    public void WriteFile_OutOfRangeNodeId_ThrowsXdcWriteException()
+    {
+        var dcf = CreateSampleDcf();
+        dcf.DeviceCommissioning!.NodeId = 128;
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdc");
+
+        try
+        {
+            var act = () => _writer.WriteFile(dcf, tempFile);
+
+            var ex = act.Should().Throw<XdcWriteException>().Which;
+            ex.Message.Should().Contain("NodeId");
+            ex.SectionName.Should().NotBeNullOrEmpty();
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_InvalidPath_ThrowsXdcWriteException()
+    {
+        var dcf = CreateSampleDcf();
+        var invalidPath = "/invalid/path/that/does/not/exist/async.xdc";
+
+        var act = () => _writer.WriteFileAsync(dcf, invalidPath);
+
+        (await act.Should().ThrowAsync<XdcWriteException>())
+            .WithMessage("*Failed to write XDC file*");
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_Cancelled_ThrowsOperationCanceledException()
+    {
+        var dcf = CreateSampleDcf();
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteFileAsync(dcf, Path.GetTempFileName(), cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public void GenerateString_NullDeviceInfo_WrapsXddWriteExceptionAsXdcWriteException()
+    {
+        var dcf = CreateSampleDcf();
+        dcf.DeviceInfo = null!;
+
+        var act = () => _writer.GenerateString(dcf);
+
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.InnerException.Should().NotBeNull();
+        ex.SectionName.Should().NotBeNullOrEmpty();
+    }
+
     #endregion
 }
