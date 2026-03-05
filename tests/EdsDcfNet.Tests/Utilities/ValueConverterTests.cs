@@ -634,6 +634,17 @@ public class ValueConverterTests
             .WithInnerException<Exception>();
     }
 
+    [Fact]
+    public void ParseInteger_InvalidFormat_ErrorMessageDoesNotIncludeOverflowPhrase()
+    {
+        var act = () => ValueConverter.ParseInteger("0xZZ");
+
+        var ex = act.Should().Throw<EdsParseException>().Which;
+        ex.Message.Should().Contain("Invalid uint value");
+        ex.Message.Should().Contain("hexadecimal literal");
+        ex.Message.Should().NotContain("outside the representable range");
+    }
+
     [Theory]
     [InlineData("0xGGG", "*hexadecimal literal contains non-hex characters*")]
     [InlineData("0xAG", "*hexadecimal literal contains non-hex characters*")]
@@ -667,6 +678,19 @@ public class ValueConverterTests
     }
 
     [Theory]
+    [InlineData("0x", "*hexadecimal literal has no digits after the 0x prefix*")]
+    [InlineData("0xGGG", "*hexadecimal literal contains non-hex characters*")]
+    public void ParseByte_InvalidLiteral_ProvidesActionableContext(string input, string expectedMessageFragment)
+    {
+        var act = () => ValueConverter.ParseByte(input);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*'{input}'*")
+            .WithMessage(expectedMessageFragment)
+            .WithInnerException<Exception>();
+    }
+
+    [Theory]
     [InlineData("0xZZ")]
     [InlineData("0x1FF")]
     [InlineData("not_a_byte")]
@@ -690,6 +714,19 @@ public class ValueConverterTests
             .WithMessage($"*'{input}'*")
             .WithMessage(expectedFragment1)
             .WithMessage(expectedFragment2);
+    }
+
+    [Theory]
+    [InlineData("0x", "*hexadecimal literal has no digits after the 0x prefix*")]
+    [InlineData("0xGGGG", "*hexadecimal literal contains non-hex characters*")]
+    public void ParseUInt16_InvalidLiteral_ProvidesActionableContext(string input, string expectedMessageFragment)
+    {
+        var act = () => ValueConverter.ParseUInt16(input);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*'{input}'*")
+            .WithMessage(expectedMessageFragment)
+            .WithInnerException<Exception>();
     }
 
     [Theory]
