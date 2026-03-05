@@ -634,8 +634,12 @@ public class ValueConverterTests
 
     [Theory]
     [InlineData("0xGGG", "*hexadecimal literal contains non-hex characters*")]
+    [InlineData("0xAG", "*hexadecimal literal contains non-hex characters*")]
+    [InlineData("0xag", "*hexadecimal literal contains non-hex characters*")]
+    [InlineData("0x/", "*hexadecimal literal contains non-hex characters*")]
     [InlineData("0x", "*hexadecimal literal has no digits after the 0x prefix*")]
     [InlineData("008", "*octal literal contains characters outside 0-7*")]
+    [InlineData("00/", "*octal literal contains characters outside 0-7*")]
     public void ParseInteger_InvalidLiteral_ProvidesActionableContext(string input, string expectedMessageFragment)
     {
         var act = () => ValueConverter.ParseInteger(input);

@@ -51,7 +51,7 @@ public static class ValueConverter
         }
         catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
-            throw new EdsParseException(BuildInvalidNumericLiteralMessage("integer", value, ex), ex);
+            throw new EdsParseException(BuildInvalidNumericLiteralMessage("uint", value, ex), ex);
         }
     }
 
