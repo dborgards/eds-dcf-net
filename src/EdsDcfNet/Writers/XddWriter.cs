@@ -1127,6 +1127,10 @@ public class XddWriter
         {
             throw;
         }
+        catch (XdcWriteException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             throw new XddWriteException(

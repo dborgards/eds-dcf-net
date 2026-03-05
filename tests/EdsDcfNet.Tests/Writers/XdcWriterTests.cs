@@ -335,9 +335,8 @@ public class XdcWriterTests
         var act = () => _writer.GenerateString(dcf);
 
         var ex = act.Should().Throw<XdcWriteException>().Which;
-        ex.SectionName.Should().Be("CommunicationNetworkProfile");
-        ex.InnerException.Should().NotBeNull();
-        ex.InnerException!.Message.Should().Contain("NodeId");
+        ex.SectionName.Should().Be("deviceCommissioning");
+        ex.Message.Should().Contain("NodeId");
     }
 
     [Fact]
@@ -368,7 +367,7 @@ public class XdcWriterTests
 
             var ex = act.Should().Throw<XdcWriteException>().Which;
             ex.Message.Should().Contain("NodeId");
-            ex.SectionName.Should().NotBeNullOrEmpty();
+            ex.SectionName.Should().Be("deviceCommissioning");
         }
         finally
         {
