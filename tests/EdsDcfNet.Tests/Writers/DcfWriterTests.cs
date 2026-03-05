@@ -949,6 +949,27 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public async Task WriteFileAsync_GenerationFailure_RethrowsDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(dcf, tempFile);
+
+            var ex = (await act.Should().ThrowAsync<EdsDcfNet.Exceptions.DcfWriteException>()).Which;
+            ex.SectionName.Should().Be("DeviceInfo");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public void GenerateString_InvalidDeviceInfo_ThrowsDcfWriteExceptionWithSectionName()
     {
         // Arrange

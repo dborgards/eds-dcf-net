@@ -170,6 +170,18 @@ public class XddWriterTests
     }
 
     [Fact]
+    public void GenerateString_WhenSubclassThrowsXdcWriteException_PreservesXdcContext()
+    {
+        var writer = new ThrowingNetworkManagementWriter();
+
+        var act = () => writer.GenerateString(CreateSampleEds());
+
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.SectionName.Should().Be("deviceCommissioning");
+        ex.Message.Should().Contain("forced");
+    }
+
+    [Fact]
     public void GenerateString_ContainsTwoProfiles()
     {
         // Act
@@ -790,6 +802,16 @@ public class XddWriterTests
         {
             WasCalled = true;
             return base.BuildDocument(eds, commissioning);
+        }
+    }
+
+    private sealed class ThrowingNetworkManagementWriter : XddWriter
+    {
+        protected override XElement BuildNetworkManagement(
+            ElectronicDataSheet eds,
+            DeviceCommissioning? commissioning)
+        {
+            throw new XdcWriteException("forced", "deviceCommissioning");
         }
     }
 
