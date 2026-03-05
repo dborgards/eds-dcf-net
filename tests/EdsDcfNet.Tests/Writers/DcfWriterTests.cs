@@ -484,6 +484,121 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void GenerateString_ObjectWithObjectLinks_WritesObjectLinksSection()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.Objects[0x1000].ObjectLinks.Add(0x2000);
+        dcf.ObjectDictionary.Objects[0x1000].ObjectLinks.Add(0x2100);
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[1000ObjectLinks]");
+        result.Should().Contain("ObjectLinks=2");
+        result.Should().Contain("1=0x2000");
+        result.Should().Contain("2=0x2100");
+    }
+
+    [Fact]
+    public void GenerateString_ConnectedModules_WritesSectionAndEntries()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ConnectedModules.AddRange([1, 2, 1]);
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[ConnectedModules]");
+        result.Should().Contain("NrOfEntries=3");
+        result.Should().Contain("1=1");
+        result.Should().Contain("2=2");
+        result.Should().Contain("3=1");
+    }
+
+    [Fact]
+    public void GenerateString_DynamicChannels_WritesSectionAndSegments()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DynamicChannels = new DynamicChannels();
+        dcf.DynamicChannels.Segments.Add(new DynamicChannelSegment
+        {
+            Type = 0x0007,
+            Dir = AccessType.ReadOnly,
+            Range = "0xA080-0xA0BF",
+            PPOffset = 0
+        });
+        dcf.DynamicChannels.Segments.Add(new DynamicChannelSegment
+        {
+            Type = 0x0005,
+            Dir = AccessType.ReadWriteOutput,
+            Range = "0xA0C0-0xA0FF",
+            PPOffset = 64
+        });
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[DynamicChannels]");
+        result.Should().Contain("NrOfSeg=2");
+        result.Should().Contain("Type1=0x7");
+        result.Should().Contain("Dir1=ro");
+        result.Should().Contain("Range1=0xA080-0xA0BF");
+        result.Should().Contain("PPOffset1=0");
+        result.Should().Contain("Type2=0x5");
+        result.Should().Contain("Dir2=rww");
+        result.Should().Contain("Range2=0xA0C0-0xA0FF");
+        result.Should().Contain("PPOffset2=64");
+    }
+
+    [Fact]
+    public void GenerateString_Tools_WritesSectionAndToolEntries()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.Tools.Add(new ToolInfo { Name = "EDS Checker", Command = "checker.exe $EDS" });
+        dcf.Tools.Add(new ToolInfo { Name = "Configurator", Command = "config.exe $DCF $NODEID" });
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[Tools]");
+        result.Should().Contain("Items=2");
+        result.Should().Contain("[Tool1]");
+        result.Should().Contain("Name=EDS Checker");
+        result.Should().Contain("Command=checker.exe $EDS");
+        result.Should().Contain("[Tool2]");
+        result.Should().Contain("Name=Configurator");
+        result.Should().Contain("Command=config.exe $DCF $NODEID");
+    }
+
+    [Fact]
+    public void GenerateString_AdditionalSections_WritesRepresentativeContent()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.AdditionalSections["VendorSpecific"] = new Dictionary<string, string>
+        {
+            { "Key1", "Value1" },
+            { "Key2", "Value2" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[VendorSpecific]");
+        result.Should().Contain("Key1=Value1");
+        result.Should().Contain("Key2=Value2");
+    }
+
+    [Fact]
     public void GenerateString_CANopenSafetySupported_WrittenWhenTrue()
     {
         // Arrange
