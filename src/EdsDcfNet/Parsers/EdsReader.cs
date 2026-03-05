@@ -32,6 +32,20 @@ public class EdsReader : CanOpenReaderBase
     }
 
     /// <summary>
+    /// Reads an EDS file from a stream.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public ElectronicDataSheet ReadStream(
+        Stream stream,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
+    {
+        var sections = ParseSectionsFromStream(stream, maxInputSize);
+        return ParseEds(sections);
+    }
+
+    /// <summary>
     /// Reads an EDS file from the specified path asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the EDS file</param>
@@ -55,6 +69,33 @@ public class EdsReader : CanOpenReaderBase
         CancellationToken cancellationToken = default)
     {
         var sections = await ParseSectionsFromFileAsync(filePath, maxInputSize, cancellationToken).ConfigureAwait(false);
+        return ParseEds(sections);
+    }
+
+    /// <summary>
+    /// Reads an EDS file from a stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public Task<ElectronicDataSheet> ReadStreamAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+        => ReadStreamAsync(stream, IniParser.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads an EDS file from a stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public async Task<ElectronicDataSheet> ReadStreamAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var sections = await ParseSectionsFromStreamAsync(stream, maxInputSize, cancellationToken).ConfigureAwait(false);
         return ParseEds(sections);
     }
 

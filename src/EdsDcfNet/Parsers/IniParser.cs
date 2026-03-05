@@ -2,6 +2,7 @@ namespace EdsDcfNet.Parsers;
 
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using EdsDcfNet.Exceptions;
 
 /// <summary>
@@ -82,7 +83,73 @@ public static class IniParser
             options: FileOptions.Asynchronous | FileOptions.SequentialScan);
         using var reader = new StreamReader(stream);
 
-        return await ParseReaderAsync(reader, cancellationToken).ConfigureAwait(false);
+        return await ParseReaderAsync(reader, maxInputSize, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Parses EDS/DCF content from a readable stream.
+    /// </summary>
+    /// <param name="stream">Input stream containing INI content.</param>
+    /// <param name="maxInputSize">
+    /// Maximum content length in characters before an <see cref="EdsParseException"/> is thrown.
+    /// Defaults to <see cref="DefaultMaxInputSize"/> (10 MB).
+    /// </param>
+    /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
+    public static Dictionary<string, Dictionary<string, string>> ParseStream(
+        Stream stream,
+        long maxInputSize = DefaultMaxInputSize)
+    {
+        if (stream == null) throw new ArgumentNullException(nameof(stream));
+        if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
+
+        if (stream.CanSeek)
+        {
+            var remainingLength = stream.Length - stream.Position;
+            if (remainingLength > maxInputSize)
+            {
+                throw new EdsParseException(
+                    string.Format(CultureInfo.InvariantCulture,
+                        "Stream content is too large ({0:N0} bytes). Maximum supported size is {1:N0} bytes.",
+                        remainingLength, maxInputSize));
+            }
+        }
+
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
+        return ParseReader(reader, maxInputSize);
+    }
+
+    /// <summary>
+    /// Parses EDS/DCF content from a readable stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Input stream containing INI content.</param>
+    /// <param name="maxInputSize">
+    /// Maximum content length in characters before an <see cref="EdsParseException"/> is thrown.
+    /// Defaults to <see cref="DefaultMaxInputSize"/> (10 MB).
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
+    public static async Task<Dictionary<string, Dictionary<string, string>>> ParseStreamAsync(
+        Stream stream,
+        long maxInputSize = DefaultMaxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        if (stream == null) throw new ArgumentNullException(nameof(stream));
+        if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
+
+        if (stream.CanSeek)
+        {
+            var remainingLength = stream.Length - stream.Position;
+            if (remainingLength > maxInputSize)
+            {
+                throw new EdsParseException(
+                    string.Format(CultureInfo.InvariantCulture,
+                        "Stream content is too large ({0:N0} bytes). Maximum supported size is {1:N0} bytes.",
+                        remainingLength, maxInputSize));
+            }
+        }
+
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
+        return await ParseReaderAsync(reader, maxInputSize, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -178,13 +245,48 @@ public static class IniParser
         return sections;
     }
 
+    private static Dictionary<string, Dictionary<string, string>> ParseReader(
+        StreamReader reader,
+        long maxInputSize)
+    {
+        var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        string? currentSection = null;
+        var lineNumber = 0;
+        long totalChars = 0;
+
+        while (!reader.EndOfStream)
+        {
+            var rawLine = reader.ReadLine();
+            if (rawLine == null)
+                break;
+
+            totalChars += rawLine.Length + 1L;
+            if (totalChars > maxInputSize)
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
+                        totalChars,
+                        maxInputSize));
+            }
+
+            lineNumber++;
+            ParseLine(rawLine, lineNumber, ref currentSection, sections);
+        }
+
+        return sections;
+    }
+
     private static async Task<Dictionary<string, Dictionary<string, string>>> ParseReaderAsync(
         StreamReader reader,
+        long maxInputSize,
         CancellationToken cancellationToken)
     {
         var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
         string? currentSection = null;
         var lineNumber = 0;
+        long totalChars = 0;
 
         while (true)
         {
@@ -197,6 +299,17 @@ public static class IniParser
 #endif
             if (rawLine == null)
                 break;
+
+            totalChars += rawLine.Length + 1L;
+            if (totalChars > maxInputSize)
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
+                        totalChars,
+                        maxInputSize));
+            }
 
             lineNumber++;
             ParseLine(rawLine, lineNumber, ref currentSection, sections);

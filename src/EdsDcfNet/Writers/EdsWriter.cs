@@ -38,6 +38,29 @@ public class EdsWriter : IniWriterBase
     }
 
     /// <summary>
+    /// Writes an EDS to the specified stream.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public void WriteStream(ElectronicDataSheet eds, Stream stream)
+    {
+        try
+        {
+            var content = GenerateEdsContent(eds);
+            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
+        }
+        catch (EdsWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new EdsWriteException("Failed to write EDS content to stream.", ex);
+        }
+    }
+
+    /// <summary>
     /// Writes an EDS to the specified file path asynchronously.
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to write</param>
@@ -66,6 +89,38 @@ public class EdsWriter : IniWriterBase
         catch (Exception ex)
         {
             throw new EdsWriteException($"Failed to write EDS file to {filePath}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Writes an EDS to the specified stream asynchronously.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public async Task WriteStreamAsync(
+        ElectronicDataSheet eds,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = GenerateEdsContent(eds);
+            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (EdsWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new EdsWriteException("Failed to write EDS content to stream.", ex);
         }
     }
 

@@ -69,6 +69,22 @@ eds.FileInfo.FileRevision++;
 await CanOpenFile.WriteEdsAsync(eds, "device_updated.eds", cts.Token);
 ```
 
+### Stream-based I/O
+
+```csharp
+using EdsDcfNet;
+using System.IO;
+
+using var stream = File.OpenRead("device.eds");
+var eds = CanOpenFile.ReadEds(stream);
+
+using var outStream = new MemoryStream();
+CanOpenFile.WriteEds(eds, outStream);
+```
+
+> Stream ownership: stream overloads do **not** dispose input/output streams.  
+> The caller remains responsible for stream lifetime.
+
 ### Reading an XDD File (CiA 311 XML)
 
 ```csharp
@@ -238,10 +254,16 @@ Task<ElectronicDataSheet> ReadEdsAsync(string filePath, CancellationToken cancel
 Task<ElectronicDataSheet> ReadEdsAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 ElectronicDataSheet ReadEdsFromString(string content)
 ElectronicDataSheet ReadEdsFromString(string content, long maxInputSize)
+ElectronicDataSheet ReadEds(Stream stream)
+ElectronicDataSheet ReadEds(Stream stream, long maxInputSize)
+Task<ElectronicDataSheet> ReadEdsAsync(Stream stream, CancellationToken cancellationToken = default)
+Task<ElectronicDataSheet> ReadEdsAsync(Stream stream, long maxInputSize, CancellationToken cancellationToken = default)
 
 // Write EDS
 void WriteEds(ElectronicDataSheet eds, string filePath)
+void WriteEds(ElectronicDataSheet eds, Stream stream)
 Task WriteEdsAsync(ElectronicDataSheet eds, string filePath, CancellationToken cancellationToken = default)
+Task WriteEdsAsync(ElectronicDataSheet eds, Stream stream, CancellationToken cancellationToken = default)
 string WriteEdsToString(ElectronicDataSheet eds)
 
 // Read DCF
@@ -251,10 +273,16 @@ Task<DeviceConfigurationFile> ReadDcfAsync(string filePath, CancellationToken ca
 Task<DeviceConfigurationFile> ReadDcfAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 DeviceConfigurationFile ReadDcfFromString(string content)
 DeviceConfigurationFile ReadDcfFromString(string content, long maxInputSize)
+DeviceConfigurationFile ReadDcf(Stream stream)
+DeviceConfigurationFile ReadDcf(Stream stream, long maxInputSize)
+Task<DeviceConfigurationFile> ReadDcfAsync(Stream stream, CancellationToken cancellationToken = default)
+Task<DeviceConfigurationFile> ReadDcfAsync(Stream stream, long maxInputSize, CancellationToken cancellationToken = default)
 
 // Write DCF
 void WriteDcf(DeviceConfigurationFile dcf, string filePath)
+void WriteDcf(DeviceConfigurationFile dcf, Stream stream)
 Task WriteDcfAsync(DeviceConfigurationFile dcf, string filePath, CancellationToken cancellationToken = default)
+Task WriteDcfAsync(DeviceConfigurationFile dcf, Stream stream, CancellationToken cancellationToken = default)
 string WriteDcfToString(DeviceConfigurationFile dcf)
 
 // Read CPJ (CiA 306-3 Nodelist Project)
@@ -264,10 +292,16 @@ Task<NodelistProject> ReadCpjAsync(string filePath, CancellationToken cancellati
 Task<NodelistProject> ReadCpjAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 NodelistProject ReadCpjFromString(string content)
 NodelistProject ReadCpjFromString(string content, long maxInputSize)
+NodelistProject ReadCpj(Stream stream)
+NodelistProject ReadCpj(Stream stream, long maxInputSize)
+Task<NodelistProject> ReadCpjAsync(Stream stream, CancellationToken cancellationToken = default)
+Task<NodelistProject> ReadCpjAsync(Stream stream, long maxInputSize, CancellationToken cancellationToken = default)
 
 // Write CPJ
 void WriteCpj(NodelistProject cpj, string filePath)
+void WriteCpj(NodelistProject cpj, Stream stream)
 Task WriteCpjAsync(NodelistProject cpj, string filePath, CancellationToken cancellationToken = default)
+Task WriteCpjAsync(NodelistProject cpj, Stream stream, CancellationToken cancellationToken = default)
 string WriteCpjToString(NodelistProject cpj)
 
 // Read XDD (CiA 311 XML Device Description)
@@ -277,10 +311,16 @@ Task<ElectronicDataSheet> ReadXddAsync(string filePath, CancellationToken cancel
 Task<ElectronicDataSheet> ReadXddAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 ElectronicDataSheet ReadXddFromString(string content)
 ElectronicDataSheet ReadXddFromString(string content, long maxInputSize)
+ElectronicDataSheet ReadXdd(Stream stream)
+ElectronicDataSheet ReadXdd(Stream stream, long maxInputSize)
+Task<ElectronicDataSheet> ReadXddAsync(Stream stream, CancellationToken cancellationToken = default)
+Task<ElectronicDataSheet> ReadXddAsync(Stream stream, long maxInputSize, CancellationToken cancellationToken = default)
 
 // Write XDD
 void WriteXdd(ElectronicDataSheet xdd, string filePath)
+void WriteXdd(ElectronicDataSheet xdd, Stream stream)
 Task WriteXddAsync(ElectronicDataSheet xdd, string filePath, CancellationToken cancellationToken = default)
+Task WriteXddAsync(ElectronicDataSheet xdd, Stream stream, CancellationToken cancellationToken = default)
 string WriteXddToString(ElectronicDataSheet xdd)
 
 // Read XDC (CiA 311 XML Device Configuration)
@@ -290,10 +330,16 @@ Task<DeviceConfigurationFile> ReadXdcAsync(string filePath, CancellationToken ca
 Task<DeviceConfigurationFile> ReadXdcAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 DeviceConfigurationFile ReadXdcFromString(string content)
 DeviceConfigurationFile ReadXdcFromString(string content, long maxInputSize)
+DeviceConfigurationFile ReadXdc(Stream stream)
+DeviceConfigurationFile ReadXdc(Stream stream, long maxInputSize)
+Task<DeviceConfigurationFile> ReadXdcAsync(Stream stream, CancellationToken cancellationToken = default)
+Task<DeviceConfigurationFile> ReadXdcAsync(Stream stream, long maxInputSize, CancellationToken cancellationToken = default)
 
 // Write XDC
 void WriteXdc(DeviceConfigurationFile xdc, string filePath)
+void WriteXdc(DeviceConfigurationFile xdc, Stream stream)
 Task WriteXdcAsync(DeviceConfigurationFile xdc, string filePath, CancellationToken cancellationToken = default)
+Task WriteXdcAsync(DeviceConfigurationFile xdc, Stream stream, CancellationToken cancellationToken = default)
 string WriteXdcToString(DeviceConfigurationFile xdc)
 
 // Validate models

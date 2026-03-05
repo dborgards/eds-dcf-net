@@ -38,6 +38,29 @@ public class DcfWriter : IniWriterBase
     }
 
     /// <summary>
+    /// Writes a DCF to the specified stream.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public void WriteStream(DeviceConfigurationFile dcf, Stream stream)
+    {
+        try
+        {
+            var content = GenerateDcfContent(dcf);
+            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
+        }
+        catch (DcfWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new DcfWriteException("Failed to write DCF content to stream.", ex);
+        }
+    }
+
+    /// <summary>
     /// Writes a DCF to the specified file path asynchronously.
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
@@ -66,6 +89,38 @@ public class DcfWriter : IniWriterBase
         catch (Exception ex)
         {
             throw new DcfWriteException($"Failed to write DCF file to {filePath}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Writes a DCF to the specified stream asynchronously.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public async Task WriteStreamAsync(
+        DeviceConfigurationFile dcf,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = GenerateDcfContent(dcf);
+            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (DcfWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new DcfWriteException("Failed to write DCF content to stream.", ex);
         }
     }
 

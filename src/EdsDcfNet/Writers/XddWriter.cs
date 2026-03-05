@@ -37,6 +37,28 @@ public class XddWriter
     }
 
     /// <summary>
+    /// Writes an ElectronicDataSheet as XDD content to the specified stream.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public void WriteStream(ElectronicDataSheet eds, Stream stream)
+    {
+        try
+        {
+            var content = GenerateString(eds);
+            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
+        }
+        catch (XddWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XddWriteException("Failed to write XDD content to stream.", ex);
+        }
+    }
+
+    /// <summary>
     /// Writes an ElectronicDataSheet as an XDD file to the specified path asynchronously.
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to write</param>
@@ -64,6 +86,37 @@ public class XddWriter
         catch (Exception ex)
         {
             throw new XddWriteException($"Failed to write XDD file to {filePath}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Writes an ElectronicDataSheet as XDD content to the specified stream asynchronously.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public async Task WriteStreamAsync(
+        ElectronicDataSheet eds,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = GenerateString(eds);
+            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (XddWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XddWriteException("Failed to write XDD content to stream.", ex);
         }
     }
 

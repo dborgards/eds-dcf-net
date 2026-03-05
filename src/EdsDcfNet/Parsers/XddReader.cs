@@ -47,6 +47,21 @@ public class XddReader
     }
 
     /// <summary>
+    /// Reads an XDD file from a stream.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDD content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <exception cref="EdsParseException">Thrown when the XDD content is invalid</exception>
+    public ElectronicDataSheet ReadStream(
+        Stream stream,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
+    {
+        var content = TextFileIo.ReadAllText(stream, Encoding.UTF8, leaveOpen: true);
+        return ReadString(content, maxInputSize);
+    }
+
+    /// <summary>
     /// Reads an XDD file from the specified path asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the XDD file</param>
@@ -80,6 +95,39 @@ public class XddReader
         var content = await TextFileIo.ReadAllTextAsync(
             filePath,
             Encoding.UTF8,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+        return ReadString(content, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads an XDD file from a stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDD content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <exception cref="EdsParseException">Thrown when the XDD content is invalid</exception>
+    public Task<ElectronicDataSheet> ReadStreamAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+        => ReadStreamAsync(stream, IniParser.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads an XDD file from a stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDD content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <exception cref="EdsParseException">Thrown when the XDD content is invalid</exception>
+    public async Task<ElectronicDataSheet> ReadStreamAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var content = await TextFileIo.ReadAllTextAsync(
+            stream,
+            Encoding.UTF8,
+            leaveOpen: true,
             cancellationToken: cancellationToken).ConfigureAwait(false);
         return ReadString(content, maxInputSize);
     }

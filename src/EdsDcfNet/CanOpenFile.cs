@@ -124,6 +124,64 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static ElectronicDataSheet ReadEds(Stream stream)
+    {
+        return ReadEds(stream, IniParser.DefaultMaxInputSize);
+    }
+
+    /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static ElectronicDataSheet ReadEds(
+        Stream stream,
+        long maxInputSize)
+    {
+        var reader = new EdsReader();
+        return reader.ReadStream(stream, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadEdsAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new EdsReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadEdsAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new EdsReader();
+        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
+    }
+
+    /// <summary>
     /// Writes an Electronic Data Sheet (EDS) to disk.
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to write</param>
@@ -142,6 +200,18 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes an Electronic Data Sheet (EDS) to a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public static void WriteEds(ElectronicDataSheet eds, Stream stream)
+    {
+        var writer = new EdsWriter();
+        writer.WriteStream(eds, stream);
+    }
+
+    /// <summary>
     /// Writes an Electronic Data Sheet (EDS) to disk asynchronously.
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to write</param>
@@ -154,6 +224,22 @@ public static class CanOpenFile
     {
         var writer = new EdsWriter();
         return writer.WriteFileAsync(eds, filePath, cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes an Electronic Data Sheet (EDS) to a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public static Task WriteEdsAsync(
+        ElectronicDataSheet eds,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new EdsWriter();
+        return writer.WriteStreamAsync(eds, stream, cancellationToken);
     }
 
     /// <summary>
@@ -253,6 +339,64 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads a Device Configuration File (DCF) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadDcf(Stream stream)
+    {
+        return ReadDcf(stream, IniParser.DefaultMaxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a Device Configuration File (DCF) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadDcf(
+        Stream stream,
+        long maxInputSize)
+    {
+        var reader = new DcfReader();
+        return reader.ReadStream(stream, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a Device Configuration File (DCF) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadDcfAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new DcfReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a Device Configuration File (DCF) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadDcfAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new DcfReader();
+        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
+    }
+
+    /// <summary>
     /// Writes a Device Configuration File (DCF) to disk.
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
@@ -272,6 +416,18 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes a Device Configuration File (DCF) to a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream)
+    {
+        var writer = new DcfWriter();
+        writer.WriteStream(dcf, stream);
+    }
+
+    /// <summary>
     /// Writes a Device Configuration File (DCF) to disk asynchronously.
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
@@ -284,6 +440,22 @@ public static class CanOpenFile
     {
         var writer = new DcfWriter();
         return writer.WriteFileAsync(dcf, filePath, cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes a Device Configuration File (DCF) to a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public static Task WriteDcfAsync(
+        DeviceConfigurationFile dcf,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new DcfWriter();
+        return writer.WriteStreamAsync(dcf, stream, cancellationToken);
     }
 
     /// <summary>
@@ -376,6 +548,64 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing CPJ content.</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static NodelistProject ReadCpj(Stream stream)
+    {
+        return ReadCpj(stream, IniParser.DefaultMaxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing CPJ content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static NodelistProject ReadCpj(
+        Stream stream,
+        long maxInputSize)
+    {
+        var reader = new CpjReader();
+        return reader.ReadStream(stream, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing CPJ content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static Task<NodelistProject> ReadCpjAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new CpjReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing CPJ content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static Task<NodelistProject> ReadCpjAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new CpjReader();
+        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
+    }
+
+    /// <summary>
     /// Writes a CiA 306-3 nodelist project (.cpj) to disk.
     /// </summary>
     /// <param name="cpj">The NodelistProject to write</param>
@@ -384,6 +614,18 @@ public static class CanOpenFile
     {
         var writer = new CpjWriter();
         writer.WriteFile(cpj, filePath);
+    }
+
+    /// <summary>
+    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public static void WriteCpj(NodelistProject cpj, Stream stream)
+    {
+        var writer = new CpjWriter();
+        writer.WriteStream(cpj, stream);
     }
 
     /// <summary>
@@ -399,6 +641,22 @@ public static class CanOpenFile
     {
         var writer = new CpjWriter();
         return writer.WriteFileAsync(cpj, filePath, cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public static Task WriteCpjAsync(
+        NodelistProject cpj,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new CpjWriter();
+        return writer.WriteStreamAsync(cpj, stream, cancellationToken);
     }
 
     /// <summary>
@@ -491,6 +749,64 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads a CiA 311 XDD (XML Device Description) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDD content.</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static ElectronicDataSheet ReadXdd(Stream stream)
+    {
+        return ReadXdd(stream, IniParser.DefaultMaxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDD (XML Device Description) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDD content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static ElectronicDataSheet ReadXdd(
+        Stream stream,
+        long maxInputSize)
+    {
+        var reader = new XddReader();
+        return reader.ReadStream(stream, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDD (XML Device Description) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDD content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadXddAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XddReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDD (XML Device Description) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDD content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadXddAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XddReader();
+        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
+    }
+
+    /// <summary>
     /// Reads a CiA 311 XDC (XML Device Configuration) file.
     /// </summary>
     /// <param name="filePath">Path to the XDC file</param>
@@ -569,6 +885,64 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDC content.</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadXdc(Stream stream)
+    {
+        return ReadXdc(stream, IniParser.DefaultMaxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDC content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadXdc(
+        Stream stream,
+        long maxInputSize)
+    {
+        var reader = new XdcReader();
+        return reader.ReadStream(stream, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDC content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XdcReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDC content.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XdcReader();
+        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
+    }
+
+    /// <summary>
     /// Writes an ElectronicDataSheet as a CiA 311 XDD file.
     /// </summary>
     /// <param name="xdd">The ElectronicDataSheet to write</param>
@@ -577,6 +951,18 @@ public static class CanOpenFile
     {
         var writer = new XddWriter();
         writer.WriteFile(xdd, filePath);
+    }
+
+    /// <summary>
+    /// Writes an ElectronicDataSheet as a CiA 311 XDD stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="xdd">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public static void WriteXdd(ElectronicDataSheet xdd, Stream stream)
+    {
+        var writer = new XddWriter();
+        writer.WriteStream(xdd, stream);
     }
 
     /// <summary>
@@ -592,6 +978,22 @@ public static class CanOpenFile
     {
         var writer = new XddWriter();
         return writer.WriteFileAsync(xdd, filePath, cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes an ElectronicDataSheet as a CiA 311 XDD stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="xdd">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public static Task WriteXddAsync(
+        ElectronicDataSheet xdd,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new XddWriter();
+        return writer.WriteStreamAsync(xdd, stream, cancellationToken);
     }
 
     /// <summary>
@@ -617,6 +1019,18 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="xdc">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public static void WriteXdc(DeviceConfigurationFile xdc, Stream stream)
+    {
+        var writer = new XdcWriter();
+        writer.WriteStream(xdc, stream);
+    }
+
+    /// <summary>
     /// Writes a DeviceConfigurationFile as a CiA 311 XDC file asynchronously.
     /// </summary>
     /// <param name="xdc">The DeviceConfigurationFile to write</param>
@@ -629,6 +1043,22 @@ public static class CanOpenFile
     {
         var writer = new XdcWriter();
         return writer.WriteFileAsync(xdc, filePath, cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="xdc">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public static Task WriteXdcAsync(
+        DeviceConfigurationFile xdc,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new XdcWriter();
+        return writer.WriteStreamAsync(xdc, stream, cancellationToken);
     }
 
     /// <summary>
