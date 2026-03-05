@@ -3,6 +3,7 @@ namespace EdsDcfNet.Tests.Integration;
 using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 using FluentAssertions;
 using Xunit;
 
@@ -37,6 +38,15 @@ public class CanOpenFileTests
 
         // Assert
         act.Should().Throw<FileNotFoundException>();
+    }
+
+    [Fact]
+    public void ReadEds_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var result = CanOpenFile.ReadEds("Fixtures/sample_device.eds", IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.FileInfo.FileName.Should().Be("sample_device.eds");
     }
 
     #endregion
@@ -82,6 +92,17 @@ PDOMapping=0
         result.FileInfo.FileName.Should().Be("test.eds");
         result.DeviceInfo.VendorName.Should().Be("Test Vendor");
         result.DeviceInfo.ProductName.Should().Be("Test Product");
+    }
+
+    [Fact]
+    public void ReadEdsFromString_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var content = "[FileInfo]\nFileName=size.eds\nFileVersion=1\n[DeviceInfo]\nVendorName=V\n[MandatoryObjects]\nSupportedObjects=1\n1=0x1000\n[1000]\nParameterName=Device Type\nObjectType=0x7\nDataType=0x0007\nAccessType=ro\nPDOMapping=0\n";
+
+        var result = CanOpenFile.ReadEdsFromString(content, IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.FileInfo.FileName.Should().Be("size.eds");
     }
 
     #endregion
@@ -232,9 +253,18 @@ PDOMapping=0
         result.DeviceCommissioning.Baudrate.Should().Be(500);
     }
 
-    #endregion
+    [Fact]
+    public void ReadDcfFromString_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var content = "[FileInfo]\nFileName=size.dcf\nFileVersion=1\n[DeviceInfo]\nVendorName=V\n[DeviceCommissioning]\nNodeID=1\nBaudrate=250\n[MandatoryObjects]\nSupportedObjects=1\n1=0x1000\n[1000]\nParameterName=Device Type\nObjectType=0x7\nDataType=0x0007\nAccessType=ro\nPDOMapping=0\n";
 
-    #region WriteDcfToString Tests
+        var result = CanOpenFile.ReadDcfFromString(content, IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.FileInfo.FileName.Should().Be("size.dcf");
+    }
+
+    #endregion
 
     [Fact]
     public void WriteDcfToString_ValidDcf_GeneratesString()
@@ -320,6 +350,15 @@ PDOMapping=0
                 File.Delete(tempFile);
             }
         }
+    }
+
+    [Fact]
+    public void ReadDcf_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var result = CanOpenFile.ReadDcf("Fixtures/minimal.dcf", IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.DeviceCommissioning.NodeId.Should().Be(5);
     }
 
     #endregion

@@ -3,6 +3,7 @@ namespace EdsDcfNet.Tests.Integration;
 using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 using FluentAssertions;
 using Xunit;
 
@@ -18,7 +19,15 @@ public class CanOpenFileAsyncTests
     }
 
     [Fact]
-    public async Task WriteEdsAsync_ValidModel_WritesAndReadsBackFile()
+    public async Task ReadEdsAsync_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var result = await CanOpenFile.ReadEdsAsync("Fixtures/sample_device.eds", IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.FileInfo.FileName.Should().Be("sample_device.eds");
+    }
+
+    [Fact]
     {
         var eds = CreateMinimalEds();
         var tempFile = Path.GetTempFileName();
@@ -50,7 +59,15 @@ public class CanOpenFileAsyncTests
     }
 
     [Fact]
-    public async Task WriteDcfAsync_ValidModel_WritesAndReadsBackFile()
+    public async Task ReadDcfAsync_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var result = await CanOpenFile.ReadDcfAsync("Fixtures/minimal.dcf", IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.DeviceCommissioning.NodeId.Should().Be(5);
+    }
+
+    [Fact]
     {
         var dcf = CreateMinimalDcf();
         var tempFile = Path.GetTempFileName();
@@ -102,7 +119,24 @@ public class CanOpenFileAsyncTests
     }
 
     [Fact]
-    public async Task WriteCpjAsync_ValidModel_WritesAndReadsBackFile()
+    public async Task ReadCpjAsync_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "[Topology]\nNetName=SizeTest\nNodes=0");
+            var result = await CanOpenFile.ReadCpjAsync(tempFile, IniParser.DefaultMaxInputSize);
+
+            result.Should().NotBeNull();
+            result.Networks[0].NetName.Should().Be("SizeTest");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     {
         var cpj = new NodelistProject();
         cpj.Networks.Add(new NetworkTopology
