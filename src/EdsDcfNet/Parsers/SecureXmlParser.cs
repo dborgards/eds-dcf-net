@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Parsers;
 
 using System.Globalization;
+using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
@@ -57,14 +58,15 @@ internal static class SecureXmlParser
         string formatName,
         long maxInputSize)
     {
-        if (content.Length > maxInputSize)
+        var contentSizeInBytes = Encoding.UTF8.GetByteCount(content);
+        if (contentSizeInBytes > maxInputSize)
         {
             throw new EdsParseException(
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "{0} content is too large ({1:N0} characters). Maximum supported size is {2:N0} characters.",
+                    "{0} content is too large ({1:N0} bytes). Maximum supported size is {2:N0} bytes.",
                     formatName,
-                    content.Length,
+                    contentSizeInBytes,
                     maxInputSize));
         }
     }

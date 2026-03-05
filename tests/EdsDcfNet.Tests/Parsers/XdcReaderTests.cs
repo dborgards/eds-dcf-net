@@ -171,7 +171,9 @@ public class XdcReaderTests
     [Fact]
     public async Task ReadFileAsync_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
     {
-        var act = () => _reader.ReadFileAsync("Fixtures/minimal.xdc", maxInputSize: 256);
+        const string path = "Fixtures/minimal.xdc";
+        var fileLength = new FileInfo(path).Length;
+        var act = () => _reader.ReadFileAsync(path, maxInputSize: fileLength - 1);
 
         await act.Should().ThrowAsync<EdsParseException>()
             .WithMessage("*too large*");
@@ -248,7 +250,8 @@ public class XdcReaderTests
     [Fact]
     public void ReadString_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
     {
-        var act = () => _reader.ReadString(MinimalXdc, maxInputSize: 128);
+        var contentSizeInBytes = System.Text.Encoding.UTF8.GetByteCount(MinimalXdc);
+        var act = () => _reader.ReadString(MinimalXdc, maxInputSize: contentSizeInBytes - 1);
 
         act.Should().Throw<EdsParseException>()
             .WithMessage("*too large*");
@@ -289,7 +292,9 @@ public class XdcReaderTests
     [Fact]
     public void ReadFile_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
     {
-        var act = () => _reader.ReadFile("Fixtures/minimal.xdc", maxInputSize: 256);
+        const string path = "Fixtures/minimal.xdc";
+        var fileLength = new FileInfo(path).Length;
+        var act = () => _reader.ReadFile(path, maxInputSize: fileLength - 1);
 
         act.Should().Throw<EdsParseException>()
             .WithMessage("*too large*");
