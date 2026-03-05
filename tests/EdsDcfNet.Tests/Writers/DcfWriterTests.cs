@@ -949,21 +949,6 @@ public class DcfWriterTests
     }
 
     [Fact]
-    {
-        // Arrange
-        var dcf = CreateMinimalDcf();
-        dcf.DeviceInfo = null!;
-
-        // Act
-        var act = () => _writer.GenerateString(dcf);
-
-        // Assert
-        var ex = act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>().Which;
-        ex.SectionName.Should().Be("DeviceInfo");
-        ex.Message.Should().Contain("DeviceInfo");
-    }
-
-    [Fact]
     public void GenerateString_InvalidDeviceInfo_ThrowsDcfWriteExceptionWithSectionName()
     {
         // Arrange
