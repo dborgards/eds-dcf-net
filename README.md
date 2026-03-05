@@ -275,6 +275,20 @@ DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
 - ✅ CANopen Safety (EN 50325-5) - SRDOMapping, InvertedSRAD
 - ✅ Comments and additional sections
 
+## Error Handling
+
+Writer APIs expose format-specific exceptions with context:
+
+- `EdsWriter` / `CanOpenFile.WriteEds*`: `EdsWriteException`
+- `DcfWriter` / `CanOpenFile.WriteDcf*`: `DcfWriteException`
+- `CpjWriter` / `CanOpenFile.WriteCpj*`: `CpjWriteException`
+- `XddWriter` / `CanOpenFile.WriteXdd*`: `XddWriteException`
+- `XdcWriter` / `CanOpenFile.WriteXdc*`: `XdcWriteException`
+
+When a failure can be attributed to a concrete generated section/element,
+the exception contains a `SectionName` value (for example `DeviceInfo`,
+`Topology`, `DeviceProfile`, or `deviceCommissioning`).
+
 ## Examples
 
 Complete examples can be found in the `examples/EdsDcfNet.Examples` project.

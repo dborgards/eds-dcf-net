@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Writers;
 
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Writers;
@@ -236,6 +237,38 @@ EDSBaseName=/eds/
         aKeyPos.Should().BeGreaterThanOrEqualTo(0);
         bKeyPos.Should().BeGreaterThanOrEqualTo(0);
         aKeyPos.Should().BeLessThan(bKeyPos);
+    }
+
+    [Fact]
+    public void GenerateString_NullTopologyEntry_ThrowsCpjWriteExceptionWithSectionName()
+    {
+        // Arrange
+        var project = new NodelistProject();
+        project.Networks.Add(null!);
+
+        // Act
+        var act = () => _writer.GenerateString(project);
+
+        // Assert
+        var ex = act.Should().Throw<CpjWriteException>().Which;
+        ex.SectionName.Should().Be("Topology");
+        ex.Message.Should().Contain("Topology");
+    }
+
+    [Fact]
+    public void WriteFile_InvalidPath_ThrowsCpjWriteException()
+    {
+        // Arrange
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        var invalidPath = "/invalid/path/that/does/not/exist/test.cpj";
+
+        // Act
+        var act = () => _writer.WriteFile(project, invalidPath);
+
+        // Assert
+        act.Should().Throw<CpjWriteException>()
+            .WithMessage("*Failed to write CPJ file*");
     }
 
     [Fact]

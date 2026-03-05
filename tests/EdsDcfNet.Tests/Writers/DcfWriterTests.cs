@@ -925,6 +925,46 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void GenerateString_InvalidDeviceInfo_ThrowsDcfWriteExceptionWithSectionName()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+
+        // Act
+        var act = () => _writer.GenerateString(dcf);
+
+        // Assert
+        var ex = act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+        ex.Message.Should().Contain("DeviceInfo");
+    }
+
+    [Fact]
+    public void WriteFile_GenerationFailure_PreservesSectionName()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            // Act
+            var act = () => _writer.WriteFile(dcf, tempFile);
+
+            // Assert
+            var ex = act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>().Which;
+            ex.SectionName.Should().Be("DeviceInfo");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public void WriteFile_NonAsciiCharacters_PreservesCharacters()
     {
         // Arrange

@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
@@ -20,8 +21,19 @@ public class XddWriter
     /// <param name="filePath">Path where the XDD file should be written</param>
     public void WriteFile(ElectronicDataSheet eds, string filePath)
     {
-        var content = GenerateString(eds);
-        File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+        try
+        {
+            var content = GenerateString(eds);
+            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+        }
+        catch (XddWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XddWriteException($"Failed to write XDD file to {filePath}", ex);
+        }
     }
 
     /// <summary>
@@ -35,9 +47,24 @@ public class XddWriter
         string filePath,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var content = GenerateString(eds);
-        await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = GenerateString(eds);
+            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (XddWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XddWriteException($"Failed to write XDD file to {filePath}", ex);
+        }
     }
 
     /// <summary>
@@ -55,8 +82,13 @@ public class XddWriter
     /// </summary>
     internal string GenerateString(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
-        var doc = BuildDocument(eds, commissioning);
-        return SerializeDocument(doc);
+        return WriteContext(
+            "Document",
+            () =>
+            {
+                var doc = BuildDocument(eds, commissioning);
+                return SerializeDocument(doc);
+            });
     }
 
     /// <summary>
@@ -88,8 +120,8 @@ public class XddWriter
         var container = new XElement("ISO15745ProfileContainer",
             new XAttribute(XNamespace.Xmlns + "xsi", xsi));
 
-        container.Add(BuildDeviceProfile(eds, xsi));
-        container.Add(BuildCommNetProfile(eds, xsi, commissioning));
+        container.Add(WriteContext("DeviceProfile", () => BuildDeviceProfile(eds, xsi)));
+        container.Add(WriteContext("CommunicationNetworkProfile", () => BuildCommNetProfile(eds, xsi, commissioning)));
 
         return new XDocument(
             new XDeclaration("1.0", "utf-8", null),
@@ -1084,6 +1116,27 @@ public class XddWriter
 
     internal static string FormatBaudRate(ushort kbps) =>
         string.Format(CultureInfo.InvariantCulture, "{0} Kbps", kbps);
+
+    private static T WriteContext<T>(string sectionName, Func<T> writeAction)
+    {
+        try
+        {
+            return writeAction();
+        }
+        catch (XddWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XddWriteException(
+                $"Failed to write section [{sectionName}]",
+                ex)
+            {
+                SectionName = sectionName
+            };
+        }
+    }
 
     private static string SerializeDocument(XDocument doc)
     {

@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Tests.Writers;
 
 using System.Xml.Linq;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Writers;
 
@@ -209,6 +210,21 @@ public class XdcWriterTests
     }
 
     [Fact]
+    public void WriteFile_InvalidPath_ThrowsXdcWriteException()
+    {
+        // Arrange
+        var dcf = CreateSampleDcf();
+        var invalidPath = "/invalid/path/that/does/not/exist/test.xdc";
+
+        // Act
+        var act = () => _writer.WriteFile(dcf, invalidPath);
+
+        // Assert
+        act.Should().Throw<XdcWriteException>()
+            .WithMessage("*Failed to write XDC file*");
+    }
+
+    [Fact]
     public void GenerateString_SubObjectActualValue_WrittenCorrectly()
     {
         // Arrange
@@ -309,7 +325,7 @@ public class XdcWriterTests
     [Theory]
     [InlineData(128)]
     [InlineData(255)]
-    public void GenerateString_OutOfRangeNodeId_ThrowsInvalidOperationException(byte nodeId)
+    public void GenerateString_OutOfRangeNodeId_ThrowsXdcWriteExceptionWithSectionName(byte nodeId)
     {
         var dcf = new DeviceConfigurationFile
         {
@@ -318,8 +334,10 @@ public class XdcWriterTests
 
         var act = () => _writer.GenerateString(dcf);
 
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*NodeId*");
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.SectionName.Should().Be("CommunicationNetworkProfile");
+        ex.InnerException.Should().NotBeNull();
+        ex.InnerException!.Message.Should().Contain("NodeId");
     }
 
     [Fact]

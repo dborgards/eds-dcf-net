@@ -2,6 +2,7 @@ namespace EdsDcfNet.Tests.Writers;
 
 using System.Reflection;
 using System.Xml.Linq;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Writers;
 
@@ -79,6 +80,21 @@ public class XddWriterTests
         }
     }
 
+    [Fact]
+    public void WriteFile_InvalidPath_ThrowsXddWriteException()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        var invalidPath = "/invalid/path/that/does/not/exist/test.xdd";
+
+        // Act
+        var act = () => _writer.WriteFile(eds, invalidPath);
+
+        // Assert
+        act.Should().Throw<XddWriteException>()
+            .WithMessage("*Failed to write XDD file*");
+    }
+
     #endregion
 
     #region GenerateString Tests
@@ -91,6 +107,22 @@ public class XddWriterTests
 
         // Assert
         result.Should().Contain("ISO15745ProfileContainer");
+    }
+
+    [Fact]
+    public void GenerateString_InvalidDeviceInfo_ThrowsXddWriteExceptionWithSectionName()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        eds.DeviceInfo = null!;
+
+        // Act
+        var act = () => _writer.GenerateString(eds);
+
+        // Assert
+        var ex = act.Should().Throw<XddWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceProfile");
+        ex.Message.Should().Contain("DeviceProfile");
     }
 
     [Fact]

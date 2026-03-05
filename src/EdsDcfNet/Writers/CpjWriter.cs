@@ -3,6 +3,7 @@ namespace EdsDcfNet.Writers;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
@@ -19,8 +20,19 @@ public class CpjWriter
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteFile(NodelistProject cpj, string filePath)
     {
-        var content = GenerateCpjContent(cpj);
-        File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+        try
+        {
+            var content = GenerateCpjContent(cpj);
+            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+        }
+        catch (CpjWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new CpjWriteException($"Failed to write CPJ file to {filePath}", ex);
+        }
     }
 
     /// <summary>
@@ -35,9 +47,24 @@ public class CpjWriter
         string filePath,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var content = GenerateCpjContent(cpj);
-        await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = GenerateCpjContent(cpj);
+            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (CpjWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new CpjWriteException($"Failed to write CPJ file to {filePath}", ex);
+        }
     }
 
     /// <summary>
@@ -58,17 +85,22 @@ public class CpjWriter
         for (int i = 0; i < cpj.Networks.Count; i++)
         {
             var sectionName = i == 0 ? "Topology" : string.Format(CultureInfo.InvariantCulture, "Topology{0}", i + 1);
-            WriteTopology(sb, cpj.Networks[i], sectionName);
+            WriteSection(sectionName, () => WriteTopology(sb, cpj.Networks[i], sectionName));
         }
 
         foreach (var section in cpj.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
         {
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0}]", section.Key));
-            foreach (var entry in section.Value.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase))
-            {
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}={1}", entry.Key, entry.Value));
-            }
-            sb.AppendLine();
+            WriteSection(
+                section.Key,
+                () =>
+                {
+                    sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0}]", section.Key));
+                    foreach (var entry in section.Value.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase))
+                    {
+                        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}={1}", entry.Key, entry.Value));
+                    }
+                    sb.AppendLine();
+                });
         }
 
         return sb.ToString();
@@ -122,5 +154,26 @@ public class CpjWriter
         }
 
         sb.AppendLine();
+    }
+
+    private static void WriteSection(string sectionName, Action writeAction)
+    {
+        try
+        {
+            writeAction();
+        }
+        catch (CpjWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new CpjWriteException(
+                $"Failed to write section [{sectionName}]",
+                ex)
+            {
+                SectionName = sectionName
+            };
+        }
     }
 }
