@@ -21,10 +21,13 @@ public class EdsReader : CanOpenReaderBase
     /// Reads an EDS file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the EDS file</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
-    public ElectronicDataSheet ReadFile(string filePath)
+    public ElectronicDataSheet ReadFile(
+        string filePath,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromFile(filePath);
+        var sections = ParseSectionsFromFile(filePath, maxInputSize);
         return ParseEds(sections);
     }
 
@@ -34,11 +37,24 @@ public class EdsReader : CanOpenReaderBase
     /// <param name="filePath">Path to the EDS file</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
-    public async Task<ElectronicDataSheet> ReadFileAsync(
+    public Task<ElectronicDataSheet> ReadFileAsync(
         string filePath,
         CancellationToken cancellationToken = default)
+        => ReadFileAsync(filePath, IniParser.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads an EDS file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the EDS file</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public async Task<ElectronicDataSheet> ReadFileAsync(
+        string filePath,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
     {
-        var sections = await ParseSectionsFromFileAsync(filePath, cancellationToken).ConfigureAwait(false);
+        var sections = await ParseSectionsFromFileAsync(filePath, maxInputSize, cancellationToken).ConfigureAwait(false);
         return ParseEds(sections);
     }
 
@@ -46,10 +62,13 @@ public class EdsReader : CanOpenReaderBase
     /// Reads an EDS from a string.
     /// </summary>
     /// <param name="content">EDS file content as string</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
-    public ElectronicDataSheet ReadString(string content)
+    public ElectronicDataSheet ReadString(
+        string content,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromString(content);
+        var sections = ParseSectionsFromString(content, maxInputSize);
         return ParseEds(sections);
     }
 

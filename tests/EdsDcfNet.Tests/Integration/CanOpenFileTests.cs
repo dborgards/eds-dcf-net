@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Tests.Integration;
 
 using EdsDcfNet;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using FluentAssertions;
 using Xunit;
@@ -1073,6 +1074,15 @@ PDOMapping=0
     }
 
     [Fact]
+    public void ReadXdd_CustomMaxInputSizeTooSmall_ThrowsEdsParseException()
+    {
+        var act = () => CanOpenFile.ReadXdd("Fixtures/sample_device.xdd", maxInputSize: 256);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
     public void ReadXddFromString_ValidContent_ReturnsElectronicDataSheet()
     {
         var content = File.ReadAllText("Fixtures/sample_device.xdd");
@@ -1090,6 +1100,15 @@ PDOMapping=0
 
         result.Should().NotBeNull();
         result.DeviceCommissioning.NodeId.Should().Be(5);
+    }
+
+    [Fact]
+    public void ReadXdc_CustomMaxInputSizeTooSmall_ThrowsEdsParseException()
+    {
+        var act = () => CanOpenFile.ReadXdc("Fixtures/minimal.xdc", maxInputSize: 256);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
     }
 
     [Fact]

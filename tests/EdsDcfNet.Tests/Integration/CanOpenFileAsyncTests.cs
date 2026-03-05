@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Tests.Integration;
 
 using EdsDcfNet;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using FluentAssertions;
 using Xunit;
@@ -147,12 +148,30 @@ public class CanOpenFileAsyncTests
     }
 
     [Fact]
+    public async Task ReadXddAsync_CustomMaxInputSizeTooSmall_ThrowsEdsParseException()
+    {
+        var act = () => CanOpenFile.ReadXddAsync("Fixtures/sample_device.xdd", maxInputSize: 256);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
     public async Task ReadXdcAsync_ValidFile_ReturnsDeviceConfigurationFile()
     {
         var result = await CanOpenFile.ReadXdcAsync("Fixtures/minimal.xdc");
 
         result.Should().NotBeNull();
         result.DeviceCommissioning.NodeId.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task ReadXdcAsync_CustomMaxInputSizeTooSmall_ThrowsEdsParseException()
+    {
+        var act = () => CanOpenFile.ReadXdcAsync("Fixtures/minimal.xdc", maxInputSize: 256);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
     }
 
     [Fact]

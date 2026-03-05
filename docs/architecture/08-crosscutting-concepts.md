@@ -37,6 +37,17 @@ flowchart TD
 - **Unknown INI sections**: Preserved in `AdditionalSections` (no warning, no error).
 - **CiA 311 XML**: Parsed against supported profile structures; unsupported XML nodes are not represented as generic passthrough data.
 
+### Input Size Limits
+
+To mitigate memory-pressure and oversized-input scenarios, all read APIs enforce a default
+maximum input size of `IniParser.DefaultMaxInputSize` (10 MB).
+
+The limit is configurable per read operation (`Read*`, `Read*Async`, `Read*FromString`)
+for EDS/DCF/CPJ/XDD/XDC, including the `CanOpenFile` facade.
+
+Guideline: keep the default for untrusted inputs and raise limits only as needed for
+trusted, known-large payloads.
+
 ## 8.2 Culture Independence (InvariantCulture)
 
 CANopen INI/XML files are culture-independent. Numeric values use deterministic formats and must not depend on OS locale.

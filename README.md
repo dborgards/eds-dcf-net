@@ -204,9 +204,10 @@ var tpdos = dcf.ObjectDictionary.GetPdoCommunicationParameters(transmit: true);
 
 ```csharp
 // Read EDS
-ElectronicDataSheet ReadEds(string filePath)
+ElectronicDataSheet ReadEds(string filePath, long maxInputSize = IniParser.DefaultMaxInputSize)
 Task<ElectronicDataSheet> ReadEdsAsync(string filePath, CancellationToken cancellationToken = default)
-ElectronicDataSheet ReadEdsFromString(string content)
+Task<ElectronicDataSheet> ReadEdsAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
+ElectronicDataSheet ReadEdsFromString(string content, long maxInputSize = IniParser.DefaultMaxInputSize)
 
 // Write EDS
 void WriteEds(ElectronicDataSheet eds, string filePath)
@@ -214,9 +215,10 @@ Task WriteEdsAsync(ElectronicDataSheet eds, string filePath, CancellationToken c
 string WriteEdsToString(ElectronicDataSheet eds)
 
 // Read DCF
-DeviceConfigurationFile ReadDcf(string filePath)
+DeviceConfigurationFile ReadDcf(string filePath, long maxInputSize = IniParser.DefaultMaxInputSize)
 Task<DeviceConfigurationFile> ReadDcfAsync(string filePath, CancellationToken cancellationToken = default)
-DeviceConfigurationFile ReadDcfFromString(string content)
+Task<DeviceConfigurationFile> ReadDcfAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
+DeviceConfigurationFile ReadDcfFromString(string content, long maxInputSize = IniParser.DefaultMaxInputSize)
 
 // Write DCF
 void WriteDcf(DeviceConfigurationFile dcf, string filePath)
@@ -224,9 +226,10 @@ Task WriteDcfAsync(DeviceConfigurationFile dcf, string filePath, CancellationTok
 string WriteDcfToString(DeviceConfigurationFile dcf)
 
 // Read CPJ (CiA 306-3 Nodelist Project)
-NodelistProject ReadCpj(string filePath)
+NodelistProject ReadCpj(string filePath, long maxInputSize = IniParser.DefaultMaxInputSize)
 Task<NodelistProject> ReadCpjAsync(string filePath, CancellationToken cancellationToken = default)
-NodelistProject ReadCpjFromString(string content)
+Task<NodelistProject> ReadCpjAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
+NodelistProject ReadCpjFromString(string content, long maxInputSize = IniParser.DefaultMaxInputSize)
 
 // Write CPJ
 void WriteCpj(NodelistProject cpj, string filePath)
@@ -234,9 +237,10 @@ Task WriteCpjAsync(NodelistProject cpj, string filePath, CancellationToken cance
 string WriteCpjToString(NodelistProject cpj)
 
 // Read XDD (CiA 311 XML Device Description)
-ElectronicDataSheet ReadXdd(string filePath)
+ElectronicDataSheet ReadXdd(string filePath, long maxInputSize = IniParser.DefaultMaxInputSize)
 Task<ElectronicDataSheet> ReadXddAsync(string filePath, CancellationToken cancellationToken = default)
-ElectronicDataSheet ReadXddFromString(string content)
+Task<ElectronicDataSheet> ReadXddAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
+ElectronicDataSheet ReadXddFromString(string content, long maxInputSize = IniParser.DefaultMaxInputSize)
 
 // Write XDD
 void WriteXdd(ElectronicDataSheet xdd, string filePath)
@@ -244,9 +248,10 @@ Task WriteXddAsync(ElectronicDataSheet xdd, string filePath, CancellationToken c
 string WriteXddToString(ElectronicDataSheet xdd)
 
 // Read XDC (CiA 311 XML Device Configuration)
-DeviceConfigurationFile ReadXdc(string filePath)
+DeviceConfigurationFile ReadXdc(string filePath, long maxInputSize = IniParser.DefaultMaxInputSize)
 Task<DeviceConfigurationFile> ReadXdcAsync(string filePath, CancellationToken cancellationToken = default)
-DeviceConfigurationFile ReadXdcFromString(string content)
+Task<DeviceConfigurationFile> ReadXdcAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
+DeviceConfigurationFile ReadXdcFromString(string content, long maxInputSize = IniParser.DefaultMaxInputSize)
 
 // Write XDC
 void WriteXdc(DeviceConfigurationFile xdc, string filePath)
@@ -257,6 +262,23 @@ string WriteXdcToString(DeviceConfigurationFile xdc)
 DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
                                   ushort baudrate = 250, string? nodeName = null)
 ```
+
+### Input Size Limits and Tuning
+
+All read APIs apply a safe default input-size limit of **10 MB**
+(`IniParser.DefaultMaxInputSize`) to reduce denial-of-service risk from
+unexpectedly large payloads.
+
+You can override this limit per operation when you need to process larger files:
+
+```csharp
+var xdd = CanOpenFile.ReadXdd("large-device.xdd", maxInputSize: 50L * 1024 * 1024);
+```
+
+Guidance:
+- Keep the default whenever possible.
+- Increase limits only for trusted sources and known use cases.
+- Set the limit just high enough for your expected maximum file size.
 
 ## Supported Features
 
