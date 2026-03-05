@@ -149,6 +149,25 @@ var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 2, baudrate: 500, nodeName: "MyDevic
 CanOpenFile.WriteDcf(dcf, "device_node2.dcf");
 ```
 
+### Validating models before write operations
+
+Use the validation API to detect invalid commissioning values and inconsistent
+object-list definitions before serializing files.
+
+```csharp
+using EdsDcfNet;
+using EdsDcfNet.Validation;
+
+var dcf = CanOpenFile.ReadDcf("configured_device.dcf");
+
+IReadOnlyList<ValidationIssue> issues = CanOpenFile.Validate(dcf);
+if (issues.Count > 0)
+{
+    foreach (var issue in issues)
+        Console.WriteLine(issue);
+}
+```
+
 ### Working with Nodelist Projects (CPJ)
 
 ```csharp
@@ -267,6 +286,10 @@ DeviceConfigurationFile ReadXdcFromString(string content, long maxInputSize)
 void WriteXdc(DeviceConfigurationFile xdc, string filePath)
 Task WriteXdcAsync(DeviceConfigurationFile xdc, string filePath, CancellationToken cancellationToken = default)
 string WriteXdcToString(DeviceConfigurationFile xdc)
+
+// Validate models
+IReadOnlyList<ValidationIssue> Validate(ElectronicDataSheet eds)
+IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
 
 // Convert EDS to DCF
 DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,

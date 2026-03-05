@@ -3,6 +3,7 @@ namespace EdsDcfNet;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Utilities;
+using EdsDcfNet.Validation;
 using EdsDcfNet.Writers;
 using System.Globalization;
 
@@ -613,6 +614,26 @@ public static class CanOpenFile
     {
         var writer = new XdcWriter();
         return writer.GenerateString(xdc);
+    }
+
+    /// <summary>
+    /// Validates an Electronic Data Sheet (EDS) model.
+    /// </summary>
+    /// <param name="eds">Model instance to validate</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(ElectronicDataSheet eds)
+    {
+        return CanOpenModelValidator.Validate(eds);
+    }
+
+    /// <summary>
+    /// Validates a Device Configuration File (DCF) model.
+    /// </summary>
+    /// <param name="dcf">Model instance to validate</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
+    {
+        return CanOpenModelValidator.Validate(dcf);
     }
 
     /// <summary>
