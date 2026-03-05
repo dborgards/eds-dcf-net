@@ -76,11 +76,21 @@ public static class CanOpenFile
     /// Reads an Electronic Data Sheet (EDS) from a string.
     /// </summary>
     /// <param name="content">EDS file content as string</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static ElectronicDataSheet ReadEdsFromString(string content)
+    {
+        return ReadEdsFromString(content, IniParser.DefaultMaxInputSize);
+    }
+
+    /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) from a string.
+    /// </summary>
+    /// <param name="content">EDS file content as string</param>
     /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadEdsFromString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize)
     {
         var reader = new EdsReader();
         return reader.ReadString(content, maxInputSize);
@@ -195,11 +205,21 @@ public static class CanOpenFile
     /// Reads a Device Configuration File (DCF) from a string.
     /// </summary>
     /// <param name="content">DCF file content as string</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadDcfFromString(string content)
+    {
+        return ReadDcfFromString(content, IniParser.DefaultMaxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a Device Configuration File (DCF) from a string.
+    /// </summary>
+    /// <param name="content">DCF file content as string</param>
     /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadDcfFromString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize)
     {
         var reader = new DcfReader();
         return reader.ReadString(content, maxInputSize);
@@ -308,11 +328,21 @@ public static class CanOpenFile
     /// Reads a CiA 306-3 nodelist project (.cpj) from a string.
     /// </summary>
     /// <param name="content">CPJ file content as string</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static NodelistProject ReadCpjFromString(string content)
+    {
+        return ReadCpjFromString(content, IniParser.DefaultMaxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) from a string.
+    /// </summary>
+    /// <param name="content">CPJ file content as string</param>
     /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed NodelistProject object</returns>
     public static NodelistProject ReadCpjFromString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize)
     {
         var reader = new CpjReader();
         return reader.ReadString(content, maxInputSize);
@@ -413,11 +443,21 @@ public static class CanOpenFile
     /// Reads a CiA 311 XDD (XML Device Description) from a string.
     /// </summary>
     /// <param name="content">XDD file content as string</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static ElectronicDataSheet ReadXddFromString(string content)
+    {
+        return ReadXddFromString(content, IniParser.DefaultMaxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDD (XML Device Description) from a string.
+    /// </summary>
+    /// <param name="content">XDD file content as string</param>
     /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadXddFromString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize)
     {
         var reader = new XddReader();
         return reader.ReadString(content, maxInputSize);
@@ -481,11 +521,21 @@ public static class CanOpenFile
     /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
     /// </summary>
     /// <param name="content">XDC file content as string</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadXdcFromString(string content)
+    {
+        return ReadXdcFromString(content, IniParser.DefaultMaxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
+    /// </summary>
+    /// <param name="content">XDC file content as string</param>
     /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadXdcFromString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize)
     {
         var reader = new XdcReader();
         return reader.ReadString(content, maxInputSize);
