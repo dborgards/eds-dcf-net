@@ -8,6 +8,7 @@ public class ParserBenchmarks
 {
     private string _edsContent = null!;
     private string _dcfContent = null!;
+    private string _cpjContent = null!;
     private string _xddContent = null!;
 
     [GlobalSetup]
@@ -15,14 +16,18 @@ public class ParserBenchmarks
     {
         _edsContent = File.ReadAllText("Fixtures/sample_device.eds");
         _dcfContent = File.ReadAllText("Fixtures/minimal.dcf");
+        _cpjContent = File.ReadAllText("Fixtures/minimal.cpj");
         _xddContent = File.ReadAllText("Fixtures/sample_device.xdd");
     }
 
-    [Benchmark(Description = "EDS parse (string)")]
+    [Benchmark(Baseline = true, Description = "EDS parse (string)")]
     public object EdsParseFromString() => CanOpenFile.ReadEdsFromString(_edsContent);
 
     [Benchmark(Description = "DCF parse (string)")]
     public object DcfParseFromString() => CanOpenFile.ReadDcfFromString(_dcfContent);
+
+    [Benchmark(Description = "CPJ parse (string)")]
+    public object CpjParseFromString() => CanOpenFile.ReadCpjFromString(_cpjContent);
 
     [Benchmark(Description = "XDD parse (string)")]
     public object XddParseFromString() => CanOpenFile.ReadXddFromString(_xddContent);
