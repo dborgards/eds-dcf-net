@@ -169,8 +169,8 @@ public static class ValueConverter
     }
 
     /// <summary>
-    /// Evaluates a $NODEID formula with the given node ID.
-    /// Supports formulas like "$NODEID", "$NODEID+0x200", "$NODEID+512", etc.
+    /// Shared helper that detects the numeric base of <paramref name="value"/> and
+    /// delegates to the appropriate parser (decimal or non-decimal).
     /// </summary>
     private static T ParseUnsignedNumber<T>(
         string value,
@@ -195,6 +195,10 @@ public static class ValueConverter
         return (value, NumericBase.Decimal);
     }
 
+    /// <summary>
+    /// Evaluates a $NODEID formula with the given node ID.
+    /// Supports formulas like "$NODEID", "$NODEID+0x200", "$NODEID+512", etc.
+    /// </summary>
     private static uint EvaluateNodeIdFormula(string formula, byte nodeId)
     {
         formula = formula.Trim();
