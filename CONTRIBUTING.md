@@ -44,8 +44,26 @@ refactor/xyz    ──┘      │           │
 ## Coding conventions
 
 Repository-wide formatting and baseline analyzer severities are defined in
-[`.editorconfig`](.editorconfig). Please keep local IDE formatting aligned with
-that file.
+[`.editorconfig`](.editorconfig), while analyzer/build enforcement is
+centralized in [`Directory.Build.props`](Directory.Build.props).
+
+### Analyzer policy
+
+- .NET analyzers are enabled for `EdsDcfNet` and `EdsDcfNet.Tests`.
+- `AnalysisMode` is `Recommended` for `EdsDcfNet` (core library).
+- `EdsDcfNet.Tests` currently stays on SDK-default analyzer mode to avoid
+  forcing a full test-naming cleanup in one step (for example CA1707).
+- `TreatWarningsAsErrors=true` is enforced for these projects.
+- Style and documentation analyzer categories are intentionally configured as
+  suggestions in `.editorconfig` to avoid noisy CI failures.
+
+### Analyzer rollout strategy
+
+- New analyzer rules should start at `suggestion` (or project-default severity)
+  and be promoted only after cleanup.
+- Promote to `warning` only when findings are actionable and low-noise.
+- Use dedicated cleanup PRs before enabling stricter severities that would
+  break CI under warnings-as-errors.
 
 ## .NET SDK policy
 
