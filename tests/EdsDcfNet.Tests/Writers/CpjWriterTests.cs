@@ -318,6 +318,26 @@ EDSBaseName=/eds/
     }
 
     [Fact]
+    public async Task WriteFileAsync_GenerationThrowsCpjWriteException_Rethrows()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(null!);
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(project, tempFile);
+
+            var ex = (await act.Should().ThrowAsync<CpjWriteException>()).Which;
+            ex.SectionName.Should().Be("Topology");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public void WriteFile_NonAsciiCharacters_PreservesCharacters()
     {
         // Arrange

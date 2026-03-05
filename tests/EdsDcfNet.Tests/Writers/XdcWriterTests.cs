@@ -400,6 +400,27 @@ public class XdcWriterTests
     }
 
     [Fact]
+    public async Task WriteFileAsync_OutOfRangeNodeId_RethrowsXdcWriteException()
+    {
+        var dcf = CreateSampleDcf();
+        dcf.DeviceCommissioning!.NodeId = 128;
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdc");
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(dcf, tempFile);
+
+            var ex = (await act.Should().ThrowAsync<XdcWriteException>()).Which;
+            ex.SectionName.Should().Be("deviceCommissioning");
+            ex.Message.Should().Contain("NodeId");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public void GenerateString_NullDeviceInfo_WrapsXddWriteExceptionAsXdcWriteException()
     {
         var dcf = CreateSampleDcf();
@@ -410,6 +431,17 @@ public class XdcWriterTests
         var ex = act.Should().Throw<XdcWriteException>().Which;
         ex.InnerException.Should().NotBeNull();
         ex.SectionName.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void GenerateString_NullDcf_UsesDocumentFallbackSection()
+    {
+        var act = () => _writer.GenerateString(null!);
+
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.SectionName.Should().Be("Document");
+        ex.Message.Should().Contain("Failed to write section [Document]");
+        ex.InnerException.Should().NotBeNull();
     }
 
     #endregion
