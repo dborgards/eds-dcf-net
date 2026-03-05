@@ -6,6 +6,14 @@ using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 
+/// <summary>
+/// Edge-case matrix for issue #122:
+/// - malformed numeric literals -> ReadDcfFromString_MalformedHexLiteral_ThrowsActionableParseException
+/// - UTF-8 BOM and mixed line endings -> ReadDcf_FileWithUtf8Bom_ParsesSuccessfully, ReadDcfFromString_MixedLineEndings_ParsesSuccessfully
+/// - large object dictionary round-trip -> RoundTrip_LargeObjectDictionary_PreservesObjectAndListCounts
+/// - Unicode/non-ASCII round-trip -> RoundTrip_UnicodeAndNonAsciiValues_PreservesContent
+/// - unsigned boundary handling -> ReadDcfFromString_UnsignedBoundaries_ParsesCorrectly, ReadDcfFromString_NegativeUnsignedValue_ThrowsParseException
+/// </summary>
 public class ParserWriterEdgeCaseTests
 {
     [Fact]
@@ -101,7 +109,7 @@ public class ParserWriterEdgeCaseTests
         for (ushort i = 0; i < 500; i++)
         {
             var index = (ushort)(0x2000 + i);
-            original.ObjectDictionary.OptionalObjects.Add(index);
+            original.ObjectDictionary.ManufacturerObjects.Add(index);
             original.ObjectDictionary.Objects[index] = new CanOpenObject
             {
                 Index = index,
@@ -120,7 +128,7 @@ public class ParserWriterEdgeCaseTests
 
         // Assert
         roundTripped.ObjectDictionary.Objects.Count.Should().Be(original.ObjectDictionary.Objects.Count);
-        roundTripped.ObjectDictionary.OptionalObjects.Count.Should().Be(original.ObjectDictionary.OptionalObjects.Count);
+        roundTripped.ObjectDictionary.ManufacturerObjects.Count.Should().Be(original.ObjectDictionary.ManufacturerObjects.Count);
     }
 
     [Fact]
@@ -145,7 +153,7 @@ public class ParserWriterEdgeCaseTests
     }
 
     [Fact]
-    public void ReadDcfFromString_UnsignedBoundaries_ParseCorrectly()
+    public void ReadDcfFromString_UnsignedBoundaries_ParsesCorrectly()
     {
         // Arrange
         var content = BuildMinimalDcf(
