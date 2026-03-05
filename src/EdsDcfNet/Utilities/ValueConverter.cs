@@ -187,7 +187,13 @@ public static class ValueConverter
     private static (string Value, NumericBase NumberBase) GetNumericFormat(string value)
     {
         if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            return (value[2..], NumericBase.Hexadecimal);
+        {
+            var hexDigits = value[2..];
+            if (hexDigits.Length == 0)
+                throw new FormatException($"The value '{value}' has no digits after the hex prefix.");
+
+            return (hexDigits, NumericBase.Hexadecimal);
+        }
 
         if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
             return (value, NumericBase.Octal);
