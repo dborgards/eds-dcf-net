@@ -16,7 +16,7 @@ public class XddXdcIntegrationTests
     #region XDD Round-Trip Tests
 
     [Fact]
-    public void ReadXdd_WriteXdd_RoundTrip()
+    public void ReadXdd_WriteXddToString_ReadXddFromString_PreservesSemantics()
     {
         // Arrange — read sample XDD
         var original = _xddReader.ReadFile("Fixtures/sample_device.xdd");
@@ -30,15 +30,7 @@ public class XddXdcIntegrationTests
         roundTripped.DeviceInfo.ProductName.Should().Be(original.DeviceInfo.ProductName);
         roundTripped.DeviceInfo.VendorNumber.Should().Be(original.DeviceInfo.VendorNumber);
         roundTripped.DeviceInfo.ProductNumber.Should().Be(original.DeviceInfo.ProductNumber);
-
-        roundTripped.ObjectDictionary.Objects.Count.Should().Be(original.ObjectDictionary.Objects.Count);
-
-        foreach (var idx in original.ObjectDictionary.Objects.Keys)
-        {
-            roundTripped.ObjectDictionary.Objects.Should().ContainKey(idx);
-            roundTripped.ObjectDictionary.Objects[idx].ParameterName
-                .Should().Be(original.ObjectDictionary.Objects[idx].ParameterName);
-        }
+        AssertObjectDictionaryKeysAndNamesEqual(original.ObjectDictionary, roundTripped.ObjectDictionary);
     }
 
     [Fact]
@@ -72,7 +64,7 @@ public class XddXdcIntegrationTests
     #region XDC Round-Trip Tests
 
     [Fact]
-    public void ReadXdc_WriteXdc_RoundTrip()
+    public void ReadXdc_WriteXdcToString_ReadXdcFromString_PreservesSemantics()
     {
         // Arrange
         var original = _xdcReader.ReadFile("Fixtures/minimal.xdc");
@@ -85,9 +77,7 @@ public class XddXdcIntegrationTests
         roundTripped.DeviceCommissioning.NodeId.Should().Be(original.DeviceCommissioning.NodeId);
         roundTripped.DeviceCommissioning.Baudrate.Should().Be(original.DeviceCommissioning.Baudrate);
         roundTripped.DeviceCommissioning.NodeName.Should().Be(original.DeviceCommissioning.NodeName);
-
-        // Assert — ObjectDictionary
-        roundTripped.ObjectDictionary.Objects.Count.Should().Be(original.ObjectDictionary.Objects.Count);
+        AssertObjectDictionaryKeysAndNamesEqual(original.ObjectDictionary, roundTripped.ObjectDictionary);
     }
 
     [Fact]
@@ -135,7 +125,7 @@ public class XddXdcIntegrationTests
     }
 
     [Fact]
-    public void ReadXdd_WriteDcf_ReadDcf_ObjectDictionaryMatches()
+    public void ReadXdd_ConvertToDcf_WriteDcfToString_ReadDcfFromString_ObjectDictionaryMatches()
     {
         // Arrange — read XDD
         var fromXdd = _xddReader.ReadFile("Fixtures/sample_device.xdd");
@@ -166,6 +156,17 @@ public class XddXdcIntegrationTests
         // Assert
         fromDcf.DeviceCommissioning.NodeId.Should().Be(xdc.DeviceCommissioning.NodeId);
         fromDcf.DeviceCommissioning.Baudrate.Should().Be(xdc.DeviceCommissioning.Baudrate);
+    }
+
+    private static void AssertObjectDictionaryKeysAndNamesEqual(ObjectDictionary expected, ObjectDictionary actual)
+    {
+        actual.Objects.Count.Should().Be(expected.Objects.Count);
+
+        foreach (var idx in expected.Objects.Keys)
+        {
+            actual.Objects.Should().ContainKey(idx);
+            actual.Objects[idx].ParameterName.Should().Be(expected.Objects[idx].ParameterName);
+        }
     }
 
     #endregion
