@@ -41,6 +41,32 @@ public class XddXdcIntegrationTests
         }
     }
 
+    [Fact]
+    public void CanOpenFile_ReadXdd_WriteXdd_ReadXdd_RoundTripPreservesSemantics()
+    {
+        // Arrange
+        var original = CanOpenFile.ReadXdd("Fixtures/sample_device.xdd");
+
+        // Act
+        var written = CanOpenFile.WriteXddToString(original);
+        var roundTripped = CanOpenFile.ReadXddFromString(written);
+
+        // Assert
+        roundTripped.DeviceInfo.VendorName.Should().Be(original.DeviceInfo.VendorName);
+        roundTripped.DeviceInfo.ProductName.Should().Be(original.DeviceInfo.ProductName);
+        roundTripped.DeviceInfo.VendorNumber.Should().Be(original.DeviceInfo.VendorNumber);
+        roundTripped.DeviceInfo.ProductNumber.Should().Be(original.DeviceInfo.ProductNumber);
+        roundTripped.ObjectDictionary.Objects.Keys.Should().BeEquivalentTo(original.ObjectDictionary.Objects.Keys);
+
+        foreach (var index in original.ObjectDictionary.Objects.Keys)
+        {
+            roundTripped.ObjectDictionary.Objects[index].ObjectType
+                .Should().Be(original.ObjectDictionary.Objects[index].ObjectType);
+            roundTripped.ObjectDictionary.Objects[index].ParameterName
+                .Should().Be(original.ObjectDictionary.Objects[index].ParameterName);
+        }
+    }
+
     #endregion
 
     #region XDC Round-Trip Tests
@@ -62,6 +88,23 @@ public class XddXdcIntegrationTests
 
         // Assert — ObjectDictionary
         roundTripped.ObjectDictionary.Objects.Count.Should().Be(original.ObjectDictionary.Objects.Count);
+    }
+
+    [Fact]
+    public void CanOpenFile_ReadXdc_WriteXdc_ReadXdc_RoundTripPreservesSemantics()
+    {
+        // Arrange
+        var original = CanOpenFile.ReadXdc("Fixtures/minimal.xdc");
+
+        // Act
+        var written = CanOpenFile.WriteXdcToString(original);
+        var roundTripped = CanOpenFile.ReadXdcFromString(written);
+
+        // Assert
+        roundTripped.DeviceCommissioning.NodeId.Should().Be(original.DeviceCommissioning.NodeId);
+        roundTripped.DeviceCommissioning.Baudrate.Should().Be(original.DeviceCommissioning.Baudrate);
+        roundTripped.DeviceCommissioning.NodeName.Should().Be(original.DeviceCommissioning.NodeName);
+        roundTripped.ObjectDictionary.Objects.Keys.Should().BeEquivalentTo(original.ObjectDictionary.Objects.Keys);
     }
 
     #endregion
