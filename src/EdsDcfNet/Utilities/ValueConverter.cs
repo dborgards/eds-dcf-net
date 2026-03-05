@@ -49,9 +49,9 @@ public static class ValueConverter
                 decimalParser: static v => uint.Parse(v, CultureInfo.InvariantCulture),
                 parser: static (v, numberBase) => Convert.ToUInt32(v, (int)numberBase));
         }
-        catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+        catch (Exception ex) when (ex is FormatException || ex is OverflowException || ex is ArgumentOutOfRangeException)
         {
-            throw new EdsParseException($"Invalid integer value: '{value}'", ex);
+            throw new EdsParseException(BuildInvalidNumericLiteralMessage("integer", value, ex), ex);
         }
     }
 
@@ -87,9 +87,9 @@ public static class ValueConverter
                 decimalParser: static v => byte.Parse(v, CultureInfo.InvariantCulture),
                 parser: static (v, numberBase) => Convert.ToByte(v, (int)numberBase));
         }
-        catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+        catch (Exception ex) when (ex is FormatException || ex is OverflowException || ex is ArgumentOutOfRangeException)
         {
-            throw new EdsParseException($"Invalid byte value: '{value}'", ex);
+            throw new EdsParseException(BuildInvalidNumericLiteralMessage("byte", value, ex), ex);
         }
     }
 
@@ -110,9 +110,9 @@ public static class ValueConverter
                 decimalParser: static v => ushort.Parse(v, CultureInfo.InvariantCulture),
                 parser: static (v, numberBase) => Convert.ToUInt16(v, (int)numberBase));
         }
-        catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+        catch (Exception ex) when (ex is FormatException || ex is OverflowException || ex is ArgumentOutOfRangeException)
         {
-            throw new EdsParseException($"Invalid UInt16 value: '{value}'", ex);
+            throw new EdsParseException(BuildInvalidNumericLiteralMessage("UInt16", value, ex), ex);
         }
     }
 
@@ -199,6 +199,57 @@ public static class ValueConverter
     /// Evaluates a $NODEID formula with the given node ID.
     /// Supports formulas like "$NODEID", "$NODEID+0x200", "$NODEID+512", etc.
     /// </summary>
+    private static string BuildInvalidNumericLiteralMessage(string typeName, string value, Exception exception)
+    {
+        var literalKind = DescribeNumericLiteral(value);
+        if (exception is OverflowException)
+        {
+            return $"Invalid {typeName} value: '{value}' ({literalKind}). The value is outside the valid {typeName} range.";
+        }
+
+        return $"Invalid {typeName} value: '{value}' ({literalKind}).";
+    }
+
+    private static string DescribeNumericLiteral(string value)
+    {
+        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            var digits = value[2..];
+            if (digits.Length == 0)
+                return "hexadecimal literal has no digits after the 0x prefix";
+
+            foreach (var c in digits)
+            {
+                var isHexDigit = (c >= '0' && c <= '9') ||
+                                 (c >= 'a' && c <= 'f') ||
+                                 (c >= 'A' && c <= 'F');
+                if (!isHexDigit)
+                    return "hexadecimal literal contains non-hex characters";
+            }
+
+            return "hexadecimal literal";
+        }
+
+        if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
+        {
+            foreach (var c in value)
+            {
+                if (c < '0' || c > '7')
+                    return "octal literal contains digits outside 0-7";
+            }
+
+            return "octal literal";
+        }
+
+        foreach (var c in value)
+        {
+            if (!char.IsDigit(c))
+                return "decimal literal contains non-digit characters";
+        }
+
+        return "decimal literal";
+    }
+
     private static uint EvaluateNodeIdFormula(string formula, byte nodeId)
     {
         formula = formula.Trim();

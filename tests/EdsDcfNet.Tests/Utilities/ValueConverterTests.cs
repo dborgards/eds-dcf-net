@@ -615,6 +615,19 @@ public class ValueConverterTests
     }
 
     [Theory]
+    [InlineData("0xGGG", "*hexadecimal literal contains non-hex characters*")]
+    [InlineData("0x", "*hexadecimal literal has no digits after the 0x prefix*")]
+    public void ParseInteger_InvalidHexLiteral_ProvidesActionableContext(string input, string expectedMessageFragment)
+    {
+        var act = () => ValueConverter.ParseInteger(input);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*'{input}'*")
+            .WithMessage(expectedMessageFragment)
+            .WithInnerException<Exception>();
+    }
+
+    [Theory]
     [InlineData("0xZZ")]
     [InlineData("0x1FF")]
     [InlineData("not_a_byte")]
