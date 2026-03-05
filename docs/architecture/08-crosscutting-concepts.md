@@ -11,10 +11,12 @@ The library uses **exceptions** as its primary error mechanism:
 | `EdsParseException`     | Errors during EDS/DCF/CPJ/XDD/XDC parsing                   | `LineNumber`, `SectionName`  |
 | `EdsWriteException`     | Errors during EDS writing                                   | `SectionName`                |
 | `DcfWriteException`     | Errors during DCF writing                                   | `SectionName`                |
-| `InvalidOperationException` | Validation failures during XDC writing (e.g., invalid NodeId) | Standard .NET message |
+| `CpjWriteException`     | Errors during CPJ writing                                   | `SectionName`                |
+| `XddWriteException`     | Errors during XDD writing                                   | `SectionName`                |
+| `XdcWriteException`     | Errors during XDC writing (including commissioning validation) | `SectionName`             |
 | `ArgumentException`     | Invalid input parameters where validation is performed by the API | Standard .NET          |
 
-> **Note:** `CanOpenFile.EdsToDcf`, DCF parsing, and XDC writing enforce CANopen Node-ID constraints for explicit commissioning data. `EdsToDcf` and DCF parsing require `1..127`; XDC writing emits commissioning only when a configured NodeId is present and valid.
+> **Note:** `CanOpenFile.EdsToDcf`, DCF parsing, and XDC writing enforce CANopen Node-ID constraints for explicit commissioning data. `EdsToDcf` and DCF parsing require `1..127`; XDC writing emits commissioning only when a configured NodeId is present and valid and throws `XdcWriteException` for out-of-range values.
 
 > **Compatibility note (AccessType):** Parsing of invalid or unknown `AccessType` values is intentionally tolerant and falls back to `ReadOnly` instead of failing. This is a deliberate trade-off to maximize interoperability with non-compliant manufacturer EDS/DCF files.
 
@@ -122,7 +124,7 @@ CiA 311 support is implemented through explicit mapping of ISO 15745 profile ele
 XDC writer behavior:
 - NodeId `0` means "commissioning not configured" and omits the XML `deviceCommissioning` element.
 - NodeId `1..127` emits a valid `deviceCommissioning` element.
-- Out-of-range NodeId values cause an exception.
+- Out-of-range NodeId values cause an `XdcWriteException`.
 
 ## 8.6 Modular Devices (CiA DS 306)
 

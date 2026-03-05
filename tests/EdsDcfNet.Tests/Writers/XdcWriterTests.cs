@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Tests.Writers;
 
 using System.Xml.Linq;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Writers;
 
@@ -209,6 +210,21 @@ public class XdcWriterTests
     }
 
     [Fact]
+    public void WriteFile_InvalidPath_ThrowsXdcWriteException()
+    {
+        // Arrange
+        var dcf = CreateSampleDcf();
+        var invalidPath = "/invalid/path/that/does/not/exist/test.xdc";
+
+        // Act
+        var act = () => _writer.WriteFile(dcf, invalidPath);
+
+        // Assert
+        act.Should().Throw<XdcWriteException>()
+            .WithMessage("*Failed to write XDC file*");
+    }
+
+    [Fact]
     public void GenerateString_SubObjectActualValue_WrittenCorrectly()
     {
         // Arrange
@@ -309,7 +325,7 @@ public class XdcWriterTests
     [Theory]
     [InlineData(128)]
     [InlineData(255)]
-    public void GenerateString_OutOfRangeNodeId_ThrowsInvalidOperationException(byte nodeId)
+    public void GenerateString_OutOfRangeNodeId_ThrowsXdcWriteExceptionWithSectionName(byte nodeId)
     {
         var dcf = new DeviceConfigurationFile
         {
@@ -318,8 +334,9 @@ public class XdcWriterTests
 
         var act = () => _writer.GenerateString(dcf);
 
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*NodeId*");
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.SectionName.Should().Be("deviceCommissioning");
+        ex.Message.Should().Contain("NodeId");
     }
 
     [Fact]
@@ -335,6 +352,127 @@ public class XdcWriterTests
         var result = _writer.GenerateString(dcf);
 
         result.Should().NotContain("deviceCommissioning");
+    }
+
+    [Fact]
+    public void WriteFile_OutOfRangeNodeId_ThrowsXdcWriteException()
+    {
+        var dcf = CreateSampleDcf();
+        dcf.DeviceCommissioning!.NodeId = 128;
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdc");
+
+        try
+        {
+            var act = () => _writer.WriteFile(dcf, tempFile);
+
+            var ex = act.Should().Throw<XdcWriteException>().Which;
+            ex.Message.Should().Contain("NodeId");
+            ex.SectionName.Should().Be("deviceCommissioning");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_InvalidPath_ThrowsXdcWriteException()
+    {
+        var dcf = CreateSampleDcf();
+        var invalidPath = "/invalid/path/that/does/not/exist/async.xdc";
+
+        var act = () => _writer.WriteFileAsync(dcf, invalidPath);
+
+        (await act.Should().ThrowAsync<XdcWriteException>())
+            .WithMessage("*Failed to write XDC file*");
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_Cancelled_ThrowsOperationCanceledException()
+    {
+        var dcf = CreateSampleDcf();
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdc");
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(dcf, tempFile, cts.Token);
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_OutOfRangeNodeId_RethrowsXdcWriteException()
+    {
+        var dcf = CreateSampleDcf();
+        dcf.DeviceCommissioning!.NodeId = 128;
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdc");
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(dcf, tempFile);
+
+            var ex = (await act.Should().ThrowAsync<XdcWriteException>()).Which;
+            ex.SectionName.Should().Be("deviceCommissioning");
+            ex.Message.Should().Contain("NodeId");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void GenerateString_NullDeviceInfo_WrapsXddWriteExceptionAsXdcWriteException()
+    {
+        var dcf = CreateSampleDcf();
+        dcf.DeviceInfo = null!;
+
+        var act = () => _writer.GenerateString(dcf);
+
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.InnerException.Should().NotBeNull();
+        ex.SectionName.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void GenerateString_NullDcf_UsesDocumentFallbackSection()
+    {
+        var act = () => _writer.GenerateString(null!);
+
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.SectionName.Should().Be("Document");
+        ex.Message.Should().Contain("Failed to write section [Document]");
+        ex.InnerException.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void GenerateString_XddExceptionWithoutInner_UsesOriginalExceptionAsInner()
+    {
+        var writer = new ThrowingXddWithoutInnerXdcWriter();
+
+        var act = () => writer.GenerateString(CreateSampleDcf());
+
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.SectionName.Should().Be("Document");
+        ex.InnerException.Should().BeSameAs(writer.ExpectedException);
+    }
+
+    private sealed class ThrowingXddWithoutInnerXdcWriter : XdcWriter
+    {
+        public XddWriteException ExpectedException { get; } = new("forced-xdd", "Document");
+
+        protected override XDocument BuildDocument(
+            ElectronicDataSheet eds,
+            DeviceCommissioning? commissioning)
+        {
+            throw ExpectedException;
+        }
     }
 
     #endregion

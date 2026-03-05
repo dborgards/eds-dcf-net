@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Writers;
 
+using System.Reflection;
 using EdsDcfNet.Models;
 using EdsDcfNet.Writers;
 using FluentAssertions;
@@ -922,6 +923,115 @@ public class DcfWriterTests
         // Assert
         act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>()
             .WithMessage("*Failed to write DCF file*");
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_InvalidPath_ThrowsDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        var invalidPath = "/invalid/path/that/does/not/exist/async.dcf";
+
+        var act = () => _writer.WriteFileAsync(dcf, invalidPath);
+
+        (await act.Should().ThrowAsync<EdsDcfNet.Exceptions.DcfWriteException>())
+            .WithMessage("*Failed to write DCF file*");
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_Cancelled_ThrowsOperationCanceledException()
+    {
+        var dcf = CreateMinimalDcf();
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".dcf");
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(dcf, tempFile, cts.Token);
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_GenerationFailure_RethrowsDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(dcf, tempFile);
+
+            var ex = (await act.Should().ThrowAsync<EdsDcfNet.Exceptions.DcfWriteException>()).Which;
+            ex.SectionName.Should().Be("DeviceInfo");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void GenerateString_InvalidDeviceInfo_ThrowsDcfWriteExceptionWithSectionName()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+
+        // Act
+        var act = () => _writer.GenerateString(dcf);
+
+        // Assert
+        var ex = act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+        ex.Message.Should().Contain("DeviceInfo");
+    }
+
+    [Fact]
+    public void WriteSection_WhenActionThrowsDcfWriteException_RethrowsOriginal()
+    {
+        var method = typeof(DcfWriter).GetMethod("WriteSection", BindingFlags.NonPublic | BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var expected = new EdsDcfNet.Exceptions.DcfWriteException("forced", "DeviceInfo");
+
+        var act = () => method!.Invoke(
+            null,
+            new object[] { "DeviceInfo", (Action)(() => throw expected) });
+
+        var tie = act.Should().Throw<TargetInvocationException>().Which;
+        tie.InnerException.Should().BeSameAs(expected);
+    }
+
+    [Fact]
+    public void WriteFile_GenerationFailure_PreservesSectionName()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            // Act
+            var act = () => _writer.WriteFile(dcf, tempFile);
+
+            // Assert
+            var ex = act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>().Which;
+            ex.SectionName.Should().Be("DeviceInfo");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
     }
 
     [Fact]

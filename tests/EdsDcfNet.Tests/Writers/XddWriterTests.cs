@@ -2,6 +2,7 @@ namespace EdsDcfNet.Tests.Writers;
 
 using System.Reflection;
 using System.Xml.Linq;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Writers;
 
@@ -79,6 +80,72 @@ public class XddWriterTests
         }
     }
 
+    [Fact]
+    public void WriteFile_InvalidPath_ThrowsXddWriteException()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        var invalidPath = "/invalid/path/that/does/not/exist/test.xdd";
+
+        // Act
+        var act = () => _writer.WriteFile(eds, invalidPath);
+
+        // Assert
+        act.Should().Throw<XddWriteException>()
+            .WithMessage("*Failed to write XDD file*");
+    }
+
+    [Fact]
+    public void WriteFile_GenerationThrowsXddWriteException_Rethrows()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo = null!;
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdd");
+
+        try
+        {
+            var act = () => _writer.WriteFile(eds, tempFile);
+
+            var ex = act.Should().Throw<XddWriteException>().Which;
+            ex.SectionName.Should().Be("DeviceProfile");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_InvalidPath_ThrowsXddWriteException()
+    {
+        var eds = CreateSampleEds();
+        var invalidPath = "/invalid/path/that/does/not/exist/async.xdd";
+
+        var act = () => _writer.WriteFileAsync(eds, invalidPath);
+
+        (await act.Should().ThrowAsync<XddWriteException>())
+            .WithMessage("*Failed to write XDD file*");
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_Cancelled_ThrowsOperationCanceledException()
+    {
+        var eds = CreateSampleEds();
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdd");
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(eds, tempFile, cts.Token);
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
     #endregion
 
     #region GenerateString Tests
@@ -91,6 +158,57 @@ public class XddWriterTests
 
         // Assert
         result.Should().Contain("ISO15745ProfileContainer");
+    }
+
+    [Fact]
+    public void GenerateString_InvalidDeviceInfo_ThrowsXddWriteExceptionWithSectionName()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        eds.DeviceInfo = null!;
+
+        // Act
+        var act = () => _writer.GenerateString(eds);
+
+        // Assert
+        var ex = act.Should().Throw<XddWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceProfile");
+        ex.Message.Should().Contain("DeviceProfile");
+    }
+
+    [Fact]
+    public void GenerateString_WhenSubclassThrowsXdcWriteException_PreservesXdcContext()
+    {
+        var writer = new ThrowingNetworkManagementWriter();
+
+        var act = () => writer.GenerateString(CreateSampleEds());
+
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.SectionName.Should().Be("deviceCommissioning");
+        ex.Message.Should().Contain("forced");
+    }
+
+    [Fact]
+    public void GenerateString_WhenSubclassThrowsXddWriteException_RethrowsOriginal()
+    {
+        var writer = new ThrowingXddDocumentWriter();
+
+        var act = () => writer.GenerateString(CreateSampleEds());
+
+        var ex = act.Should().Throw<XddWriteException>().Which;
+        ex.Should().BeSameAs(writer.ExpectedException);
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_WhenGenerationThrowsXddWriteException_Rethrows()
+    {
+        var writer = new ThrowingXddDocumentWriter();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdd");
+
+        var act = () => writer.WriteFileAsync(CreateSampleEds(), tempFile);
+
+        var ex = (await act.Should().ThrowAsync<XddWriteException>()).Which;
+        ex.Should().BeSameAs(writer.ExpectedException);
     }
 
     [Fact]
@@ -714,6 +832,28 @@ public class XddWriterTests
         {
             WasCalled = true;
             return base.BuildDocument(eds, commissioning);
+        }
+    }
+
+    private sealed class ThrowingNetworkManagementWriter : XddWriter
+    {
+        protected override XElement BuildNetworkManagement(
+            ElectronicDataSheet eds,
+            DeviceCommissioning? commissioning)
+        {
+            throw new XdcWriteException("forced", "deviceCommissioning");
+        }
+    }
+
+    private sealed class ThrowingXddDocumentWriter : XddWriter
+    {
+        public XddWriteException ExpectedException { get; } = new("forced-xdd", "Document");
+
+        protected override XDocument BuildDocument(
+            ElectronicDataSheet eds,
+            DeviceCommissioning? commissioning)
+        {
+            throw ExpectedException;
         }
     }
 

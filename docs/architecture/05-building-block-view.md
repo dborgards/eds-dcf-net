@@ -264,6 +264,9 @@ classDiagram
     Exception <|-- EdsParseException
     Exception <|-- EdsWriteException
     Exception <|-- DcfWriteException
+    Exception <|-- CpjWriteException
+    Exception <|-- XddWriteException
+    Exception <|-- XdcWriteException
 
     class EdsParseException {
         +int? LineNumber
@@ -277,8 +280,23 @@ classDiagram
     class DcfWriteException {
         +string? SectionName
     }
+
+    class CpjWriteException {
+        +string? SectionName
+    }
+
+    class XddWriteException {
+        +string? SectionName
+    }
+
+    class XdcWriteException {
+        +string? SectionName
+    }
 ```
 
 `EdsParseException` is used for EDS/DCF/XDD/XDC parsing errors.  
 `EdsWriteException` is used for EDS write/generation failures.  
-`DcfWriteException` is used for DCF write/generation failures.
+`DcfWriteException` is used for DCF write/generation failures.  
+`CpjWriteException` is used for CPJ write/generation failures.  
+`XddWriteException` is used for XDD write/generation failures.  
+`XdcWriteException` is used for XDC write/generation failures.

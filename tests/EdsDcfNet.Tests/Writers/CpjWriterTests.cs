@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Tests.Writers;
 
+using System.Reflection;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Writers;
@@ -236,6 +238,127 @@ EDSBaseName=/eds/
         aKeyPos.Should().BeGreaterThanOrEqualTo(0);
         bKeyPos.Should().BeGreaterThanOrEqualTo(0);
         aKeyPos.Should().BeLessThan(bKeyPos);
+    }
+
+    [Fact]
+    public void GenerateString_NullTopologyEntry_ThrowsCpjWriteExceptionWithSectionName()
+    {
+        // Arrange
+        var project = new NodelistProject();
+        project.Networks.Add(null!);
+
+        // Act
+        var act = () => _writer.GenerateString(project);
+
+        // Assert
+        var ex = act.Should().Throw<CpjWriteException>().Which;
+        ex.SectionName.Should().Be("Topology");
+        ex.Message.Should().Contain("Topology");
+    }
+
+    [Fact]
+    public void WriteSection_WhenActionThrowsCpjWriteException_RethrowsOriginal()
+    {
+        var method = typeof(CpjWriter).GetMethod("WriteSection", BindingFlags.NonPublic | BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var expected = new CpjWriteException("forced", "Topology");
+
+        var act = () => method!.Invoke(
+            null,
+            new object[] { "Topology", (Action)(() => throw expected) });
+
+        var tie = act.Should().Throw<TargetInvocationException>().Which;
+        tie.InnerException.Should().BeSameAs(expected);
+    }
+
+    [Fact]
+    public void WriteFile_InvalidPath_ThrowsCpjWriteException()
+    {
+        // Arrange
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        var invalidPath = "/invalid/path/that/does/not/exist/test.cpj";
+
+        // Act
+        var act = () => _writer.WriteFile(project, invalidPath);
+
+        // Assert
+        act.Should().Throw<CpjWriteException>()
+            .WithMessage("*Failed to write CPJ file*");
+    }
+
+    [Fact]
+    public void WriteFile_GenerationThrowsCpjWriteException_Rethrows()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(null!);
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            var act = () => _writer.WriteFile(project, tempFile);
+
+            var ex = act.Should().Throw<CpjWriteException>().Which;
+            ex.SectionName.Should().Be("Topology");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_InvalidPath_ThrowsCpjWriteException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        var invalidPath = "/invalid/path/that/does/not/exist/async.cpj";
+
+        var act = () => _writer.WriteFileAsync(project, invalidPath);
+
+        (await act.Should().ThrowAsync<CpjWriteException>())
+            .WithMessage("*Failed to write CPJ file*");
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_Cancelled_ThrowsOperationCanceledException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".cpj");
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(project, tempFile, cts.Token);
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_GenerationThrowsCpjWriteException_Rethrows()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(null!);
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(project, tempFile);
+
+            var ex = (await act.Should().ThrowAsync<CpjWriteException>()).Which;
+            ex.SectionName.Should().Be("Topology");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
     }
 
     [Fact]
