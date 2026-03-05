@@ -601,6 +601,24 @@ public class ValueConverterTests
     #region Invalid Value Tests
 
     [Theory]
+    [InlineData("0x100000000", "*hexadecimal literal*", "*outside the representable range*")]
+    [InlineData("040000000000", "*octal literal*", "*outside the representable range*")]
+    [InlineData("4294967296", "*decimal literal*", "*outside the representable range*")]
+    [InlineData("12a34", "*decimal literal contains non-digit characters*")]
+    public void ParseInteger_InvalidValueWithDiagnostics_ProvidesActionableContext(string input, string expectedFragment1, string? expectedFragment2 = null)
+    {
+        var act = () => ValueConverter.ParseInteger(input);
+
+        var assertion = act.Should().Throw<EdsParseException>()
+            .WithMessage($"*'{input}'*")
+            .WithMessage(expectedFragment1);
+        if (expectedFragment2 != null)
+        {
+            assertion.WithMessage(expectedFragment2);
+        }
+    }
+
+    [Theory]
     [InlineData("0xZZZZ")]
     [InlineData("0x1FFFFFFFF")]
     [InlineData("not_a_number")]
@@ -617,7 +635,8 @@ public class ValueConverterTests
     [Theory]
     [InlineData("0xGGG", "*hexadecimal literal contains non-hex characters*")]
     [InlineData("0x", "*hexadecimal literal has no digits after the 0x prefix*")]
-    public void ParseInteger_InvalidHexLiteral_ProvidesActionableContext(string input, string expectedMessageFragment)
+    [InlineData("008", "*octal literal contains characters outside 0-7*")]
+    public void ParseInteger_InvalidLiteral_ProvidesActionableContext(string input, string expectedMessageFragment)
     {
         var act = () => ValueConverter.ParseInteger(input);
 
@@ -625,6 +644,18 @@ public class ValueConverterTests
             .WithMessage($"*'{input}'*")
             .WithMessage(expectedMessageFragment)
             .WithInnerException<Exception>();
+    }
+
+    [Theory]
+    [InlineData("0x100", "*hexadecimal literal*", "*outside the representable range*")]
+    [InlineData("0400", "*octal literal*", "*outside the representable range*")]
+    public void ParseByte_InvalidValueWithOverflow_ProvidesActionableContext(string input, string expectedFragment1, string expectedFragment2)
+    {
+        var act = () => ValueConverter.ParseByte(input);
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*'{input}'*")
+            .WithMessage(expectedFragment1)
+            .WithMessage(expectedFragment2);
     }
 
     [Theory]
@@ -639,6 +670,18 @@ public class ValueConverterTests
         act.Should().Throw<EdsParseException>()
             .WithMessage($"*'{input}'*")
             .WithInnerException<Exception>();
+    }
+
+    [Theory]
+    [InlineData("0x10000", "*hexadecimal literal*", "*outside the representable range*")]
+    [InlineData("0200000", "*octal literal*", "*outside the representable range*")]
+    public void ParseUInt16_InvalidValueWithOverflow_ProvidesActionableContext(string input, string expectedFragment1, string expectedFragment2)
+    {
+        var act = () => ValueConverter.ParseUInt16(input);
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*'{input}'*")
+            .WithMessage(expectedFragment1)
+            .WithMessage(expectedFragment2);
     }
 
     [Theory]

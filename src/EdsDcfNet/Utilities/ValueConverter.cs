@@ -49,7 +49,7 @@ public static class ValueConverter
                 decimalParser: static v => uint.Parse(v, CultureInfo.InvariantCulture),
                 parser: static (v, numberBase) => Convert.ToUInt32(v, (int)numberBase));
         }
-        catch (Exception ex) when (ex is FormatException || ex is OverflowException || ex is ArgumentOutOfRangeException)
+        catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
             throw new EdsParseException(BuildInvalidNumericLiteralMessage("integer", value, ex), ex);
         }
@@ -87,7 +87,7 @@ public static class ValueConverter
                 decimalParser: static v => byte.Parse(v, CultureInfo.InvariantCulture),
                 parser: static (v, numberBase) => Convert.ToByte(v, (int)numberBase));
         }
-        catch (Exception ex) when (ex is FormatException || ex is OverflowException || ex is ArgumentOutOfRangeException)
+        catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
             throw new EdsParseException(BuildInvalidNumericLiteralMessage("byte", value, ex), ex);
         }
@@ -110,7 +110,7 @@ public static class ValueConverter
                 decimalParser: static v => ushort.Parse(v, CultureInfo.InvariantCulture),
                 parser: static (v, numberBase) => Convert.ToUInt16(v, (int)numberBase));
         }
-        catch (Exception ex) when (ex is FormatException || ex is OverflowException || ex is ArgumentOutOfRangeException)
+        catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
             throw new EdsParseException(BuildInvalidNumericLiteralMessage("UInt16", value, ex), ex);
         }
@@ -196,20 +196,27 @@ public static class ValueConverter
     }
 
     /// <summary>
-    /// Evaluates a $NODEID formula with the given node ID.
-    /// Supports formulas like "$NODEID", "$NODEID+0x200", "$NODEID+512", etc.
+    /// Builds a detailed error message for an invalid numeric literal, including its interpreted kind
+    /// (decimal/hex/octal) and whether the value is outside the valid range for the requested type.
     /// </summary>
+    /// <param name="typeName">The logical type name being parsed (e.g. "uint", "byte").</param>
+    /// <param name="value">The original string literal value that failed to parse.</param>
+    /// <param name="exception">The exception that was thrown while parsing the value.</param>
+    /// <returns>A human-readable error message describing why the numeric literal is invalid.</returns>
     private static string BuildInvalidNumericLiteralMessage(string typeName, string value, Exception exception)
     {
         var literalKind = DescribeNumericLiteral(value);
         if (exception is OverflowException)
         {
-            return $"Invalid {typeName} value: '{value}' ({literalKind}). The value is outside the valid {typeName} range.";
+            return $"Invalid {typeName} value: '{value}' ({literalKind}). The value is outside the representable range for this numeric type.";
         }
 
         return $"Invalid {typeName} value: '{value}' ({literalKind}).";
     }
 
+    /// <summary>
+    /// Describes the shape of a numeric literal (hex/octal/decimal) for error diagnostics.
+    /// </summary>
     private static string DescribeNumericLiteral(string value)
     {
         if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
@@ -235,7 +242,7 @@ public static class ValueConverter
             foreach (var c in value)
             {
                 if (c < '0' || c > '7')
-                    return "octal literal contains digits outside 0-7";
+                    return "octal literal contains characters outside 0-7";
             }
 
             return "octal literal";
@@ -250,6 +257,10 @@ public static class ValueConverter
         return "decimal literal";
     }
 
+    /// <summary>
+    /// Evaluates a $NODEID formula with the given node ID.
+    /// Supports formulas like "$NODEID", "$NODEID+0x200", "$NODEID+512", etc.
+    /// </summary>
     private static uint EvaluateNodeIdFormula(string formula, byte nodeId)
     {
         formula = formula.Trim();
