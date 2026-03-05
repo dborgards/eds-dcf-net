@@ -64,7 +64,8 @@ public class CpjReader
             }
             else
             {
-                project.AdditionalSections[sectionName] = new Dictionary<string, string>(sections[sectionName]);
+                project.AdditionalSections[sectionName] =
+                    new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
             }
         }
 

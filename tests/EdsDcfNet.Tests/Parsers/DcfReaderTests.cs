@@ -1304,6 +1304,28 @@ Version=1.0
     }
 
     [Fact]
+    public void ReadString_AdditionalSections_AreCaseInsensitiveAndResolveCaseCollisions()
+    {
+        // Arrange
+        var content = BuildMinimalDcf(extraSections: @"
+[VendorSpecific]
+CustomKey=Initial
+Another=Value
+
+[vendorspecific]
+customkey=Overridden
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("VENDORSPECIFIC");
+        result.AdditionalSections["vendorspecific"]["CUSTOMKEY"].Should().Be("Overridden");
+        result.AdditionalSections["Vendorspecific"]["another"].Should().Be("Value");
+    }
+
+    [Fact]
     public void ReadString_KnownSections_NotInAdditionalSections()
     {
         // Arrange

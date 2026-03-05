@@ -61,10 +61,10 @@ public class CpjWriter
             WriteTopology(sb, cpj.Networks[i], sectionName);
         }
 
-        foreach (var section in cpj.AdditionalSections)
+        foreach (var section in cpj.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
         {
             sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0}]", section.Key));
-            foreach (var entry in section.Value)
+            foreach (var entry in section.Value.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase))
             {
                 sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}={1}", entry.Key, entry.Value));
             }

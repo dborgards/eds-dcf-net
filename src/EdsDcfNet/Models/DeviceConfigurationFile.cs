@@ -57,7 +57,8 @@ public class DeviceConfigurationFile
     /// Additional sections not covered by standard specification.
     /// Key is section name, value is dictionary of key-value pairs.
     /// </summary>
-    public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } = new();
+    public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Parsed <c>ApplicationProcess</c> element from the XDC device-profile body (CiA 311 §6.4.5).

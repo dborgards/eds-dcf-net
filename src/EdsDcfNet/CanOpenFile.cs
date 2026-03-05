@@ -667,10 +667,10 @@ public static class CanOpenFile
     private static Dictionary<string, Dictionary<string, string>> CloneAdditionalSections(
         Dictionary<string, Dictionary<string, string>> source)
     {
-        var clone = new Dictionary<string, Dictionary<string, string>>(source.Count);
+        var clone = new Dictionary<string, Dictionary<string, string>>(source.Count, StringComparer.OrdinalIgnoreCase);
         foreach (var kvp in source)
         {
-            clone[kvp.Key] = new Dictionary<string, string>(kvp.Value);
+            clone[kvp.Key] = new Dictionary<string, string>(kvp.Value, StringComparer.OrdinalIgnoreCase);
         }
         return clone;
     }

@@ -771,6 +771,35 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void GenerateString_AdditionalSections_AreWrittenDeterministically()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.AdditionalSections["zSection"] = new Dictionary<string, string>
+        {
+            { "zKey", "Z" },
+            { "AKey", "A" }
+        };
+        dcf.AdditionalSections["ASection"] = new Dictionary<string, string>
+        {
+            { "bKey", "B" },
+            { "aKey", "A" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.IndexOf("[ASection]", StringComparison.Ordinal).Should()
+            .BeLessThan(result.IndexOf("[zSection]", StringComparison.Ordinal));
+
+        var aSectionStart = result.IndexOf("[ASection]", StringComparison.Ordinal);
+        var aKeyPos = result.IndexOf("aKey=A", aSectionStart, StringComparison.Ordinal);
+        var bKeyPos = result.IndexOf("bKey=B", aSectionStart, StringComparison.Ordinal);
+        aKeyPos.Should().BeLessThan(bKeyPos);
+    }
+
+    [Fact]
     public void GenerateString_EmptyPrefixObjectLinks_NotFiltered()
     {
         // Arrange — section named just "ObjectLinks" with no hex prefix

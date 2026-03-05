@@ -185,6 +185,31 @@ Version=1.0
     }
 
     [Fact]
+    public void ReadString_AdditionalSections_AreCaseInsensitiveAndResolveCaseCollisions()
+    {
+        // Arrange
+        var content = @"
+[Topology]
+Nodes=0x00
+
+[ProjectInfo]
+ProjectName=Initial
+Version=1.0
+
+[projectinfo]
+projectname=Override
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("PROJECTINFO");
+        result.AdditionalSections["projectinfo"]["PROJECTNAME"].Should().Be("Override");
+        result.AdditionalSections["ProjectInfo"]["version"].Should().Be("1.0");
+    }
+
+    [Fact]
     public void ReadString_NodeWithRefd_ParsesRefdField()
     {
         // Arrange
