@@ -9,6 +9,18 @@ using Xunit;
 
 public class CanOpenFileTests
 {
+    [Fact]
+    public void SyncReadMethods_LegacySingleParameterOverloads_AreAvailableForBinaryCompatibility()
+    {
+        var singleStringSignature = new[] { typeof(string) };
+
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadEds), singleStringSignature).Should().NotBeNull();
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadDcf), singleStringSignature).Should().NotBeNull();
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadCpj), singleStringSignature).Should().NotBeNull();
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdd), singleStringSignature).Should().NotBeNull();
+        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdc), singleStringSignature).Should().NotBeNull();
+    }
+
     #region ReadEds Tests
 
     [Fact]
