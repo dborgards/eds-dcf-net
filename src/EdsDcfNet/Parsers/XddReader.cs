@@ -951,6 +951,23 @@ public class XddReader
             .FirstOrDefault(e => e.Name.LocalName == "NetworkManagement");
         if (networkMgmt != null)
             ParseNetworkManagement(networkMgmt, eds.DeviceInfo);
+
+        // Preserve unknown ProfileBody children in AdditionalSections for round-trip and XdcReader coverage
+        var knownNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ApplicationLayers",
+            "TransportLayers",
+            "NetworkManagement"
+        };
+        foreach (var child in profileBody.Elements())
+        {
+            if (knownNames.Contains(child.Name.LocalName))
+                continue;
+            var section = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var attr in child.Attributes())
+                section[attr.Name.LocalName] = attr.Value;
+            eds.AdditionalSections[child.Name.LocalName] = section;
+        }
     }
 
     private static void ParseObjectDictionary(XElement objList, ObjectDictionary dict, bool includeActualValues)

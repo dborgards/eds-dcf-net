@@ -58,6 +58,41 @@ public class XdcReaderTests
   </ISO15745Profile>
 </ISO15745ProfileContainer>";
 
+    /// <summary>
+    /// Minimal XDC with an unknown ProfileBody child so that AdditionalSections is non-empty
+    /// and XdcReader's clone loop is exercised (Codecov patch coverage for PR #168).
+    /// </summary>
+    private const string MinimalXdcWithAdditionalSection = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>Device</ProfileClassID></ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""test.xdc"" fileVersion=""1"">
+      <DeviceIdentity><vendorName>V</vendorName><vendorID>0x1</vendorID><productName>P</productName><productID>0x1</productID></DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+  </ISO15745Profile>
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>CommunicationNetwork</ProfileClassID></ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""test.xdc"" fileVersion=""1"">
+      <ApplicationLayers>
+        <CANopenObjectList mandatoryObjects=""0"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" PDOmapping=""no""/>
+        </CANopenObjectList>
+      </ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""250 Kbps""/></PhysicalLayer></TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0""
+                                bootUpSlave=""false"" layerSettingServiceSlave=""false""
+                                groupMessaging=""false"" dynamicChannels=""0""/>
+        <CANopenMasterFeatures bootUpMaster=""false""/>
+        <deviceCommissioning nodeID=""1"" networkNumber=""0"" CANopenManager=""false""/>
+      </NetworkManagement>
+      <VendorExtension customKey=""customValue"" AnotherAttr=""other""/>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>";
+
     #region ReadFile Tests
 
     [Fact]
@@ -331,6 +366,23 @@ public class XdcReaderTests
     #endregion
 
     #region Additional Coverage Tests
+
+    [Fact]
+    public void ReadString_XdcWithUnknownProfileBodyChild_CopiesAdditionalSectionsWithCaseInsensitiveClone()
+    {
+        // XddReader puts unknown ProfileBody children into AdditionalSections; XdcReader clones them
+        // via AdditionalSectionsCloner.CloneSectionEntriesCaseInsensitive (patch coverage for PR #168).
+        var result = _reader.ReadString(MinimalXdcWithAdditionalSection);
+
+        result.AdditionalSections.Should().ContainKey("VendorExtension");
+        var section = result.AdditionalSections["VendorExtension"];
+        section.Should().ContainKey("customKey");
+        section["customKey"].Should().Be("customValue");
+        section.Should().ContainKey("AnotherAttr");
+        section["AnotherAttr"].Should().Be("other");
+        section.Should().ContainKey("anotherattr"); // case-insensitive clone
+        section["anotherattr"].Should().Be("other");
+    }
 
     [Fact]
     public void ReadString_InvalidXml_ThrowsEdsParseException()
