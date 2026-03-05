@@ -317,6 +317,8 @@ PDOMapping=0
 
     #endregion
 
+    #region WriteDcf/ReadDcf Tests
+
     [Fact]
     public void WriteDcfToString_ValidDcf_GeneratesString()
     {
