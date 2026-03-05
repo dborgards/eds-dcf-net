@@ -250,8 +250,8 @@ public class XdcReaderTests
     [Fact]
     public void ReadString_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
     {
-        var contentSizeInBytes = System.Text.Encoding.UTF8.GetByteCount(MinimalXdc);
-        var act = () => _reader.ReadString(MinimalXdc, maxInputSize: contentSizeInBytes - 1);
+        var contentLength = MinimalXdc.Length;
+        var act = () => _reader.ReadString(MinimalXdc, maxInputSize: contentLength - 1);
 
         act.Should().Throw<EdsParseException>()
             .WithMessage("*too large*");
