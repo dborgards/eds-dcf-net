@@ -444,5 +444,29 @@ public class XdcWriterTests
         ex.InnerException.Should().NotBeNull();
     }
 
+    [Fact]
+    public void GenerateString_XddExceptionWithoutInner_UsesOriginalExceptionAsInner()
+    {
+        var writer = new ThrowingXddWithoutInnerXdcWriter();
+
+        var act = () => writer.GenerateString(CreateSampleDcf());
+
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.SectionName.Should().Be("Document");
+        ex.InnerException.Should().BeSameAs(writer.ExpectedException);
+    }
+
+    private sealed class ThrowingXddWithoutInnerXdcWriter : XdcWriter
+    {
+        public XddWriteException ExpectedException { get; } = new("forced-xdd", "Document");
+
+        protected override XDocument BuildDocument(
+            ElectronicDataSheet eds,
+            DeviceCommissioning? commissioning)
+        {
+            throw ExpectedException;
+        }
+    }
+
     #endregion
 }

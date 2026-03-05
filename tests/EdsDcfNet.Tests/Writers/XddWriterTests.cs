@@ -182,6 +182,29 @@ public class XddWriterTests
     }
 
     [Fact]
+    public void GenerateString_WhenSubclassThrowsXddWriteException_RethrowsOriginal()
+    {
+        var writer = new ThrowingXddDocumentWriter();
+
+        var act = () => writer.GenerateString(CreateSampleEds());
+
+        var ex = act.Should().Throw<XddWriteException>().Which;
+        ex.Should().BeSameAs(writer.ExpectedException);
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_WhenGenerationThrowsXddWriteException_Rethrows()
+    {
+        var writer = new ThrowingXddDocumentWriter();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdd");
+
+        var act = () => writer.WriteFileAsync(CreateSampleEds(), tempFile);
+
+        var ex = (await act.Should().ThrowAsync<XddWriteException>()).Which;
+        ex.Should().BeSameAs(writer.ExpectedException);
+    }
+
+    [Fact]
     public void GenerateString_ContainsTwoProfiles()
     {
         // Act
@@ -812,6 +835,18 @@ public class XddWriterTests
             DeviceCommissioning? commissioning)
         {
             throw new XdcWriteException("forced", "deviceCommissioning");
+        }
+    }
+
+    private sealed class ThrowingXddDocumentWriter : XddWriter
+    {
+        public XddWriteException ExpectedException { get; } = new("forced-xdd", "Document");
+
+        protected override XDocument BuildDocument(
+            ElectronicDataSheet eds,
+            DeviceCommissioning? commissioning)
+        {
+            throw ExpectedException;
         }
     }
 

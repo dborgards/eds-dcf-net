@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Writers;
 
+using System.Reflection;
 using EdsDcfNet.Models;
 using EdsDcfNet.Writers;
 using FluentAssertions;
@@ -983,6 +984,22 @@ public class DcfWriterTests
         var ex = act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>().Which;
         ex.SectionName.Should().Be("DeviceInfo");
         ex.Message.Should().Contain("DeviceInfo");
+    }
+
+    [Fact]
+    public void WriteSection_WhenActionThrowsDcfWriteException_RethrowsOriginal()
+    {
+        var method = typeof(DcfWriter).GetMethod("WriteSection", BindingFlags.NonPublic | BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var expected = new EdsDcfNet.Exceptions.DcfWriteException("forced", "DeviceInfo");
+
+        var act = () => method!.Invoke(
+            null,
+            new object[] { "DeviceInfo", (Action)(() => throw expected) });
+
+        var tie = act.Should().Throw<TargetInvocationException>().Which;
+        tie.InnerException.Should().BeSameAs(expected);
     }
 
     [Fact]

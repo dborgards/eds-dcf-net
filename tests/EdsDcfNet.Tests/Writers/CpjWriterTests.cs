@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Writers;
 
+using System.Reflection;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
@@ -253,6 +254,22 @@ EDSBaseName=/eds/
         var ex = act.Should().Throw<CpjWriteException>().Which;
         ex.SectionName.Should().Be("Topology");
         ex.Message.Should().Contain("Topology");
+    }
+
+    [Fact]
+    public void WriteSection_WhenActionThrowsCpjWriteException_RethrowsOriginal()
+    {
+        var method = typeof(CpjWriter).GetMethod("WriteSection", BindingFlags.NonPublic | BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var expected = new CpjWriteException("forced", "Topology");
+
+        var act = () => method!.Invoke(
+            null,
+            new object[] { "Topology", (Action)(() => throw expected) });
+
+        var tie = act.Should().Throw<TargetInvocationException>().Which;
+        tie.InnerException.Should().BeSameAs(expected);
     }
 
     [Fact]
