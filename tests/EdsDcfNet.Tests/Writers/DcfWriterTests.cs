@@ -484,6 +484,42 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void GenerateString_ObjectWithObjectLinks_WritesObjectLinksSection()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.Objects[0x1000].ObjectLinks.Add(0x2000);
+        dcf.ObjectDictionary.Objects[0x1000].ObjectLinks.Add(0x2100);
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[1000ObjectLinks]");
+        result.Should().Contain("ObjectLinks=2");
+        result.Should().Contain("1=0x2000");
+        result.Should().Contain("2=0x2100");
+    }
+
+    [Fact]
+    public void GenerateString_ConnectedModules_WritesSectionAndEntries()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ConnectedModules.AddRange([1, 2, 1]);
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[ConnectedModules]");
+        result.Should().Contain("NrOfEntries=3");
+        result.Should().Contain("1=1");
+        result.Should().Contain("2=2");
+        result.Should().Contain("3=1");
+    }
+
+    [Fact]
     public void GenerateString_CANopenSafetySupported_WrittenWhenTrue()
     {
         // Arrange
@@ -759,7 +795,8 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
         dcf.AdditionalSections["VendorSpecific"] = new Dictionary<string, string>
         {
-            { "Key", "Value" }
+            { "Key1", "Value1" },
+            { "Key2", "Value2" }
         };
 
         // Act
@@ -767,7 +804,8 @@ public class DcfWriterTests
 
         // Assert
         result.Should().Contain("[VendorSpecific]");
-        result.Should().Contain("Key=Value");
+        result.Should().Contain("Key1=Value1");
+        result.Should().Contain("Key2=Value2");
     }
 
     [Fact]
