@@ -670,8 +670,19 @@ public static class CanOpenFile
         var clone = new Dictionary<string, Dictionary<string, string>>(source.Count, StringComparer.OrdinalIgnoreCase);
         foreach (var kvp in source)
         {
-            clone[kvp.Key] = new Dictionary<string, string>(kvp.Value, StringComparer.OrdinalIgnoreCase);
+            clone[kvp.Key] = CloneSectionEntriesCaseInsensitive(kvp.Value);
         }
+        return clone;
+    }
+
+    private static Dictionary<string, string> CloneSectionEntriesCaseInsensitive(Dictionary<string, string> source)
+    {
+        var clone = new Dictionary<string, string>(source.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in source)
+        {
+            clone[entry.Key] = entry.Value;
+        }
+
         return clone;
     }
 }

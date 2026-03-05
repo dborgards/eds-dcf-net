@@ -223,12 +223,18 @@ EDSBaseName=/eds/
         var result = _writer.GenerateString(project);
 
         // Assert
-        result.IndexOf("[ASection]", StringComparison.Ordinal).Should()
-            .BeLessThan(result.IndexOf("[zSection]", StringComparison.Ordinal));
+        var aSectionIndex = result.IndexOf("[ASection]", StringComparison.Ordinal);
+        var zSectionIndex = result.IndexOf("[zSection]", StringComparison.Ordinal);
+        aSectionIndex.Should().BeGreaterThanOrEqualTo(0);
+        zSectionIndex.Should().BeGreaterThanOrEqualTo(0);
+        aSectionIndex.Should().BeLessThan(zSectionIndex);
 
-        var aSectionStart = result.IndexOf("[ASection]", StringComparison.Ordinal);
+        var aSectionStart = aSectionIndex;
+        aSectionStart.Should().BeGreaterThanOrEqualTo(0);
         var aKeyPos = result.IndexOf("aKey=A", aSectionStart, StringComparison.Ordinal);
         var bKeyPos = result.IndexOf("bKey=B", aSectionStart, StringComparison.Ordinal);
+        aKeyPos.Should().BeGreaterThanOrEqualTo(0);
+        bKeyPos.Should().BeGreaterThanOrEqualTo(0);
         aKeyPos.Should().BeLessThan(bKeyPos);
     }
 
