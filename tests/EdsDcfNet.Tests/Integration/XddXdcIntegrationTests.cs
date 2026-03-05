@@ -30,7 +30,7 @@ public class XddXdcIntegrationTests
         roundTripped.DeviceInfo.ProductName.Should().Be(original.DeviceInfo.ProductName);
         roundTripped.DeviceInfo.VendorNumber.Should().Be(original.DeviceInfo.VendorNumber);
         roundTripped.DeviceInfo.ProductNumber.Should().Be(original.DeviceInfo.ProductNumber);
-        AssertObjectDictionaryKeysAndNamesEqual(original.ObjectDictionary, roundTripped.ObjectDictionary);
+        AssertObjectDictionaryKeysNamesAndTypesEqual(original.ObjectDictionary, roundTripped.ObjectDictionary);
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public class XddXdcIntegrationTests
         roundTripped.DeviceInfo.ProductName.Should().Be(original.DeviceInfo.ProductName);
         roundTripped.DeviceInfo.VendorNumber.Should().Be(original.DeviceInfo.VendorNumber);
         roundTripped.DeviceInfo.ProductNumber.Should().Be(original.DeviceInfo.ProductNumber);
-        roundTripped.ObjectDictionary.Objects.Keys.Should().BeEquivalentTo(original.ObjectDictionary.Objects.Keys);
+        AssertObjectDictionaryKeysNamesAndTypesEqual(original.ObjectDictionary, roundTripped.ObjectDictionary);
 
         foreach (var index in original.ObjectDictionary.Objects.Keys)
         {
@@ -77,7 +77,7 @@ public class XddXdcIntegrationTests
         roundTripped.DeviceCommissioning.NodeId.Should().Be(original.DeviceCommissioning.NodeId);
         roundTripped.DeviceCommissioning.Baudrate.Should().Be(original.DeviceCommissioning.Baudrate);
         roundTripped.DeviceCommissioning.NodeName.Should().Be(original.DeviceCommissioning.NodeName);
-        AssertObjectDictionaryKeysAndNamesEqual(original.ObjectDictionary, roundTripped.ObjectDictionary);
+        AssertObjectDictionaryKeysNamesAndTypesEqual(original.ObjectDictionary, roundTripped.ObjectDictionary);
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public class XddXdcIntegrationTests
         fromDcf.DeviceCommissioning.Baudrate.Should().Be(xdc.DeviceCommissioning.Baudrate);
     }
 
-    private static void AssertObjectDictionaryKeysAndNamesEqual(ObjectDictionary expected, ObjectDictionary actual)
+    private static void AssertObjectDictionaryKeysNamesAndTypesEqual(ObjectDictionary expected, ObjectDictionary actual)
     {
         actual.Objects.Count.Should().Be(expected.Objects.Count);
 
