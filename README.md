@@ -204,10 +204,12 @@ var tpdos = dcf.ObjectDictionary.GetPdoCommunicationParameters(transmit: true);
 
 ```csharp
 // Read EDS
-ElectronicDataSheet ReadEds(string filePath, long maxInputSize = IniParser.DefaultMaxInputSize)
+ElectronicDataSheet ReadEds(string filePath)
+ElectronicDataSheet ReadEds(string filePath, long maxInputSize)
 Task<ElectronicDataSheet> ReadEdsAsync(string filePath, CancellationToken cancellationToken = default)
 Task<ElectronicDataSheet> ReadEdsAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
-ElectronicDataSheet ReadEdsFromString(string content, long maxInputSize = IniParser.DefaultMaxInputSize)
+ElectronicDataSheet ReadEdsFromString(string content)
+ElectronicDataSheet ReadEdsFromString(string content, long maxInputSize)
 
 // Write EDS
 void WriteEds(ElectronicDataSheet eds, string filePath)
@@ -215,10 +217,12 @@ Task WriteEdsAsync(ElectronicDataSheet eds, string filePath, CancellationToken c
 string WriteEdsToString(ElectronicDataSheet eds)
 
 // Read DCF
-DeviceConfigurationFile ReadDcf(string filePath, long maxInputSize = IniParser.DefaultMaxInputSize)
+DeviceConfigurationFile ReadDcf(string filePath)
+DeviceConfigurationFile ReadDcf(string filePath, long maxInputSize)
 Task<DeviceConfigurationFile> ReadDcfAsync(string filePath, CancellationToken cancellationToken = default)
 Task<DeviceConfigurationFile> ReadDcfAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
-DeviceConfigurationFile ReadDcfFromString(string content, long maxInputSize = IniParser.DefaultMaxInputSize)
+DeviceConfigurationFile ReadDcfFromString(string content)
+DeviceConfigurationFile ReadDcfFromString(string content, long maxInputSize)
 
 // Write DCF
 void WriteDcf(DeviceConfigurationFile dcf, string filePath)
@@ -226,10 +230,12 @@ Task WriteDcfAsync(DeviceConfigurationFile dcf, string filePath, CancellationTok
 string WriteDcfToString(DeviceConfigurationFile dcf)
 
 // Read CPJ (CiA 306-3 Nodelist Project)
-NodelistProject ReadCpj(string filePath, long maxInputSize = IniParser.DefaultMaxInputSize)
+NodelistProject ReadCpj(string filePath)
+NodelistProject ReadCpj(string filePath, long maxInputSize)
 Task<NodelistProject> ReadCpjAsync(string filePath, CancellationToken cancellationToken = default)
 Task<NodelistProject> ReadCpjAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
-NodelistProject ReadCpjFromString(string content, long maxInputSize = IniParser.DefaultMaxInputSize)
+NodelistProject ReadCpjFromString(string content)
+NodelistProject ReadCpjFromString(string content, long maxInputSize)
 
 // Write CPJ
 void WriteCpj(NodelistProject cpj, string filePath)
@@ -237,10 +243,12 @@ Task WriteCpjAsync(NodelistProject cpj, string filePath, CancellationToken cance
 string WriteCpjToString(NodelistProject cpj)
 
 // Read XDD (CiA 311 XML Device Description)
-ElectronicDataSheet ReadXdd(string filePath, long maxInputSize = IniParser.DefaultMaxInputSize)
+ElectronicDataSheet ReadXdd(string filePath)
+ElectronicDataSheet ReadXdd(string filePath, long maxInputSize)
 Task<ElectronicDataSheet> ReadXddAsync(string filePath, CancellationToken cancellationToken = default)
 Task<ElectronicDataSheet> ReadXddAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
-ElectronicDataSheet ReadXddFromString(string content, long maxInputSize = IniParser.DefaultMaxInputSize)
+ElectronicDataSheet ReadXddFromString(string content)
+ElectronicDataSheet ReadXddFromString(string content, long maxInputSize)
 
 // Write XDD
 void WriteXdd(ElectronicDataSheet xdd, string filePath)
@@ -248,10 +256,12 @@ Task WriteXddAsync(ElectronicDataSheet xdd, string filePath, CancellationToken c
 string WriteXddToString(ElectronicDataSheet xdd)
 
 // Read XDC (CiA 311 XML Device Configuration)
-DeviceConfigurationFile ReadXdc(string filePath, long maxInputSize = IniParser.DefaultMaxInputSize)
+DeviceConfigurationFile ReadXdc(string filePath)
+DeviceConfigurationFile ReadXdc(string filePath, long maxInputSize)
 Task<DeviceConfigurationFile> ReadXdcAsync(string filePath, CancellationToken cancellationToken = default)
 Task<DeviceConfigurationFile> ReadXdcAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
-DeviceConfigurationFile ReadXdcFromString(string content, long maxInputSize = IniParser.DefaultMaxInputSize)
+DeviceConfigurationFile ReadXdcFromString(string content)
+DeviceConfigurationFile ReadXdcFromString(string content, long maxInputSize)
 
 // Write XDC
 void WriteXdc(DeviceConfigurationFile xdc, string filePath)
