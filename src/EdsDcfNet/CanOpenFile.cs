@@ -2,6 +2,7 @@ namespace EdsDcfNet;
 
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
+using EdsDcfNet.Utilities;
 using EdsDcfNet.Writers;
 using System.Globalization;
 
@@ -670,19 +671,8 @@ public static class CanOpenFile
         var clone = new Dictionary<string, Dictionary<string, string>>(source.Count, StringComparer.OrdinalIgnoreCase);
         foreach (var kvp in source)
         {
-            clone[kvp.Key] = CloneSectionEntriesCaseInsensitive(kvp.Value);
+            clone[kvp.Key] = AdditionalSectionsCloner.CloneSectionEntriesCaseInsensitive(kvp.Value);
         }
-        return clone;
-    }
-
-    private static Dictionary<string, string> CloneSectionEntriesCaseInsensitive(Dictionary<string, string> source)
-    {
-        var clone = new Dictionary<string, string>(source.Count, StringComparer.OrdinalIgnoreCase);
-        foreach (var entry in source)
-        {
-            clone[entry.Key] = entry.Value;
-        }
-
         return clone;
     }
 }
