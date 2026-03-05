@@ -21,6 +21,45 @@ public class CanOpenFileTests
         typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdc), singleStringSignature).Should().NotBeNull();
     }
 
+    [Fact]
+    public void SyncReadMethods_DefaultAndExplicitMaxInputSizeOverloads_BothWork()
+    {
+        var edsDefault = CanOpenFile.ReadEds("Fixtures/sample_device.eds");
+        var edsExplicit = CanOpenFile.ReadEds("Fixtures/sample_device.eds", IniParser.DefaultMaxInputSize);
+        edsDefault.FileInfo.FileName.Should().Be(edsExplicit.FileInfo.FileName);
+
+        var dcfDefault = CanOpenFile.ReadDcf("Fixtures/minimal.dcf");
+        var dcfExplicit = CanOpenFile.ReadDcf("Fixtures/minimal.dcf", IniParser.DefaultMaxInputSize);
+        dcfDefault.DeviceCommissioning.NodeId.Should().Be(dcfExplicit.DeviceCommissioning.NodeId);
+
+        var xddDefault = CanOpenFile.ReadXdd("Fixtures/sample_device.xdd");
+        var xddExplicit = CanOpenFile.ReadXdd("Fixtures/sample_device.xdd", IniParser.DefaultMaxInputSize);
+        xddDefault.DeviceInfo.ProductName.Should().Be(xddExplicit.DeviceInfo.ProductName);
+
+        var xdcDefault = CanOpenFile.ReadXdc("Fixtures/minimal.xdc");
+        var xdcExplicit = CanOpenFile.ReadXdc("Fixtures/minimal.xdc", IniParser.DefaultMaxInputSize);
+        xdcDefault.DeviceCommissioning.NodeId.Should().Be(xdcExplicit.DeviceCommissioning.NodeId);
+
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, "[Topology]\nNetName=Coverage Network\nNodes=0");
+
+            var cpjDefault = CanOpenFile.ReadCpj(tempFile);
+            var cpjExplicit = CanOpenFile.ReadCpj(tempFile, IniParser.DefaultMaxInputSize);
+
+            cpjDefault.Networks.Should().ContainSingle();
+            cpjDefault.Networks[0].NetName.Should().Be("Coverage Network");
+            cpjExplicit.Networks.Should().ContainSingle();
+            cpjExplicit.Networks[0].NetName.Should().Be("Coverage Network");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
     #region ReadEds Tests
 
     [Fact]
