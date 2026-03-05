@@ -109,10 +109,11 @@ public class XddWriterTests
     {
         // Act
         var result = _writer.GenerateString(CreateSampleEds());
+        var document = XDocument.Parse(result);
 
         // Assert
-        result.Should().Contain("<vendorName>Test Vendor</vendorName>");
-        result.Should().Contain("<productName>Test Product</productName>");
+        GetSingleElement(document, "vendorName").Value.Should().Be("Test Vendor");
+        GetSingleElement(document, "productName").Value.Should().Be("Test Product");
         result.Should().Contain("0x00000100");
         result.Should().Contain("0x00001001");
     }
@@ -125,11 +126,13 @@ public class XddWriterTests
 
         // Act
         var result = _writer.GenerateString(eds);
+        var document = XDocument.Parse(result);
+        var objectList = GetSingleElement(document, "CANopenObjectList");
 
         // Assert
-        result.Should().Contain("mandatoryObjects=\"1\"");
-        result.Should().Contain("optionalObjects=\"0\"");
-        result.Should().Contain("manufacturerObjects=\"0\"");
+        GetAttributeValue(objectList, "mandatoryObjects").Should().Be("1");
+        GetAttributeValue(objectList, "optionalObjects").Should().Be("0");
+        GetAttributeValue(objectList, "manufacturerObjects").Should().Be("0");
     }
 
     [Fact]
@@ -137,15 +140,17 @@ public class XddWriterTests
     {
         // Act
         var result = _writer.GenerateString(CreateSampleEds());
+        var document = XDocument.Parse(result);
+        var canOpenObject = document.Descendants()
+            .First(e => e.Name.LocalName == "CANopenObject" && GetAttributeValue(e, "index") == "1000");
 
         // Assert
-        result.Should().Contain("index=\"1000\"");
-        result.Should().Contain("name=\"Device Type\"");
-        result.Should().Contain("objectType=\"7\"");
-        result.Should().Contain("dataType=\"0007\"");
-        result.Should().Contain("accessType=\"ro\"");
-        result.Should().Contain("defaultValue=\"0x00000191\"");
-        result.Should().Contain("PDOmapping=\"no\"");
+        GetAttributeValue(canOpenObject, "name").Should().Be("Device Type");
+        GetAttributeValue(canOpenObject, "objectType").Should().Be("7");
+        GetAttributeValue(canOpenObject, "dataType").Should().Be("0007");
+        GetAttributeValue(canOpenObject, "accessType").Should().Be("ro");
+        GetAttributeValue(canOpenObject, "defaultValue").Should().Be("0x00000191");
+        GetAttributeValue(canOpenObject, "PDOmapping").Should().Be("no");
     }
 
     [Fact]
@@ -175,11 +180,12 @@ public class XddWriterTests
 
         // Act
         var result = _writer.GenerateString(eds);
+        var document = XDocument.Parse(result);
+        var subObject = document.Descendants()
+            .First(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "00");
 
         // Assert
-        result.Should().Contain("<CANopenSubObject");
-        result.Should().Contain("subIndex=\"00\"");
-        result.Should().Contain("name=\"Number of Entries\"");
+        GetAttributeValue(subObject, "name").Should().Be("Number of Entries");
     }
 
     [Fact]
@@ -209,10 +215,12 @@ public class XddWriterTests
 
         // Act
         var result = _writer.GenerateString(eds);
+        var document = XDocument.Parse(result);
+        var subObject = document.Descendants()
+            .First(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "00");
 
         // Assert
-        result.Should().Contain("<CANopenSubObject");
-        result.Should().Contain("PDOmapping=\"optional\"");
+        GetAttributeValue(subObject, "PDOmapping").Should().Be("optional");
     }
 
     [Fact]
@@ -237,10 +245,15 @@ public class XddWriterTests
     {
         // Act
         var result = _writer.GenerateString(CreateSampleEds());
+        var document = XDocument.Parse(result);
+        var supportedRates = document.Descendants()
+            .Where(e => e.Name.LocalName == "supportedBaudRate")
+            .Select(e => GetAttributeValue(e, "value"))
+            .ToList();
 
         // Assert
-        result.Should().Contain("250 Kbps");
-        result.Should().Contain("500 Kbps");
+        supportedRates.Should().Contain("250 Kbps");
+        supportedRates.Should().Contain("500 Kbps");
     }
 
     [Fact]
@@ -702,6 +715,16 @@ public class XddWriterTests
             WasCalled = true;
             return base.BuildDocument(eds, commissioning);
         }
+    }
+
+    private static XElement GetSingleElement(XContainer container, string localName)
+    {
+        return container.Descendants().Single(e => e.Name.LocalName == localName);
+    }
+
+    private static string GetAttributeValue(XElement element, string attributeName)
+    {
+        return element.Attributes().Single(a => a.Name.LocalName == attributeName).Value;
     }
 
     #endregion
