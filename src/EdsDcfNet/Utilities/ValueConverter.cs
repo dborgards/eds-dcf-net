@@ -254,9 +254,18 @@ public static class ValueConverter
             return "octal literal";
         }
 
-        foreach (var c in value)
+        var startIndex = 0;
+        if (value.Length > 0 && (value[0] == '+' || value[0] == '-'))
         {
-            if (!char.IsDigit(c))
+            if (value.Length == 1)
+                return "decimal literal contains non-digit characters";
+
+            startIndex = 1;
+        }
+
+        for (var i = startIndex; i < value.Length; i++)
+        {
+            if (!char.IsDigit(value[i]))
                 return "decimal literal contains non-digit characters";
         }
 

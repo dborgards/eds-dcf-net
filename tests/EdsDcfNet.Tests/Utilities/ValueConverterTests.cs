@@ -604,6 +604,8 @@ public class ValueConverterTests
     [InlineData("0x100000000", "*hexadecimal literal*", "*outside the representable range*")]
     [InlineData("040000000000", "*octal literal*", "*outside the representable range*")]
     [InlineData("4294967296", "*decimal literal*", "*outside the representable range*")]
+    [InlineData("+4294967296", "*decimal literal*", "*outside the representable range*")]
+    [InlineData("-1", "*decimal literal*", "*outside the representable range*")]
     [InlineData("12a34", "*decimal literal contains non-digit characters*")]
     public void ParseInteger_InvalidValueWithDiagnostics_ProvidesActionableContext(string input, string expectedFragment1, string? expectedFragment2 = null)
     {
