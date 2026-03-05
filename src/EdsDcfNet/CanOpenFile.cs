@@ -642,6 +642,168 @@ public static class CanOpenFile
         return writer.GenerateString(xdc);
     }
 
+    #region Stream-based APIs
+
+    /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) from a stream.
+    /// The caller retains ownership of the stream; it is not closed or disposed.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <returns>Parsed ElectronicDataSheet object.</returns>
+    public static ElectronicDataSheet ReadEds(Stream stream)
+    {
+        using var reader = new StreamReader(stream, encoding: TextFileIo.Utf8NoBom, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
+        var content = reader.ReadToEnd();
+        return ReadEdsFromString(content);
+    }
+
+    /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) from a stream asynchronously.
+    /// The caller retains ownership of the stream; it is not closed or disposed.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Parsed ElectronicDataSheet object.</returns>
+    public static async Task<ElectronicDataSheet> ReadEdsAsync(Stream stream, CancellationToken cancellationToken = default)
+    {
+        var content = await ReadStreamAsync(stream, cancellationToken).ConfigureAwait(false);
+        return ReadEdsFromString(content);
+    }
+
+    /// <summary>
+    /// Writes an Electronic Data Sheet (EDS) to a stream.
+    /// The caller retains ownership of the stream; it is not closed or disposed.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write.</param>
+    /// <param name="stream">Writable stream to write to.</param>
+    public static void WriteEds(ElectronicDataSheet eds, Stream stream)
+    {
+        var content = WriteEdsToString(eds);
+        WriteStringToStream(content, stream);
+    }
+
+    /// <summary>
+    /// Writes an Electronic Data Sheet (EDS) to a stream asynchronously.
+    /// The caller retains ownership of the stream; it is not closed or disposed.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write.</param>
+    /// <param name="stream">Writable stream to write to.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public static async Task WriteEdsAsync(ElectronicDataSheet eds, Stream stream, CancellationToken cancellationToken = default)
+    {
+        var content = WriteEdsToString(eds);
+        await WriteStringToStreamAsync(content, stream, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Reads a Device Configuration File (DCF) from a stream.
+    /// The caller retains ownership of the stream; it is not closed or disposed.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <returns>Parsed DeviceConfigurationFile object.</returns>
+    public static DeviceConfigurationFile ReadDcf(Stream stream)
+    {
+        using var reader = new StreamReader(stream, encoding: TextFileIo.Utf8NoBom, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
+        var content = reader.ReadToEnd();
+        return ReadDcfFromString(content);
+    }
+
+    /// <summary>
+    /// Reads a Device Configuration File (DCF) from a stream asynchronously.
+    /// The caller retains ownership of the stream; it is not closed or disposed.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Parsed DeviceConfigurationFile object.</returns>
+    public static async Task<DeviceConfigurationFile> ReadDcfAsync(Stream stream, CancellationToken cancellationToken = default)
+    {
+        var content = await ReadStreamAsync(stream, cancellationToken).ConfigureAwait(false);
+        return ReadDcfFromString(content);
+    }
+
+    /// <summary>
+    /// Writes a Device Configuration File (DCF) to a stream.
+    /// The caller retains ownership of the stream; it is not closed or disposed.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write.</param>
+    /// <param name="stream">Writable stream to write to.</param>
+    public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream)
+    {
+        var content = WriteDcfToString(dcf);
+        WriteStringToStream(content, stream);
+    }
+
+    /// <summary>
+    /// Writes a Device Configuration File (DCF) to a stream asynchronously.
+    /// The caller retains ownership of the stream; it is not closed or disposed.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write.</param>
+    /// <param name="stream">Writable stream to write to.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public static async Task WriteDcfAsync(DeviceConfigurationFile dcf, Stream stream, CancellationToken cancellationToken = default)
+    {
+        var content = WriteDcfToString(dcf);
+        await WriteStringToStreamAsync(content, stream, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream.
+    /// The caller retains ownership of the stream; it is not closed or disposed.
+    /// </summary>
+    /// <param name="stream">Readable stream containing CPJ content.</param>
+    /// <returns>Parsed NodelistProject object.</returns>
+    public static NodelistProject ReadCpj(Stream stream)
+    {
+        using var reader = new StreamReader(stream, encoding: TextFileIo.Utf8NoBom, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
+        var content = reader.ReadToEnd();
+        return ReadCpjFromString(content);
+    }
+
+    /// <summary>
+    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream.
+    /// The caller retains ownership of the stream; it is not closed or disposed.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write.</param>
+    /// <param name="stream">Writable stream to write to.</param>
+    public static void WriteCpj(NodelistProject cpj, Stream stream)
+    {
+        var content = WriteCpjToString(cpj);
+        WriteStringToStream(content, stream);
+    }
+
+    private static async Task<string> ReadStreamAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        using var reader = new StreamReader(stream, encoding: TextFileIo.Utf8NoBom, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
+#if NET10_0_OR_GREATER
+        return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+#else
+        cancellationToken.ThrowIfCancellationRequested();
+        return await reader.ReadToEndAsync().ConfigureAwait(false);
+#endif
+    }
+
+    private static void WriteStringToStream(string content, Stream stream)
+    {
+        using var writer = new StreamWriter(stream, TextFileIo.Utf8NoBom, bufferSize: 4096, leaveOpen: true);
+        writer.Write(content);
+        writer.Flush();
+    }
+
+    private static async Task WriteStringToStreamAsync(string content, Stream stream, CancellationToken cancellationToken)
+    {
+        using var writer = new StreamWriter(stream, TextFileIo.Utf8NoBom, bufferSize: 4096, leaveOpen: true);
+#if NET10_0_OR_GREATER
+        await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);
+        await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+#else
+        cancellationToken.ThrowIfCancellationRequested();
+        await writer.WriteAsync(content).ConfigureAwait(false);
+        await writer.FlushAsync().ConfigureAwait(false);
+#endif
+    }
+
+    #endregion
+
     /// <summary>
     /// Converts an EDS to a DCF with specified commissioning parameters.
     /// </summary>
