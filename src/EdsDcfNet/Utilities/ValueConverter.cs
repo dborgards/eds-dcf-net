@@ -255,7 +255,7 @@ public static class ValueConverter
         }
 
         var startIndex = 0;
-        if (value.Length > 0 && (value[0] == '+' || value[0] == '-'))
+        if (value[0] == '+' || value[0] == '-')
         {
             if (value.Length == 1)
                 return "decimal literal contains non-digit characters";
