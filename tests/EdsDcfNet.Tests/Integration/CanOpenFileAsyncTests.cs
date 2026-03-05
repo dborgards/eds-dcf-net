@@ -28,6 +28,7 @@ public class CanOpenFileAsyncTests
     }
 
     [Fact]
+    public async Task WriteEdsAsync_ValidModel_WritesAndReadsBackFile()
     {
         var eds = CreateMinimalEds();
         var tempFile = Path.GetTempFileName();
@@ -68,6 +69,7 @@ public class CanOpenFileAsyncTests
     }
 
     [Fact]
+    public async Task WriteDcfAsync_ValidModel_WritesAndReadsBackFile()
     {
         var dcf = CreateMinimalDcf();
         var tempFile = Path.GetTempFileName();
@@ -137,6 +139,7 @@ public class CanOpenFileAsyncTests
     }
 
     [Fact]
+    public async Task WriteCpjAsync_ValidModel_WritesAndReadsBackFile()
     {
         var cpj = new NodelistProject();
         cpj.Networks.Add(new NetworkTopology
