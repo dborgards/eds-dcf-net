@@ -9,6 +9,13 @@ using EdsDcfNet.Models;
 /// </summary>
 public static class ValueConverter
 {
+    private enum NumericBase
+    {
+        Decimal = 10,
+        Octal = 8,
+        Hexadecimal = 16
+    }
+
     /// <summary>
     /// Parses an integer value from string (supports decimal, hexadecimal, and octal).
     /// </summary>
@@ -37,21 +44,10 @@ public static class ValueConverter
 
         try
         {
-            // Hexadecimal (0x prefix)
-            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ||
-                value.StartsWith("0X", StringComparison.OrdinalIgnoreCase))
-            {
-                return Convert.ToUInt32(value[2..], 16);
-            }
-
-            // Octal (leading 0, but not 0x)
-            if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
-            {
-                return Convert.ToUInt32(value, 8);
-            }
-
-            // Decimal
-            return uint.Parse(value, CultureInfo.InvariantCulture);
+            return ParseUnsignedNumber(
+                value,
+                decimalParser: static v => uint.Parse(v, CultureInfo.InvariantCulture),
+                parser: static (v, numberBase) => Convert.ToUInt32(v, (int)numberBase));
         }
         catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
@@ -86,20 +82,10 @@ public static class ValueConverter
 
         try
         {
-            // Hexadecimal
-            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            {
-                return Convert.ToByte(value[2..], 16);
-            }
-
-            // Octal
-            if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
-            {
-                return Convert.ToByte(value, 8);
-            }
-
-            // Decimal
-            return byte.Parse(value, CultureInfo.InvariantCulture);
+            return ParseUnsignedNumber(
+                value,
+                decimalParser: static v => byte.Parse(v, CultureInfo.InvariantCulture),
+                parser: static (v, numberBase) => Convert.ToByte(v, (int)numberBase));
         }
         catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
@@ -119,20 +105,10 @@ public static class ValueConverter
 
         try
         {
-            // Hexadecimal
-            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            {
-                return Convert.ToUInt16(value[2..], 16);
-            }
-
-            // Octal
-            if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
-            {
-                return Convert.ToUInt16(value, 8);
-            }
-
-            // Decimal
-            return ushort.Parse(value, CultureInfo.InvariantCulture);
+            return ParseUnsignedNumber(
+                value,
+                decimalParser: static v => ushort.Parse(v, CultureInfo.InvariantCulture),
+                parser: static (v, numberBase) => Convert.ToUInt16(v, (int)numberBase));
         }
         catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
@@ -190,6 +166,33 @@ public static class ValueConverter
     public static string FormatBoolean(bool value)
     {
         return value ? "1" : "0";
+    }
+
+    /// <summary>
+    /// Shared helper that detects the numeric base of <paramref name="value"/> and
+    /// delegates to the appropriate parser (decimal or non-decimal).
+    /// </summary>
+    private static T ParseUnsignedNumber<T>(
+        string value,
+        Func<string, T> decimalParser,
+        Func<string, NumericBase, T> parser)
+    {
+        var (normalizedValue, numberBase) = GetNumericFormat(value);
+        if (numberBase == NumericBase.Decimal)
+            return decimalParser(normalizedValue);
+
+        return parser(normalizedValue, numberBase);
+    }
+
+    private static (string Value, NumericBase NumberBase) GetNumericFormat(string value)
+    {
+        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            return (value[2..], NumericBase.Hexadecimal);
+
+        if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
+            return (value, NumericBase.Octal);
+
+        return (value, NumericBase.Decimal);
     }
 
     /// <summary>
