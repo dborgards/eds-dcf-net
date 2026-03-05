@@ -925,6 +925,45 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public async Task WriteFileAsync_InvalidPath_ThrowsDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        var invalidPath = "/invalid/path/that/does/not/exist/async.dcf";
+
+        var act = () => _writer.WriteFileAsync(dcf, invalidPath);
+
+        (await act.Should().ThrowAsync<EdsDcfNet.Exceptions.DcfWriteException>())
+            .WithMessage("*Failed to write DCF file*");
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_Cancelled_ThrowsOperationCanceledException()
+    {
+        var dcf = CreateMinimalDcf();
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteFileAsync(dcf, Path.GetTempFileName(), cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+
+        // Act
+        var act = () => _writer.GenerateString(dcf);
+
+        // Assert
+        var ex = act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+        ex.Message.Should().Contain("DeviceInfo");
+    }
+
+    [Fact]
     public void GenerateString_InvalidDeviceInfo_ThrowsDcfWriteExceptionWithSectionName()
     {
         // Arrange

@@ -272,6 +272,52 @@ EDSBaseName=/eds/
     }
 
     [Fact]
+    public void WriteFile_GenerationThrowsCpjWriteException_Rethrows()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(null!);
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            var act = () => _writer.WriteFile(project, tempFile);
+
+            var ex = act.Should().Throw<CpjWriteException>().Which;
+            ex.SectionName.Should().Be("Topology");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_InvalidPath_ThrowsCpjWriteException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        var invalidPath = "/invalid/path/that/does/not/exist/async.cpj";
+
+        var act = () => _writer.WriteFileAsync(project, invalidPath);
+
+        (await act.Should().ThrowAsync<CpjWriteException>())
+            .WithMessage("*Failed to write CPJ file*");
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_Cancelled_ThrowsOperationCanceledException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteFileAsync(project, Path.GetTempFileName(), cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
     public void WriteFile_NonAsciiCharacters_PreservesCharacters()
     {
         // Arrange

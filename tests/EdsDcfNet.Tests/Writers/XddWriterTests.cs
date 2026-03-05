@@ -95,6 +95,50 @@ public class XddWriterTests
             .WithMessage("*Failed to write XDD file*");
     }
 
+    [Fact]
+    public void WriteFile_GenerationThrowsXddWriteException_Rethrows()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo = null!;
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdd");
+
+        try
+        {
+            var act = () => _writer.WriteFile(eds, tempFile);
+
+            var ex = act.Should().Throw<XddWriteException>().Which;
+            ex.SectionName.Should().Be("DeviceProfile");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_InvalidPath_ThrowsXddWriteException()
+    {
+        var eds = CreateSampleEds();
+        var invalidPath = "/invalid/path/that/does/not/exist/async.xdd";
+
+        var act = () => _writer.WriteFileAsync(eds, invalidPath);
+
+        (await act.Should().ThrowAsync<XddWriteException>())
+            .WithMessage("*Failed to write XDD file*");
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_Cancelled_ThrowsOperationCanceledException()
+    {
+        var eds = CreateSampleEds();
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteFileAsync(eds, Path.GetTempFileName(), cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     #endregion
 
     #region GenerateString Tests
