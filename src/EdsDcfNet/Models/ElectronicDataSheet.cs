@@ -43,9 +43,12 @@ public class ElectronicDataSheet
 
     /// <summary>
     /// Additional sections not covered by standard specification.
-    /// Key is section name, value is dictionary of key-value pairs.
+    /// Section names are compared case-insensitively using <see cref="StringComparer.OrdinalIgnoreCase"/>,
+    /// so assigning names that differ only by case overwrites the previous section.
+    /// Each section contains key-value pairs that are treated case-insensitively by readers/writers.
     /// </summary>
-    public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } = new();
+    public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Parsed <c>ApplicationProcess</c> element from the XDD device-profile body (CiA 311 §6.4.5).

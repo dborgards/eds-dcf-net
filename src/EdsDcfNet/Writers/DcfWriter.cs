@@ -126,7 +126,7 @@ public class DcfWriter
         }
 
         // Write additional sections
-        foreach (var section in dcf.AdditionalSections)
+        foreach (var section in dcf.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
         {
             if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary))
             {
@@ -522,7 +522,7 @@ public class DcfWriter
     {
         sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0}]", sectionName));
 
-        foreach (var entry in entries)
+        foreach (var entry in entries.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase))
         {
             WriteKeyValue(sb, entry.Key, entry.Value);
         }

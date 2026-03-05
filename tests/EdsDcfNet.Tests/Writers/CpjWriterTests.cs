@@ -204,6 +204,41 @@ EDSBaseName=/eds/
     }
 
     [Fact]
+    public void GenerateString_AdditionalSections_AreWrittenDeterministically()
+    {
+        // Arrange
+        var project = new NodelistProject();
+        project.AdditionalSections["zSection"] = new Dictionary<string, string>
+        {
+            ["zKey"] = "Z",
+            ["AKey"] = "A"
+        };
+        project.AdditionalSections["ASection"] = new Dictionary<string, string>
+        {
+            ["bKey"] = "B",
+            ["aKey"] = "A"
+        };
+
+        // Act
+        var result = _writer.GenerateString(project);
+
+        // Assert
+        var aSectionIndex = result.IndexOf("[ASection]", StringComparison.Ordinal);
+        var zSectionIndex = result.IndexOf("[zSection]", StringComparison.Ordinal);
+        aSectionIndex.Should().BeGreaterThanOrEqualTo(0);
+        zSectionIndex.Should().BeGreaterThanOrEqualTo(0);
+        aSectionIndex.Should().BeLessThan(zSectionIndex);
+
+        var aSectionStart = aSectionIndex;
+        aSectionStart.Should().BeGreaterThanOrEqualTo(0);
+        var aKeyPos = result.IndexOf("aKey=A", aSectionStart, StringComparison.Ordinal);
+        var bKeyPos = result.IndexOf("bKey=B", aSectionStart, StringComparison.Ordinal);
+        aKeyPos.Should().BeGreaterThanOrEqualTo(0);
+        bKeyPos.Should().BeGreaterThanOrEqualTo(0);
+        aKeyPos.Should().BeLessThan(bKeyPos);
+    }
+
+    [Fact]
     public void WriteFile_NonAsciiCharacters_PreservesCharacters()
     {
         // Arrange

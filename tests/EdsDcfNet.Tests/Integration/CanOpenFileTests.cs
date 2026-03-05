@@ -983,6 +983,36 @@ PDOMapping=0
         eds.AdditionalSections["VendorSection"]["Key1"].Should().Be("OriginalValue");
     }
 
+    [Fact]
+    public void EdsToDcf_AdditionalSectionInnerCaseCollision_DoesNotThrowAndUsesLastValue()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+        eds.AdditionalSections["VendorSection"] = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Key"] = "First",
+            ["key"] = "Second"
+        };
+
+        DeviceConfigurationFile? dcf = null;
+
+        // Act
+        var act = () => dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert
+        act.Should().NotThrow();
+        dcf.Should().NotBeNull();
+        dcf!.AdditionalSections.Should().ContainKey("VendorSection");
+        dcf.AdditionalSections["VendorSection"].Should().ContainKey("KEY");
+        dcf.AdditionalSections["VendorSection"].Count.Should().Be(1);
+        dcf.AdditionalSections["VendorSection"]["key"].Should().Be("Second");
+    }
+
     #endregion
 
     #region Round-trip Tests

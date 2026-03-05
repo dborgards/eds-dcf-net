@@ -86,7 +86,8 @@ public class EdsReader : CanOpenReaderBase
         {
             if (!IsKnownSection(sectionName) && !IsToolSectionForParsedTools(sectionName, eds.Tools.Count))
             {
-                eds.AdditionalSections[sectionName] = new Dictionary<string, string>(sections[sectionName]);
+                eds.AdditionalSections[sectionName] =
+                    new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
             }
         }
 

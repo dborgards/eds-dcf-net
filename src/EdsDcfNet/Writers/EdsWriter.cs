@@ -125,7 +125,7 @@ public class EdsWriter
         }
 
         // Write additional sections
-        foreach (var section in eds.AdditionalSections)
+        foreach (var section in eds.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
         {
             if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, eds.ObjectDictionary))
             {
@@ -438,7 +438,7 @@ public class EdsWriter
     {
         sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0}]", sectionName));
 
-        foreach (var entry in entries)
+        foreach (var entry in entries.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase))
         {
             WriteKeyValue(sb, entry.Key, entry.Value);
         }

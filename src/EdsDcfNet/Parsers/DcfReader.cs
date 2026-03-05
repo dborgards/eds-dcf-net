@@ -101,7 +101,8 @@ public class DcfReader : CanOpenReaderBase
                 !IsToolSectionForParsedTools(sectionName, dcf.Tools.Count) &&
                 !ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(sectionName, dcf.ObjectDictionary))
             {
-                dcf.AdditionalSections[sectionName] = new Dictionary<string, string>(sections[sectionName]);
+                dcf.AdditionalSections[sectionName] =
+                    new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
             }
         }
 
