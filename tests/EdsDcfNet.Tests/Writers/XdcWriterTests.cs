@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Writers;
 
+using System.Xml.Linq;
 using EdsDcfNet.Models;
 using EdsDcfNet.Writers;
 
@@ -91,9 +92,12 @@ public class XdcWriterTests
     {
         // Act
         var result = _writer.GenerateString(CreateSampleDcf());
+        var document = XDocument.Parse(result);
+        var canOpenObject = document.Descendants()
+            .Single(e => e.Name.LocalName == "CANopenObject" && GetAttributeValue(e, "index") == "1000");
 
         // Assert
-        result.Should().Contain("actualValue=\"0x00000191\"");
+        GetAttributeValue(canOpenObject, "actualValue").Should().Be("0x00000191");
     }
 
     [Fact]
@@ -101,9 +105,12 @@ public class XdcWriterTests
     {
         // Act
         var result = _writer.GenerateString(CreateSampleDcf());
+        var document = XDocument.Parse(result);
+        var canOpenObject = document.Descendants()
+            .Single(e => e.Name.LocalName == "CANopenObject" && GetAttributeValue(e, "index") == "1000");
 
         // Assert
-        result.Should().Contain("denotation=\"MyDeviceType\"");
+        GetAttributeValue(canOpenObject, "denotation").Should().Be("MyDeviceType");
     }
 
     [Fact]
@@ -111,15 +118,16 @@ public class XdcWriterTests
     {
         // Act
         var result = _writer.GenerateString(CreateSampleDcf());
+        var document = XDocument.Parse(result);
+        var deviceCommissioning = GetSingleElement(document, "deviceCommissioning");
 
         // Assert
-        result.Should().Contain("deviceCommissioning");
-        result.Should().Contain("nodeID=\"3\"");
-        result.Should().Contain("nodeName=\"MyDevice\"");
-        result.Should().Contain("actualBaudRate=\"500 Kbps\"");
-        result.Should().Contain("networkNumber=\"1\"");
-        result.Should().Contain("networkName=\"CANopen Network\"");
-        result.Should().Contain("CANopenManager=\"false\"");
+        GetAttributeValue(deviceCommissioning, "nodeID").Should().Be("3");
+        GetAttributeValue(deviceCommissioning, "nodeName").Should().Be("MyDevice");
+        GetAttributeValue(deviceCommissioning, "actualBaudRate").Should().Be("500 Kbps");
+        GetAttributeValue(deviceCommissioning, "networkNumber").Should().Be("1");
+        GetAttributeValue(deviceCommissioning, "networkName").Should().Be("CANopen Network");
+        GetAttributeValue(deviceCommissioning, "CANopenManager").Should().Be("false");
     }
 
     [Fact]
@@ -228,10 +236,12 @@ public class XdcWriterTests
 
         // Act
         var result = _writer.GenerateString(dcf);
+        var document = XDocument.Parse(result);
+        var subObject = document.Descendants()
+            .Single(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "00");
 
         // Assert
-        result.Should().Contain("CANopenSubObject");
-        result.Should().Contain("actualValue=\"4\"");
+        GetAttributeValue(subObject, "actualValue").Should().Be("4");
     }
 
     [Fact]
@@ -260,9 +270,12 @@ public class XdcWriterTests
 
         // Act
         var result = _writer.GenerateString(dcf);
+        var document = XDocument.Parse(result);
+        var subObject = document.Descendants()
+            .Single(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "01");
 
         // Assert
-        result.Should().Contain("denotation=\"VendorIdentifier\"");
+        GetAttributeValue(subObject, "denotation").Should().Be("VendorIdentifier");
     }
 
     [Fact]
@@ -280,6 +293,16 @@ public class XdcWriterTests
     }
 
     #endregion
+
+    private static XElement GetSingleElement(XContainer container, string localName)
+    {
+        return container.Descendants().Single(e => e.Name.LocalName == localName);
+    }
+
+    private static string GetAttributeValue(XElement element, string attributeName)
+    {
+        return element.Attributes().Single(a => a.Name.LocalName == attributeName).Value;
+    }
 
     #region NodeId validation
 
