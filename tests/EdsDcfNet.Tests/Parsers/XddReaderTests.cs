@@ -608,7 +608,7 @@ public class XddReaderTests
           <connection source=""top1.Out"" destination=""top1.In"" description=""loop""/>
         </functionInstanceList>
         <templateList>
-          <parameterTemplate uniqueID=""uid_tpl1"" access=""readWrite"" templateIDRef=""uid_tplbase"">
+          <parameterTemplate uniqueID=""uid_tpl1"" access=""readWrite"">
             <UINT/>
             <defaultValue value=""7""/>
           </parameterTemplate>
@@ -618,7 +618,7 @@ public class XddReaderTests
           </allowedValuesTemplate>
         </templateList>
         <parameterList>
-          <parameter uniqueID=""uid_p1"" access=""read""><UINT/></parameter>
+          <parameter uniqueID=""uid_p1"" access=""read"" templateIDRef=""uid_tpl1""><UINT/></parameter>
         </parameterList>
       </ApplicationProcess>
     </ProfileBody>
@@ -662,6 +662,7 @@ public class XddReaderTests
         ap.TemplateList.Should().NotBeNull();
         ap.TemplateList!.ParameterTemplates.Should().ContainSingle(t => t.UniqueId == "uid_tpl1");
         ap.TemplateList.AllowedValuesTemplates.Should().ContainSingle(t => t.UniqueId == "uid_avt1");
+        ap.ParameterList.Should().ContainSingle(p => p.UniqueId == "uid_p1" && p.TemplateIdRef == "uid_tpl1");
     }
 
     #endregion
