@@ -328,10 +328,17 @@ EDSBaseName=/eds/
         project.Networks.Add(new NetworkTopology());
         var cts = new CancellationTokenSource();
         cts.Cancel();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".cpj");
 
-        var act = () => _writer.WriteFileAsync(project, Path.GetTempFileName(), cts.Token);
-
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        try
+        {
+            var act = () => _writer.WriteFileAsync(project, tempFile, cts.Token);
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
     }
 
     [Fact]

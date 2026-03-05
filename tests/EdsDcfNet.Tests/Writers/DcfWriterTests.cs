@@ -943,10 +943,18 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
         var cts = new CancellationTokenSource();
         cts.Cancel();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".dcf");
 
-        var act = () => _writer.WriteFileAsync(dcf, Path.GetTempFileName(), cts.Token);
-
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        try
+        {
+            var act = () => _writer.WriteFileAsync(dcf, tempFile, cts.Token);
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
     }
 
     [Fact]

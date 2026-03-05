@@ -133,10 +133,17 @@ public class XddWriterTests
         var eds = CreateSampleEds();
         var cts = new CancellationTokenSource();
         cts.Cancel();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdd");
 
-        var act = () => _writer.WriteFileAsync(eds, Path.GetTempFileName(), cts.Token);
-
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        try
+        {
+            var act = () => _writer.WriteFileAsync(eds, tempFile, cts.Token);
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
     }
 
     #endregion

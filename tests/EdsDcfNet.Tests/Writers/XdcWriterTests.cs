@@ -393,10 +393,17 @@ public class XdcWriterTests
         var dcf = CreateSampleDcf();
         var cts = new CancellationTokenSource();
         cts.Cancel();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdc");
 
-        var act = () => _writer.WriteFileAsync(dcf, Path.GetTempFileName(), cts.Token);
-
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        try
+        {
+            var act = () => _writer.WriteFileAsync(dcf, tempFile, cts.Token);
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
     }
 
     [Fact]
