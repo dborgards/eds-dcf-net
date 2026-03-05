@@ -94,7 +94,7 @@ public class XdcWriterTests
         var result = _writer.GenerateString(CreateSampleDcf());
         var document = XDocument.Parse(result);
         var canOpenObject = document.Descendants()
-            .First(e => e.Name.LocalName == "CANopenObject" && GetAttributeValue(e, "index") == "1000");
+            .Single(e => e.Name.LocalName == "CANopenObject" && GetAttributeValue(e, "index") == "1000");
 
         // Assert
         GetAttributeValue(canOpenObject, "actualValue").Should().Be("0x00000191");
@@ -107,7 +107,7 @@ public class XdcWriterTests
         var result = _writer.GenerateString(CreateSampleDcf());
         var document = XDocument.Parse(result);
         var canOpenObject = document.Descendants()
-            .First(e => e.Name.LocalName == "CANopenObject" && GetAttributeValue(e, "index") == "1000");
+            .Single(e => e.Name.LocalName == "CANopenObject" && GetAttributeValue(e, "index") == "1000");
 
         // Assert
         GetAttributeValue(canOpenObject, "denotation").Should().Be("MyDeviceType");
@@ -238,7 +238,7 @@ public class XdcWriterTests
         var result = _writer.GenerateString(dcf);
         var document = XDocument.Parse(result);
         var subObject = document.Descendants()
-            .First(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "00");
+            .Single(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "00");
 
         // Assert
         GetAttributeValue(subObject, "actualValue").Should().Be("4");
@@ -272,7 +272,7 @@ public class XdcWriterTests
         var result = _writer.GenerateString(dcf);
         var document = XDocument.Parse(result);
         var subObject = document.Descendants()
-            .First(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "01");
+            .Single(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "01");
 
         // Assert
         GetAttributeValue(subObject, "denotation").Should().Be("VendorIdentifier");

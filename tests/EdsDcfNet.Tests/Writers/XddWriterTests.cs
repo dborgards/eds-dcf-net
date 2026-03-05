@@ -142,7 +142,7 @@ public class XddWriterTests
         var result = _writer.GenerateString(CreateSampleEds());
         var document = XDocument.Parse(result);
         var canOpenObject = document.Descendants()
-            .First(e => e.Name.LocalName == "CANopenObject" && GetAttributeValue(e, "index") == "1000");
+            .Single(e => e.Name.LocalName == "CANopenObject" && GetAttributeValue(e, "index") == "1000");
 
         // Assert
         GetAttributeValue(canOpenObject, "name").Should().Be("Device Type");
@@ -182,7 +182,7 @@ public class XddWriterTests
         var result = _writer.GenerateString(eds);
         var document = XDocument.Parse(result);
         var subObject = document.Descendants()
-            .First(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "00");
+            .Single(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "00");
 
         // Assert
         GetAttributeValue(subObject, "name").Should().Be("Number of Entries");
@@ -217,7 +217,7 @@ public class XddWriterTests
         var result = _writer.GenerateString(eds);
         var document = XDocument.Parse(result);
         var subObject = document.Descendants()
-            .First(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "00");
+            .Single(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "00");
 
         // Assert
         GetAttributeValue(subObject, "PDOmapping").Should().Be("optional");
