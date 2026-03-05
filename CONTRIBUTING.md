@@ -44,8 +44,13 @@ refactor/xyz    ──┘      │           │
 ## Coding conventions
 
 Repository-wide formatting and baseline analyzer severities are defined in
-[`.editorconfig`](.editorconfig), while analyzer/build enforcement is
-centralized in [`Directory.Build.props`](Directory.Build.props).
+[`.editorconfig`](.editorconfig).
+
+Analyzer/build enforcement flags (`EnableNETAnalyzers`, `TreatWarningsAsErrors`,
+`AnalysisMode`) are centralized in [`Directory.Build.props`](Directory.Build.props),
+while the core library project additionally pins the analyzer package version via
+`Microsoft.CodeAnalysis.NetAnalyzers` in
+[`src/EdsDcfNet/EdsDcfNet.csproj`](src/EdsDcfNet/EdsDcfNet.csproj).
 
 ### Analyzer policy
 
