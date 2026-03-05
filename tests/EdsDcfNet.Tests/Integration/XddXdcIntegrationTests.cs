@@ -166,6 +166,7 @@ public class XddXdcIntegrationTests
         {
             actual.Objects.Should().ContainKey(idx);
             actual.Objects[idx].ParameterName.Should().Be(expected.Objects[idx].ParameterName);
+            actual.Objects[idx].ObjectType.Should().Be(expected.Objects[idx].ObjectType);
         }
     }
 
