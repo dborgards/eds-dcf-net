@@ -654,7 +654,7 @@ public static class CanOpenFile
                 CreatedBy = "EdsDcfNet Library",
                 LastEds = eds.FileInfo.FileName
             },
-            DeviceInfo = CloneDeviceInfo(eds.DeviceInfo),
+            DeviceInfo = ModelCloner.CloneDeviceInfo(eds.DeviceInfo),
             DeviceCommissioning = new DeviceCommissioning
             {
                 NodeId = nodeId,
@@ -664,225 +664,19 @@ public static class CanOpenFile
                 NetworkName = "CANopen Network",
                 CANopenManager = false
             },
-            ObjectDictionary = CloneObjectDictionary(eds.ObjectDictionary),
-            Comments = CloneComments(eds.Comments),
-            DynamicChannels = CloneDynamicChannels(eds.DynamicChannels),
-            // Keep ApplicationProcess available after EDS -> DCF conversion.
-            // Intentional decision: preserve by reference (no deep clone yet) to avoid
+            ObjectDictionary = ModelCloner.CloneObjectDictionary(eds.ObjectDictionary),
+            Comments = ModelCloner.CloneComments(eds.Comments),
+            DynamicChannels = ModelCloner.CloneDynamicChannels(eds.DynamicChannels),
+            // Preserve by reference (no deep clone yet) to avoid
             // partial/fragile cloning of the large CiA 311 object graph.
             ApplicationProcess = eds.ApplicationProcess
         };
 
-        dcf.SupportedModules.AddRange(CloneSupportedModules(eds.SupportedModules));
-        dcf.Tools.AddRange(CloneTools(eds.Tools));
-        foreach (var kvp in CloneAdditionalSections(eds.AdditionalSections))
+        dcf.SupportedModules.AddRange(ModelCloner.CloneSupportedModules(eds.SupportedModules));
+        dcf.Tools.AddRange(ModelCloner.CloneTools(eds.Tools));
+        foreach (var kvp in ModelCloner.CloneAdditionalSections(eds.AdditionalSections))
             dcf.AdditionalSections[kvp.Key] = kvp.Value;
 
         return dcf;
-    }
-
-    private static DeviceInfo CloneDeviceInfo(DeviceInfo source)
-    {
-        return new DeviceInfo
-        {
-            VendorName = source.VendorName,
-            VendorNumber = source.VendorNumber,
-            ProductName = source.ProductName,
-            ProductNumber = source.ProductNumber,
-            RevisionNumber = source.RevisionNumber,
-            OrderCode = source.OrderCode,
-            SupportedBaudRates = new BaudRates
-            {
-                BaudRate10 = source.SupportedBaudRates.BaudRate10,
-                BaudRate20 = source.SupportedBaudRates.BaudRate20,
-                BaudRate50 = source.SupportedBaudRates.BaudRate50,
-                BaudRate125 = source.SupportedBaudRates.BaudRate125,
-                BaudRate250 = source.SupportedBaudRates.BaudRate250,
-                BaudRate500 = source.SupportedBaudRates.BaudRate500,
-                BaudRate800 = source.SupportedBaudRates.BaudRate800,
-                BaudRate1000 = source.SupportedBaudRates.BaudRate1000
-            },
-            SimpleBootUpMaster = source.SimpleBootUpMaster,
-            SimpleBootUpSlave = source.SimpleBootUpSlave,
-            Granularity = source.Granularity,
-            DynamicChannelsSupported = source.DynamicChannelsSupported,
-            GroupMessaging = source.GroupMessaging,
-            NrOfRxPdo = source.NrOfRxPdo,
-            NrOfTxPdo = source.NrOfTxPdo,
-            LssSupported = source.LssSupported,
-            CompactPdo = source.CompactPdo,
-            CANopenSafetySupported = source.CANopenSafetySupported
-        };
-    }
-
-    private static ObjectDictionary CloneObjectDictionary(ObjectDictionary source)
-    {
-        var clone = new ObjectDictionary();
-        clone.MandatoryObjects.AddRange(source.MandatoryObjects);
-        clone.OptionalObjects.AddRange(source.OptionalObjects);
-        clone.ManufacturerObjects.AddRange(source.ManufacturerObjects);
-        foreach (var kvp in source.DummyUsage)
-            clone.DummyUsage[kvp.Key] = kvp.Value;
-
-        foreach (var kvp in source.Objects)
-        {
-            clone.Objects[kvp.Key] = CloneObject(kvp.Value);
-        }
-
-        return clone;
-    }
-
-    private static CanOpenObject CloneObject(CanOpenObject source)
-    {
-        var clone = new CanOpenObject
-        {
-            Index = source.Index,
-            ParameterName = source.ParameterName,
-            ObjectType = source.ObjectType,
-            DataType = source.DataType,
-            AccessType = source.AccessType,
-            DefaultValue = source.DefaultValue,
-            LowLimit = source.LowLimit,
-            HighLimit = source.HighLimit,
-            PdoMapping = source.PdoMapping,
-            ObjFlags = source.ObjFlags,
-            SubNumber = source.SubNumber,
-            CompactSubObj = source.CompactSubObj,
-            ParameterValue = source.ParameterValue,
-            Denotation = source.Denotation,
-            UploadFile = source.UploadFile,
-            DownloadFile = source.DownloadFile,
-            SrdoMapping = source.SrdoMapping,
-            InvertedSrad = source.InvertedSrad,
-            ParamRefd = source.ParamRefd
-        };
-
-        clone.ObjectLinks.AddRange(source.ObjectLinks);
-
-        foreach (var kvp in source.SubObjects)
-        {
-            clone.SubObjects[kvp.Key] = CloneSubObject(kvp.Value);
-        }
-
-        return clone;
-    }
-
-    private static CanOpenSubObject CloneSubObject(CanOpenSubObject source)
-    {
-        return new CanOpenSubObject
-        {
-            SubIndex = source.SubIndex,
-            ParameterName = source.ParameterName,
-            ObjectType = source.ObjectType,
-            DataType = source.DataType,
-            AccessType = source.AccessType,
-            DefaultValue = source.DefaultValue,
-            LowLimit = source.LowLimit,
-            HighLimit = source.HighLimit,
-            PdoMapping = source.PdoMapping,
-            ParameterValue = source.ParameterValue,
-            Denotation = source.Denotation,
-            SrdoMapping = source.SrdoMapping,
-            InvertedSrad = source.InvertedSrad,
-            ParamRefd = source.ParamRefd
-        };
-    }
-
-    private static Comments? CloneComments(Comments? source)
-    {
-        if (source == null) return null;
-        var clone = new Comments { Lines = source.Lines };
-        foreach (var kvp in source.CommentLines)
-            clone.CommentLines[kvp.Key] = kvp.Value;
-        return clone;
-    }
-
-    private static List<ModuleInfo> CloneSupportedModules(List<ModuleInfo> source)
-    {
-        var clone = new List<ModuleInfo>(source.Count);
-        foreach (var module in source)
-        {
-            var clonedModule = new ModuleInfo
-            {
-                ModuleNumber = module.ModuleNumber,
-                ProductName = module.ProductName,
-                ProductVersion = module.ProductVersion,
-                ProductRevision = module.ProductRevision,
-                OrderCode = module.OrderCode,
-                Comments = CloneComments(module.Comments)
-            };
-
-            clonedModule.FixedObjects.AddRange(module.FixedObjects);
-            clonedModule.SubExtends.AddRange(module.SubExtends);
-
-            foreach (var kvp in module.FixedObjectDefinitions)
-            {
-                clonedModule.FixedObjectDefinitions[kvp.Key] = CloneObject(kvp.Value);
-            }
-
-            foreach (var kvp in module.SubExtensionDefinitions)
-            {
-                clonedModule.SubExtensionDefinitions[kvp.Key] = new ModuleSubExtension
-                {
-                    Index = kvp.Value.Index,
-                    ParameterName = kvp.Value.ParameterName,
-                    DataType = kvp.Value.DataType,
-                    AccessType = kvp.Value.AccessType,
-                    DefaultValue = kvp.Value.DefaultValue,
-                    PdoMapping = kvp.Value.PdoMapping,
-                    Count = kvp.Value.Count,
-                    ObjExtend = kvp.Value.ObjExtend
-                };
-            }
-
-            clone.Add(clonedModule);
-        }
-        return clone;
-    }
-
-    private static DynamicChannels? CloneDynamicChannels(DynamicChannels? source)
-    {
-        if (source == null)
-            return null;
-
-        var clone = new DynamicChannels();
-        foreach (var segment in source.Segments)
-        {
-            clone.Segments.Add(new DynamicChannelSegment
-            {
-                Type = segment.Type,
-                Dir = segment.Dir,
-                Range = segment.Range,
-                PPOffset = segment.PPOffset
-            });
-        }
-
-        return clone;
-    }
-
-    private static List<ToolInfo> CloneTools(List<ToolInfo> source)
-    {
-        var clone = new List<ToolInfo>(source.Count);
-        foreach (var tool in source)
-        {
-            clone.Add(new ToolInfo
-            {
-                Name = tool.Name,
-                Command = tool.Command
-            });
-        }
-
-        return clone;
-    }
-
-    private static Dictionary<string, Dictionary<string, string>> CloneAdditionalSections(
-        Dictionary<string, Dictionary<string, string>> source)
-    {
-        var clone = new Dictionary<string, Dictionary<string, string>>(source.Count, StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in source)
-        {
-            clone[kvp.Key] = AdditionalSectionsCloner.CloneSectionEntriesCaseInsensitive(kvp.Value);
-        }
-        return clone;
     }
 }
