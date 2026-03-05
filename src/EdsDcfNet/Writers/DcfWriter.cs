@@ -25,6 +25,10 @@ public class DcfWriter
             var content = GenerateDcfContent(dcf);
             File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
         }
+        catch (DcfWriteException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             throw new DcfWriteException($"Failed to write DCF file to {filePath}", ex);
@@ -53,6 +57,10 @@ public class DcfWriter
         {
             throw;
         }
+        catch (DcfWriteException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             throw new DcfWriteException($"Failed to write DCF file to {filePath}", ex);
@@ -75,54 +83,54 @@ public class DcfWriter
         var sb = new StringBuilder();
 
         // Write FileInfo section
-        WriteFileInfo(sb, dcf.FileInfo);
+        WriteSection("FileInfo", () => WriteFileInfo(sb, dcf.FileInfo));
 
         // Write DeviceInfo section
-        WriteDeviceInfo(sb, dcf.DeviceInfo);
+        WriteSection("DeviceInfo", () => WriteDeviceInfo(sb, dcf.DeviceInfo));
 
         // Write DeviceCommissioning section
-        WriteDeviceCommissioning(sb, dcf.DeviceCommissioning);
+        WriteSection("DeviceCommissioning", () => WriteDeviceCommissioning(sb, dcf.DeviceCommissioning));
 
         // Write DummyUsage section if present
         if (dcf.ObjectDictionary.DummyUsage.Count > 0)
         {
-            WriteDummyUsage(sb, dcf.ObjectDictionary);
+            WriteSection("DummyUsage", () => WriteDummyUsage(sb, dcf.ObjectDictionary));
         }
 
         // Write object lists
-        WriteObjectLists(sb, dcf.ObjectDictionary);
+        WriteSection("ObjectLists", () => WriteObjectLists(sb, dcf.ObjectDictionary));
 
         // Write all objects
-        WriteObjects(sb, dcf.ObjectDictionary);
+        WriteSection("Objects", () => WriteObjects(sb, dcf.ObjectDictionary));
 
         // Write SupportedModules if present
         if (dcf.SupportedModules.Count > 0)
         {
-            WriteSupportedModules(sb, dcf.SupportedModules);
+            WriteSection("SupportedModules", () => WriteSupportedModules(sb, dcf.SupportedModules));
         }
 
         // Write ConnectedModules if present
         if (dcf.ConnectedModules.Count > 0)
         {
-            WriteConnectedModules(sb, dcf.ConnectedModules);
+            WriteSection("ConnectedModules", () => WriteConnectedModules(sb, dcf.ConnectedModules));
         }
 
         // Write DynamicChannels if present
         if (dcf.DynamicChannels != null && dcf.DynamicChannels.Segments.Count > 0)
         {
-            WriteDynamicChannels(sb, dcf.DynamicChannels);
+            WriteSection("DynamicChannels", () => WriteDynamicChannels(sb, dcf.DynamicChannels));
         }
 
         // Write Tools if present
         if (dcf.Tools.Count > 0)
         {
-            WriteTools(sb, dcf.Tools);
+            WriteSection("Tools", () => WriteTools(sb, dcf.Tools));
         }
 
         // Write Comments section if present
         if (dcf.Comments != null && dcf.Comments.CommentLines.Count > 0)
         {
-            WriteComments(sb, dcf.Comments);
+            WriteSection("Comments", () => WriteComments(sb, dcf.Comments));
         }
 
         // Write additional sections
@@ -133,7 +141,7 @@ public class DcfWriter
                 continue;
             }
 
-            WriteAdditionalSection(sb, section.Key, section.Value);
+            WriteSection(section.Key, () => WriteAdditionalSection(sb, section.Key, section.Value));
         }
 
         return sb.ToString();
@@ -256,7 +264,8 @@ public class DcfWriter
 
         foreach (var objEntry in allObjects)
         {
-            WriteObject(sb, objEntry.Value);
+            var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", objEntry.Key);
+            WriteSection(sectionName, () => WriteObject(sb, objEntry.Value));
         }
     }
 
@@ -349,22 +358,29 @@ public class DcfWriter
         {
             foreach (var subObjEntry in obj.SubObjects.OrderBy(s => s.Key))
             {
-                WriteSubObject(sb, obj.Index, subObjEntry.Value);
+                var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", obj.Index, subObjEntry.Key);
+                WriteSection(sectionName, () => WriteSubObject(sb, obj.Index, subObjEntry.Value));
             }
         }
 
         // Write object links
         if (obj.ObjectLinks.Count > 0)
         {
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}ObjectLinks]", obj.Index));
-            WriteKeyValue(sb, "ObjectLinks", obj.ObjectLinks.Count.ToString(CultureInfo.InvariantCulture));
+            var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}ObjectLinks", obj.Index);
+            WriteSection(
+                sectionName,
+                () =>
+                {
+                    sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}ObjectLinks]", obj.Index));
+                    WriteKeyValue(sb, "ObjectLinks", obj.ObjectLinks.Count.ToString(CultureInfo.InvariantCulture));
 
-            for (int i = 0; i < obj.ObjectLinks.Count; i++)
-            {
-                WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(obj.ObjectLinks[i]));
-            }
+                    for (int i = 0; i < obj.ObjectLinks.Count; i++)
+                    {
+                        WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(obj.ObjectLinks[i]));
+                    }
 
-            sb.AppendLine();
+                    sb.AppendLine();
+                });
         }
     }
 
@@ -533,6 +549,27 @@ public class DcfWriter
     private static void WriteKeyValue(StringBuilder sb, string key, string? value)
     {
         sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
+    }
+
+    private static void WriteSection(string sectionName, Action writeAction)
+    {
+        try
+        {
+            writeAction();
+        }
+        catch (DcfWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new DcfWriteException(
+                $"Failed to write section [{sectionName}]",
+                ex)
+            {
+                SectionName = sectionName
+            };
+        }
     }
 
 }

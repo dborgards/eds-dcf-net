@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
@@ -20,8 +21,19 @@ public class XdcWriter : XddWriter
     /// <param name="filePath">Path where the XDC file should be written</param>
     public void WriteFile(DeviceConfigurationFile dcf, string filePath)
     {
-        var content = GenerateString(dcf);
-        File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+        try
+        {
+            var content = GenerateString(dcf);
+            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+        }
+        catch (XdcWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XdcWriteException($"Failed to write XDC file to {filePath}", ex);
+        }
     }
 
     /// <summary>
@@ -35,9 +47,24 @@ public class XdcWriter : XddWriter
         string filePath,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var content = GenerateString(dcf);
-        await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = GenerateString(dcf);
+            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (XdcWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XdcWriteException($"Failed to write XDC file to {filePath}", ex);
+        }
     }
 
     /// <summary>
@@ -47,7 +74,32 @@ public class XdcWriter : XddWriter
     /// <returns>XDC content as string</returns>
     public string GenerateString(DeviceConfigurationFile dcf)
     {
-        return base.GenerateString(CreateEdsView(dcf), dcf.DeviceCommissioning);
+        try
+        {
+            return base.GenerateString(CreateEdsView(dcf), dcf.DeviceCommissioning);
+        }
+        catch (XddWriteException ex)
+        {
+            throw new XdcWriteException(
+                ex.Message,
+                ex.InnerException ?? ex)
+            {
+                SectionName = ex.SectionName
+            };
+        }
+        catch (XdcWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XdcWriteException(
+                "Failed to write section [Document]",
+                ex)
+            {
+                SectionName = "Document"
+            };
+        }
     }
 
     /// <inheritdoc/>
@@ -87,10 +139,13 @@ public class XdcWriter : XddWriter
     private static XElement BuildDeviceCommissioning(DeviceCommissioning dc)
     {
         if (dc.NodeId < 1 || dc.NodeId > 127)
-            throw new InvalidOperationException(
+        {
+            throw new XdcWriteException(
                 string.Format(CultureInfo.InvariantCulture,
                     "Cannot write XDC: NodeId {0} is outside the valid CANopen range 1..127.",
-                    dc.NodeId));
+                    dc.NodeId),
+                "deviceCommissioning");
+        }
 
         var elem = new XElement("deviceCommissioning");
 
