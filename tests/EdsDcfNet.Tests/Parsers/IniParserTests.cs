@@ -606,6 +606,78 @@ DataType=0x0005
             .WithMessage("*too large*");
     }
 
+    [Fact]
+    public void ParseStream_CrLfLineEndings_ParsesCorrectly()
+    {
+        const string content = "[Section1]\r\nKey1=Value1\r\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var result = IniParser.ParseStream(stream);
+
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
+    [Fact]
+    public void ParseStream_BareCarriageReturn_ParsesCorrectly()
+    {
+        const string content = "[Section1]\rKey1=Value1\r";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var result = IniParser.ParseStream(stream);
+
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
+    [Fact]
+    public void ParseStream_NoTrailingNewline_ParsesCorrectly()
+    {
+        const string content = "[Section1]\nKey1=Value1";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var result = IniParser.ParseStream(stream);
+
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_CrLfLineEndings_ParsesCorrectly()
+    {
+        const string content = "[Section1]\r\nKey1=Value1\r\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var result = await IniParser.ParseStreamAsync(stream);
+
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_BareCarriageReturn_ParsesCorrectly()
+    {
+        const string content = "[Section1]\rKey1=Value1\r";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var result = await IniParser.ParseStreamAsync(stream);
+
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_NoTrailingNewline_ParsesCorrectly()
+    {
+        const string content = "[Section1]\nKey1=Value1";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var result = await IniParser.ParseStreamAsync(stream);
+
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
     #endregion
 
     #region GetValue Tests
