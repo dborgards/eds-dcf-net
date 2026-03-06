@@ -1,0 +1,7 @@
+[Topology]
+NetName=Benchmark Network
+Nodes=0x01
+Node1Present=0x01
+Node1Name=Benchmark Node
+Node1DCFName=minimal.dcf
+

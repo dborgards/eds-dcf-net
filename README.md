@@ -149,6 +149,34 @@ var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 2, baudrate: 500, nodeName: "MyDevic
 CanOpenFile.WriteDcf(dcf, "device_node2.dcf");
 ```
 
+### Validating models before write operations
+
+Use the validation API to detect invalid commissioning values and inconsistent
+object-list definitions before serializing files.
+
+```csharp
+using EdsDcfNet;
+using EdsDcfNet.Validation;
+
+var dcf = CanOpenFile.ReadDcf("configured_device.dcf");
+
+IReadOnlyList<ValidationIssue> issues = CanOpenFile.Validate(dcf);
+if (issues.Count > 0)
+{
+    foreach (var issue in issues)
+        Console.WriteLine(issue);
+}
+```
+
+`CanOpenFile.Validate(...)` is the recommended entry point and routes to the
+full model validator, returning path-based `ValidationIssue` entries.
+Current checks include:
+
+- commissioning constraints (Node-ID/baudrate ranges, with `0` accepted as "unconfigured", key string limits)
+- device info constraints (name/order-code length, granularity limit)
+- object dictionary consistency (list membership, duplicates, missing entries)
+- object-level constraints (object type validity, parameter-name length, SubNumber mismatch)
+
 ### Working with Nodelist Projects (CPJ)
 
 ```csharp
@@ -268,6 +296,10 @@ void WriteXdc(DeviceConfigurationFile xdc, string filePath)
 Task WriteXdcAsync(DeviceConfigurationFile xdc, string filePath, CancellationToken cancellationToken = default)
 string WriteXdcToString(DeviceConfigurationFile xdc)
 
+// Validate models
+IReadOnlyList<ValidationIssue> Validate(ElectronicDataSheet eds)
+IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
+
 // Convert EDS to DCF
 DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
                                   ushort baudrate = 250, string? nodeName = null)
@@ -325,6 +357,22 @@ the exception contains a `SectionName` value (for example `DeviceInfo`,
 
 Complete examples can be found in the `examples/EdsDcfNet.Examples` project.
 
+## Performance Benchmarks
+
+A dedicated BenchmarkDotNet project is available at:
+
+- `benchmarks/EdsDcfNet.Benchmarks`
+
+Run all benchmarks:
+
+```bash
+dotnet run -c Release -p benchmarks/EdsDcfNet.Benchmarks -- --filter "*"
+```
+
+Baseline scenario definitions and artifact locations are documented in:
+
+- `benchmarks/EdsDcfNet.Benchmarks/BASELINE.md`
+
 ## Project Structure
 
 ```
@@ -337,6 +385,8 @@ eds-dcf-net/
 │       ├── Utilities/          # Helper classes
 │       ├── Exceptions/         # Custom exceptions
 │       └── Extensions/         # Extension methods
+├── benchmarks/
+│   └── EdsDcfNet.Benchmarks/   # BenchmarkDotNet throughput/memory benchmarks
 ├── examples/
 │   └── EdsDcfNet.Examples/     # Example application
 └── docs/

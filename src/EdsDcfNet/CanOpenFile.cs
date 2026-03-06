@@ -3,6 +3,7 @@ namespace EdsDcfNet;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Utilities;
+using EdsDcfNet.Validation;
 using EdsDcfNet.Writers;
 using System.Globalization;
 
@@ -12,6 +13,32 @@ using System.Globalization;
 /// </summary>
 public static class CanOpenFile
 {
+    /// <summary>
+    /// Validates an Electronic Data Sheet (EDS) model using the full
+    /// <see cref="CanOpenModelValidator"/> rule set.
+    /// </summary>
+    /// <param name="eds">Model instance to validate</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(ElectronicDataSheet eds)
+    {
+        return CanOpenModelValidator.Validate(eds);
+    }
+
+    /// <summary>
+    /// Validates a Device Configuration File (DCF) model using the full
+    /// <see cref="CanOpenModelValidator"/> rule set.
+    /// </summary>
+    /// <param name="dcf">Model instance to validate</param>
+    /// <remarks>
+    /// For commissioning values, <c>NodeId == 0</c> and <c>Baudrate == 0</c>
+    /// are treated as "unconfigured" and are accepted by validation.
+    /// </remarks>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
+    {
+        return CanOpenModelValidator.Validate(dcf);
+    }
+
     /// <summary>
     /// Reads an Electronic Data Sheet (EDS) file.
     /// </summary>
