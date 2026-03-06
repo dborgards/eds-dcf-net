@@ -9,10 +9,18 @@ using EdsDcfNet.Models;
 /// </summary>
 public static class CanOpenModelValidator
 {
-    private static readonly ushort[] AllowedBaudrates =
+    private static readonly HashSet<ushort> AllowedBaudrates = new()
     {
         10, 20, 50, 125, 250, 500, 800, 1000
     };
+
+    private const int MaxParameterNameLength = 241;
+    private const int MaxNodeNameLength = 246;
+    private const int MaxNetworkNameLength = 243;
+    private const int MaxVendorNameLength = 244;
+    private const int MaxProductNameLength = 243;
+    private const int MaxOrderCodeLength = 245;
+    private const byte MaxGranularity = 64;
 
     /// <summary>
     /// Validates an <see cref="ElectronicDataSheet"/> instance.
@@ -21,9 +29,10 @@ public static class CanOpenModelValidator
     /// <returns>List of validation issues. Empty when model is valid.</returns>
     public static IReadOnlyList<ValidationIssue> Validate(ElectronicDataSheet eds)
     {
-        if (eds == null) throw new ArgumentNullException(nameof(eds));
+        ThrowIfNull(eds, nameof(eds));
 
         var issues = new List<ValidationIssue>();
+        ValidateDeviceInfo(eds.DeviceInfo, issues);
         ValidateObjectDictionary(eds.ObjectDictionary, issues);
 
         return new ReadOnlyCollection<ValidationIssue>(issues);
@@ -36,9 +45,10 @@ public static class CanOpenModelValidator
     /// <returns>List of validation issues. Empty when model is valid.</returns>
     public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
     {
-        if (dcf == null) throw new ArgumentNullException(nameof(dcf));
+        ThrowIfNull(dcf, nameof(dcf));
 
         var issues = new List<ValidationIssue>();
+        ValidateDeviceInfo(dcf.DeviceInfo, issues);
         ValidateObjectDictionary(dcf.ObjectDictionary, issues);
         ValidateDeviceCommissioning(dcf.DeviceCommissioning, issues);
 
@@ -59,7 +69,9 @@ public static class CanOpenModelValidator
                     commissioning.NodeId)));
         }
 
-        if (!AllowedBaudrates.Contains(commissioning.Baudrate))
+        // 0 is treated as "not configured yet" and accepted by writers/parsers.
+        if (commissioning.Baudrate != 0 &&
+            !AllowedBaudrates.Contains(commissioning.Baudrate))
         {
             issues.Add(new ValidationIssue(
                 "DeviceCommissioning.Baudrate",
@@ -67,13 +79,37 @@ public static class CanOpenModelValidator
                     CultureInfo.InvariantCulture,
                     "Baudrate {0} is not supported. Allowed values: {1}.",
                     commissioning.Baudrate,
-                    string.Join(", ", AllowedBaudrates))));
+                    string.Join(
+                        ", ",
+                        AllowedBaudrates
+                            .OrderBy(v => v)
+                            .Select(v => v.ToString(CultureInfo.InvariantCulture))))));
         }
 
-        ValidateMaxLength(commissioning.NodeName, 246, "DeviceCommissioning.NodeName", issues);
-        ValidateMaxLength(commissioning.NetworkName, 243, "DeviceCommissioning.NetworkName", issues);
+        ValidateMaxLength(commissioning.NodeName, MaxNodeNameLength, "DeviceCommissioning.NodeName", issues);
+        ValidateMaxLength(commissioning.NetworkName, MaxNetworkNameLength, "DeviceCommissioning.NetworkName", issues);
         ValidateMaxLength(commissioning.NodeRefd, 249, "DeviceCommissioning.NodeRefd", issues);
         ValidateMaxLength(commissioning.NetRefd, 249, "DeviceCommissioning.NetRefd", issues);
+    }
+
+    private static void ValidateDeviceInfo(
+        DeviceInfo deviceInfo,
+        List<ValidationIssue> issues)
+    {
+        ValidateMaxLength(deviceInfo.VendorName, MaxVendorNameLength, "DeviceInfo.VendorName", issues);
+        ValidateMaxLength(deviceInfo.ProductName, MaxProductNameLength, "DeviceInfo.ProductName", issues);
+        ValidateMaxLength(deviceInfo.OrderCode, MaxOrderCodeLength, "DeviceInfo.OrderCode", issues);
+
+        if (deviceInfo.Granularity > MaxGranularity)
+        {
+            issues.Add(new ValidationIssue(
+                "DeviceInfo.Granularity",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Granularity {0} exceeds maximum of {1}.",
+                    deviceInfo.Granularity,
+                    MaxGranularity)));
+        }
     }
 
     private static void ValidateObjectDictionary(
@@ -101,6 +137,11 @@ public static class CanOpenModelValidator
             classifiedIndices,
             issues);
 
+        foreach (var kvp in objectDictionary.Objects.OrderBy(k => k.Key))
+        {
+            ValidateObject(kvp.Key, kvp.Value, issues);
+        }
+
         foreach (var index in objectDictionary.Objects.Keys.OrderBy(i => i))
         {
             if (!classifiedIndices.Contains(index))
@@ -117,8 +158,8 @@ public static class CanOpenModelValidator
     private static void ValidateObjectList(
         IEnumerable<ushort> indexes,
         string listPath,
-        IDictionary<ushort, CanOpenObject> objects,
-        ISet<ushort> classifiedIndices,
+        Dictionary<ushort, CanOpenObject> objects,
+        HashSet<ushort> classifiedIndices,
         List<ValidationIssue> issues)
     {
         foreach (var index in indexes)
@@ -141,6 +182,76 @@ public static class CanOpenModelValidator
         }
     }
 
+    private static void ValidateObject(
+        ushort index,
+        CanOpenObject obj,
+        List<ValidationIssue> issues)
+    {
+        var objectPath = string.Format(CultureInfo.InvariantCulture, "ObjectDictionary.Objects[0x{0:X4}]", index);
+
+        ValidateMaxLength(
+            obj.ParameterName,
+            MaxParameterNameLength,
+            objectPath + ".ParameterName",
+            issues);
+
+        if (!IsValidObjectType(obj.ObjectType))
+        {
+            issues.Add(new ValidationIssue(
+                objectPath + ".ObjectType",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "ObjectType 0x{0:X2} is not a valid CiA 306 object code.",
+                    obj.ObjectType)));
+        }
+
+        if (obj.SubNumber.HasValue &&
+            obj.SubNumber.Value > 0 &&
+            obj.SubObjects.Count == 0)
+        {
+            issues.Add(new ValidationIssue(
+                objectPath + ".SubNumber",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "SubNumber is {0} but no sub-objects are defined.",
+                    obj.SubNumber.Value)));
+        }
+
+        foreach (var subObject in obj.SubObjects.OrderBy(s => s.Key))
+        {
+            ValidateMaxLength(
+                subObject.Value.ParameterName,
+                MaxParameterNameLength,
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0}.SubObjects[0x{1:X2}].ParameterName",
+                    objectPath,
+                    subObject.Key),
+                issues);
+        }
+    }
+
+    private static bool IsValidObjectType(byte objectType)
+    {
+        return objectType == 0x0 ||
+               objectType == 0x2 ||
+               objectType == 0x5 ||
+               objectType == 0x6 ||
+               objectType == 0x7 ||
+               objectType == 0x8 ||
+               objectType == 0x9;
+    }
+
+    private static void ThrowIfNull(object? value, string paramName)
+    {
+#if NET10_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(value, paramName);
+#else
+        if (value == null)
+            throw new ArgumentNullException(paramName);
+#endif
+    }
+
     private static void ValidateMaxLength(
         string? value,
         int maxLength,
@@ -150,14 +261,15 @@ public static class CanOpenModelValidator
         if (string.IsNullOrEmpty(value))
             return;
 
-        if (value.Length > maxLength)
+        var text = value!;
+        if (text.Length > maxLength)
         {
             issues.Add(new ValidationIssue(
                 path,
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "Length {0} exceeds max allowed length {1}.",
-                    value.Length,
+                    text.Length,
                     maxLength)));
         }
     }

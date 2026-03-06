@@ -168,6 +168,14 @@ if (issues.Count > 0)
 }
 ```
 
+`CanOpenFile.Validate(...)` is the recommended entry point and returns
+path-based `ValidationIssue` entries. Current checks include:
+
+- commissioning constraints (Node-ID range, standard baud rates, key string limits)
+- device info constraints (name/order-code length, granularity limit)
+- object dictionary consistency (list membership, duplicates, missing entries)
+- object-level constraints (object type validity, parameter-name length, SubNumber mismatch)
+
 ### Working with Nodelist Projects (CPJ)
 
 ```csharp
