@@ -5,7 +5,6 @@ using EdsDcfNet.Parsers;
 using EdsDcfNet.Utilities;
 using EdsDcfNet.Validation;
 using EdsDcfNet.Writers;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 /// <summary>
@@ -35,11 +34,9 @@ public static class CanOpenFile
     /// are treated as "unconfigured" and are accepted by validation.
     /// </remarks>
     /// <returns>List of validation issues. Empty when model is valid.</returns>
-    [ExcludeFromCodeCoverage]
     public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
     {
-        var issues = CanOpenModelValidator.Validate(dcf);
-        return issues;
+        return CanOpenModelValidator.Validate(dcf);
     }
 
     /// <summary>
