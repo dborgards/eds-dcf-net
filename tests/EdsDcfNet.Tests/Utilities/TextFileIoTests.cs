@@ -151,7 +151,12 @@ public class TextFileIoTests
         bool detectEncodingFromByteOrderMarks,
         CancellationToken cancellationToken)
     {
-        var method = GetTextFileIoMethod("ReadAllTextAsync");
+        var method = GetTextFileIoMethod(
+            "ReadAllTextAsync",
+            typeof(string),
+            typeof(Encoding),
+            typeof(bool),
+            typeof(CancellationToken));
 
         try
         {
@@ -170,7 +175,12 @@ public class TextFileIoTests
         Encoding encoding,
         CancellationToken cancellationToken)
     {
-        var method = GetTextFileIoMethod("WriteAllTextAsync");
+        var method = GetTextFileIoMethod(
+            "WriteAllTextAsync",
+            typeof(string),
+            typeof(string),
+            typeof(Encoding),
+            typeof(CancellationToken));
 
         try
         {
@@ -183,12 +193,17 @@ public class TextFileIoTests
         }
     }
 
-    private static MethodInfo GetTextFileIoMethod(string name)
+    private static MethodInfo GetTextFileIoMethod(string name, params Type[] parameterTypes)
     {
         var textFileIoType = typeof(CanOpenFile).Assembly.GetType("EdsDcfNet.Utilities.TextFileIo");
         textFileIoType.Should().NotBeNull("TextFileIo must exist in the main assembly.");
 
-        var method = textFileIoType!.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static);
+        var method = textFileIoType!.GetMethod(
+            name,
+            BindingFlags.NonPublic | BindingFlags.Static,
+            binder: null,
+            types: parameterTypes,
+            modifiers: null);
         method.Should().NotBeNull($"TextFileIo.{name} should be available for reflection-based utility tests.");
 
         return method!;
