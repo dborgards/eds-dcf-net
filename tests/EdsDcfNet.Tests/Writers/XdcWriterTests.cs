@@ -261,25 +261,27 @@ public class XdcWriterTests
     }
 
     [Fact]
-    public void WriteStream_UnwritableStream_ThrowsXdcWriteException()
+    public void WriteStream_UnwritableStream_ThrowsArgumentException()
     {
         var dcf = CreateSampleDcf();
         using var stream = new MemoryStream(new byte[16], writable: false);
 
         var act = () => _writer.WriteStream(dcf, stream);
 
-        act.Should().Throw<XdcWriteException>();
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("stream");
     }
 
     [Fact]
-    public async Task WriteStreamAsync_UnwritableStream_ThrowsXdcWriteException()
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsArgumentException()
     {
         var dcf = CreateSampleDcf();
         using var stream = new MemoryStream(new byte[16], writable: false);
 
         var act = () => _writer.WriteStreamAsync(dcf, stream);
 
-        await act.Should().ThrowAsync<XdcWriteException>();
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
     }
 
     [Fact]

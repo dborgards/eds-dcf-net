@@ -545,25 +545,27 @@ public class EdsWriterTests
     }
 
     [Fact]
-    public void WriteStream_UnwritableStream_ThrowsEdsWriteException()
+    public void WriteStream_UnwritableStream_ThrowsArgumentException()
     {
         var eds = CreateMinimalEds();
         using var stream = new MemoryStream(new byte[16], writable: false);
 
         var act = () => _writer.WriteStream(eds, stream);
 
-        act.Should().Throw<EdsWriteException>();
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("stream");
     }
 
     [Fact]
-    public async Task WriteStreamAsync_UnwritableStream_ThrowsEdsWriteException()
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsArgumentException()
     {
         var eds = CreateMinimalEds();
         using var stream = new MemoryStream(new byte[16], writable: false);
 
         var act = () => _writer.WriteStreamAsync(eds, stream);
 
-        await act.Should().ThrowAsync<EdsWriteException>();
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
     }
 
     [Fact]

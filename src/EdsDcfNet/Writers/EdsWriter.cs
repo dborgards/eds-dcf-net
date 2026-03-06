@@ -46,6 +46,11 @@ public class EdsWriter : IniWriterBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteStream(ElectronicDataSheet eds, Stream stream)
     {
+        if (stream == null)
+            throw new ArgumentNullException(nameof(stream));
+        if (!stream.CanWrite)
+            throw new ArgumentException("Stream must be writable.", nameof(stream));
+
         try
         {
             var content = GenerateEdsContent(eds);
@@ -106,6 +111,11 @@ public class EdsWriter : IniWriterBase
         Stream stream,
         CancellationToken cancellationToken = default)
     {
+        if (stream == null)
+            throw new ArgumentNullException(nameof(stream));
+        if (!stream.CanWrite)
+            throw new ArgumentException("Stream must be writable.", nameof(stream));
+
         try
         {
             cancellationToken.ThrowIfCancellationRequested();

@@ -44,6 +44,11 @@ public class CpjWriter
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteStream(NodelistProject cpj, Stream stream)
     {
+        if (stream == null)
+            throw new ArgumentNullException(nameof(stream));
+        if (!stream.CanWrite)
+            throw new ArgumentException("Stream must be writable.", nameof(stream));
+
         try
         {
             var content = GenerateCpjContent(cpj);
@@ -104,6 +109,11 @@ public class CpjWriter
         Stream stream,
         CancellationToken cancellationToken = default)
     {
+        if (stream == null)
+            throw new ArgumentNullException(nameof(stream));
+        if (!stream.CanWrite)
+            throw new ArgumentException("Stream must be writable.", nameof(stream));
+
         try
         {
             cancellationToken.ThrowIfCancellationRequested();

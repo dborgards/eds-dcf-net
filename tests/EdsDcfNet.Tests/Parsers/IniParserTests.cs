@@ -571,12 +571,36 @@ DataType=0x0005
     }
 
     [Fact]
+    public void ParseStream_SizeLimitCountsLineTerminators()
+    {
+        const string content = "[S]\nK=V\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var act = () => IniParser.ParseStream(stream, maxInputSize: 7);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
     public async Task ParseStreamAsync_ContentTooLarge_ThrowsEdsParseException()
     {
         const string content = "[Section1]\nKey1=Value1\n";
         using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
 
         var act = () => IniParser.ParseStreamAsync(stream, maxInputSize: 8);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_SizeLimitCountsLineTerminators()
+    {
+        const string content = "[S]\nK=V\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var act = () => IniParser.ParseStreamAsync(stream, maxInputSize: 7);
 
         await act.Should().ThrowAsync<EdsParseException>()
             .WithMessage("*too large*");

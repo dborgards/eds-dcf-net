@@ -231,28 +231,20 @@ public static class IniParser
         string? currentSection = null;
         var lineNumber = 0;
         long totalChars = 0;
+        var currentLine = new StringBuilder();
+        var skipNextLineFeed = false;
 
-        while (!reader.EndOfStream)
+        while (true)
         {
-            var rawLine = reader.ReadLine();
-            if (rawLine == null)
+            var nextChar = reader.Read();
+            if (nextChar < 0)
                 break;
 
-            totalChars += rawLine.Length;
-            if (totalChars > maxInputSize)
-            {
-                throw new EdsParseException(
-                    string.Format(
-                        CultureInfo.InvariantCulture,
-                        "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
-                        totalChars,
-                        maxInputSize));
-            }
-
-            lineNumber++;
-            ParseLine(rawLine, lineNumber, ref currentSection, sections);
+            EnsureContentWithinSizeLimit(ref totalChars, maxInputSize);
+            ProcessReaderCharacter((char)nextChar, ref skipNextLineFeed, currentLine, ref lineNumber, ref currentSection, sections);
         }
 
+        FlushPendingLine(currentLine, ref lineNumber, ref currentSection, sections);
         return sections;
     }
 
@@ -265,35 +257,91 @@ public static class IniParser
         string? currentSection = null;
         var lineNumber = 0;
         long totalChars = 0;
+        var currentLine = new StringBuilder();
+        var skipNextLineFeed = false;
+        var buffer = new char[4096];
 
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-#if NET10_0_OR_GREATER
-            var rawLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-#else
-            var rawLine = await reader.ReadLineAsync().ConfigureAwait(false);
-#endif
-            if (rawLine == null)
+            var charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+            if (charsRead == 0)
                 break;
 
-            totalChars += rawLine.Length;
-            if (totalChars > maxInputSize)
+            for (var i = 0; i < charsRead; i++)
             {
-                throw new EdsParseException(
-                    string.Format(
-                        CultureInfo.InvariantCulture,
-                        "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
-                        totalChars,
-                        maxInputSize));
+                EnsureContentWithinSizeLimit(ref totalChars, maxInputSize);
+                ProcessReaderCharacter(buffer[i], ref skipNextLineFeed, currentLine, ref lineNumber, ref currentSection, sections);
             }
-
-            lineNumber++;
-            ParseLine(rawLine, lineNumber, ref currentSection, sections);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+        FlushPendingLine(currentLine, ref lineNumber, ref currentSection, sections);
         return sections;
+    }
+
+    private static void EnsureContentWithinSizeLimit(ref long totalChars, long maxInputSize)
+    {
+        totalChars++;
+        if (totalChars > maxInputSize)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
+                    totalChars,
+                    maxInputSize));
+        }
+    }
+
+    private static void ProcessReaderCharacter(
+        char character,
+        ref bool skipNextLineFeed,
+        StringBuilder currentLine,
+        ref int lineNumber,
+        ref string? currentSection,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+        if (skipNextLineFeed)
+        {
+            skipNextLineFeed = false;
+            if (character == '\n')
+            {
+                return;
+            }
+        }
+
+        if (character == '\r')
+        {
+            lineNumber++;
+            ParseLine(currentLine.ToString(), lineNumber, ref currentSection, sections);
+            currentLine.Clear();
+            skipNextLineFeed = true;
+            return;
+        }
+
+        if (character == '\n')
+        {
+            lineNumber++;
+            ParseLine(currentLine.ToString(), lineNumber, ref currentSection, sections);
+            currentLine.Clear();
+            return;
+        }
+
+        currentLine.Append(character);
+    }
+
+    private static void FlushPendingLine(
+        StringBuilder currentLine,
+        ref int lineNumber,
+        ref string? currentSection,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+        if (currentLine.Length == 0)
+            return;
+
+        lineNumber++;
+        ParseLine(currentLine.ToString(), lineNumber, ref currentSection, sections);
     }
 
     private static void ParseLine(

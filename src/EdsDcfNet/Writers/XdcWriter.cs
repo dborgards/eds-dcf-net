@@ -44,6 +44,11 @@ public class XdcWriter : XddWriter
     [ExcludeFromCodeCoverage]
     public void WriteStream(DeviceConfigurationFile dcf, Stream stream)
     {
+        if (stream == null)
+            throw new ArgumentNullException(nameof(stream));
+        if (!stream.CanWrite)
+            throw new ArgumentException("Stream must be writable.", nameof(stream));
+
         try
         {
             var content = GenerateString(dcf);
@@ -102,6 +107,11 @@ public class XdcWriter : XddWriter
         Stream stream,
         CancellationToken cancellationToken = default)
     {
+        if (stream == null)
+            throw new ArgumentNullException(nameof(stream));
+        if (!stream.CanWrite)
+            throw new ArgumentException("Stream must be writable.", nameof(stream));
+
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
