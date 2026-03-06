@@ -27,7 +27,7 @@ public class DcfReader : CanOpenReaderBase
     /// Reads a DCF file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public DeviceConfigurationFile ReadFile(
         string filePath,
@@ -41,7 +41,7 @@ public class DcfReader : CanOpenReaderBase
     /// Reads a DCF file from a stream.
     /// </summary>
     /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public DeviceConfigurationFile ReadStream(
         Stream stream,
@@ -66,7 +66,7 @@ public class DcfReader : CanOpenReaderBase
     /// Reads a DCF file from the specified path asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public async Task<DeviceConfigurationFile> ReadFileAsync(
@@ -93,7 +93,7 @@ public class DcfReader : CanOpenReaderBase
     /// Reads a DCF file from a stream asynchronously.
     /// </summary>
     /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public async Task<DeviceConfigurationFile> ReadStreamAsync(
@@ -109,7 +109,7 @@ public class DcfReader : CanOpenReaderBase
     /// Reads a DCF from a string.
     /// </summary>
     /// <param name="content">DCF file content as string</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public DeviceConfigurationFile ReadString(
         string content,

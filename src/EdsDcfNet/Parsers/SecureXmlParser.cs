@@ -160,7 +160,11 @@ internal static class SecureXmlParser
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
+#if NET10_0_OR_GREATER
+            var charsRead = await reader.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+#else
             var charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+#endif
             if (charsRead == 0)
                 break;
 
