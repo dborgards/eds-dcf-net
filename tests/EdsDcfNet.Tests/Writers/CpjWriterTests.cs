@@ -408,6 +408,45 @@ EDSBaseName=/eds/
     }
 
     [Fact]
+    public void WriteStream_UnwritableStream_ThrowsCpjWriteException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStream(project, stream);
+
+        act.Should().Throw<CpjWriteException>()
+            .WithMessage("*stream*");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsCpjWriteException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStreamAsync(project, stream);
+
+        await act.Should().ThrowAsync<CpjWriteException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        using var stream = new MemoryStream();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteStreamAsync(project, stream, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
     public void WriteFile_NonAsciiCharacters_PreservesCharacters()
     {
         // Arrange

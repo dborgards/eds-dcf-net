@@ -543,4 +543,39 @@ public class EdsWriterTests
         parsed.DeviceInfo.ProductName.Should().Be(eds.DeviceInfo.ProductName);
         parsed.ObjectDictionary.Objects.Should().ContainKey(0x1000);
     }
+
+    [Fact]
+    public void WriteStream_UnwritableStream_ThrowsEdsWriteException()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        act.Should().Throw<EdsWriteException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsEdsWriteException()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        await act.Should().ThrowAsync<EdsWriteException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new MemoryStream();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream, cancellationToken: cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
 }

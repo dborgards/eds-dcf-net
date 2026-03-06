@@ -293,4 +293,17 @@ Node1Name=DecimalPresent
         result.Networks[0].NetName.Should().Be("StreamNet");
         stream.CanRead.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task ReadStreamAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        const string content = "[Topology]\nNetName=StreamNet\nNodes=0\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _reader.ReadStreamAsync(stream, cancellationToken: cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
 }

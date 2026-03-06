@@ -261,6 +261,41 @@ public class XdcWriterTests
     }
 
     [Fact]
+    public void WriteStream_UnwritableStream_ThrowsXdcWriteException()
+    {
+        var dcf = CreateSampleDcf();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStream(dcf, stream);
+
+        act.Should().Throw<XdcWriteException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsXdcWriteException()
+    {
+        var dcf = CreateSampleDcf();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStreamAsync(dcf, stream);
+
+        await act.Should().ThrowAsync<XdcWriteException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        var dcf = CreateSampleDcf();
+        using var stream = new MemoryStream();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteStreamAsync(dcf, stream, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
     public void GenerateString_SubObjectActualValue_WrittenCorrectly()
     {
         // Arrange

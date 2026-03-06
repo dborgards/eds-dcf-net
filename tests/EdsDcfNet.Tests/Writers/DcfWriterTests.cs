@@ -1238,5 +1238,40 @@ public class DcfWriterTests
         parsed.ObjectDictionary.Objects.Should().ContainKey(0x1000);
     }
 
+    [Fact]
+    public void WriteStream_UnwritableStream_ThrowsDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStream(dcf, stream);
+
+        act.Should().Throw<DcfWriteException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStreamAsync(dcf, stream);
+
+        await act.Should().ThrowAsync<DcfWriteException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        var dcf = CreateMinimalDcf();
+        using var stream = new MemoryStream();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteStreamAsync(dcf, stream, cancellationToken: cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     #endregion
 }

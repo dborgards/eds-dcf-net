@@ -541,6 +541,47 @@ DataType=0x0005
         act.Should().Throw<ArgumentNullException>().WithParameterName("stream");
     }
 
+    [Fact]
+    public async Task ParseStreamAsync_UnreadableStream_ThrowsArgumentException()
+    {
+        using var stream = new WriteOnlyStream();
+        var act = () => IniParser.ParseStreamAsync(stream);
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_NullStream_ThrowsArgumentNullException()
+    {
+        var act = () => IniParser.ParseStreamAsync(null!);
+        await act.Should().ThrowAsync<ArgumentNullException>()
+            .Where(ex => ex.ParamName == "stream");
+    }
+
+    [Fact]
+    public void ParseStream_ContentTooLarge_ThrowsEdsParseException()
+    {
+        const string content = "[Section1]\nKey1=Value1\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var act = () => IniParser.ParseStream(stream, maxInputSize: 8);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_ContentTooLarge_ThrowsEdsParseException()
+    {
+        const string content = "[Section1]\nKey1=Value1\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var act = () => IniParser.ParseStreamAsync(stream, maxInputSize: 8);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
     #endregion
 
     #region GetValue Tests

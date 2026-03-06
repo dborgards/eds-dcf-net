@@ -174,6 +174,41 @@ public class XddWriterTests
         parsed.DeviceInfo.ProductName.Should().Be("Test Product");
     }
 
+    [Fact]
+    public void WriteStream_UnwritableStream_ThrowsXddWriteException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        act.Should().Throw<XddWriteException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsXddWriteException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        await act.Should().ThrowAsync<XddWriteException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     #endregion
 
     #region GenerateString Tests
