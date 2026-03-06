@@ -23,9 +23,13 @@ Core covered scenarios include EDS/DCF/CPJ parse, write, and round-trip operatio
 
 ## Baseline tracking table
 
-Record each baseline capture with commit and environment metadata:
+After each baseline run, copy the `Mean` and `Allocated` values from the
+BenchmarkDotNet markdown report into the table below.
 
-| Date (UTC) | Commit | OS / Runtime | ParserBenchmarks.EdsParseFromString | WriterBenchmarks.EdsWriteToString | RoundTripBenchmarks.EdsRoundTrip |
+| Date (UTC) | Commit | OS / Runtime | ParserBenchmarks.EdsParseFromString (Mean / Allocated) | WriterBenchmarks.EdsWriteToString (Mean / Allocated) | RoundTripBenchmarks.EdsRoundTrip (Mean / Allocated) |
 | --- | --- | --- | --- | --- | --- |
-| 2026-03-06 | d74b4a6 | Linux (CI), .NET 10.0 | _pending first capture_ | _pending first capture_ | _pending first capture_ |
+| 2026-03-06 | d74b4a6 | Linux (CI), .NET 10.0 | _capture pending (see artifacts)_ | _capture pending (see artifacts)_ | _capture pending (see artifacts)_ |
+
+The first completed row with concrete values is the reference baseline for
+future regression comparisons.
 
