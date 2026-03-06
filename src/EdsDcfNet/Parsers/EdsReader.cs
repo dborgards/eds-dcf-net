@@ -34,7 +34,7 @@ public class EdsReader : CanOpenReaderBase
     /// <summary>
     /// Reads an EDS file from a stream.
     /// </summary>
-    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="stream">Readable stream containing EDS content. The stream is not disposed by this method.</param>
     /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public ElectronicDataSheet ReadStream(
@@ -75,7 +75,7 @@ public class EdsReader : CanOpenReaderBase
     /// <summary>
     /// Reads an EDS file from a stream asynchronously.
     /// </summary>
-    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="stream">Readable stream containing EDS content. The stream is not disposed by this method.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public Task<ElectronicDataSheet> ReadStreamAsync(
@@ -86,7 +86,7 @@ public class EdsReader : CanOpenReaderBase
     /// <summary>
     /// Reads an EDS file from a stream asynchronously.
     /// </summary>
-    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="stream">Readable stream containing EDS content. The stream is not disposed by this method.</param>
     /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>

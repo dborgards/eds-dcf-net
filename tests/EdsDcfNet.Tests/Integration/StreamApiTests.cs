@@ -2,7 +2,6 @@ namespace EdsDcfNet.Tests.Integration;
 
 using System.Text;
 using EdsDcfNet;
-using EdsDcfNet.Models;
 using FluentAssertions;
 
 public class StreamApiTests
@@ -184,6 +183,10 @@ public class StreamApiTests
 
         CanOpenFile.WriteCpj(cpj, stream);
 
-        stream.Position.Should().BeGreaterOrEqualTo(0);
+        stream.Length.Should().BeGreaterThan(0);
+        stream.Position = 0;
+        var parsed = CanOpenFile.ReadCpj(stream);
+        parsed.Networks.Should().ContainSingle();
+        parsed.Networks[0].NetName.Should().Be("TestNet");
     }
 }

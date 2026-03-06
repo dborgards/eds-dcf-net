@@ -102,18 +102,6 @@ public static class IniParser
         if (stream == null) throw new ArgumentNullException(nameof(stream));
         if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
 
-        if (stream.CanSeek)
-        {
-            var remainingLength = stream.Length - stream.Position;
-            if (remainingLength > maxInputSize)
-            {
-                throw new EdsParseException(
-                    string.Format(CultureInfo.InvariantCulture,
-                        "Stream content is too large ({0:N0} bytes). Maximum supported size is {1:N0} bytes.",
-                        remainingLength, maxInputSize));
-            }
-        }
-
         using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
         return ParseReader(reader, maxInputSize);
     }
@@ -135,18 +123,6 @@ public static class IniParser
     {
         if (stream == null) throw new ArgumentNullException(nameof(stream));
         if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
-
-        if (stream.CanSeek)
-        {
-            var remainingLength = stream.Length - stream.Position;
-            if (remainingLength > maxInputSize)
-            {
-                throw new EdsParseException(
-                    string.Format(CultureInfo.InvariantCulture,
-                        "Stream content is too large ({0:N0} bytes). Maximum supported size is {1:N0} bytes.",
-                        remainingLength, maxInputSize));
-            }
-        }
 
         using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
         return await ParseReaderAsync(reader, maxInputSize, cancellationToken).ConfigureAwait(false);
@@ -260,7 +236,7 @@ public static class IniParser
             if (rawLine == null)
                 break;
 
-            totalChars += rawLine.Length + 1L;
+            totalChars += rawLine.Length;
             if (totalChars > maxInputSize)
             {
                 throw new EdsParseException(
@@ -300,7 +276,7 @@ public static class IniParser
             if (rawLine == null)
                 break;
 
-            totalChars += rawLine.Length + 1L;
+            totalChars += rawLine.Length;
             if (totalChars > maxInputSize)
             {
                 throw new EdsParseException(
