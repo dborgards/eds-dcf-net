@@ -258,6 +258,22 @@ public class CanOpenModelValidatorTests
     }
 
     [Fact]
+    public void Validate_DuplicateWithinSingleObjectList_ReturnsAccurateMessage()
+    {
+        // Arrange
+        var dcf = CreateValidDcf();
+        dcf.ObjectDictionary.MandatoryObjects.Add(0x1000);
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        // Assert
+        issues.Should().Contain(i =>
+            i.Path == "ObjectDictionary.MandatoryObjects" &&
+            i.Message.Contains("multiple times in this object list", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Validate_FacadeAndValidationIssue_ToStringAreCovered()
     {
         // Arrange

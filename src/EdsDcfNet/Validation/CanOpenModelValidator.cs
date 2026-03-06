@@ -163,9 +163,17 @@ public static class CanOpenModelValidator
         HashSet<ushort> classifiedIndices,
         List<ValidationIssue> issues)
     {
+        var seenInCurrentList = new HashSet<ushort>();
         foreach (var index in indexes)
         {
             var hexIndex = string.Format(CultureInfo.InvariantCulture, "0x{0:X4}", index);
+            if (!seenInCurrentList.Add(index))
+            {
+                issues.Add(new ValidationIssue(
+                    listPath,
+                    "Object index " + hexIndex + " appears multiple times in this object list."));
+                continue;
+            }
 
             if (!classifiedIndices.Add(index))
             {
