@@ -268,11 +268,7 @@ public static class IniParser
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-#if NET10_0_OR_GREATER
-            var charsRead = await reader.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
-#else
             var charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
-#endif
             if (charsRead == 0)
                 break;
 
@@ -397,11 +393,7 @@ public static class IniParser
 
     private static void ThrowIfNull(object? value, string parameterName)
     {
-#if NET10_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(value, parameterName);
-#else
         if (value == null)
             throw new ArgumentNullException(parameterName);
-#endif
     }
 }
