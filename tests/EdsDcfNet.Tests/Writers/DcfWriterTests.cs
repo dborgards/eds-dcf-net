@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Tests.Writers;
 
 using System.Reflection;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Writers;
 using FluentAssertions;
