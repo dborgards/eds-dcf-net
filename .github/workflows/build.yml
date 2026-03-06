@@ -125,11 +125,6 @@ jobs:
         override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
         fail_ci_if_error: true
 
-    - name: Wait for Codecov webhook
-      if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
-      shell: bash
-      run: sleep 90
-
     - name: Post codecov/patch status
       if: always()
       continue-on-error: true
@@ -149,6 +144,20 @@ jobs:
           echo "Coverage gate was skipped (build/test failed earlier); not posting status."
           exit 0
         fi
+
+        # Wait for the Codecov webhook to post its own codecov/patch status
+        # before we post ours, so the GitHub Actions status is always last
+        # (required by the develop branch ruleset integration_id constraint).
+        for i in $(seq 1 24); do
+          codecov_bot_status=$(gh api "repos/${{ github.repository }}/commits/${COMMIT_SHA}/statuses" \
+            --jq '[.[] | select(.context == "codecov/patch" and (.creator.login == "codecov[bot]"))][0].state // empty' 2>/dev/null || true)
+          if [[ -n "$codecov_bot_status" ]]; then
+            echo "Codecov webhook status detected (${codecov_bot_status}) after ~$((i * 10))s"
+            break
+          fi
+          echo "Waiting for Codecov webhook... (attempt $i/24)"
+          sleep 10
+        done
 
         gh api "repos/${{ github.repository }}/statuses/${COMMIT_SHA}" \
           --method POST \
