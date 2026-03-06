@@ -1,4 +1,5 @@
 namespace EdsDcfNet.Models;
+using EdsDcfNet.Validation;
 
 /// <summary>
 /// Represents a complete Device Configuration File (DCF) for a CANopen device.
@@ -69,4 +70,13 @@ public class DeviceConfigurationFile
     /// <c>ApplicationProcess</c> element was present in the XDD/XDC file.
     /// </summary>
     public ApplicationProcess? ApplicationProcess { get; set; }
+
+    /// <summary>
+    /// Validates this model instance against common CANopen constraints.
+    /// </summary>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public IReadOnlyList<ValidationIssue> Validate()
+    {
+        return CanOpenModelValidator.Validate(this);
+    }
 }
