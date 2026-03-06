@@ -638,7 +638,7 @@ public static class CanOpenFile
     /// are treated as "unconfigured" and are accepted by validation.
     /// </remarks>
     /// <returns>List of validation issues. Empty when model is valid.</returns>
-    [ExcludeFromCodeCoverage(Justification = "Thin facade over CanOpenModelValidator; behavior is covered by validator tests.")]
+    [ExcludeFromCodeCoverage]
     public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
     {
         var issues = CanOpenModelValidator.Validate(dcf);
