@@ -111,6 +111,20 @@ public class CanOpenModelValidatorTests
     }
 
     [Fact]
+    public void Validate_OmittedCommissioning_NodeIdZeroIsAccepted()
+    {
+        // Arrange
+        var dcf = CreateValidDcf();
+        dcf.DeviceCommissioning = new DeviceCommissioning();
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        // Assert
+        issues.Should().NotContain(i => i.Path == "DeviceCommissioning.NodeId");
+    }
+
+    [Fact]
     public void Validate_CanOpenFileFacade_DelegatesToValidator()
     {
         // Arrange

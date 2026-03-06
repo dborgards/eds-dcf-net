@@ -60,13 +60,14 @@ public static class CanOpenModelValidator
         DeviceCommissioning commissioning,
         List<ValidationIssue> issues)
     {
-        if (commissioning.NodeId < 1 || commissioning.NodeId > 127)
+        var commissioningOmitted = IsCommissioningOmitted(commissioning);
+        if ((!commissioningOmitted && commissioning.NodeId < 1) || commissioning.NodeId > 127)
         {
             issues.Add(new ValidationIssue(
                 "DeviceCommissioning.NodeId",
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "Node-ID {0} is outside the CANopen range 1..127.",
+                    "Node-ID {0} is outside the CANopen range 1..127 (or 0 when commissioning is omitted).",
                     commissioning.NodeId)));
         }
 
@@ -91,6 +92,19 @@ public static class CanOpenModelValidator
         ValidateMaxLength(commissioning.NetworkName, MaxNetworkNameLength, "DeviceCommissioning.NetworkName", issues);
         ValidateMaxLength(commissioning.NodeRefd, MaxReferenceNameLength, "DeviceCommissioning.NodeRefd", issues);
         ValidateMaxLength(commissioning.NetRefd, MaxReferenceNameLength, "DeviceCommissioning.NetRefd", issues);
+    }
+
+    private static bool IsCommissioningOmitted(DeviceCommissioning commissioning)
+    {
+        return commissioning.NodeId == 0 &&
+               string.IsNullOrEmpty(commissioning.NodeName) &&
+               commissioning.Baudrate == 0 &&
+               commissioning.NetNumber == 0 &&
+               string.IsNullOrEmpty(commissioning.NetworkName) &&
+               !commissioning.CANopenManager &&
+               commissioning.LssSerialNumber is null &&
+               string.IsNullOrEmpty(commissioning.NodeRefd) &&
+               string.IsNullOrEmpty(commissioning.NetRefd);
     }
 
     private static void ValidateDeviceInfo(

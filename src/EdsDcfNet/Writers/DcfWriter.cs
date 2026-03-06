@@ -227,6 +227,19 @@ public class DcfWriter : IniWriterBase
         sb.AppendLine();
     }
 
+    private static bool IsCommissioningOmitted(DeviceCommissioning commissioning)
+    {
+        return commissioning.NodeId == 0 &&
+               string.IsNullOrEmpty(commissioning.NodeName) &&
+               commissioning.Baudrate == 0 &&
+               commissioning.NetNumber == 0 &&
+               string.IsNullOrEmpty(commissioning.NetworkName) &&
+               !commissioning.CANopenManager &&
+               commissioning.LssSerialNumber is null &&
+               string.IsNullOrEmpty(commissioning.NodeRefd) &&
+               string.IsNullOrEmpty(commissioning.NetRefd);
+    }
+
     private static void WriteConnectedModules(StringBuilder sb, List<int> connectedModules)
     {
         sb.AppendLine("[ConnectedModules]");
@@ -262,7 +275,10 @@ public class DcfWriter : IniWriterBase
 
         WriteSection("DeviceInfo", () => WriteDeviceInfo(sb, dcf.DeviceInfo));
 
-        WriteSection("DeviceCommissioning", () => WriteDeviceCommissioning(sb, dcf.DeviceCommissioning));
+        if (!IsCommissioningOmitted(dcf.DeviceCommissioning))
+        {
+            WriteSection("DeviceCommissioning", () => WriteDeviceCommissioning(sb, dcf.DeviceCommissioning));
+        }
 
         if (dcf.ObjectDictionary.DummyUsage.Count > 0)
         {

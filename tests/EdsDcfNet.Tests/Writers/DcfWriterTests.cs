@@ -126,6 +126,20 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void GenerateString_OmittedCommissioning_OmitsDeviceCommissioningSection()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceCommissioning = new DeviceCommissioning();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().NotContain("[DeviceCommissioning]");
+    }
+
+    [Fact]
     public void GenerateString_ReferenceDesignators_WrittenWhenSet()
     {
         // Arrange
