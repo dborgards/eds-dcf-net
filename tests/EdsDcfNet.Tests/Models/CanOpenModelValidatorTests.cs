@@ -157,6 +157,148 @@ public class CanOpenModelValidatorTests
         issues.Should().NotContain(i => i.Path == "ObjectDictionary.Objects[0x1000].SubNumber");
     }
 
+    [Fact]
+    public void Validate_ValidEds_ReturnsNoIssues()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet();
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly
+        };
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        // Assert
+        issues.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Validate_ElectronicDataSheetConvenienceMethod_DelegatesToValidator()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet();
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0xAA
+        };
+
+        // Act
+        var issues = eds.Validate();
+
+        // Assert
+        issues.Should().Contain(i => i.Path == "ObjectDictionary.Objects[0x1000].ObjectType");
+    }
+
+    [Fact]
+    public void Validate_NullModels_ThrowArgumentNullException()
+    {
+        // Act
+        var validateEds = () => CanOpenModelValidator.Validate((ElectronicDataSheet)null!);
+        var validateDcf = () => CanOpenModelValidator.Validate((DeviceConfigurationFile)null!);
+
+        // Assert
+        validateEds.Should().Throw<ArgumentNullException>();
+        validateDcf.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Validate_DeviceInfoConstraints_ReturnIssues()
+    {
+        // Arrange
+        var dcf = CreateValidDcf();
+        dcf.DeviceInfo.OrderCode = new string('O', 246);
+        dcf.DeviceInfo.ProductName = new string('P', 244);
+        dcf.DeviceInfo.Granularity = 65;
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        // Assert
+        issues.Should().Contain(i => i.Path == "DeviceInfo.OrderCode");
+        issues.Should().Contain(i => i.Path == "DeviceInfo.ProductName");
+        issues.Should().Contain(i => i.Path == "DeviceInfo.Granularity");
+    }
+
+    [Fact]
+    public void Validate_ObjectClassificationAndSubObjectConstraints_ReturnIssues()
+    {
+        // Arrange
+        var dcf = CreateValidDcf();
+        dcf.ObjectDictionary.OptionalObjects.Add(0x1000); // duplicate across lists
+        dcf.ObjectDictionary.Objects[0x2000] = new CanOpenObject // not in any list
+        {
+            Index = 0x2000,
+            ParameterName = "Unclassified",
+            ObjectType = 0x7
+        };
+        dcf.ObjectDictionary.Objects[0x1000].SubObjects[0x01] = new CanOpenSubObject
+        {
+            SubIndex = 0x01,
+            ParameterName = new string('S', 242)
+        };
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        // Assert
+        issues.Should().Contain(i => i.Path == "ObjectDictionary.OptionalObjects");
+        issues.Should().Contain(i => i.Path == "ObjectDictionary.Objects[0x2000]");
+        issues.Should().Contain(i =>
+            i.Path == "ObjectDictionary.Objects[0x1000].SubObjects[0x01].ParameterName");
+    }
+
+    [Fact]
+    public void Validate_FacadeAndValidationIssue_ToStringAreCovered()
+    {
+        // Arrange
+        var dcf = CreateValidDcf();
+        dcf.DeviceCommissioning.Baudrate = 777;
+
+        // Act
+        var issues = CanOpenFile.Validate(dcf);
+
+        // Assert
+        issues.Should().NotBeEmpty();
+        issues[0].ToString().Should().Contain(":");
+    }
+
+    [Fact]
+    public void WriteXdcToString_WithValidDcf_ReturnsXml()
+    {
+        // Arrange
+        var dcf = CreateValidDcf();
+
+        // Act
+        var xdc = CanOpenFile.WriteXdcToString(dcf);
+
+        // Assert
+        xdc.Should().Contain("ISO15745ProfileContainer");
+    }
+
+    [Fact]
+    public void ElectronicDataSheet_ApplicationProcessProperty_CanBeAssigned()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet();
+        var process = new ApplicationProcess();
+
+        // Act
+        eds.ApplicationProcess = process;
+
+        // Assert
+        eds.ApplicationProcess.Should().BeSameAs(process);
+    }
+
     private static DeviceConfigurationFile CreateValidDcf()
     {
         var dcf = new DeviceConfigurationFile
