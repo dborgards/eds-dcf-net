@@ -10,7 +10,8 @@ using EdsDcfNet.Parsers;
 public class SecureXmlParserTests
 {
     private static readonly Type SecureXmlParserType =
-        typeof(XddReader).Assembly.GetType("EdsDcfNet.Parsers.SecureXmlParser")!;
+        typeof(XddReader).Assembly.GetType("EdsDcfNet.Parsers.SecureXmlParser")
+        ?? throw new InvalidOperationException("Internal type EdsDcfNet.Parsers.SecureXmlParser not found.");
 
     [Fact]
     public void ReadContentFromStreamWithLimit_ValidStream_ReturnsContent()

@@ -27,7 +27,7 @@ public class DcfReader : CanOpenReaderBase
     /// Reads a DCF file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public DeviceConfigurationFile ReadFile(
         string filePath,
@@ -66,7 +66,7 @@ public class DcfReader : CanOpenReaderBase
     /// Reads a DCF file from the specified path asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public async Task<DeviceConfigurationFile> ReadFileAsync(

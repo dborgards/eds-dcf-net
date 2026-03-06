@@ -16,7 +16,7 @@ public class CpjReader
     /// Reads a CPJ file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the CPJ file</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <returns>Parsed NodelistProject object</returns>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public NodelistProject ReadFile(
@@ -58,7 +58,7 @@ public class CpjReader
     /// Reads a CPJ file from the specified path asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the CPJ file</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed NodelistProject object</returns>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]

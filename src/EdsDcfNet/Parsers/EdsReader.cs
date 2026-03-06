@@ -21,7 +21,7 @@ public class EdsReader : CanOpenReaderBase
     /// Reads an EDS file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the EDS file</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public ElectronicDataSheet ReadFile(
         string filePath,
@@ -64,7 +64,7 @@ public class EdsReader : CanOpenReaderBase
     /// Reads an EDS file from the specified path asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the EDS file</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public async Task<ElectronicDataSheet> ReadFileAsync(

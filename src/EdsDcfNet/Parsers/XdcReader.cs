@@ -17,7 +17,7 @@ public class XdcReader
     /// Reads an XDC file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     /// <exception cref="FileNotFoundException">Thrown when the file does not exist</exception>
     /// <exception cref="EdsParseException">Thrown when the XDC content is invalid</exception>
@@ -65,7 +65,7 @@ public class XdcReader
     /// Reads an XDC file from the specified path asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     /// <exception cref="FileNotFoundException">Thrown when the file does not exist</exception>
