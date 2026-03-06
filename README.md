@@ -168,10 +168,11 @@ if (issues.Count > 0)
 }
 ```
 
-`CanOpenFile.Validate(...)` is the recommended entry point and returns
-path-based `ValidationIssue` entries. Current checks include:
+`CanOpenFile.Validate(...)` is the recommended entry point and routes to the
+full model validator, returning path-based `ValidationIssue` entries.
+Current checks include:
 
-- commissioning constraints (Node-ID range, standard baud rates, key string limits)
+- commissioning constraints (Node-ID/baudrate ranges, with `0` accepted as "unconfigured", key string limits)
 - device info constraints (name/order-code length, granularity limit)
 - object dictionary consistency (list membership, duplicates, missing entries)
 - object-level constraints (object type validity, parameter-name length, SubNumber mismatch)

@@ -617,7 +617,8 @@ public static class CanOpenFile
     }
 
     /// <summary>
-    /// Validates an Electronic Data Sheet (EDS) model.
+    /// Validates an Electronic Data Sheet (EDS) model using the full
+    /// <see cref="CanOpenModelValidator"/> rule set.
     /// </summary>
     /// <param name="eds">Model instance to validate</param>
     /// <returns>List of validation issues. Empty when model is valid.</returns>
@@ -627,9 +628,14 @@ public static class CanOpenFile
     }
 
     /// <summary>
-    /// Validates a Device Configuration File (DCF) model.
+    /// Validates a Device Configuration File (DCF) model using the full
+    /// <see cref="CanOpenModelValidator"/> rule set.
     /// </summary>
     /// <param name="dcf">Model instance to validate</param>
+    /// <remarks>
+    /// For commissioning values, <c>NodeId == 0</c> and <c>Baudrate == 0</c>
+    /// are treated as "unconfigured" and are accepted by validation.
+    /// </remarks>
     /// <returns>List of validation issues. Empty when model is valid.</returns>
     public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
     {
