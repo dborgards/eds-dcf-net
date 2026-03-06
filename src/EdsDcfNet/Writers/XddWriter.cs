@@ -1239,11 +1239,7 @@ public class XddWriter
 
     private static void ThrowIfNull(object? value, string parameterName)
     {
-#if NET10_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(value, parameterName);
-#else
         if (value == null)
             throw new ArgumentNullException(parameterName);
-#endif
     }
 }
