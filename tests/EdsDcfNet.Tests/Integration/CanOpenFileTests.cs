@@ -4,6 +4,7 @@ using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
+using EdsDcfNet.Validation;
 using FluentAssertions;
 using Xunit;
 
@@ -1434,6 +1435,39 @@ PDOMapping=0
 
         var issues = CanOpenFile.Validate(dcf);
 
+        issues.Should().Contain(i => i.Path == "DeviceCommissioning.Baudrate");
+    }
+
+    [Fact]
+    public void Validate_DcfModel_FacadeOverload_IsInvokableViaReflection()
+    {
+        var method = typeof(CanOpenFile).GetMethod(
+            nameof(CanOpenFile.Validate),
+            new[] { typeof(DeviceConfigurationFile) });
+        method.Should().NotBeNull();
+
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning
+            {
+                NodeId = 5,
+                Baudrate = 42
+            }
+        };
+        dcf.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        dcf.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly
+        };
+
+        var result = method!.Invoke(null, new object[] { dcf });
+        result.Should().BeAssignableTo<IReadOnlyList<ValidationIssue>>();
+
+        var issues = (IReadOnlyList<ValidationIssue>)result!;
         issues.Should().Contain(i => i.Path == "DeviceCommissioning.Baudrate");
     }
 
