@@ -146,6 +146,134 @@ public class XddWriterTests
         }
     }
 
+    [Fact]
+    public void WriteStream_RoundTripsAndLeavesStreamOpen()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream();
+
+        _writer.WriteStream(eds, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = new EdsDcfNet.Parsers.XddReader().ReadStream(stream);
+
+        parsed.DeviceInfo.ProductName.Should().Be("Test Product");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_RoundTripsAndLeavesStreamOpen()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream();
+
+        await _writer.WriteStreamAsync(eds, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = await new EdsDcfNet.Parsers.XddReader().ReadStreamAsync(stream);
+
+        parsed.DeviceInfo.ProductName.Should().Be("Test Product");
+    }
+
+    [Fact]
+    public void WriteStream_UnwritableStream_ThrowsArgumentException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsArgumentException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
+    }
+
+    [Fact]
+    public void WriteStream_NullStream_ThrowsArgumentNullException()
+    {
+        var eds = CreateSampleEds();
+
+        var act = () => _writer.WriteStream(eds, null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public void WriteStream_GenerationThrowsXddWriteException_Rethrows()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        var ex = act.Should().Throw<XddWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceProfile");
+    }
+
+    [Fact]
+    public void WriteStream_StreamWriteThrows_WrapsInXddWriteException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        var ex = act.Should().Throw<XddWriteException>().Which;
+        ex.Message.Should().Contain("Failed to write XDD content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_GenerationThrowsXddWriteException_Rethrows()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        var ex = (await act.Should().ThrowAsync<XddWriteException>()).Which;
+        ex.SectionName.Should().Be("DeviceProfile");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_StreamWriteThrows_WrapsInXddWriteException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        var ex = (await act.Should().ThrowAsync<XddWriteException>()).Which;
+        ex.Message.Should().Contain("Failed to write XDD content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
     #endregion
 
     #region GenerateString Tests

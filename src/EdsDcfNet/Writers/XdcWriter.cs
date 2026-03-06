@@ -37,6 +37,32 @@ public class XdcWriter : XddWriter
     }
 
     /// <summary>
+    /// Writes a DeviceConfigurationFile as XDC content to the specified stream.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public void WriteStream(DeviceConfigurationFile dcf, Stream stream)
+    {
+        ThrowIfNull(stream, nameof(stream));
+        if (!stream.CanWrite)
+            throw new ArgumentException("Stream must be writable.", nameof(stream));
+
+        try
+        {
+            var content = GenerateString(dcf);
+            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
+        }
+        catch (XdcWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XdcWriteException("Failed to write XDC content to stream.", ex);
+        }
+    }
+
+    /// <summary>
     /// Writes a DeviceConfigurationFile as an XDC file to the specified path asynchronously.
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
@@ -64,6 +90,41 @@ public class XdcWriter : XddWriter
         catch (Exception ex)
         {
             throw new XdcWriteException($"Failed to write XDC file to {filePath}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Writes a DeviceConfigurationFile as an XDC stream asynchronously.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public async Task WriteStreamAsync(
+        DeviceConfigurationFile dcf,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfNull(stream, nameof(stream));
+        if (!stream.CanWrite)
+            throw new ArgumentException("Stream must be writable.", nameof(stream));
+
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = GenerateString(dcf);
+            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (XdcWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XdcWriteException("Failed to write XDC content to stream.", ex);
         }
     }
 
@@ -190,5 +251,11 @@ public class XdcWriter : XddWriter
             eds.AdditionalSections[kvp.Key] = kvp.Value;
 
         return eds;
+    }
+
+    private static void ThrowIfNull(object? value, string parameterName)
+    {
+        if (value == null)
+            throw new ArgumentNullException(parameterName);
     }
 }

@@ -36,6 +36,33 @@ public class CpjWriter
     }
 
     /// <summary>
+    /// Writes a CPJ to the specified stream.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public void WriteStream(NodelistProject cpj, Stream stream)
+    {
+        ThrowIfNull(stream, nameof(stream));
+        if (!stream.CanWrite)
+            throw new ArgumentException("Stream must be writable.", nameof(stream));
+
+        try
+        {
+            var content = GenerateCpjContent(cpj);
+            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
+        }
+        catch (CpjWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new CpjWriteException("Failed to write CPJ content to stream.", ex);
+        }
+    }
+
+    /// <summary>
     /// Writes a CPJ to the specified file path asynchronously.
     /// </summary>
     /// <param name="cpj">The NodelistProject to write</param>
@@ -64,6 +91,42 @@ public class CpjWriter
         catch (Exception ex)
         {
             throw new CpjWriteException($"Failed to write CPJ file to {filePath}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Writes a CPJ to the specified stream asynchronously.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public async Task WriteStreamAsync(
+        NodelistProject cpj,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfNull(stream, nameof(stream));
+        if (!stream.CanWrite)
+            throw new ArgumentException("Stream must be writable.", nameof(stream));
+
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = GenerateCpjContent(cpj);
+            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (CpjWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new CpjWriteException("Failed to write CPJ content to stream.", ex);
         }
     }
 
@@ -175,5 +238,11 @@ public class CpjWriter
                 SectionName = sectionName
             };
         }
+    }
+
+    private static void ThrowIfNull(object? value, string parameterName)
+    {
+        if (value == null)
+            throw new ArgumentNullException(parameterName);
     }
 }

@@ -362,6 +362,158 @@ EDSBaseName=/eds/
     }
 
     [Fact]
+    public void WriteStream_RoundTripsAndLeavesStreamOpen()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology
+        {
+            NetName = "Stream Net",
+            Nodes =
+            {
+                [2] = new NetworkNode { NodeId = 2, Present = true, Name = "Drive" }
+            }
+        });
+
+        using var stream = new MemoryStream();
+        _writer.WriteStream(project, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+
+        var parsed = _reader.ReadStream(stream);
+        parsed.Networks.Should().ContainSingle();
+        parsed.Networks[0].NetName.Should().Be("Stream Net");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_RoundTripsAndLeavesStreamOpen()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology
+        {
+            NetName = "Stream Net",
+            Nodes =
+            {
+                [2] = new NetworkNode { NodeId = 2, Present = true, Name = "Drive" }
+            }
+        });
+
+        using var stream = new MemoryStream();
+        await _writer.WriteStreamAsync(project, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+
+        var parsed = await _reader.ReadStreamAsync(stream);
+        parsed.Networks.Should().ContainSingle();
+        parsed.Networks[0].NetName.Should().Be("Stream Net");
+    }
+
+    [Fact]
+    public void WriteStream_UnwritableStream_ThrowsArgumentException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStream(project, stream);
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsArgumentException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStreamAsync(project, stream);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
+    }
+
+    [Fact]
+    public void WriteStream_NullStream_ThrowsArgumentNullException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+
+        var act = () => _writer.WriteStream(project, null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public void WriteStream_GenerationThrowsCpjWriteException_Rethrows()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(null!);
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStream(project, stream);
+
+        var ex = act.Should().Throw<CpjWriteException>().Which;
+        ex.SectionName.Should().Be("Topology");
+    }
+
+    [Fact]
+    public void WriteStream_StreamWriteThrows_WrapsInCpjWriteException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStream(project, stream);
+
+        var ex = act.Should().Throw<CpjWriteException>().Which;
+        ex.Message.Should().Contain("Failed to write CPJ content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        using var stream = new MemoryStream();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteStreamAsync(project, stream, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_GenerationThrowsCpjWriteException_Rethrows()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(null!);
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStreamAsync(project, stream);
+
+        var ex = (await act.Should().ThrowAsync<CpjWriteException>()).Which;
+        ex.SectionName.Should().Be("Topology");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_StreamWriteThrows_WrapsInCpjWriteException()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology());
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStreamAsync(project, stream);
+
+        var ex = (await act.Should().ThrowAsync<CpjWriteException>()).Which;
+        ex.Message.Should().Contain("Failed to write CPJ content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
     public void WriteFile_NonAsciiCharacters_PreservesCharacters()
     {
         // Arrange

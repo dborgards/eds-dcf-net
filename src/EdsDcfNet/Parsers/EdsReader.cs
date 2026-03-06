@@ -21,13 +21,31 @@ public class EdsReader : CanOpenReaderBase
     /// Reads an EDS file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the EDS file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public ElectronicDataSheet ReadFile(
         string filePath,
         long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var sections = ParseSectionsFromFile(filePath, maxInputSize);
+        return ParseEds(sections);
+    }
+
+    /// <summary>
+    /// Reads an EDS file from a stream.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content. The stream is not disposed by this method.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <remarks>
+    /// <paramref name="stream"/> must be readable.
+    /// The caller keeps ownership of <paramref name="stream"/> and is responsible for disposing it.
+    /// </remarks>
+    public ElectronicDataSheet ReadStream(
+        Stream stream,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
+    {
+        var sections = ParseSectionsFromStream(stream, maxInputSize);
         return ParseEds(sections);
     }
 
@@ -46,7 +64,7 @@ public class EdsReader : CanOpenReaderBase
     /// Reads an EDS file from the specified path asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the EDS file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public async Task<ElectronicDataSheet> ReadFileAsync(
@@ -59,10 +77,45 @@ public class EdsReader : CanOpenReaderBase
     }
 
     /// <summary>
+    /// Reads an EDS file from a stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content. The stream is not disposed by this method.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <remarks>
+    /// <paramref name="stream"/> must be readable.
+    /// The caller keeps ownership of <paramref name="stream"/> and is responsible for disposing it.
+    /// </remarks>
+    public Task<ElectronicDataSheet> ReadStreamAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+        => ReadStreamAsync(stream, IniParser.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads an EDS file from a stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content. The stream is not disposed by this method.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <remarks>
+    /// <paramref name="stream"/> must be readable.
+    /// The caller keeps ownership of <paramref name="stream"/> and is responsible for disposing it.
+    /// </remarks>
+    public async Task<ElectronicDataSheet> ReadStreamAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var sections = await ParseSectionsFromStreamAsync(stream, maxInputSize, cancellationToken).ConfigureAwait(false);
+        return ParseEds(sections);
+    }
+
+    /// <summary>
     /// Reads an EDS from a string.
     /// </summary>
     /// <param name="content">EDS file content as string</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public ElectronicDataSheet ReadString(
         string content,

@@ -145,13 +145,84 @@ public class TextFileIoTests
         }
     }
 
+    [Fact]
+    public void WriteAllText_WithNonWritableStream_ThrowsArgumentException()
+    {
+        // Arrange
+        using var stream = new ReadOnlyStream();
+
+        // Act
+        var act = () => InvokeWriteAllText(
+            stream,
+            "content",
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+            leaveOpen: true);
+
+        // Assert
+        act.Should().Throw<ArgumentException>().WithParameterName("stream");
+    }
+
+    [Fact]
+    public async Task WriteAllTextAsync_WithNonWritableStream_ThrowsArgumentException()
+    {
+        // Arrange
+        using var stream = new ReadOnlyStream();
+
+        // Act
+        var act = () => InvokeWriteAllTextAsync(
+            stream,
+            "content",
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+            leaveOpen: true,
+            cancellationToken: CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
+    }
+
+    [Fact]
+    public void WriteAllText_WithNullStream_ThrowsArgumentNullException()
+    {
+        // Act
+        var act = () => InvokeWriteAllText(
+            null!,
+            "content",
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+            leaveOpen: true);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>().WithParameterName("stream");
+    }
+
+    [Fact]
+    public async Task WriteAllTextAsync_WithNullStream_ThrowsArgumentNullException()
+    {
+        // Act
+        var act = () => InvokeWriteAllTextAsync(
+            null!,
+            "content",
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+            leaveOpen: true,
+            cancellationToken: CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentNullException>()
+            .Where(ex => ex.ParamName == "stream");
+    }
+
     private static Task<string> InvokeReadAllTextAsync(
         string filePath,
         Encoding encoding,
         bool detectEncodingFromByteOrderMarks,
         CancellationToken cancellationToken)
     {
-        var method = GetTextFileIoMethod("ReadAllTextAsync");
+        var method = GetTextFileIoMethod(
+            "ReadAllTextAsync",
+            typeof(string),
+            typeof(Encoding),
+            typeof(bool),
+            typeof(CancellationToken));
 
         try
         {
@@ -170,7 +241,12 @@ public class TextFileIoTests
         Encoding encoding,
         CancellationToken cancellationToken)
     {
-        var method = GetTextFileIoMethod("WriteAllTextAsync");
+        var method = GetTextFileIoMethod(
+            "WriteAllTextAsync",
+            typeof(string),
+            typeof(string),
+            typeof(Encoding),
+            typeof(CancellationToken));
 
         try
         {
@@ -183,14 +259,77 @@ public class TextFileIoTests
         }
     }
 
-    private static MethodInfo GetTextFileIoMethod(string name)
+    private static void InvokeWriteAllText(
+        Stream stream,
+        string content,
+        Encoding encoding,
+        bool leaveOpen)
+    {
+        var method = GetTextFileIoMethod(
+            "WriteAllText",
+            typeof(Stream),
+            typeof(string),
+            typeof(Encoding),
+            typeof(bool));
+
+        try
+        {
+            method.Invoke(null, [stream, content, encoding, leaveOpen]);
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException is not null)
+        {
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw;
+        }
+    }
+
+    private static Task InvokeWriteAllTextAsync(
+        Stream stream,
+        string content,
+        Encoding encoding,
+        bool leaveOpen,
+        CancellationToken cancellationToken)
+    {
+        var method = GetTextFileIoMethod(
+            "WriteAllTextAsync",
+            typeof(Stream),
+            typeof(string),
+            typeof(Encoding),
+            typeof(bool),
+            typeof(CancellationToken));
+
+        try
+        {
+            return (Task)method.Invoke(null, [stream, content, encoding, leaveOpen, cancellationToken])!;
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException is not null)
+        {
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw;
+        }
+    }
+
+    private static MethodInfo GetTextFileIoMethod(string name, params Type[] parameterTypes)
     {
         var textFileIoType = typeof(CanOpenFile).Assembly.GetType("EdsDcfNet.Utilities.TextFileIo");
         textFileIoType.Should().NotBeNull("TextFileIo must exist in the main assembly.");
 
-        var method = textFileIoType!.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static);
+        var method = textFileIoType!.GetMethod(
+            name,
+            BindingFlags.NonPublic | BindingFlags.Static,
+            binder: null,
+            types: parameterTypes,
+            modifiers: null);
         method.Should().NotBeNull($"TextFileIo.{name} should be available for reflection-based utility tests.");
 
         return method!;
+    }
+
+    private sealed class ReadOnlyStream : MemoryStream
+    {
+        public override bool CanWrite => false;
+
+        public override void Write(byte[] buffer, int offset, int count)
+            => throw new NotSupportedException();
     }
 }

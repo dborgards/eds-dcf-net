@@ -49,6 +49,25 @@ public abstract class CanOpenReaderBase
         => IniParser.ParseString(content, maxInputSize);
 
     /// <summary>
+    /// Parses INI sections from a stream.
+    /// </summary>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromStream().")]
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromStream(
+        Stream stream,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
+        => IniParser.ParseStream(stream, maxInputSize);
+
+    /// <summary>
+    /// Parses INI sections from a stream asynchronously.
+    /// </summary>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromStreamAsync().")]
+    protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromStreamAsync(
+        Stream stream,
+        long maxInputSize = IniParser.DefaultMaxInputSize,
+        CancellationToken cancellationToken = default)
+        => IniParser.ParseStreamAsync(stream, maxInputSize, cancellationToken);
+
+    /// <summary>
     /// Parses the <c>[FileInfo]</c> section into an <see cref="EdsFileInfo"/> object.
     /// Derived classes may override this to read additional format-specific fields.
     /// </summary>
