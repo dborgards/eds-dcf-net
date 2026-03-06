@@ -89,7 +89,7 @@ public static class IniParser
     /// <summary>
     /// Parses EDS/DCF content from a readable stream.
     /// </summary>
-    /// <param name="stream">Input stream containing INI content.</param>
+    /// <param name="stream">Input stream containing INI content. The stream remains open after parsing.</param>
     /// <param name="maxInputSize">
     /// Maximum decoded content length in characters before an <see cref="EdsParseException"/> is thrown.
     /// This limit applies to parsed text content, not raw byte length.
@@ -110,7 +110,7 @@ public static class IniParser
     /// <summary>
     /// Parses EDS/DCF content from a readable stream asynchronously.
     /// </summary>
-    /// <param name="stream">Input stream containing INI content.</param>
+    /// <param name="stream">Input stream containing INI content. The stream remains open after parsing.</param>
     /// <param name="maxInputSize">
     /// Maximum decoded content length in characters before an <see cref="EdsParseException"/> is thrown.
     /// This limit applies to parsed text content, not raw byte length.

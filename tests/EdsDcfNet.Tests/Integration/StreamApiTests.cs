@@ -175,7 +175,7 @@ public class StreamApiTests
     }
 
     [Fact]
-    public void WriteCpj_Stream_RoundTrips()
+    public void WriteCpj_Stream_RoundTripsAndLeavesStreamOpen()
     {
         var cpjContent = CanOpenFile.WriteCpjToString(CanOpenFile.ReadCpjFromString("[Topology]\nNetName=TestNet\nNodes=0\n"));
         var cpj = CanOpenFile.ReadCpjFromString(cpjContent);
@@ -188,5 +188,6 @@ public class StreamApiTests
         var parsed = CanOpenFile.ReadCpj(stream);
         parsed.Networks.Should().ContainSingle();
         parsed.Networks[0].NetName.Should().Be("TestNet");
+        stream.CanRead.Should().BeTrue();
     }
 }

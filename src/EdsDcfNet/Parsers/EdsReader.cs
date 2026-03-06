@@ -38,6 +38,7 @@ public class EdsReader : CanOpenReaderBase
     /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     /// <remarks>
+    /// <paramref name="stream"/> must be readable.
     /// The caller keeps ownership of <paramref name="stream"/> and is responsible for disposing it.
     /// </remarks>
     public ElectronicDataSheet ReadStream(
@@ -82,6 +83,7 @@ public class EdsReader : CanOpenReaderBase
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     /// <remarks>
+    /// <paramref name="stream"/> must be readable.
     /// The caller keeps ownership of <paramref name="stream"/> and is responsible for disposing it.
     /// </remarks>
     public Task<ElectronicDataSheet> ReadStreamAsync(
@@ -97,6 +99,7 @@ public class EdsReader : CanOpenReaderBase
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     /// <remarks>
+    /// <paramref name="stream"/> must be readable.
     /// The caller keeps ownership of <paramref name="stream"/> and is responsible for disposing it.
     /// </remarks>
     public async Task<ElectronicDataSheet> ReadStreamAsync(
