@@ -23,7 +23,7 @@ public class CanOpenModelValidatorTests
     {
         // Arrange
         var dcf = CreateValidDcf();
-        dcf.DeviceCommissioning.NodeId = 0;
+        dcf.DeviceCommissioning.NodeId = 255;
         dcf.DeviceCommissioning.Baudrate = 42;
         dcf.DeviceCommissioning.NodeName = new string('N', 247);
 
@@ -71,13 +71,27 @@ public class CanOpenModelValidatorTests
     {
         // Arrange
         var dcf = CreateValidDcf();
-        dcf.DeviceCommissioning.NodeId = 0;
+        dcf.DeviceCommissioning.NodeId = 255;
 
         // Act
         var issues = dcf.Validate();
 
         // Assert
         issues.Should().Contain(i => i.Path == "DeviceCommissioning.NodeId");
+    }
+
+    [Fact]
+    public void Validate_NodeIdZero_IsAcceptedAsUnconfigured()
+    {
+        // Arrange
+        var dcf = CreateValidDcf();
+        dcf.DeviceCommissioning.NodeId = 0;
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        // Assert
+        issues.Should().NotContain(i => i.Path == "DeviceCommissioning.NodeId");
     }
 
     [Fact]
