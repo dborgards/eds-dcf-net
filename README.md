@@ -188,7 +188,7 @@ if (issues.Count > 0)
 full model validator, returning path-based `ValidationIssue` entries.
 Current checks include:
 
-- commissioning constraints (Node-ID/baudrate ranges, with `0` accepted as "unconfigured", key string limits)
+- commissioning constraints (Node-ID range `1..127`, baudrate range with `0` accepted as "unconfigured", key string limits)
 - device info constraints (name/order-code length, granularity limit)
 - object dictionary consistency (list membership, duplicates, missing entries)
 - object-level constraints (object type validity, parameter-name length, SubNumber mismatch)

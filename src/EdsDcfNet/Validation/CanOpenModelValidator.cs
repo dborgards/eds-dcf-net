@@ -60,14 +60,13 @@ public static class CanOpenModelValidator
         DeviceCommissioning commissioning,
         List<ValidationIssue> issues)
     {
-        // 0 is treated as "not configured yet" and accepted by writers/parsers.
-        if (commissioning.NodeId > 127)
+        if (commissioning.NodeId < 1 || commissioning.NodeId > 127)
         {
             issues.Add(new ValidationIssue(
                 "DeviceCommissioning.NodeId",
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "Node-ID {0} is outside the CANopen range 1..127 (or 0 for unconfigured).",
+                    "Node-ID {0} is outside the CANopen range 1..127.",
                     commissioning.NodeId)));
         }
 

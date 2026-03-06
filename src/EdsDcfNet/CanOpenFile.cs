@@ -30,8 +30,8 @@ public static class CanOpenFile
     /// </summary>
     /// <param name="dcf">Model instance to validate</param>
     /// <remarks>
-    /// For commissioning values, <c>NodeId == 0</c> and <c>Baudrate == 0</c>
-    /// are treated as "unconfigured" and are accepted by validation.
+    /// For commissioning values, <c>NodeId</c> must be in range <c>1..127</c>.
+    /// <c>Baudrate == 0</c> is treated as "unconfigured" and accepted by validation.
     /// </remarks>
     /// <returns>List of validation issues. Empty when model is valid.</returns>
     public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
