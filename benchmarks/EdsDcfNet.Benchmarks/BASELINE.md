@@ -21,3 +21,11 @@ The following scenarios are marked as `Baseline = true` in the benchmark classes
 
 Core covered scenarios include EDS/DCF/CPJ parse, write, and round-trip operations.
 
+## Baseline tracking table
+
+Record each baseline capture with commit and environment metadata:
+
+| Date (UTC) | Commit | OS / Runtime | ParserBenchmarks.EdsParseFromString | WriterBenchmarks.EdsWriteToString | RoundTripBenchmarks.EdsRoundTrip |
+| --- | --- | --- | --- | --- | --- |
+| 2026-03-06 | d74b4a6 | Linux (CI), .NET 10.0 | _pending first capture_ | _pending first capture_ | _pending first capture_ |
+

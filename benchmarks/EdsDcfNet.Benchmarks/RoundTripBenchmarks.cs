@@ -13,9 +13,9 @@ public class RoundTripBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _edsContent = File.ReadAllText("Fixtures/sample_device.eds");
-        _dcfContent = File.ReadAllText("Fixtures/minimal.dcf");
-        _cpjContent = File.ReadAllText("Fixtures/minimal.cpj");
+        _edsContent = File.ReadAllText(GetFixturePath("sample_device.eds"));
+        _dcfContent = File.ReadAllText(GetFixturePath("minimal.dcf"));
+        _cpjContent = File.ReadAllText(GetFixturePath("minimal.cpj"));
     }
 
     [Benchmark(Baseline = true, Description = "EDS round-trip (parse + write)")]
@@ -44,5 +44,10 @@ public class RoundTripBenchmarks
     {
         var eds = CanOpenFile.ReadEdsFromString(_edsContent);
         return CanOpenFile.EdsToDcf(eds, nodeId: 1, baudrate: 250);
+    }
+
+    private static string GetFixturePath(string fileName)
+    {
+        return Path.Combine(AppContext.BaseDirectory, "Fixtures", fileName);
     }
 }

@@ -14,10 +14,10 @@ public class ParserBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _edsContent = File.ReadAllText("Fixtures/sample_device.eds");
-        _dcfContent = File.ReadAllText("Fixtures/minimal.dcf");
-        _cpjContent = File.ReadAllText("Fixtures/minimal.cpj");
-        _xddContent = File.ReadAllText("Fixtures/sample_device.xdd");
+        _edsContent = File.ReadAllText(GetFixturePath("sample_device.eds"));
+        _dcfContent = File.ReadAllText(GetFixturePath("minimal.dcf"));
+        _cpjContent = File.ReadAllText(GetFixturePath("minimal.cpj"));
+        _xddContent = File.ReadAllText(GetFixturePath("sample_device.xdd"));
     }
 
     [Benchmark(Baseline = true, Description = "EDS parse (string)")]
@@ -31,4 +31,9 @@ public class ParserBenchmarks
 
     [Benchmark(Description = "XDD parse (string)")]
     public object XddParseFromString() => CanOpenFile.ReadXddFromString(_xddContent);
+
+    private static string GetFixturePath(string fileName)
+    {
+        return Path.Combine(AppContext.BaseDirectory, "Fixtures", fileName);
+    }
 }

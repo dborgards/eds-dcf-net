@@ -14,9 +14,9 @@ public class WriterBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _eds = CanOpenFile.ReadEds("Fixtures/sample_device.eds");
-        _dcf = CanOpenFile.ReadDcf("Fixtures/minimal.dcf");
-        _cpj = CanOpenFile.ReadCpj("Fixtures/minimal.cpj");
+        _eds = CanOpenFile.ReadEds(GetFixturePath("sample_device.eds"));
+        _dcf = CanOpenFile.ReadDcf(GetFixturePath("minimal.dcf"));
+        _cpj = CanOpenFile.ReadCpj(GetFixturePath("minimal.cpj"));
     }
 
     [Benchmark(Baseline = true, Description = "EDS write (string)")]
@@ -30,4 +30,9 @@ public class WriterBenchmarks
 
     [Benchmark(Description = "XDD write (string)")]
     public string XddWriteToString() => CanOpenFile.WriteXddToString(_eds);
+
+    private static string GetFixturePath(string fileName)
+    {
+        return Path.Combine(AppContext.BaseDirectory, "Fixtures", fileName);
+    }
 }
