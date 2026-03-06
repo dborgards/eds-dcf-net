@@ -20,6 +20,7 @@ public static class CanOpenModelValidator
     private const int MaxVendorNameLength = 244;
     private const int MaxProductNameLength = 243;
     private const int MaxOrderCodeLength = 245;
+    private const int MaxReferenceNameLength = 249;
     private const byte MaxGranularity = 64;
 
     /// <summary>
@@ -89,8 +90,8 @@ public static class CanOpenModelValidator
 
         ValidateMaxLength(commissioning.NodeName, MaxNodeNameLength, "DeviceCommissioning.NodeName", issues);
         ValidateMaxLength(commissioning.NetworkName, MaxNetworkNameLength, "DeviceCommissioning.NetworkName", issues);
-        ValidateMaxLength(commissioning.NodeRefd, 249, "DeviceCommissioning.NodeRefd", issues);
-        ValidateMaxLength(commissioning.NetRefd, 249, "DeviceCommissioning.NetRefd", issues);
+        ValidateMaxLength(commissioning.NodeRefd, MaxReferenceNameLength, "DeviceCommissioning.NodeRefd", issues);
+        ValidateMaxLength(commissioning.NetRefd, MaxReferenceNameLength, "DeviceCommissioning.NetRefd", issues);
     }
 
     private static void ValidateDeviceInfo(

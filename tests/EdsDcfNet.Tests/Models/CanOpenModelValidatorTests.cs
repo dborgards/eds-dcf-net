@@ -37,6 +37,22 @@ public class CanOpenModelValidatorTests
     }
 
     [Fact]
+    public void Validate_NodeAndNetworkReferences_EnforceMaxLength()
+    {
+        // Arrange
+        var dcf = CreateValidDcf();
+        dcf.DeviceCommissioning.NodeRefd = new string('R', 250);
+        dcf.DeviceCommissioning.NetRefd = new string('R', 250);
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        // Assert
+        issues.Should().Contain(i => i.Path == "DeviceCommissioning.NodeRefd");
+        issues.Should().Contain(i => i.Path == "DeviceCommissioning.NetRefd");
+    }
+
+    [Fact]
     public void Validate_BaudrateZero_IsAcceptedAsUnconfigured()
     {
         // Arrange
