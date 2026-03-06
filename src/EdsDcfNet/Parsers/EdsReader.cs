@@ -37,6 +37,9 @@ public class EdsReader : CanOpenReaderBase
     /// <param name="stream">Readable stream containing EDS content. The stream is not disposed by this method.</param>
     /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <remarks>
+    /// The caller keeps ownership of <paramref name="stream"/> and is responsible for disposing it.
+    /// </remarks>
     public ElectronicDataSheet ReadStream(
         Stream stream,
         long maxInputSize = IniParser.DefaultMaxInputSize)
@@ -78,6 +81,9 @@ public class EdsReader : CanOpenReaderBase
     /// <param name="stream">Readable stream containing EDS content. The stream is not disposed by this method.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <remarks>
+    /// The caller keeps ownership of <paramref name="stream"/> and is responsible for disposing it.
+    /// </remarks>
     public Task<ElectronicDataSheet> ReadStreamAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
@@ -90,6 +96,9 @@ public class EdsReader : CanOpenReaderBase
     /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <remarks>
+    /// The caller keeps ownership of <paramref name="stream"/> and is responsible for disposing it.
+    /// </remarks>
     public async Task<ElectronicDataSheet> ReadStreamAsync(
         Stream stream,
         long maxInputSize,

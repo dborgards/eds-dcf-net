@@ -91,7 +91,8 @@ public static class IniParser
     /// </summary>
     /// <param name="stream">Input stream containing INI content.</param>
     /// <param name="maxInputSize">
-    /// Maximum content length in characters before an <see cref="EdsParseException"/> is thrown.
+    /// Maximum decoded content length in characters before an <see cref="EdsParseException"/> is thrown.
+    /// This limit applies to parsed text content, not raw byte length.
     /// Defaults to <see cref="DefaultMaxInputSize"/> (10 MB).
     /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
@@ -111,7 +112,8 @@ public static class IniParser
     /// </summary>
     /// <param name="stream">Input stream containing INI content.</param>
     /// <param name="maxInputSize">
-    /// Maximum content length in characters before an <see cref="EdsParseException"/> is thrown.
+    /// Maximum decoded content length in characters before an <see cref="EdsParseException"/> is thrown.
+    /// This limit applies to parsed text content, not raw byte length.
     /// Defaults to <see cref="DefaultMaxInputSize"/> (10 MB).
     /// </param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
