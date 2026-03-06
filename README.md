@@ -357,6 +357,22 @@ the exception contains a `SectionName` value (for example `DeviceInfo`,
 
 Complete examples can be found in the `examples/EdsDcfNet.Examples` project.
 
+## Performance Benchmarks
+
+A dedicated BenchmarkDotNet project is available at:
+
+- `benchmarks/EdsDcfNet.Benchmarks`
+
+Run all benchmarks:
+
+```bash
+dotnet run -c Release -p benchmarks/EdsDcfNet.Benchmarks -- --filter "*"
+```
+
+Baseline scenario definitions and artifact locations are documented in:
+
+- `benchmarks/EdsDcfNet.Benchmarks/BASELINE.md`
+
 ## Project Structure
 
 ```
@@ -369,6 +385,8 @@ eds-dcf-net/
 │       ├── Utilities/          # Helper classes
 │       ├── Exceptions/         # Custom exceptions
 │       └── Extensions/         # Extension methods
+├── benchmarks/
+│   └── EdsDcfNet.Benchmarks/   # BenchmarkDotNet throughput/memory benchmarks
 ├── examples/
 │   └── EdsDcfNet.Examples/     # Example application
 └── docs/

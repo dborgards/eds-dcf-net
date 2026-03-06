@@ -1,0 +1,59 @@
+[FileInfo]
+FileName=minimal.dcf
+FileVersion=1
+FileRevision=0
+EDSVersion=4.0
+Description=Minimal DCF for testing
+
+[DeviceInfo]
+VendorName=Test Vendor
+VendorNumber=0x00000100
+ProductName=Test Product
+ProductNumber=0x00001001
+RevisionNumber=0x00010000
+OrderCode=TEST-001
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=0
+NrOfTXPDO=0
+LSS_Supported=0
+
+[DeviceCommissioning]
+NodeID=5
+NodeName=TestNode
+Baudrate=500
+NetNumber=1
+NetworkName=TestNetwork
+CANopenManager=0
+
+[MandatoryObjects]
+SupportedObjects=2
+1=0x1000
+2=0x1001
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x00000191
+PDOMapping=0
+
+[1001]
+ParameterName=Error Register
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
