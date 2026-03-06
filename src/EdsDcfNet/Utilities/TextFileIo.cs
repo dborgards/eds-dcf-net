@@ -81,52 +81,6 @@ internal static class TextFileIo
         cancellationToken.ThrowIfCancellationRequested();
     }
 
-    internal static string ReadAllText(
-        Stream stream,
-        Encoding encoding,
-        bool detectEncodingFromByteOrderMarks = true,
-        bool leaveOpen = true)
-    {
-        ThrowIfNull(stream, nameof(stream));
-        if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
-
-        using var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks, bufferSize: 4096, leaveOpen: leaveOpen);
-        return reader.ReadToEnd();
-    }
-
-    internal static async Task<string> ReadAllTextAsync(
-        Stream stream,
-        Encoding encoding,
-        bool detectEncodingFromByteOrderMarks = true,
-        bool leaveOpen = true,
-        CancellationToken cancellationToken = default)
-    {
-        ThrowIfNull(stream, nameof(stream));
-        if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
-
-        cancellationToken.ThrowIfCancellationRequested();
-        using var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks, bufferSize: 4096, leaveOpen: leaveOpen);
-
-#if NET10_0_OR_GREATER
-        var content = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-#else
-        var builder = new StringBuilder();
-        var buffer = new char[4096];
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
-            if (charsRead == 0)
-                break;
-
-            builder.Append(buffer, 0, charsRead);
-        }
-        var content = builder.ToString();
-#endif
-        cancellationToken.ThrowIfCancellationRequested();
-        return content;
-    }
-
     internal static void WriteAllText(
         Stream stream,
         string content,
