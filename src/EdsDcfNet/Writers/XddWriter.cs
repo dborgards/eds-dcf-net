@@ -44,8 +44,7 @@ public class XddWriter
     [ExcludeFromCodeCoverage]
     public void WriteStream(ElectronicDataSheet eds, Stream stream)
     {
-        if (stream == null)
-            throw new ArgumentNullException(nameof(stream));
+        ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
@@ -107,8 +106,7 @@ public class XddWriter
         Stream stream,
         CancellationToken cancellationToken = default)
     {
-        if (stream == null)
-            throw new ArgumentNullException(nameof(stream));
+        ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
@@ -1239,5 +1237,15 @@ public class XddWriter
             _sb.Append(buffer, index, count);
 
         public override string ToString() => _sb.ToString();
+    }
+
+    private static void ThrowIfNull(object? value, string parameterName)
+    {
+#if NET10_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(value, parameterName);
+#else
+        if (value == null)
+            throw new ArgumentNullException(parameterName);
+#endif
     }
 }

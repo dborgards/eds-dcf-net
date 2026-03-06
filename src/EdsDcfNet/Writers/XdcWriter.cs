@@ -44,8 +44,7 @@ public class XdcWriter : XddWriter
     [ExcludeFromCodeCoverage]
     public void WriteStream(DeviceConfigurationFile dcf, Stream stream)
     {
-        if (stream == null)
-            throw new ArgumentNullException(nameof(stream));
+        ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
@@ -107,8 +106,7 @@ public class XdcWriter : XddWriter
         Stream stream,
         CancellationToken cancellationToken = default)
     {
-        if (stream == null)
-            throw new ArgumentNullException(nameof(stream));
+        ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
@@ -255,5 +253,15 @@ public class XdcWriter : XddWriter
             eds.AdditionalSections[kvp.Key] = kvp.Value;
 
         return eds;
+    }
+
+    private static void ThrowIfNull(object? value, string parameterName)
+    {
+#if NET10_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(value, parameterName);
+#else
+        if (value == null)
+            throw new ArgumentNullException(parameterName);
+#endif
     }
 }
