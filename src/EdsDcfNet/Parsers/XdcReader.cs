@@ -44,7 +44,7 @@ public class XdcReader
         Stream stream,
         long maxInputSize = IniParser.DefaultMaxInputSize)
     {
-        var content = TextFileIo.ReadAllText(stream, Encoding.UTF8, leaveOpen: true);
+        var content = SecureXmlParser.ReadContentFromStreamWithLimit(stream, "XDC", maxInputSize);
         return ReadString(content, maxInputSize);
     }
 
@@ -111,11 +111,11 @@ public class XdcReader
         long maxInputSize,
         CancellationToken cancellationToken = default)
     {
-        var content = await TextFileIo.ReadAllTextAsync(
+        var content = await SecureXmlParser.ReadContentFromStreamWithLimitAsync(
             stream,
-            Encoding.UTF8,
-            leaveOpen: true,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+            "XDC",
+            maxInputSize,
+            cancellationToken).ConfigureAwait(false);
         return ReadString(content, maxInputSize);
     }
 

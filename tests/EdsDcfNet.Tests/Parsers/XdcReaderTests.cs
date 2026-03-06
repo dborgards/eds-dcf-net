@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Parsers;
 
+using System.Text;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
@@ -297,6 +298,26 @@ public class XdcReaderTests
         var act = () => _reader.ReadFile(path, maxInputSize: fileLength - 1);
 
         act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public void ReadStream_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdc));
+        var act = () => _reader.ReadStream(stream, maxInputSize: 128);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public async Task ReadStreamAsync_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdc));
+        var act = () => _reader.ReadStreamAsync(stream, maxInputSize: 128);
+
+        await act.Should().ThrowAsync<EdsParseException>()
             .WithMessage("*too large*");
     }
 
