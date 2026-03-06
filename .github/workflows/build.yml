@@ -125,6 +125,11 @@ jobs:
         override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
         fail_ci_if_error: true
 
+    - name: Wait for Codecov webhook
+      if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
+      shell: bash
+      run: sleep 90
+
     - name: Post codecov/patch status
       if: always()
       continue-on-error: true
