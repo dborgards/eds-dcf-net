@@ -1240,25 +1240,27 @@ public class DcfWriterTests
     }
 
     [Fact]
-    public void WriteStream_UnwritableStream_ThrowsDcfWriteException()
+    public void WriteStream_UnwritableStream_ThrowsArgumentException()
     {
         var dcf = CreateMinimalDcf();
         using var stream = new MemoryStream(new byte[16], writable: false);
 
         var act = () => _writer.WriteStream(dcf, stream);
 
-        act.Should().Throw<DcfWriteException>();
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("stream");
     }
 
     [Fact]
-    public async Task WriteStreamAsync_UnwritableStream_ThrowsDcfWriteException()
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsArgumentException()
     {
         var dcf = CreateMinimalDcf();
         using var stream = new MemoryStream(new byte[16], writable: false);
 
         var act = () => _writer.WriteStreamAsync(dcf, stream);
 
-        await act.Should().ThrowAsync<DcfWriteException>();
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
     }
 
     [Fact]

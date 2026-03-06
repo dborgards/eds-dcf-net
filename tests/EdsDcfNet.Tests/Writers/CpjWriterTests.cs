@@ -408,7 +408,7 @@ EDSBaseName=/eds/
     }
 
     [Fact]
-    public void WriteStream_UnwritableStream_ThrowsCpjWriteException()
+    public void WriteStream_UnwritableStream_ThrowsArgumentException()
     {
         var project = new NodelistProject();
         project.Networks.Add(new NetworkTopology());
@@ -416,12 +416,12 @@ EDSBaseName=/eds/
 
         var act = () => _writer.WriteStream(project, stream);
 
-        act.Should().Throw<CpjWriteException>()
-            .WithMessage("*stream*");
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("stream");
     }
 
     [Fact]
-    public async Task WriteStreamAsync_UnwritableStream_ThrowsCpjWriteException()
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsArgumentException()
     {
         var project = new NodelistProject();
         project.Networks.Add(new NetworkTopology());
@@ -429,7 +429,8 @@ EDSBaseName=/eds/
 
         var act = () => _writer.WriteStreamAsync(project, stream);
 
-        await act.Should().ThrowAsync<CpjWriteException>();
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
     }
 
     [Fact]

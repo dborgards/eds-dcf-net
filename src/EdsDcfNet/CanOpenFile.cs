@@ -53,7 +53,7 @@ public static class CanOpenFile
     /// Reads an Electronic Data Sheet (EDS) file.
     /// </summary>
     /// <param name="filePath">Path to the EDS file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     /// <example>
     /// <code>
@@ -87,7 +87,7 @@ public static class CanOpenFile
     /// Reads an Electronic Data Sheet (EDS) file asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the EDS file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static Task<ElectronicDataSheet> ReadEdsAsync(
@@ -113,7 +113,7 @@ public static class CanOpenFile
     /// Reads an Electronic Data Sheet (EDS) from a string.
     /// </summary>
     /// <param name="content">EDS file content as string</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadEdsFromString(
         string content,
@@ -139,7 +139,7 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing EDS content.</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadEds(
         Stream stream,
@@ -169,7 +169,7 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing EDS content.</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static Task<ElectronicDataSheet> ReadEdsAsync(
@@ -267,7 +267,7 @@ public static class CanOpenFile
     /// Reads a Device Configuration File (DCF).
     /// </summary>
     /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     /// <example>
     /// <code>
@@ -302,7 +302,7 @@ public static class CanOpenFile
     /// Reads a Device Configuration File (DCF) asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
@@ -328,7 +328,7 @@ public static class CanOpenFile
     /// Reads a Device Configuration File (DCF) from a string.
     /// </summary>
     /// <param name="content">DCF file content as string</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadDcfFromString(
         string content,
@@ -354,7 +354,7 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadDcf(
         Stream stream,
@@ -384,7 +384,7 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
@@ -483,7 +483,7 @@ public static class CanOpenFile
     /// Reads a CiA 306-3 nodelist project (.cpj) file.
     /// </summary>
     /// <param name="filePath">Path to the CPJ file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <returns>Parsed NodelistProject object</returns>
     public static NodelistProject ReadCpj(
         string filePath,
@@ -511,7 +511,7 @@ public static class CanOpenFile
     /// Reads a CiA 306-3 nodelist project (.cpj) file asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the CPJ file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed NodelistProject object</returns>
     public static Task<NodelistProject> ReadCpjAsync(
@@ -537,7 +537,7 @@ public static class CanOpenFile
     /// Reads a CiA 306-3 nodelist project (.cpj) from a string.
     /// </summary>
     /// <param name="content">CPJ file content as string</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
     /// <returns>Parsed NodelistProject object</returns>
     public static NodelistProject ReadCpjFromString(
         string content,
@@ -563,7 +563,7 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing CPJ content.</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <returns>Parsed NodelistProject object</returns>
     public static NodelistProject ReadCpj(
         Stream stream,
@@ -593,7 +593,7 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing CPJ content.</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed NodelistProject object</returns>
     public static Task<NodelistProject> ReadCpjAsync(
@@ -684,7 +684,7 @@ public static class CanOpenFile
     /// Reads a CiA 311 XDD (XML Device Description) file.
     /// </summary>
     /// <param name="filePath">Path to the XDD file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadXdd(
         string filePath,
@@ -712,7 +712,7 @@ public static class CanOpenFile
     /// Reads a CiA 311 XDD (XML Device Description) file asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the XDD file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static Task<ElectronicDataSheet> ReadXddAsync(
@@ -738,7 +738,7 @@ public static class CanOpenFile
     /// Reads a CiA 311 XDD (XML Device Description) from a string.
     /// </summary>
     /// <param name="content">XDD file content as string</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadXddFromString(
         string content,
@@ -764,7 +764,7 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing XDD content.</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadXdd(
         Stream stream,
@@ -794,7 +794,7 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing XDD content.</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static Task<ElectronicDataSheet> ReadXddAsync(
@@ -820,7 +820,7 @@ public static class CanOpenFile
     /// Reads a CiA 311 XDC (XML Device Configuration) file.
     /// </summary>
     /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadXdc(
         string filePath,
@@ -848,7 +848,7 @@ public static class CanOpenFile
     /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
     /// </summary>
     /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static Task<DeviceConfigurationFile> ReadXdcAsync(
@@ -874,7 +874,7 @@ public static class CanOpenFile
     /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
     /// </summary>
     /// <param name="content">XDC file content as string</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadXdcFromString(
         string content,
@@ -900,7 +900,7 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadXdc(
         Stream stream,
@@ -930,7 +930,7 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="maxInputSize">Maximum input size in bytes/characters for this operation.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static Task<DeviceConfigurationFile> ReadXdcAsync(

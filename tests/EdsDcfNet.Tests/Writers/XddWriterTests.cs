@@ -175,25 +175,27 @@ public class XddWriterTests
     }
 
     [Fact]
-    public void WriteStream_UnwritableStream_ThrowsXddWriteException()
+    public void WriteStream_UnwritableStream_ThrowsArgumentException()
     {
         var eds = CreateSampleEds();
         using var stream = new MemoryStream(new byte[16], writable: false);
 
         var act = () => _writer.WriteStream(eds, stream);
 
-        act.Should().Throw<XddWriteException>();
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("stream");
     }
 
     [Fact]
-    public async Task WriteStreamAsync_UnwritableStream_ThrowsXddWriteException()
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsArgumentException()
     {
         var eds = CreateSampleEds();
         using var stream = new MemoryStream(new byte[16], writable: false);
 
         var act = () => _writer.WriteStreamAsync(eds, stream);
 
-        await act.Should().ThrowAsync<XddWriteException>();
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
     }
 
     [Fact]

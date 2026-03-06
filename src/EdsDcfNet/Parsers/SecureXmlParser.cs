@@ -118,21 +118,6 @@ internal static class SecureXmlParser
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanRead)
             throw new ArgumentException("Stream must be readable.", nameof(stream));
-
-        if (!stream.CanSeek)
-            return;
-
-        var remainingLength = stream.Length - stream.Position;
-        if (remainingLength > maxInputSize)
-        {
-            throw new EdsParseException(
-                string.Format(
-                    CultureInfo.InvariantCulture,
-                    "{0} stream content is too large ({1:N0} bytes). Maximum supported size is {2:N0} bytes.",
-                    formatName,
-                    remainingLength,
-                    maxInputSize));
-        }
     }
 
     [ExcludeFromCodeCoverage]
