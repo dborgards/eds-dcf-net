@@ -205,15 +205,17 @@ public static class CanOpenModelValidator
                     obj.ObjectType)));
         }
 
+        var hasCompactSubObjects = obj.CompactSubObj.HasValue && obj.CompactSubObj.Value > 0;
         if (obj.SubNumber.HasValue &&
             obj.SubNumber.Value > 0 &&
-            obj.SubObjects.Count == 0)
+            obj.SubObjects.Count == 0 &&
+            !hasCompactSubObjects)
         {
             issues.Add(new ValidationIssue(
                 objectPath + ".SubNumber",
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "SubNumber is {0} but no sub-objects are defined.",
+                    "SubNumber is {0} but neither sub-objects nor CompactSubObj are defined.",
                     obj.SubNumber.Value)));
         }
 

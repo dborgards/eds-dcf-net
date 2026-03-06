@@ -127,6 +127,22 @@ public class CanOpenModelValidatorTests
         issues.Should().Contain(i => i.Path == "ObjectDictionary.Objects[0x1000].SubNumber");
     }
 
+    [Fact]
+    public void Validate_SubNumberWithCompactSubObj_DoesNotReturnIssue()
+    {
+        // Arrange
+        var dcf = CreateValidDcf();
+        dcf.ObjectDictionary.Objects[0x1000].SubNumber = 3;
+        dcf.ObjectDictionary.Objects[0x1000].SubObjects.Clear();
+        dcf.ObjectDictionary.Objects[0x1000].CompactSubObj = 3;
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        // Assert
+        issues.Should().NotContain(i => i.Path == "ObjectDictionary.Objects[0x1000].SubNumber");
+    }
+
     private static DeviceConfigurationFile CreateValidDcf()
     {
         var dcf = new DeviceConfigurationFile
