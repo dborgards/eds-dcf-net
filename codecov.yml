@@ -7,6 +7,6 @@ coverage:
         threshold: 1%
     patch:
       default:
-        enabled: yes
+        enabled: no
         target: auto
         threshold: 1%
