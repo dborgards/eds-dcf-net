@@ -99,7 +99,7 @@ public static class IniParser
         Stream stream,
         long maxInputSize = DefaultMaxInputSize)
     {
-        if (stream == null) throw new ArgumentNullException(nameof(stream));
+        ThrowIfNull(stream, nameof(stream));
         if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
 
         using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
@@ -121,7 +121,7 @@ public static class IniParser
         long maxInputSize = DefaultMaxInputSize,
         CancellationToken cancellationToken = default)
     {
-        if (stream == null) throw new ArgumentNullException(nameof(stream));
+        ThrowIfNull(stream, nameof(stream));
         if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
 
         using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
@@ -335,5 +335,15 @@ public static class IniParser
             : string.Empty;
 
         sections[currentSection][key] = value;
+    }
+
+    private static void ThrowIfNull(object? value, string parameterName)
+    {
+#if NET10_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(value, parameterName);
+#else
+        if (value == null)
+            throw new ArgumentNullException(parameterName);
+#endif
     }
 }

@@ -87,7 +87,7 @@ internal static class TextFileIo
         bool detectEncodingFromByteOrderMarks = true,
         bool leaveOpen = true)
     {
-        if (stream == null) throw new ArgumentNullException(nameof(stream));
+        ThrowIfNull(stream, nameof(stream));
         if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
 
         using var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks, bufferSize: 4096, leaveOpen: leaveOpen);
@@ -101,7 +101,7 @@ internal static class TextFileIo
         bool leaveOpen = true,
         CancellationToken cancellationToken = default)
     {
-        if (stream == null) throw new ArgumentNullException(nameof(stream));
+        ThrowIfNull(stream, nameof(stream));
         if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -133,7 +133,7 @@ internal static class TextFileIo
         Encoding encoding,
         bool leaveOpen = true)
     {
-        if (stream == null) throw new ArgumentNullException(nameof(stream));
+        ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite) throw new ArgumentException("Stream must be writable.", nameof(stream));
 
         using var writer = new StreamWriter(stream, encoding, bufferSize: 4096, leaveOpen: leaveOpen);
@@ -148,7 +148,7 @@ internal static class TextFileIo
         bool leaveOpen = true,
         CancellationToken cancellationToken = default)
     {
-        if (stream == null) throw new ArgumentNullException(nameof(stream));
+        ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite) throw new ArgumentException("Stream must be writable.", nameof(stream));
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -173,5 +173,15 @@ internal static class TextFileIo
         await writer.FlushAsync().ConfigureAwait(false);
 #endif
         cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    private static void ThrowIfNull(object? value, string parameterName)
+    {
+#if NET10_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(value, parameterName);
+#else
+        if (value == null)
+            throw new ArgumentNullException(parameterName);
+#endif
     }
 }
