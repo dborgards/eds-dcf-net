@@ -42,7 +42,6 @@ public class EdsWriter : IniWriterBase
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="stream">Writable destination stream. The stream is not disposed by this method.</param>
-    [ExcludeFromCodeCoverage]
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteStream(ElectronicDataSheet eds, Stream stream)
     {
@@ -103,7 +102,6 @@ public class EdsWriter : IniWriterBase
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="stream">Writable destination stream. The stream is not disposed by this method.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    [ExcludeFromCodeCoverage]
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public async Task WriteStreamAsync(
         ElectronicDataSheet eds,

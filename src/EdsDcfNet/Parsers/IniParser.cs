@@ -233,15 +233,19 @@ public static class IniParser
         long totalChars = 0;
         var currentLine = new StringBuilder();
         var skipNextLineFeed = false;
+        var buffer = new char[4096];
 
         while (true)
         {
-            var nextChar = reader.Read();
-            if (nextChar < 0)
+            var charsRead = reader.Read(buffer, 0, buffer.Length);
+            if (charsRead == 0)
                 break;
 
-            EnsureContentWithinSizeLimit(ref totalChars, maxInputSize);
-            ProcessReaderCharacter((char)nextChar, ref skipNextLineFeed, currentLine, ref lineNumber, ref currentSection, sections);
+            for (var i = 0; i < charsRead; i++)
+            {
+                EnsureContentWithinSizeLimit(ref totalChars, maxInputSize);
+                ProcessReaderCharacter(buffer[i], ref skipNextLineFeed, currentLine, ref lineNumber, ref currentSection, sections);
+            }
         }
 
         FlushPendingLine(currentLine, ref lineNumber, ref currentSection, sections);

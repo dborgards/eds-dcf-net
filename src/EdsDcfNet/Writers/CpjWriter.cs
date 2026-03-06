@@ -40,7 +40,6 @@ public class CpjWriter
     /// </summary>
     /// <param name="cpj">The NodelistProject to write</param>
     /// <param name="stream">Writable destination stream</param>
-    [ExcludeFromCodeCoverage]
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteStream(NodelistProject cpj, Stream stream)
     {
@@ -101,7 +100,6 @@ public class CpjWriter
     /// <param name="cpj">The NodelistProject to write</param>
     /// <param name="stream">Writable destination stream</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    [ExcludeFromCodeCoverage]
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public async Task WriteStreamAsync(
         NodelistProject cpj,

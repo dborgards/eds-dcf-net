@@ -54,13 +54,12 @@ internal static class SecureXmlParser
         }
     }
 
-    [ExcludeFromCodeCoverage]
     internal static string ReadContentFromStreamWithLimit(
         Stream stream,
         string formatName,
         long maxInputSize = DefaultMaxInputSize)
     {
-        EnsureStreamWithinSizeLimit(stream, formatName, maxInputSize);
+        EnsureStreamReadable(stream);
 
         using var reader = new StreamReader(
             stream,
@@ -72,14 +71,13 @@ internal static class SecureXmlParser
         return ReadAllWithLimit(reader, formatName, maxInputSize);
     }
 
-    [ExcludeFromCodeCoverage]
     internal static async Task<string> ReadContentFromStreamWithLimitAsync(
         Stream stream,
         string formatName,
         long maxInputSize = DefaultMaxInputSize,
         CancellationToken cancellationToken = default)
     {
-        EnsureStreamWithinSizeLimit(stream, formatName, maxInputSize);
+        EnsureStreamReadable(stream);
 
         using var reader = new StreamReader(
             stream,
@@ -109,18 +107,13 @@ internal static class SecureXmlParser
         }
     }
 
-    [ExcludeFromCodeCoverage]
-    private static void EnsureStreamWithinSizeLimit(
-        Stream stream,
-        string formatName,
-        long maxInputSize)
+    private static void EnsureStreamReadable(Stream stream)
     {
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanRead)
             throw new ArgumentException("Stream must be readable.", nameof(stream));
     }
 
-    [ExcludeFromCodeCoverage]
     private static string ReadAllWithLimit(
         StreamReader reader,
         string formatName,
@@ -154,7 +147,6 @@ internal static class SecureXmlParser
         return builder.ToString();
     }
 
-    [ExcludeFromCodeCoverage]
     private static async Task<string> ReadAllWithLimitAsync(
         StreamReader reader,
         string formatName,
