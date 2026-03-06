@@ -146,6 +146,34 @@ public class XddWriterTests
         }
     }
 
+    [Fact]
+    public void WriteStream_RoundTripsAndLeavesStreamOpen()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream();
+
+        _writer.WriteStream(eds, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = new EdsDcfNet.Parsers.XddReader().ReadStream(stream);
+
+        parsed.DeviceInfo.ProductName.Should().Be("Test Product");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_RoundTripsAndLeavesStreamOpen()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream();
+
+        await _writer.WriteStreamAsync(eds, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = await new EdsDcfNet.Parsers.XddReader().ReadStreamAsync(stream);
+
+        parsed.DeviceInfo.ProductName.Should().Be("Test Product");
+    }
+
     #endregion
 
     #region GenerateString Tests

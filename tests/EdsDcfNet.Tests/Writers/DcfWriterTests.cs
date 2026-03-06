@@ -1202,5 +1202,41 @@ public class DcfWriterTests
         parsed.Tools[1].Command.Should().Be("config.exe $DCF $NODEID");
     }
 
+    [Fact]
+    public void WriteStream_RoundTripsAndLeavesStreamOpen()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        using var stream = new MemoryStream();
+
+        // Act
+        _writer.WriteStream(dcf, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = new EdsDcfNet.Parsers.DcfReader().ReadStream(stream);
+
+        // Assert
+        parsed.DeviceCommissioning.NodeId.Should().Be(dcf.DeviceCommissioning.NodeId);
+        parsed.ObjectDictionary.Objects.Should().ContainKey(0x1000);
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_RoundTripsAndLeavesStreamOpen()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        using var stream = new MemoryStream();
+
+        // Act
+        await _writer.WriteStreamAsync(dcf, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = await new EdsDcfNet.Parsers.DcfReader().ReadStreamAsync(stream);
+
+        // Assert
+        parsed.DeviceCommissioning.NodeId.Should().Be(dcf.DeviceCommissioning.NodeId);
+        parsed.ObjectDictionary.Objects.Should().ContainKey(0x1000);
+    }
+
     #endregion
 }

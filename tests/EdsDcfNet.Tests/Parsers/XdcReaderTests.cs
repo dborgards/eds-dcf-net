@@ -321,6 +321,58 @@ public class XdcReaderTests
             .WithMessage("*too large*");
     }
 
+    [Fact]
+    public void ReadStream_ValidContent_ParsesSuccessfully()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdc));
+
+        var result = _reader.ReadStream(stream, maxInputSize: MinimalXdc.Length + 64);
+
+        result.FileInfo.FileName.Should().Be("test.xdc");
+        result.DeviceCommissioning.NodeId.Should().Be(3);
+        stream.CanRead.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ReadStreamAsync_ValidContent_ParsesSuccessfully()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdc));
+
+        var result = await _reader.ReadStreamAsync(stream, maxInputSize: MinimalXdc.Length + 64);
+
+        result.FileInfo.FileName.Should().Be("test.xdc");
+        result.DeviceCommissioning.NodeId.Should().Be(3);
+        stream.CanRead.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReadStream_UnreadableStream_ThrowsArgumentException()
+    {
+        using var stream = new WriteOnlyStream();
+
+        var act = () => _reader.ReadStream(stream);
+
+        act.Should().Throw<ArgumentException>().WithParameterName("stream");
+    }
+
+    [Fact]
+    public void ReadStream_NonSeekableReadableStream_ParsesSuccessfully()
+    {
+        using var stream = new NonSeekableReadStream(Encoding.UTF8.GetBytes(MinimalXdc));
+
+        var result = _reader.ReadStream(stream, maxInputSize: MinimalXdc.Length + 64);
+
+        result.FileInfo.FileName.Should().Be("test.xdc");
+        result.DeviceCommissioning.NodeId.Should().Be(3);
+    }
+
+    [Fact]
+    public void ReadStream_NullStream_ThrowsArgumentNullException()
+    {
+        var act = () => _reader.ReadStream(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("stream");
+    }
+
     #endregion
 
     #region ActualValue / Denotation Tests
@@ -675,6 +727,47 @@ public class XdcReaderTests
 
         act.Should().Throw<EdsParseException>()
             .WithMessage("*nodeID*");
+    }
+
+    private sealed class WriteOnlyStream : MemoryStream
+    {
+        public override bool CanRead => false;
+
+        public override int Read(byte[] buffer, int offset, int count)
+            => throw new NotSupportedException();
+    }
+
+    private sealed class NonSeekableReadStream : Stream
+    {
+        private readonly MemoryStream _inner;
+
+        public NonSeekableReadStream(byte[] data)
+        {
+            _inner = new MemoryStream(data);
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() => throw new NotSupportedException();
+        public override int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                _inner.Dispose();
+            base.Dispose(disposing);
+        }
     }
 
     #endregion

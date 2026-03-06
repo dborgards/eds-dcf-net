@@ -225,6 +225,42 @@ public class XdcWriterTests
     }
 
     [Fact]
+    public void WriteStream_RoundTripsAndLeavesStreamOpen()
+    {
+        // Arrange
+        var dcf = CreateSampleDcf();
+        using var stream = new MemoryStream();
+
+        // Act
+        _writer.WriteStream(dcf, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = new EdsDcfNet.Parsers.XdcReader().ReadStream(stream);
+
+        // Assert
+        parsed.DeviceCommissioning.NodeId.Should().Be(3);
+        parsed.ObjectDictionary.Objects.Should().ContainKey(0x1000);
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_RoundTripsAndLeavesStreamOpen()
+    {
+        // Arrange
+        var dcf = CreateSampleDcf();
+        using var stream = new MemoryStream();
+
+        // Act
+        await _writer.WriteStreamAsync(dcf, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = await new EdsDcfNet.Parsers.XdcReader().ReadStreamAsync(stream);
+
+        // Assert
+        parsed.DeviceCommissioning.NodeId.Should().Be(3);
+        parsed.ObjectDictionary.Objects.Should().ContainKey(0x1000);
+    }
+
+    [Fact]
     public void GenerateString_SubObjectActualValue_WrittenCorrectly()
     {
         // Arrange

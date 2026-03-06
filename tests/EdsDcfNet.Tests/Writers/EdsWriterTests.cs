@@ -513,4 +513,34 @@ public class EdsWriterTests
             }
         }
     }
+
+    [Fact]
+    public void WriteStream_RoundTripsAndLeavesStreamOpen()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new MemoryStream();
+
+        _writer.WriteStream(eds, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = new EdsReader().ReadStream(stream);
+
+        parsed.DeviceInfo.ProductName.Should().Be(eds.DeviceInfo.ProductName);
+        parsed.ObjectDictionary.Objects.Should().ContainKey(0x1000);
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_RoundTripsAndLeavesStreamOpen()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new MemoryStream();
+
+        await _writer.WriteStreamAsync(eds, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = await new EdsReader().ReadStreamAsync(stream);
+
+        parsed.DeviceInfo.ProductName.Should().Be(eds.DeviceInfo.ProductName);
+        parsed.ObjectDictionary.Objects.Should().ContainKey(0x1000);
+    }
 }

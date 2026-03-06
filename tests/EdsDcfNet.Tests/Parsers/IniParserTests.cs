@@ -494,6 +494,53 @@ DataType=0x0005
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
+    [Fact]
+    public void ParseStream_ValidContent_ParsesCorrectly()
+    {
+        // Arrange
+        const string content = "[Section1]\nKey1=Value1\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        // Act
+        var result = IniParser.ParseStream(stream, maxInputSize: content.Length + 16);
+
+        // Assert
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+        stream.CanRead.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_ValidContent_ParsesCorrectly()
+    {
+        // Arrange
+        const string content = "[Section1]\nKey1=Value1\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        // Act
+        var result = await IniParser.ParseStreamAsync(stream, maxInputSize: content.Length + 16);
+
+        // Assert
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+        stream.CanRead.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseStream_UnreadableStream_ThrowsArgumentException()
+    {
+        using var stream = new WriteOnlyStream();
+        var act = () => IniParser.ParseStream(stream);
+        act.Should().Throw<ArgumentException>().WithParameterName("stream");
+    }
+
+    [Fact]
+    public void ParseStream_NullStream_ThrowsArgumentNullException()
+    {
+        var act = () => IniParser.ParseStream(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("stream");
+    }
+
     #endregion
 
     #region GetValue Tests
@@ -702,4 +749,12 @@ DataType=0x0005
     }
 
     #endregion
+
+    private sealed class WriteOnlyStream : MemoryStream
+    {
+        public override bool CanRead => false;
+
+        public override int Read(byte[] buffer, int offset, int count)
+            => throw new NotSupportedException();
+    }
 }

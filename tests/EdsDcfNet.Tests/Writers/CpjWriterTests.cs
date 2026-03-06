@@ -362,6 +362,52 @@ EDSBaseName=/eds/
     }
 
     [Fact]
+    public void WriteStream_RoundTripsAndLeavesStreamOpen()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology
+        {
+            NetName = "Stream Net",
+            Nodes =
+            {
+                [2] = new NetworkNode { NodeId = 2, Present = true, Name = "Drive" }
+            }
+        });
+
+        using var stream = new MemoryStream();
+        _writer.WriteStream(project, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+
+        var parsed = _reader.ReadStream(stream);
+        parsed.Networks.Should().ContainSingle();
+        parsed.Networks[0].NetName.Should().Be("Stream Net");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_RoundTripsAndLeavesStreamOpen()
+    {
+        var project = new NodelistProject();
+        project.Networks.Add(new NetworkTopology
+        {
+            NetName = "Stream Net",
+            Nodes =
+            {
+                [2] = new NetworkNode { NodeId = 2, Present = true, Name = "Drive" }
+            }
+        });
+
+        using var stream = new MemoryStream();
+        await _writer.WriteStreamAsync(project, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+
+        var parsed = await _reader.ReadStreamAsync(stream);
+        parsed.Networks.Should().ContainSingle();
+        parsed.Networks[0].NetName.Should().Be("Stream Net");
+    }
+
+    [Fact]
     public void WriteFile_NonAsciiCharacters_PreservesCharacters()
     {
         // Arrange
