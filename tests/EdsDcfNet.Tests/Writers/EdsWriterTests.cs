@@ -569,6 +569,43 @@ public class EdsWriterTests
     }
 
     [Fact]
+    public void WriteStream_NullStream_ThrowsArgumentNullException()
+    {
+        var eds = CreateMinimalEds();
+
+        var act = () => _writer.WriteStream(eds, null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public void WriteStream_GenerationThrowsEdsWriteException_Rethrows()
+    {
+        var eds = CreateMinimalEds();
+        eds.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        var ex = act.Should().Throw<EdsWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+    }
+
+    [Fact]
+    public void WriteStream_StreamWriteThrows_WrapsInEdsWriteException()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        var ex = act.Should().Throw<EdsWriteException>().Which;
+        ex.Message.Should().Contain("Failed to write EDS content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
     public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
     {
         var eds = CreateMinimalEds();
@@ -579,5 +616,31 @@ public class EdsWriterTests
         var act = () => _writer.WriteStreamAsync(eds, stream, cancellationToken: cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_GenerationThrowsEdsWriteException_Rethrows()
+    {
+        var eds = CreateMinimalEds();
+        eds.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        var ex = (await act.Should().ThrowAsync<EdsWriteException>()).Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_StreamWriteThrows_WrapsInEdsWriteException()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        var ex = (await act.Should().ThrowAsync<EdsWriteException>()).Which;
+        ex.Message.Should().Contain("Failed to write EDS content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
     }
 }

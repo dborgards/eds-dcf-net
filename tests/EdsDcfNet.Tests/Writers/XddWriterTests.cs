@@ -199,6 +199,43 @@ public class XddWriterTests
     }
 
     [Fact]
+    public void WriteStream_NullStream_ThrowsArgumentNullException()
+    {
+        var eds = CreateSampleEds();
+
+        var act = () => _writer.WriteStream(eds, null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public void WriteStream_GenerationThrowsXddWriteException_Rethrows()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        var ex = act.Should().Throw<XddWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceProfile");
+    }
+
+    [Fact]
+    public void WriteStream_StreamWriteThrows_WrapsInXddWriteException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        var ex = act.Should().Throw<XddWriteException>().Which;
+        ex.Message.Should().Contain("Failed to write XDD content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
     public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
     {
         var eds = CreateSampleEds();
@@ -209,6 +246,32 @@ public class XddWriterTests
         var act = () => _writer.WriteStreamAsync(eds, stream, cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_GenerationThrowsXddWriteException_Rethrows()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        var ex = (await act.Should().ThrowAsync<XddWriteException>()).Which;
+        ex.SectionName.Should().Be("DeviceProfile");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_StreamWriteThrows_WrapsInXddWriteException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        var ex = (await act.Should().ThrowAsync<XddWriteException>()).Which;
+        ex.Message.Should().Contain("Failed to write XDD content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
     }
 
     #endregion

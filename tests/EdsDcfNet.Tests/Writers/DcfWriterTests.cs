@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Tests.Writers;
 
 using System.Reflection;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Writers;
 using FluentAssertions;
@@ -1263,6 +1264,43 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void WriteStream_NullStream_ThrowsArgumentNullException()
+    {
+        var dcf = CreateMinimalDcf();
+
+        var act = () => _writer.WriteStream(dcf, null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public void WriteStream_GenerationThrowsDcfWriteException_Rethrows()
+    {
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStream(dcf, stream);
+
+        var ex = act.Should().Throw<DcfWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+    }
+
+    [Fact]
+    public void WriteStream_StreamWriteThrows_WrapsInDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStream(dcf, stream);
+
+        var ex = act.Should().Throw<DcfWriteException>().Which;
+        ex.Message.Should().Contain("Failed to write DCF content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
     public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
     {
         var dcf = CreateMinimalDcf();
@@ -1273,6 +1311,32 @@ public class DcfWriterTests
         var act = () => _writer.WriteStreamAsync(dcf, stream, cancellationToken: cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_GenerationThrowsDcfWriteException_Rethrows()
+    {
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStreamAsync(dcf, stream);
+
+        var ex = (await act.Should().ThrowAsync<DcfWriteException>()).Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_StreamWriteThrows_WrapsInDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStreamAsync(dcf, stream);
+
+        var ex = (await act.Should().ThrowAsync<DcfWriteException>()).Which;
+        ex.Message.Should().Contain("Failed to write DCF content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
     }
 
     #endregion

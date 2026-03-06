@@ -285,6 +285,42 @@ public class XdcWriterTests
     }
 
     [Fact]
+    public void WriteStream_NullStream_ThrowsArgumentNullException()
+    {
+        var dcf = CreateSampleDcf();
+
+        var act = () => _writer.WriteStream(dcf, null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public void WriteStream_GenerationThrowsXdcWriteException_Rethrows()
+    {
+        var dcf = CreateSampleDcf();
+        dcf.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStream(dcf, stream);
+
+        act.Should().Throw<XdcWriteException>();
+    }
+
+    [Fact]
+    public void WriteStream_StreamWriteThrows_WrapsInXdcWriteException()
+    {
+        var dcf = CreateSampleDcf();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStream(dcf, stream);
+
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.Message.Should().Contain("Failed to write XDC content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
     public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
     {
         var dcf = CreateSampleDcf();
@@ -295,6 +331,31 @@ public class XdcWriterTests
         var act = () => _writer.WriteStreamAsync(dcf, stream, cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_GenerationThrowsXdcWriteException_Rethrows()
+    {
+        var dcf = CreateSampleDcf();
+        dcf.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStreamAsync(dcf, stream);
+
+        await act.Should().ThrowAsync<XdcWriteException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_StreamWriteThrows_WrapsInXdcWriteException()
+    {
+        var dcf = CreateSampleDcf();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStreamAsync(dcf, stream);
+
+        var ex = (await act.Should().ThrowAsync<XdcWriteException>()).Which;
+        ex.Message.Should().Contain("Failed to write XDC content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
     }
 
     [Fact]
