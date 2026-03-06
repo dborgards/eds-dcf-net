@@ -1471,5 +1471,24 @@ PDOMapping=0
         issues.Should().Contain(i => i.Path == "DeviceCommissioning.Baudrate");
     }
 
+    [Fact]
+    public void Validate_EdsModel_UsesFacadeOverload()
+    {
+        var eds = new ElectronicDataSheet();
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly
+        };
+
+        var issues = CanOpenFile.Validate(eds);
+
+        issues.Should().BeEmpty();
+    }
+
     #endregion
 }
