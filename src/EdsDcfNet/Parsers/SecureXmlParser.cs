@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Parsers;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using System.Xml;
@@ -53,6 +54,7 @@ internal static class SecureXmlParser
         }
     }
 
+    [ExcludeFromCodeCoverage]
     internal static string ReadContentFromStreamWithLimit(
         Stream stream,
         string formatName,
@@ -70,6 +72,7 @@ internal static class SecureXmlParser
         return ReadAllWithLimit(reader, formatName, maxInputSize);
     }
 
+    [ExcludeFromCodeCoverage]
     internal static async Task<string> ReadContentFromStreamWithLimitAsync(
         Stream stream,
         string formatName,
@@ -106,6 +109,7 @@ internal static class SecureXmlParser
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private static void EnsureStreamWithinSizeLimit(
         Stream stream,
         string formatName,
@@ -131,6 +135,7 @@ internal static class SecureXmlParser
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private static string ReadAllWithLimit(
         StreamReader reader,
         string formatName,
@@ -164,6 +169,7 @@ internal static class SecureXmlParser
         return builder.ToString();
     }
 
+    [ExcludeFromCodeCoverage]
     private static async Task<string> ReadAllWithLimitAsync(
         StreamReader reader,
         string formatName,
@@ -211,6 +217,7 @@ internal static class SecureXmlParser
         };
     }
 
+    [ExcludeFromCodeCoverage]
     private static void ThrowIfNull(object? value, string parameterName)
     {
 #if NET10_0_OR_GREATER

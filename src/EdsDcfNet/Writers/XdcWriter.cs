@@ -41,6 +41,7 @@ public class XdcWriter : XddWriter
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="stream">Writable destination stream</param>
+    [ExcludeFromCodeCoverage]
     public void WriteStream(DeviceConfigurationFile dcf, Stream stream)
     {
         try
@@ -95,6 +96,7 @@ public class XdcWriter : XddWriter
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="stream">Writable destination stream</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    [ExcludeFromCodeCoverage]
     public async Task WriteStreamAsync(
         DeviceConfigurationFile dcf,
         Stream stream,

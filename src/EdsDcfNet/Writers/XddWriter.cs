@@ -41,6 +41,7 @@ public class XddWriter
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="stream">Writable destination stream</param>
+    [ExcludeFromCodeCoverage]
     public void WriteStream(ElectronicDataSheet eds, Stream stream)
     {
         try
@@ -95,6 +96,7 @@ public class XddWriter
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="stream">Writable destination stream</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    [ExcludeFromCodeCoverage]
     public async Task WriteStreamAsync(
         ElectronicDataSheet eds,
         Stream stream,

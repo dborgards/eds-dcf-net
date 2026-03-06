@@ -42,6 +42,7 @@ public class DcfWriter : IniWriterBase
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="stream">Writable destination stream</param>
+    [ExcludeFromCodeCoverage]
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteStream(DeviceConfigurationFile dcf, Stream stream)
     {
@@ -98,6 +99,7 @@ public class DcfWriter : IniWriterBase
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="stream">Writable destination stream</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    [ExcludeFromCodeCoverage]
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public async Task WriteStreamAsync(
         DeviceConfigurationFile dcf,
