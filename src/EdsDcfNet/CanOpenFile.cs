@@ -639,7 +639,8 @@ public static class CanOpenFile
     /// <returns>List of validation issues. Empty when model is valid.</returns>
     public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
     {
-        return CanOpenModelValidator.Validate(dcf);
+        var issues = CanOpenModelValidator.Validate(dcf);
+        return issues;
     }
 
     /// <summary>

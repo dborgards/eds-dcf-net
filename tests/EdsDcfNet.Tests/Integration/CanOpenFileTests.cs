@@ -1411,5 +1411,31 @@ PDOMapping=0
         }
     }
 
+    [Fact]
+    public void Validate_DcfModel_UsesFacadeOverload()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning
+            {
+                NodeId = 5,
+                Baudrate = 42
+            }
+        };
+        dcf.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        dcf.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly
+        };
+
+        var issues = CanOpenFile.Validate(dcf);
+
+        issues.Should().Contain(i => i.Path == "DeviceCommissioning.Baudrate");
+    }
+
     #endregion
 }
