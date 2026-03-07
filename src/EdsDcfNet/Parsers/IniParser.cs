@@ -17,7 +17,12 @@ public static class IniParser
     /// Default maximum input size (10 MB) used by <see cref="ParseFile"/> and
     /// <see cref="ParseString"/> to guard against unbounded memory consumption.
     /// </summary>
-    public const long DefaultMaxInputSize = 10L * 1024 * 1024;
+    /// <remarks>
+    /// Delegates to <see cref="ReaderDefaults.DefaultMaxInputSize"/>. Kept for
+    /// backward compatibility; prefer <see cref="ReaderDefaults.DefaultMaxInputSize"/>
+    /// in new code.
+    /// </remarks>
+    public const long DefaultMaxInputSize = ReaderDefaults.DefaultMaxInputSize;
 
     /// <summary>
     /// Parses an EDS/DCF file and returns sections with their key-value pairs.

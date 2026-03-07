@@ -25,7 +25,7 @@ public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public ElectronicDataSheet ReadFile(
         string filePath,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var sections = ParseSectionsFromFile(filePath, maxInputSize);
         return ParseEds(sections);
@@ -43,7 +43,7 @@ public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
     /// </remarks>
     public ElectronicDataSheet ReadStream(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var sections = ParseSectionsFromStream(stream, maxInputSize);
         return ParseEds(sections);
@@ -58,7 +58,7 @@ public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
     public Task<ElectronicDataSheet> ReadFileAsync(
         string filePath,
         CancellationToken cancellationToken = default)
-        => ReadFileAsync(filePath, IniParser.DefaultMaxInputSize, cancellationToken);
+        => ReadFileAsync(filePath, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
 
     /// <summary>
     /// Reads an EDS file from the specified path asynchronously.
@@ -89,7 +89,7 @@ public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
     public Task<ElectronicDataSheet> ReadStreamAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
-        => ReadStreamAsync(stream, IniParser.DefaultMaxInputSize, cancellationToken);
+        => ReadStreamAsync(stream, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
 
     /// <summary>
     /// Reads an EDS file from a stream asynchronously.
@@ -119,7 +119,7 @@ public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public ElectronicDataSheet ReadString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var sections = ParseSectionsFromString(content, maxInputSize);
         return ParseEds(sections);

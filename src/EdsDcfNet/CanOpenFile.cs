@@ -65,7 +65,7 @@ public static class CanOpenFile
     /// </example>
     public static ElectronicDataSheet ReadEds(
         string filePath,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new EdsReader();
         return reader.ReadFile(filePath, maxInputSize);
@@ -109,7 +109,7 @@ public static class CanOpenFile
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadEdsFromString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new EdsReader();
         return reader.ReadString(content, maxInputSize);
@@ -124,7 +124,7 @@ public static class CanOpenFile
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadEds(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new EdsReader();
         return reader.ReadStream(stream, maxInputSize);
@@ -257,7 +257,7 @@ public static class CanOpenFile
     /// </example>
     public static DeviceConfigurationFile ReadDcf(
         string filePath,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new DcfReader();
         return reader.ReadFile(filePath, maxInputSize);
@@ -301,7 +301,7 @@ public static class CanOpenFile
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadDcfFromString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new DcfReader();
         return reader.ReadString(content, maxInputSize);
@@ -316,7 +316,7 @@ public static class CanOpenFile
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadDcf(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new DcfReader();
         return reader.ReadStream(stream, maxInputSize);
@@ -443,7 +443,7 @@ public static class CanOpenFile
     /// <returns>Parsed NodelistProject object</returns>
     public static NodelistProject ReadCpj(
         string filePath,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new CpjReader();
         return reader.ReadFile(filePath, maxInputSize);
@@ -487,7 +487,7 @@ public static class CanOpenFile
     /// <returns>Parsed NodelistProject object</returns>
     public static NodelistProject ReadCpjFromString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new CpjReader();
         return reader.ReadString(content, maxInputSize);
@@ -502,7 +502,7 @@ public static class CanOpenFile
     /// <returns>Parsed NodelistProject object</returns>
     public static NodelistProject ReadCpj(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new CpjReader();
         return reader.ReadStream(stream, maxInputSize);
@@ -621,7 +621,7 @@ public static class CanOpenFile
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadXdd(
         string filePath,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new XddReader();
         return reader.ReadFile(filePath, maxInputSize);
@@ -665,7 +665,7 @@ public static class CanOpenFile
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadXddFromString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new XddReader();
         return reader.ReadString(content, maxInputSize);
@@ -680,7 +680,7 @@ public static class CanOpenFile
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadXdd(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new XddReader();
         return reader.ReadStream(stream, maxInputSize);
@@ -799,7 +799,7 @@ public static class CanOpenFile
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadXdc(
         string filePath,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new XdcReader();
         return reader.ReadFile(filePath, maxInputSize);
@@ -843,7 +843,7 @@ public static class CanOpenFile
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadXdcFromString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new XdcReader();
         return reader.ReadString(content, maxInputSize);
@@ -858,7 +858,7 @@ public static class CanOpenFile
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadXdc(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new XdcReader();
         return reader.ReadStream(stream, maxInputSize);

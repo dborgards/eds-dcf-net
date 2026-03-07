@@ -21,7 +21,7 @@ public class CpjReader : IFileReader<NodelistProject>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public NodelistProject ReadFile(
         string filePath,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var sections = IniParser.ParseFile(filePath, maxInputSize);
         return ParseCpj(sections);
@@ -36,7 +36,7 @@ public class CpjReader : IFileReader<NodelistProject>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public NodelistProject ReadStream(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var sections = IniParser.ParseStream(stream, maxInputSize);
         return ParseCpj(sections);
@@ -52,7 +52,7 @@ public class CpjReader : IFileReader<NodelistProject>
     public Task<NodelistProject> ReadFileAsync(
         string filePath,
         CancellationToken cancellationToken = default)
-        => ReadFileAsync(filePath, IniParser.DefaultMaxInputSize, cancellationToken);
+        => ReadFileAsync(filePath, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
 
     /// <summary>
     /// Reads a CPJ file from the specified path asynchronously.
@@ -81,7 +81,7 @@ public class CpjReader : IFileReader<NodelistProject>
     public Task<NodelistProject> ReadStreamAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
-        => ReadStreamAsync(stream, IniParser.DefaultMaxInputSize, cancellationToken);
+        => ReadStreamAsync(stream, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
 
     /// <summary>
     /// Reads a CPJ file from a stream asynchronously.
@@ -109,7 +109,7 @@ public class CpjReader : IFileReader<NodelistProject>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public NodelistProject ReadString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var sections = IniParser.ParseString(content, maxInputSize);
         return ParseCpj(sections);

@@ -31,7 +31,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public DeviceConfigurationFile ReadFile(
         string filePath,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var sections = ParseSectionsFromFile(filePath, maxInputSize);
         return ParseDcf(sections);
@@ -45,7 +45,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public DeviceConfigurationFile ReadStream(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var sections = ParseSectionsFromStream(stream, maxInputSize);
         return ParseDcf(sections);
@@ -60,7 +60,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
     public Task<DeviceConfigurationFile> ReadFileAsync(
         string filePath,
         CancellationToken cancellationToken = default)
-        => ReadFileAsync(filePath, IniParser.DefaultMaxInputSize, cancellationToken);
+        => ReadFileAsync(filePath, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
 
     /// <summary>
     /// Reads a DCF file from the specified path asynchronously.
@@ -87,7 +87,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
     public Task<DeviceConfigurationFile> ReadStreamAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
-        => ReadStreamAsync(stream, IniParser.DefaultMaxInputSize, cancellationToken);
+        => ReadStreamAsync(stream, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
 
     /// <summary>
     /// Reads a DCF file from a stream asynchronously.
@@ -113,7 +113,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public DeviceConfigurationFile ReadString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var sections = ParseSectionsFromString(content, maxInputSize);
         return ParseDcf(sections);
