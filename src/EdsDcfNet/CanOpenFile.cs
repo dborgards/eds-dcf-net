@@ -1117,7 +1117,6 @@ public static class CanOpenFile
         if (nodeId < 1 || nodeId > 127)
             throw new ArgumentOutOfRangeException(nameof(nodeId), nodeId, "CANopen Node-ID must be in range 1..127.");
 
-        var now = timestamp;
         var dcf = new DeviceConfigurationFile
         {
             FileInfo = new Models.EdsFileInfo
@@ -1127,8 +1126,8 @@ public static class CanOpenFile
                 FileRevision = (byte)(eds.FileInfo.FileRevision + 1),
                 EdsVersion = eds.FileInfo.EdsVersion,
                 Description = $"DCF generated from {eds.FileInfo.FileName}",
-                CreationDate = now.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
-                CreationTime = now.ToString("hh:mmtt", CultureInfo.InvariantCulture),
+                CreationDate = timestamp.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
+                CreationTime = timestamp.ToString("hh:mmtt", CultureInfo.InvariantCulture),
                 CreatedBy = "EdsDcfNet Library",
                 LastEds = eds.FileInfo.FileName
             },
