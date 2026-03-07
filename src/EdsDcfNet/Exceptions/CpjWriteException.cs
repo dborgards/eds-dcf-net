@@ -3,13 +3,8 @@ namespace EdsDcfNet.Exceptions;
 /// <summary>
 /// Exception thrown when writing a CPJ file fails.
 /// </summary>
-public class CpjWriteException : Exception
+public class CpjWriteException : WriteException
 {
-    /// <summary>
-    /// Section name where the error occurred (if applicable).
-    /// </summary>
-    public string? SectionName { get; set; }
-
     /// <summary>
     /// Initializes a new instance of the <see cref="CpjWriteException"/> class.
     /// </summary>
@@ -39,8 +34,7 @@ public class CpjWriteException : Exception
     /// </summary>
     /// <param name="message">The message that describes the error.</param>
     /// <param name="sectionName">The section name where the error occurred.</param>
-    public CpjWriteException(string message, string sectionName) : base(message)
+    public CpjWriteException(string message, string sectionName) : base(message, sectionName)
     {
-        SectionName = sectionName;
     }
 }

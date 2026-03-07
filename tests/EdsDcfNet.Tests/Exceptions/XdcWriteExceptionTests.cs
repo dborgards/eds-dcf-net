@@ -53,12 +53,13 @@ public class XdcWriteExceptionTests
     }
 
     [Fact]
-    public void IsException_InheritsFromException()
+    public void IsException_InheritsFromWriteException()
     {
         // Act
         var ex = new XdcWriteException("test");
 
         // Assert
+        ex.Should().BeAssignableTo<WriteException>();
         ex.Should().BeAssignableTo<Exception>();
     }
 }

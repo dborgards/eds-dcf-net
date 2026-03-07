@@ -53,12 +53,13 @@ public class EdsWriteExceptionTests
     }
 
     [Fact]
-    public void IsException_InheritsFromException()
+    public void IsException_InheritsFromWriteException()
     {
         // Act
         var ex = new EdsWriteException("test");
 
         // Assert
+        ex.Should().BeAssignableTo<WriteException>();
         ex.Should().BeAssignableTo<Exception>();
     }
 }
