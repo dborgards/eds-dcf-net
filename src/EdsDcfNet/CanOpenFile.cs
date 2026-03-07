@@ -11,6 +11,12 @@ using System.Globalization;
 /// Main entry point for working with EDS and DCF files.
 /// Provides a simple, fluent API for reading and writing CANopen configuration files.
 /// </summary>
+/// <remarks>
+/// File and stream writer APIs (<c>WriteEds*</c>, <c>WriteDcf*</c>, <c>WriteCpj*</c>,
+/// <c>WriteXdd*</c>, <c>WriteXdc*</c>) serialize text as UTF-8 without BOM.
+/// This intentionally diverges from strict historical ASCII-only assumptions in DS 306 to
+/// preserve non-ASCII content while remaining ASCII-compatible for 7-bit data.
+/// </remarks>
 public static class CanOpenFile
 {
     /// <summary>

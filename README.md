@@ -85,6 +85,33 @@ CanOpenFile.WriteEds(eds, outStream);
 > Stream ownership: stream overloads do **not** dispose input/output streams.  
 > The caller remains responsible for stream lifetime.
 
+## Output Encoding Policy
+
+All writer APIs that persist text (`WriteEds*`, `WriteDcf*`, `WriteCpj*`, `WriteXdd*`, `WriteXdc*`)
+write **UTF-8 without BOM** by default for file and stream output.
+
+This is an intentional interoperability choice:
+- CiA DS 306 is historically ASCII-oriented.
+- UTF-8 keeps full ASCII compatibility for 7-bit content.
+- UTF-8 also preserves non-ASCII characters in names/comments instead of replacing them.
+
+### Guidance for strict ASCII toolchains
+
+If a downstream tool only accepts strict ASCII, keep model text in 7-bit ASCII characters,
+or transcode explicitly to strict ASCII at your boundary and fail fast on non-ASCII content.
+
+```csharp
+using System.Text;
+
+var asciiStrict = Encoding.GetEncoding(
+    "us-ascii",
+    EncoderFallback.ExceptionFallback,
+    DecoderFallback.ExceptionFallback);
+
+var text = CanOpenFile.WriteDcfToString(dcf);
+File.WriteAllText("device_ascii.dcf", text, asciiStrict);
+```
+
 ### Reading an XDD File (CiA 311 XML)
 
 ```csharp
@@ -245,6 +272,8 @@ var tpdos = dcf.ObjectDictionary.GetPdoCommunicationParameters(transmit: true);
 ## API Overview
 
 ### Main Class: `CanOpenFile`
+
+Writer encoding note: all file/stream `Write*` APIs use UTF-8 without BOM.
 
 ```csharp
 // Read EDS
