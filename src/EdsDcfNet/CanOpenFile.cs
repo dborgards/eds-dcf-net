@@ -1095,10 +1095,28 @@ public static class CanOpenFile
         ushort baudrate = 250,
         string? nodeName = null)
     {
+        return EdsToDcf(eds, nodeId, DateTime.Now, baudrate, nodeName);
+    }
+
+    /// <summary>
+    /// Converts an EDS to a DCF with specified commissioning parameters and an explicit timestamp.
+    /// </summary>
+    /// <param name="eds">The EDS to convert</param>
+    /// <param name="nodeId">Node ID for the device</param>
+    /// <param name="timestamp">Timestamp used for generated FileInfo creation date/time fields.</param>
+    /// <param name="baudrate">Baudrate in kbit/s (default: 250)</param>
+    /// <param name="nodeName">Optional node name</param>
+    /// <returns>A new DeviceConfigurationFile</returns>
+    public static DeviceConfigurationFile EdsToDcf(
+        ElectronicDataSheet eds,
+        byte nodeId,
+        DateTime timestamp,
+        ushort baudrate = 250,
+        string? nodeName = null)
+    {
         if (nodeId < 1 || nodeId > 127)
             throw new ArgumentOutOfRangeException(nameof(nodeId), nodeId, "CANopen Node-ID must be in range 1..127.");
 
-        var now = DateTime.Now;
         var dcf = new DeviceConfigurationFile
         {
             FileInfo = new Models.EdsFileInfo
@@ -1108,8 +1126,8 @@ public static class CanOpenFile
                 FileRevision = (byte)(eds.FileInfo.FileRevision + 1),
                 EdsVersion = eds.FileInfo.EdsVersion,
                 Description = $"DCF generated from {eds.FileInfo.FileName}",
-                CreationDate = now.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
-                CreationTime = now.ToString("hh:mmtt", CultureInfo.InvariantCulture),
+                CreationDate = timestamp.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
+                CreationTime = timestamp.ToString("hh:mmtt", CultureInfo.InvariantCulture),
                 CreatedBy = "EdsDcfNet Library",
                 LastEds = eds.FileInfo.FileName
             },
