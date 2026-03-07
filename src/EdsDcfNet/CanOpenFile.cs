@@ -49,15 +49,7 @@ public static class CanOpenFile
         return CanOpenModelValidator.Validate(dcf);
     }
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) file.
-    /// </summary>
-    /// <param name="filePath">Path to the EDS file</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
-    public static ElectronicDataSheet ReadEds(string filePath)
-    {
-        return ReadEds(filePath, IniParser.DefaultMaxInputSize);
-    }
+    #region EDS Read
 
     /// <summary>
     /// Reads an Electronic Data Sheet (EDS) file.
@@ -73,7 +65,7 @@ public static class CanOpenFile
     /// </example>
     public static ElectronicDataSheet ReadEds(
         string filePath,
-        long maxInputSize)
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var reader = new EdsReader();
         return reader.ReadFile(filePath, maxInputSize);
@@ -113,35 +105,14 @@ public static class CanOpenFile
     /// Reads an Electronic Data Sheet (EDS) from a string.
     /// </summary>
     /// <param name="content">EDS file content as string</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
-    public static ElectronicDataSheet ReadEdsFromString(string content)
-    {
-        return ReadEdsFromString(content, IniParser.DefaultMaxInputSize);
-    }
-
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) from a string.
-    /// </summary>
-    /// <param name="content">EDS file content as string</param>
     /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadEdsFromString(
         string content,
-        long maxInputSize)
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var reader = new EdsReader();
         return reader.ReadString(content, maxInputSize);
-    }
-
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing EDS content.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
-    public static ElectronicDataSheet ReadEds(Stream stream)
-    {
-        return ReadEds(stream, IniParser.DefaultMaxInputSize);
     }
 
     /// <summary>
@@ -153,25 +124,10 @@ public static class CanOpenFile
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadEds(
         Stream stream,
-        long maxInputSize)
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var reader = new EdsReader();
         return reader.ReadStream(stream, maxInputSize);
-    }
-
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing EDS content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
-    public static Task<ElectronicDataSheet> ReadEdsAsync(
-        Stream stream,
-        CancellationToken cancellationToken = default)
-    {
-        var reader = new EdsReader();
-        return reader.ReadStreamAsync(stream, cancellationToken);
     }
 
     /// <summary>
@@ -184,12 +140,16 @@ public static class CanOpenFile
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static Task<ElectronicDataSheet> ReadEdsAsync(
         Stream stream,
-        long maxInputSize,
+        long maxInputSize = IniParser.DefaultMaxInputSize,
         CancellationToken cancellationToken = default)
     {
         var reader = new EdsReader();
         return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
     }
+
+    #endregion
+
+    #region EDS Write
 
     /// <summary>
     /// Writes an Electronic Data Sheet (EDS) to disk.
@@ -263,15 +223,9 @@ public static class CanOpenFile
         return writer.GenerateString(eds);
     }
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF).
-    /// </summary>
-    /// <param name="filePath">Path to the DCF file</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static DeviceConfigurationFile ReadDcf(string filePath)
-    {
-        return ReadDcf(filePath, IniParser.DefaultMaxInputSize);
-    }
+    #endregion
+
+    #region DCF Read
 
     /// <summary>
     /// Reads a Device Configuration File (DCF).
@@ -288,7 +242,7 @@ public static class CanOpenFile
     /// </example>
     public static DeviceConfigurationFile ReadDcf(
         string filePath,
-        long maxInputSize)
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var reader = new DcfReader();
         return reader.ReadFile(filePath, maxInputSize);
@@ -328,35 +282,14 @@ public static class CanOpenFile
     /// Reads a Device Configuration File (DCF) from a string.
     /// </summary>
     /// <param name="content">DCF file content as string</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static DeviceConfigurationFile ReadDcfFromString(string content)
-    {
-        return ReadDcfFromString(content, IniParser.DefaultMaxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a string.
-    /// </summary>
-    /// <param name="content">DCF file content as string</param>
     /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadDcfFromString(
         string content,
-        long maxInputSize)
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var reader = new DcfReader();
         return reader.ReadString(content, maxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static DeviceConfigurationFile ReadDcf(Stream stream)
-    {
-        return ReadDcf(stream, IniParser.DefaultMaxInputSize);
     }
 
     /// <summary>
@@ -368,25 +301,10 @@ public static class CanOpenFile
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static DeviceConfigurationFile ReadDcf(
         Stream stream,
-        long maxInputSize)
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var reader = new DcfReader();
         return reader.ReadStream(stream, maxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static Task<DeviceConfigurationFile> ReadDcfAsync(
-        Stream stream,
-        CancellationToken cancellationToken = default)
-    {
-        var reader = new DcfReader();
-        return reader.ReadStreamAsync(stream, cancellationToken);
     }
 
     /// <summary>
@@ -399,12 +317,16 @@ public static class CanOpenFile
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
         Stream stream,
-        long maxInputSize,
+        long maxInputSize = IniParser.DefaultMaxInputSize,
         CancellationToken cancellationToken = default)
     {
         var reader = new DcfReader();
         return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
     }
+
+    #endregion
+
+    #region DCF Write
 
     /// <summary>
     /// Writes a Device Configuration File (DCF) to disk.
@@ -479,15 +401,9 @@ public static class CanOpenFile
         return writer.GenerateString(dcf);
     }
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) file.
-    /// </summary>
-    /// <param name="filePath">Path to the CPJ file</param>
-    /// <returns>Parsed NodelistProject object</returns>
-    public static NodelistProject ReadCpj(string filePath)
-    {
-        return ReadCpj(filePath, IniParser.DefaultMaxInputSize);
-    }
+    #endregion
+
+    #region CPJ Read
 
     /// <summary>
     /// Reads a CiA 306-3 nodelist project (.cpj) file.
@@ -497,7 +413,7 @@ public static class CanOpenFile
     /// <returns>Parsed NodelistProject object</returns>
     public static NodelistProject ReadCpj(
         string filePath,
-        long maxInputSize)
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var reader = new CpjReader();
         return reader.ReadFile(filePath, maxInputSize);
@@ -537,35 +453,14 @@ public static class CanOpenFile
     /// Reads a CiA 306-3 nodelist project (.cpj) from a string.
     /// </summary>
     /// <param name="content">CPJ file content as string</param>
-    /// <returns>Parsed NodelistProject object</returns>
-    public static NodelistProject ReadCpjFromString(string content)
-    {
-        return ReadCpjFromString(content, IniParser.DefaultMaxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a string.
-    /// </summary>
-    /// <param name="content">CPJ file content as string</param>
     /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
     /// <returns>Parsed NodelistProject object</returns>
     public static NodelistProject ReadCpjFromString(
         string content,
-        long maxInputSize)
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var reader = new CpjReader();
         return reader.ReadString(content, maxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing CPJ content.</param>
-    /// <returns>Parsed NodelistProject object</returns>
-    public static NodelistProject ReadCpj(Stream stream)
-    {
-        return ReadCpj(stream, IniParser.DefaultMaxInputSize);
     }
 
     /// <summary>
@@ -577,25 +472,10 @@ public static class CanOpenFile
     /// <returns>Parsed NodelistProject object</returns>
     public static NodelistProject ReadCpj(
         Stream stream,
-        long maxInputSize)
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var reader = new CpjReader();
         return reader.ReadStream(stream, maxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing CPJ content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed NodelistProject object</returns>
-    public static Task<NodelistProject> ReadCpjAsync(
-        Stream stream,
-        CancellationToken cancellationToken = default)
-    {
-        var reader = new CpjReader();
-        return reader.ReadStreamAsync(stream, cancellationToken);
     }
 
     /// <summary>
@@ -608,12 +488,16 @@ public static class CanOpenFile
     /// <returns>Parsed NodelistProject object</returns>
     public static Task<NodelistProject> ReadCpjAsync(
         Stream stream,
-        long maxInputSize,
+        long maxInputSize = IniParser.DefaultMaxInputSize,
         CancellationToken cancellationToken = default)
     {
         var reader = new CpjReader();
         return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
     }
+
+    #endregion
+
+    #region CPJ Write
 
     /// <summary>
     /// Writes a CiA 306-3 nodelist project (.cpj) to disk.
@@ -680,15 +564,9 @@ public static class CanOpenFile
         return writer.GenerateString(cpj);
     }
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) file.
-    /// </summary>
-    /// <param name="filePath">Path to the XDD file</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
-    public static ElectronicDataSheet ReadXdd(string filePath)
-    {
-        return ReadXdd(filePath, IniParser.DefaultMaxInputSize);
-    }
+    #endregion
+
+    #region XDD Read
 
     /// <summary>
     /// Reads a CiA 311 XDD (XML Device Description) file.
@@ -698,7 +576,7 @@ public static class CanOpenFile
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadXdd(
         string filePath,
-        long maxInputSize)
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var reader = new XddReader();
         return reader.ReadFile(filePath, maxInputSize);
@@ -732,16 +610,6 @@ public static class CanOpenFile
     {
         var reader = new XddReader();
         return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
-    }
-
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a string.
-    /// </summary>
-    /// <param name="content">XDD file content as string</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
-    public static ElectronicDataSheet ReadXddFromString(string content)
-    {
-        return ReadXddFromString(content, IniParser.DefaultMaxInputSize);
     }
 
     /// <summary>
@@ -752,21 +620,10 @@ public static class CanOpenFile
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadXddFromString(
         string content,
-        long maxInputSize)
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var reader = new XddReader();
         return reader.ReadString(content, maxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDD content.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
-    public static ElectronicDataSheet ReadXdd(Stream stream)
-    {
-        return ReadXdd(stream, IniParser.DefaultMaxInputSize);
     }
 
     /// <summary>
@@ -778,25 +635,10 @@ public static class CanOpenFile
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static ElectronicDataSheet ReadXdd(
         Stream stream,
-        long maxInputSize)
+        long maxInputSize = IniParser.DefaultMaxInputSize)
     {
         var reader = new XddReader();
         return reader.ReadStream(stream, maxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDD content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
-    public static Task<ElectronicDataSheet> ReadXddAsync(
-        Stream stream,
-        CancellationToken cancellationToken = default)
-    {
-        var reader = new XddReader();
-        return reader.ReadStreamAsync(stream, cancellationToken);
     }
 
     /// <summary>
@@ -809,148 +651,16 @@ public static class CanOpenFile
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static Task<ElectronicDataSheet> ReadXddAsync(
         Stream stream,
-        long maxInputSize,
+        long maxInputSize = IniParser.DefaultMaxInputSize,
         CancellationToken cancellationToken = default)
     {
         var reader = new XddReader();
         return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
     }
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file.
-    /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static DeviceConfigurationFile ReadXdc(string filePath)
-    {
-        return ReadXdc(filePath, IniParser.DefaultMaxInputSize);
-    }
+    #endregion
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file.
-    /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static DeviceConfigurationFile ReadXdc(
-        string filePath,
-        long maxInputSize)
-    {
-        var reader = new XdcReader();
-        return reader.ReadFile(filePath, maxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static Task<DeviceConfigurationFile> ReadXdcAsync(
-        string filePath,
-        CancellationToken cancellationToken = default)
-    {
-        var reader = new XdcReader();
-        return reader.ReadFileAsync(filePath, cancellationToken);
-    }
-
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static Task<DeviceConfigurationFile> ReadXdcAsync(
-        string filePath,
-        long maxInputSize,
-        CancellationToken cancellationToken = default)
-    {
-        var reader = new XdcReader();
-        return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
-    }
-
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
-    /// </summary>
-    /// <param name="content">XDC file content as string</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static DeviceConfigurationFile ReadXdcFromString(string content)
-    {
-        return ReadXdcFromString(content, IniParser.DefaultMaxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
-    /// </summary>
-    /// <param name="content">XDC file content as string</param>
-    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static DeviceConfigurationFile ReadXdcFromString(
-        string content,
-        long maxInputSize)
-    {
-        var reader = new XdcReader();
-        return reader.ReadString(content, maxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static DeviceConfigurationFile ReadXdc(Stream stream)
-    {
-        return ReadXdc(stream, IniParser.DefaultMaxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static DeviceConfigurationFile ReadXdc(
-        Stream stream,
-        long maxInputSize)
-    {
-        var reader = new XdcReader();
-        return reader.ReadStream(stream, maxInputSize);
-    }
-
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static Task<DeviceConfigurationFile> ReadXdcAsync(
-        Stream stream,
-        CancellationToken cancellationToken = default)
-    {
-        var reader = new XdcReader();
-        return reader.ReadStreamAsync(stream, cancellationToken);
-    }
-
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static Task<DeviceConfigurationFile> ReadXdcAsync(
-        Stream stream,
-        long maxInputSize,
-        CancellationToken cancellationToken = default)
-    {
-        var reader = new XdcReader();
-        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
-    }
+    #region XDD Write
 
     /// <summary>
     /// Writes an ElectronicDataSheet as a CiA 311 XDD file.
@@ -1017,6 +727,104 @@ public static class CanOpenFile
         return writer.GenerateString(xdd);
     }
 
+    #endregion
+
+    #region XDC Read
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) file.
+    /// </summary>
+    /// <param name="filePath">Path to the XDC file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadXdc(
+        string filePath,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
+    {
+        var reader = new XdcReader();
+        return reader.ReadFile(filePath, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the XDC file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XdcReader();
+        return reader.ReadFileAsync(filePath, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the XDC file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        string filePath,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XdcReader();
+        return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
+    /// </summary>
+    /// <param name="content">XDC file content as string</param>
+    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadXdcFromString(
+        string content,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
+    {
+        var reader = new XdcReader();
+        return reader.ReadString(content, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDC content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadXdc(
+        Stream stream,
+        long maxInputSize = IniParser.DefaultMaxInputSize)
+    {
+        var reader = new XdcReader();
+        return reader.ReadStream(stream, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDC content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        Stream stream,
+        long maxInputSize = IniParser.DefaultMaxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XdcReader();
+        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
+    }
+
+    #endregion
+
+    #region XDC Write
+
     /// <summary>
     /// Writes a DeviceConfigurationFile as a CiA 311 XDC file.
     /// </summary>
@@ -1081,6 +889,10 @@ public static class CanOpenFile
         var writer = new XdcWriter();
         return writer.GenerateString(xdc);
     }
+
+    #endregion
+
+    #region EDS to DCF Conversion
 
     /// <summary>
     /// Converts an EDS to a DCF with specified commissioning parameters.
@@ -1164,4 +976,6 @@ public static class CanOpenFile
 
         return dcf;
     }
+
+    #endregion
 }

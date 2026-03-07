@@ -11,15 +11,29 @@ using Xunit;
 public class CanOpenFileTests
 {
     [Fact]
-    public void SyncReadMethods_LegacySingleParameterOverloads_AreAvailableForBinaryCompatibility()
+    public void SyncReadMethods_AcceptOptionalMaxInputSize()
     {
-        var singleStringSignature = new[] { typeof(string) };
+        var signature = new[] { typeof(string), typeof(long) };
 
-        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadEds), singleStringSignature).Should().NotBeNull();
-        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadDcf), singleStringSignature).Should().NotBeNull();
-        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadCpj), singleStringSignature).Should().NotBeNull();
-        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdd), singleStringSignature).Should().NotBeNull();
-        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdc), singleStringSignature).Should().NotBeNull();
+        var readEds = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadEds), signature);
+        readEds.Should().NotBeNull();
+        readEds!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readDcf = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadDcf), signature);
+        readDcf.Should().NotBeNull();
+        readDcf!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readCpj = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadCpj), signature);
+        readCpj.Should().NotBeNull();
+        readCpj!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readXdd = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdd), signature);
+        readXdd.Should().NotBeNull();
+        readXdd!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readXdc = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdc), signature);
+        readXdc.Should().NotBeNull();
+        readXdc!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
     }
 
     [Fact]
@@ -62,15 +76,29 @@ public class CanOpenFileTests
     }
 
     [Fact]
-    public void SyncReadFromStringMethods_LegacySingleParameterOverloads_AreAvailableForBinaryCompatibility()
+    public void SyncReadFromStringMethods_AcceptOptionalMaxInputSize()
     {
-        var singleStringSignature = new[] { typeof(string) };
+        var signature = new[] { typeof(string), typeof(long) };
 
-        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadEdsFromString), singleStringSignature).Should().NotBeNull();
-        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadDcfFromString), singleStringSignature).Should().NotBeNull();
-        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadCpjFromString), singleStringSignature).Should().NotBeNull();
-        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXddFromString), singleStringSignature).Should().NotBeNull();
-        typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdcFromString), singleStringSignature).Should().NotBeNull();
+        var readEds = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadEdsFromString), signature);
+        readEds.Should().NotBeNull();
+        readEds!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readDcf = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadDcfFromString), signature);
+        readDcf.Should().NotBeNull();
+        readDcf!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readCpj = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadCpjFromString), signature);
+        readCpj.Should().NotBeNull();
+        readCpj!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readXdd = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXddFromString), signature);
+        readXdd.Should().NotBeNull();
+        readXdd!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readXdc = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdcFromString), signature);
+        readXdc.Should().NotBeNull();
+        readXdc!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
     }
 
     [Fact]
