@@ -198,11 +198,4 @@ public class XddReader : IFileReader<ElectronicDataSheet>
     internal static string GetXsiType(XElement element)
         => XddParsingPrimitives.GetXsiType(element);
 
-    // Kept for compatibility with focused parser tests.
-    internal static ushort ParseHexIndex(string value)
-        => XddParsingPrimitives.ParseHexIndex(value);
-
-    // Kept for compatibility with focused parser tests.
-    internal static ushort ParseBaudRateString(string value)
-        => XddParsingPrimitives.ParseBaudRateString(value);
 }
