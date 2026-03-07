@@ -192,7 +192,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
             return null;
 
         // DCF-specific fields
-        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", index);
+        var sectionName = ToHexInvariant(index);
         obj.ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue");
         obj.Denotation = IniParser.GetValue(sections, sectionName, "Denotation");
         obj.ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd");
@@ -208,7 +208,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         base.ParseSubObjects(sections, index, obj);
 
         // Parse compact value storage
-        var valueSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Value", index);
+        var valueSectionName = string.Concat(ToHexInvariant(index), "Value");
         if (IniParser.HasSection(sections, valueSectionName))
         {
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, valueSectionName, "NrOfEntries", "0"));
@@ -227,7 +227,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         }
 
         // Parse compact denotation storage
-        var denotationSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Denotation", index);
+        var denotationSectionName = string.Concat(ToHexInvariant(index), "Denotation");
         if (IniParser.HasSection(sections, denotationSectionName))
         {
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, denotationSectionName, "NrOfEntries", "0"));
@@ -254,7 +254,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
             return null;
 
         // DCF-specific fields
-        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", index, subIndex);
+        var sectionName = string.Concat(ToHexInvariant(index), "sub", ToHexInvariant(subIndex));
         subObj.ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue");
         subObj.Denotation = IniParser.GetValue(sections, sectionName, "Denotation");
         subObj.ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd");
