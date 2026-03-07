@@ -223,7 +223,7 @@ public abstract class CanOpenReaderBase
     /// </summary>
     protected virtual CanOpenObject? ParseObject(Dictionary<string, Dictionary<string, string>> sections, ushort index)
     {
-        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", index);
+        var sectionName = ToHexInvariant(index);
         if (!IniParser.HasSection(sections, sectionName))
             return null;
 
@@ -273,7 +273,7 @@ public abstract class CanOpenReaderBase
         }
 
         // Parse object links
-        var linksSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}ObjectLinks", index);
+        var linksSectionName = string.Concat(ToHexInvariant(index), "ObjectLinks");
         if (IniParser.HasSection(sections, linksSectionName))
         {
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, linksSectionName, "ObjectLinks", "0"));
@@ -321,7 +321,7 @@ public abstract class CanOpenReaderBase
     /// </summary>
     protected virtual CanOpenSubObject? ParseSubObject(Dictionary<string, Dictionary<string, string>> sections, ushort index, byte subIndex)
     {
-        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", index, subIndex);
+        var sectionName = string.Concat(ToHexInvariant(index), "sub", ToHexInvariant(subIndex));
         if (!IniParser.HasSection(sections, sectionName))
             return null;
 
@@ -554,6 +554,12 @@ public abstract class CanOpenReaderBase
             NumberStyles.HexNumber,
             CultureInfo.InvariantCulture, out _);
     }
+
+    private static string ToHexInvariant(ushort value)
+        => value.ToString("X", CultureInfo.InvariantCulture);
+
+    private static string ToHexInvariant(byte value)
+        => value.ToString("X", CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Checks if a section name matches a module section pattern: M{Digits}{KnownSuffix}.
