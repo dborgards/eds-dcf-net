@@ -150,6 +150,8 @@ public static class IniParser
                     "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
                     content.Length, maxInputSize));
 
+        // Split on CR/LF as independent line terminators; RemoveEmptyEntries intentionally
+        // ignores blank lines because INI semantics treat them as non-significant separators.
         var lines = content.Split(LineEndChars, StringSplitOptions.RemoveEmptyEntries);
         return ParseLines(lines);
     }

@@ -97,6 +97,24 @@ Key2=Value2
     }
 
     [Fact]
+    public void ParseString_MixedLineEndingsAndEmptyLines_ParsesCorrectly()
+    {
+        // Arrange: ParseString splits on '\r' and '\n' and intentionally ignores blank lines.
+        const string content = "[Section1]\r\n\r\nKey1=Value1\rKey2=Value2\n\n[Section2]\nKey3=Value3\r\n";
+
+        // Act
+        var result = IniParser.ParseString(content);
+
+        // Assert
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+        result["Section1"]["Key2"].Should().Be("Value2");
+
+        result.Should().ContainKey("Section2");
+        result["Section2"]["Key3"].Should().Be("Value3");
+    }
+
+    [Fact]
     public void ParseString_WhitespaceIsTrimmed()
     {
         // Arrange
