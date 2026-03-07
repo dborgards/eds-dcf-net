@@ -555,10 +555,16 @@ public abstract class CanOpenReaderBase
             CultureInfo.InvariantCulture, out _);
     }
 
-    private static string ToHexInvariant(ushort value)
+    /// <summary>
+    /// Formats an object index as uppercase hexadecimal using invariant culture.
+    /// </summary>
+    protected static string ToHexInvariant(ushort value)
         => value.ToString("X", CultureInfo.InvariantCulture);
 
-    private static string ToHexInvariant(byte value)
+    /// <summary>
+    /// Formats a sub-index as uppercase hexadecimal using invariant culture.
+    /// </summary>
+    protected static string ToHexInvariant(byte value)
         => value.ToString("X", CultureInfo.InvariantCulture);
 
     /// <summary>

@@ -340,11 +340,5 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         return modules;
     }
 
-    private static string ToHexInvariant(ushort value)
-        => value.ToString("X", CultureInfo.InvariantCulture);
-
-    private static string ToHexInvariant(byte value)
-        => value.ToString("X", CultureInfo.InvariantCulture);
-
     #endregion
 }
