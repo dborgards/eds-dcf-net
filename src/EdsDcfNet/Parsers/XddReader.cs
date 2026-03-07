@@ -11,7 +11,7 @@ using EdsDcfNet.Utilities;
 /// <summary>
 /// Reader for CiA 311 XDD (XML Device Description) files.
 /// </summary>
-public class XddReader
+public class XddReader : IFileReader<ElectronicDataSheet>
 {
     private static readonly Dictionary<ushort, Action<BaudRates>> BaudRateSetters =
         new Dictionary<ushort, Action<BaudRates>>
