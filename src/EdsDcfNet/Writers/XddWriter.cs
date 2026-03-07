@@ -397,7 +397,7 @@ public class XddWriter
         XddFormatHelper.AccessTypeToString(accessType);
 
     /// <summary>Formats a baud rate in kbps as the XDD string form (e.g. "250 Kbps").</summary>
-    internal static string FormatBaudRate(ushort kbps) =>
+    protected static string FormatBaudRate(ushort kbps) =>
         XddFormatHelper.FormatBaudRate(kbps);
 
     // ── Serialization helpers ──────────────────────────────────────────────────

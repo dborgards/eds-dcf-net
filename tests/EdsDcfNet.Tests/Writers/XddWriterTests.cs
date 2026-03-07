@@ -911,6 +911,14 @@ public class XddWriterTests
     }
 
     [Fact]
+    public void FormatBaudRate_ProtectedHelper_ReturnsExpectedXddValue()
+    {
+        var result = FormatHelperProbeWriter.CallFormatBaudRate(250);
+
+        result.Should().Be("250 Kbps");
+    }
+
+    [Fact]
     public void StringBuilderWriter_WriteCharAndString_AreCallable()
     {
         var nestedType = typeof(XddWriter).GetNestedType("StringBuilderWriter", BindingFlags.NonPublic);
@@ -983,6 +991,11 @@ public class XddWriterTests
         {
             throw ExpectedException;
         }
+    }
+
+    private sealed class FormatHelperProbeWriter : XddWriter
+    {
+        public static string CallFormatBaudRate(ushort kbps) => FormatBaudRate(kbps);
     }
 
     private static XElement GetSingleElement(XContainer container, string localName)
