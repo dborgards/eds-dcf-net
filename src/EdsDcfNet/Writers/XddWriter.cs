@@ -192,9 +192,7 @@ public class XddWriter
             container);
     }
 
-    [SuppressMessage("Performance", "CA1822:Mark members as static",
-        Justification = "Calls virtual members via instance dispatch.")]
-    private XElement BuildDeviceProfile(ElectronicDataSheet eds, XNamespace xsi)
+    private static XElement BuildDeviceProfile(ElectronicDataSheet eds, XNamespace xsi)
     {
         var profileBody = new XElement("ProfileBody",
             new XAttribute(xsi + "type", "ProfileBody_Device_CANopen"));
