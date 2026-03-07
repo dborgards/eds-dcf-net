@@ -26,7 +26,7 @@ public interface IFileReader<TModel>
     /// Reads content from a string and parses it into <typeparamref name="TModel"/>.
     /// </summary>
     /// <param name="content">Input content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="maxInputSize">Maximum content length in characters.</param>
     /// <returns>Parsed model.</returns>
     TModel ReadString(string content, long maxInputSize = IniParser.DefaultMaxInputSize);
 
@@ -37,7 +37,10 @@ public interface IFileReader<TModel>
     /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Parsed model.</returns>
-    Task<TModel> ReadFileAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default);
+    Task<TModel> ReadFileAsync(
+        string filePath,
+        long maxInputSize = IniParser.DefaultMaxInputSize,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Asynchronously reads content from a stream and parses it into <typeparamref name="TModel"/>.
@@ -46,5 +49,8 @@ public interface IFileReader<TModel>
     /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Parsed model.</returns>
-    Task<TModel> ReadStreamAsync(Stream stream, long maxInputSize, CancellationToken cancellationToken = default);
+    Task<TModel> ReadStreamAsync(
+        Stream stream,
+        long maxInputSize = IniParser.DefaultMaxInputSize,
+        CancellationToken cancellationToken = default);
 }
