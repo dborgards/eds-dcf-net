@@ -628,6 +628,55 @@ PDOMapping=0
     }
 
     [Fact]
+    public void EdsToDcf_WithExplicitTimestamp_UsesProvidedFileInfoTimeFields()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test Product" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+        var timestamp = new DateTime(2026, 03, 05, 13, 47, 00);
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5, timestamp: timestamp);
+
+        // Assert
+        dcf.FileInfo.CreationDate.Should().Be("03-05-2026");
+        dcf.FileInfo.CreationTime.Should().Be("01:47PM");
+    }
+
+    [Fact]
+    public void EdsToDcf_DefaultOverload_UsesSpecCompliantDateAndTimeFormatting()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test Product" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert
+        DateTime.TryParseExact(
+            dcf.FileInfo.CreationDate,
+            "MM-dd-yyyy",
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None,
+            out _).Should().BeTrue();
+        DateTime.TryParseExact(
+            dcf.FileInfo.CreationTime,
+            "hh:mmtt",
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None,
+            out _).Should().BeTrue();
+    }
+
+    [Fact]
     public void EdsToDcf_PreservesDeviceInfo()
     {
         // Arrange
