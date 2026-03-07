@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Writers;
 
+using System.Collections.Generic;
 using System.Globalization;
 using System.Xml.Linq;
 using EdsDcfNet.Models;
