@@ -53,12 +53,13 @@ public class CpjWriteExceptionTests
     }
 
     [Fact]
-    public void IsException_InheritsFromException()
+    public void IsException_InheritsFromWriteException()
     {
         // Act
         var ex = new CpjWriteException("test");
 
         // Assert
+        ex.Should().BeAssignableTo<WriteException>();
         ex.Should().BeAssignableTo<Exception>();
     }
 }

@@ -3,13 +3,8 @@ namespace EdsDcfNet.Exceptions;
 /// <summary>
 /// Exception thrown when writing an EDS file fails.
 /// </summary>
-public class EdsWriteException : Exception
+public class EdsWriteException : WriteException
 {
-    /// <summary>
-    /// Section name where the error occurred (if applicable).
-    /// </summary>
-    public string? SectionName { get; set; }
-
     /// <summary>
     /// Initializes a new instance of the <see cref="EdsWriteException"/> class.
     /// </summary>
@@ -39,8 +34,7 @@ public class EdsWriteException : Exception
     /// </summary>
     /// <param name="message">The message that describes the error.</param>
     /// <param name="sectionName">The section name where the error occurred.</param>
-    public EdsWriteException(string message, string sectionName) : base(message)
+    public EdsWriteException(string message, string sectionName) : base(message, sectionName)
     {
-        SectionName = sectionName;
     }
 }

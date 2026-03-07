@@ -3,13 +3,8 @@ namespace EdsDcfNet.Exceptions;
 /// <summary>
 /// Exception thrown when writing a DCF file fails.
 /// </summary>
-public class DcfWriteException : Exception
+public class DcfWriteException : WriteException
 {
-    /// <summary>
-    /// Section name where the error occurred (if applicable).
-    /// </summary>
-    public string? SectionName { get; set; }
-
     /// <summary>
     /// Initializes a new instance of the <see cref="DcfWriteException"/> class.
     /// </summary>
@@ -39,8 +34,7 @@ public class DcfWriteException : Exception
     /// </summary>
     /// <param name="message">The message that describes the error.</param>
     /// <param name="sectionName">The section name where the error occurred.</param>
-    public DcfWriteException(string message, string sectionName) : base(message)
+    public DcfWriteException(string message, string sectionName) : base(message, sectionName)
     {
-        SectionName = sectionName;
     }
 }

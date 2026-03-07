@@ -3,13 +3,8 @@ namespace EdsDcfNet.Exceptions;
 /// <summary>
 /// Exception thrown when writing an XDD file fails.
 /// </summary>
-public class XddWriteException : Exception
+public class XddWriteException : WriteException
 {
-    /// <summary>
-    /// Section or element context where the error occurred (if applicable).
-    /// </summary>
-    public string? SectionName { get; set; }
-
     /// <summary>
     /// Initializes a new instance of the <see cref="XddWriteException"/> class.
     /// </summary>
@@ -39,8 +34,7 @@ public class XddWriteException : Exception
     /// </summary>
     /// <param name="message">The message that describes the error.</param>
     /// <param name="sectionName">The section or element name where the error occurred.</param>
-    public XddWriteException(string message, string sectionName) : base(message)
+    public XddWriteException(string message, string sectionName) : base(message, sectionName)
     {
-        SectionName = sectionName;
     }
 }
