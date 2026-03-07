@@ -6,8 +6,8 @@
 		<PackageId>EdsDcfNet</PackageId>
 		<Version>1.8.0-beta.3</Version>
 		<Authors>Dietmar Borgards</Authors>
-		<Description>A comprehensive C# .NET library for reading and writing CiA DS 306 EDS (Electronic Data Sheet) and DCF (Device Configuration File) files for CANopen devices.</Description>
-		<PackageTags>CANopen;EDS;DCF;CiA;DS306;Industrial Automation</PackageTags>
+		<Description>A comprehensive C# .NET library for reading and writing CiA DS 306 (EDS, DCF, CPJ) and CiA 311 (XDD, XDC) files for CANopen devices.</Description>
+		<PackageTags>CANopen;EDS;DCF;CPJ;XDD;XDC;CiA;DS306;CiA311;Industrial Automation</PackageTags>
 		<RepositoryUrl>https://github.com/dborgards/eds-dcf-net</RepositoryUrl>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
