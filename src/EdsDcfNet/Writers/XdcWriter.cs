@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
@@ -20,8 +21,45 @@ public class XdcWriter : XddWriter
     /// <param name="filePath">Path where the XDC file should be written</param>
     public void WriteFile(DeviceConfigurationFile dcf, string filePath)
     {
-        var content = GenerateString(dcf);
-        File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+        try
+        {
+            var content = GenerateString(dcf);
+            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+        }
+        catch (XdcWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XdcWriteException($"Failed to write XDC file to {filePath}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Writes a DeviceConfigurationFile as XDC content to the specified stream.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public void WriteStream(DeviceConfigurationFile dcf, Stream stream)
+    {
+        ThrowIfNull(stream, nameof(stream));
+        if (!stream.CanWrite)
+            throw new ArgumentException("Stream must be writable.", nameof(stream));
+
+        try
+        {
+            var content = GenerateString(dcf);
+            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
+        }
+        catch (XdcWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XdcWriteException("Failed to write XDC content to stream.", ex);
+        }
     }
 
     /// <summary>
@@ -35,9 +73,59 @@ public class XdcWriter : XddWriter
         string filePath,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var content = GenerateString(dcf);
-        await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = GenerateString(dcf);
+            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (XdcWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XdcWriteException($"Failed to write XDC file to {filePath}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Writes a DeviceConfigurationFile as an XDC stream asynchronously.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public async Task WriteStreamAsync(
+        DeviceConfigurationFile dcf,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfNull(stream, nameof(stream));
+        if (!stream.CanWrite)
+            throw new ArgumentException("Stream must be writable.", nameof(stream));
+
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var content = GenerateString(dcf);
+            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (XdcWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XdcWriteException("Failed to write XDC content to stream.", ex);
+        }
     }
 
     /// <summary>
@@ -47,7 +135,32 @@ public class XdcWriter : XddWriter
     /// <returns>XDC content as string</returns>
     public string GenerateString(DeviceConfigurationFile dcf)
     {
-        return base.GenerateString(CreateEdsView(dcf), dcf.DeviceCommissioning);
+        try
+        {
+            return base.GenerateString(CreateEdsView(dcf), dcf.DeviceCommissioning);
+        }
+        catch (XddWriteException ex)
+        {
+            throw new XdcWriteException(
+                ex.Message,
+                ex.InnerException ?? ex)
+            {
+                SectionName = ex.SectionName
+            };
+        }
+        catch (XdcWriteException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new XdcWriteException(
+                "Failed to write section [Document]",
+                ex)
+            {
+                SectionName = "Document"
+            };
+        }
     }
 
     /// <inheritdoc/>
@@ -87,10 +200,13 @@ public class XdcWriter : XddWriter
     private static XElement BuildDeviceCommissioning(DeviceCommissioning dc)
     {
         if (dc.NodeId < 1 || dc.NodeId > 127)
-            throw new InvalidOperationException(
+        {
+            throw new XdcWriteException(
                 string.Format(CultureInfo.InvariantCulture,
                     "Cannot write XDC: NodeId {0} is outside the valid CANopen range 1..127.",
-                    dc.NodeId));
+                    dc.NodeId),
+                "deviceCommissioning");
+        }
 
         var elem = new XElement("deviceCommissioning");
 
@@ -135,5 +251,11 @@ public class XdcWriter : XddWriter
             eds.AdditionalSections[kvp.Key] = kvp.Value;
 
         return eds;
+    }
+
+    private static void ThrowIfNull(object? value, string parameterName)
+    {
+        if (value == null)
+            throw new ArgumentNullException(parameterName);
     }
 }

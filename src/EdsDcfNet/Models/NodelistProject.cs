@@ -12,7 +12,10 @@ public class NodelistProject
 
     /// <summary>
     /// Gets or sets additional sections not recognized as topology sections.
-    /// Key is the section name, value is a dictionary of key-value pairs.
+    /// Section names are compared case-insensitively using <see cref="StringComparer.OrdinalIgnoreCase"/>,
+    /// so assigning names that differ only by case overwrites the previous section.
+    /// Each section contains key-value pairs that are treated case-insensitively by readers/writers.
     /// </summary>
-    public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } = new();
+    public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
 }

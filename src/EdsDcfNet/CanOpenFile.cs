@@ -2,6 +2,8 @@ namespace EdsDcfNet;
 
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
+using EdsDcfNet.Utilities;
+using EdsDcfNet.Validation;
 using EdsDcfNet.Writers;
 using System.Globalization;
 
@@ -9,12 +11,51 @@ using System.Globalization;
 /// Main entry point for working with EDS and DCF files.
 /// Provides a simple, fluent API for reading and writing CANopen configuration files.
 /// </summary>
+/// <remarks>
+/// File and stream writer overloads of <c>WriteEds</c>, <c>WriteDcf</c>, <c>WriteCpj</c>,
+/// <c>WriteXdd</c>, and <c>WriteXdc</c> serialize text as UTF-8 without BOM.
+/// This intentionally diverges from strict historical ASCII-only assumptions in DS 306 to
+/// preserve non-ASCII content while remaining ASCII-compatible for 7-bit data.
+/// The corresponding <c>Write*ToString</c> overloads return a .NET <see cref="string"/>,
+/// so BOM and byte-level encoding do not apply.
+/// </remarks>
 public static class CanOpenFile
 {
+    /// <summary>
+    /// Validates an Electronic Data Sheet (EDS) model using the full
+    /// <see cref="CanOpenModelValidator"/> rule set.
+    /// </summary>
+    /// <param name="eds">Model instance to validate</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(ElectronicDataSheet eds)
+    {
+        return CanOpenModelValidator.Validate(eds);
+    }
+
+    /// <summary>
+    /// Validates a Device Configuration File (DCF) model using the full
+    /// <see cref="CanOpenModelValidator"/> rule set.
+    /// </summary>
+    /// <param name="dcf">Model instance to validate</param>
+    /// <remarks>
+    /// For commissioned device entries, <c>NodeId</c> must be in range <c>1..127</c>.
+    /// <c>NodeId == 0</c> is accepted only when commissioning is omitted
+    /// (all commissioning fields are left at their default or empty values).
+    /// <c>Baudrate == 0</c> is accepted for this omitted commissioning state.
+    /// </remarks>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
+    {
+        return CanOpenModelValidator.Validate(dcf);
+    }
+
+    #region EDS Read
+
     /// <summary>
     /// Reads an Electronic Data Sheet (EDS) file.
     /// </summary>
     /// <param name="filePath">Path to the EDS file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     /// <example>
     /// <code>
@@ -22,10 +63,12 @@ public static class CanOpenFile
     /// Console.WriteLine($"Device: {eds.DeviceInfo.ProductName}");
     /// </code>
     /// </example>
-    public static ElectronicDataSheet ReadEds(string filePath)
+    public static ElectronicDataSheet ReadEds(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new EdsReader();
-        return reader.ReadFile(filePath);
+        return reader.ReadFile(filePath, maxInputSize);
     }
 
     /// <summary>
@@ -43,15 +86,85 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) file asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the EDS file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadEdsAsync(
+        string filePath,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new EdsReader();
+        return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
+    }
+
+    /// <summary>
     /// Reads an Electronic Data Sheet (EDS) from a string.
     /// </summary>
     /// <param name="content">EDS file content as string</param>
+    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
-    public static ElectronicDataSheet ReadEdsFromString(string content)
+    public static ElectronicDataSheet ReadEdsFromString(
+        string content,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new EdsReader();
-        return reader.ReadString(content);
+        return reader.ReadString(content, maxInputSize);
     }
+
+    /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static ElectronicDataSheet ReadEds(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+    {
+        var reader = new EdsReader();
+        return reader.ReadStream(stream, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadEdsAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new EdsReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadEdsAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new EdsReader();
+        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
+    }
+
+    #endregion
+
+    #region EDS Write
 
     /// <summary>
     /// Writes an Electronic Data Sheet (EDS) to disk.
@@ -72,6 +185,18 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes an Electronic Data Sheet (EDS) to a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public static void WriteEds(ElectronicDataSheet eds, Stream stream)
+    {
+        var writer = new EdsWriter();
+        writer.WriteStream(eds, stream);
+    }
+
+    /// <summary>
     /// Writes an Electronic Data Sheet (EDS) to disk asynchronously.
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to write</param>
@@ -87,6 +212,22 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes an Electronic Data Sheet (EDS) to a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public static Task WriteEdsAsync(
+        ElectronicDataSheet eds,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new EdsWriter();
+        return writer.WriteStreamAsync(eds, stream, cancellationToken);
+    }
+
+    /// <summary>
     /// Generates an EDS file content as string.
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to convert</param>
@@ -97,10 +238,15 @@ public static class CanOpenFile
         return writer.GenerateString(eds);
     }
 
+    #endregion
+
+    #region DCF Read
+
     /// <summary>
     /// Reads a Device Configuration File (DCF).
     /// </summary>
     /// <param name="filePath">Path to the DCF file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     /// <example>
     /// <code>
@@ -109,10 +255,12 @@ public static class CanOpenFile
     /// Console.WriteLine($"Baudrate: {dcf.DeviceCommissioning.Baudrate} kbit/s");
     /// </code>
     /// </example>
-    public static DeviceConfigurationFile ReadDcf(string filePath)
+    public static DeviceConfigurationFile ReadDcf(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new DcfReader();
-        return reader.ReadFile(filePath);
+        return reader.ReadFile(filePath, maxInputSize);
     }
 
     /// <summary>
@@ -130,15 +278,85 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads a Device Configuration File (DCF) asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the DCF file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadDcfAsync(
+        string filePath,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new DcfReader();
+        return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
+    }
+
+    /// <summary>
     /// Reads a Device Configuration File (DCF) from a string.
     /// </summary>
     /// <param name="content">DCF file content as string</param>
+    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static DeviceConfigurationFile ReadDcfFromString(string content)
+    public static DeviceConfigurationFile ReadDcfFromString(
+        string content,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new DcfReader();
-        return reader.ReadString(content);
+        return reader.ReadString(content, maxInputSize);
     }
+
+    /// <summary>
+    /// Reads a Device Configuration File (DCF) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadDcf(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+    {
+        var reader = new DcfReader();
+        return reader.ReadStream(stream, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a Device Configuration File (DCF) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadDcfAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new DcfReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a Device Configuration File (DCF) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadDcfAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new DcfReader();
+        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
+    }
+
+    #endregion
+
+    #region DCF Write
 
     /// <summary>
     /// Writes a Device Configuration File (DCF) to disk.
@@ -160,6 +378,18 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes a Device Configuration File (DCF) to a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream)
+    {
+        var writer = new DcfWriter();
+        writer.WriteStream(dcf, stream);
+    }
+
+    /// <summary>
     /// Writes a Device Configuration File (DCF) to disk asynchronously.
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
@@ -175,6 +405,22 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes a Device Configuration File (DCF) to a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public static Task WriteDcfAsync(
+        DeviceConfigurationFile dcf,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new DcfWriter();
+        return writer.WriteStreamAsync(dcf, stream, cancellationToken);
+    }
+
+    /// <summary>
     /// Generates a DCF file content as string.
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to convert</param>
@@ -185,15 +431,22 @@ public static class CanOpenFile
         return writer.GenerateString(dcf);
     }
 
+    #endregion
+
+    #region CPJ Read
+
     /// <summary>
     /// Reads a CiA 306-3 nodelist project (.cpj) file.
     /// </summary>
     /// <param name="filePath">Path to the CPJ file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <returns>Parsed NodelistProject object</returns>
-    public static NodelistProject ReadCpj(string filePath)
+    public static NodelistProject ReadCpj(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new CpjReader();
-        return reader.ReadFile(filePath);
+        return reader.ReadFile(filePath, maxInputSize);
     }
 
     /// <summary>
@@ -211,15 +464,85 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) file asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the CPJ file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static Task<NodelistProject> ReadCpjAsync(
+        string filePath,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new CpjReader();
+        return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
+    }
+
+    /// <summary>
     /// Reads a CiA 306-3 nodelist project (.cpj) from a string.
     /// </summary>
     /// <param name="content">CPJ file content as string</param>
+    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
     /// <returns>Parsed NodelistProject object</returns>
-    public static NodelistProject ReadCpjFromString(string content)
+    public static NodelistProject ReadCpjFromString(
+        string content,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new CpjReader();
-        return reader.ReadString(content);
+        return reader.ReadString(content, maxInputSize);
     }
+
+    /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing CPJ content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static NodelistProject ReadCpj(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+    {
+        var reader = new CpjReader();
+        return reader.ReadStream(stream, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing CPJ content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static Task<NodelistProject> ReadCpjAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new CpjReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing CPJ content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static Task<NodelistProject> ReadCpjAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new CpjReader();
+        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
+    }
+
+    #endregion
+
+    #region CPJ Write
 
     /// <summary>
     /// Writes a CiA 306-3 nodelist project (.cpj) to disk.
@@ -230,6 +553,18 @@ public static class CanOpenFile
     {
         var writer = new CpjWriter();
         writer.WriteFile(cpj, filePath);
+    }
+
+    /// <summary>
+    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public static void WriteCpj(NodelistProject cpj, Stream stream)
+    {
+        var writer = new CpjWriter();
+        writer.WriteStream(cpj, stream);
     }
 
     /// <summary>
@@ -248,6 +583,22 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public static Task WriteCpjAsync(
+        NodelistProject cpj,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new CpjWriter();
+        return writer.WriteStreamAsync(cpj, stream, cancellationToken);
+    }
+
+    /// <summary>
     /// Generates CPJ file content as string.
     /// </summary>
     /// <param name="cpj">The NodelistProject to convert</param>
@@ -258,15 +609,22 @@ public static class CanOpenFile
         return writer.GenerateString(cpj);
     }
 
+    #endregion
+
+    #region XDD Read
+
     /// <summary>
     /// Reads a CiA 311 XDD (XML Device Description) file.
     /// </summary>
     /// <param name="filePath">Path to the XDD file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
-    public static ElectronicDataSheet ReadXdd(string filePath)
+    public static ElectronicDataSheet ReadXdd(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new XddReader();
-        return reader.ReadFile(filePath);
+        return reader.ReadFile(filePath, maxInputSize);
     }
 
     /// <summary>
@@ -284,51 +642,85 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Reads a CiA 311 XDD (XML Device Description) file asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the XDD file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadXddAsync(
+        string filePath,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XddReader();
+        return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
+    }
+
+    /// <summary>
     /// Reads a CiA 311 XDD (XML Device Description) from a string.
     /// </summary>
     /// <param name="content">XDD file content as string</param>
+    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
-    public static ElectronicDataSheet ReadXddFromString(string content)
+    public static ElectronicDataSheet ReadXddFromString(
+        string content,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var reader = new XddReader();
-        return reader.ReadString(content);
+        return reader.ReadString(content, maxInputSize);
     }
 
     /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file.
+    /// Reads a CiA 311 XDD (XML Device Description) from a stream.
+    /// The stream is not disposed by this method.
     /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static DeviceConfigurationFile ReadXdc(string filePath)
+    /// <param name="stream">Readable stream containing XDD content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static ElectronicDataSheet ReadXdd(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var reader = new XdcReader();
-        return reader.ReadFile(filePath);
+        var reader = new XddReader();
+        return reader.ReadStream(stream, maxInputSize);
     }
 
     /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
+    /// Reads a CiA 311 XDD (XML Device Description) from a stream asynchronously.
+    /// The stream is not disposed by this method.
     /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static Task<DeviceConfigurationFile> ReadXdcAsync(
-        string filePath,
+    /// <param name="stream">Readable stream containing XDD content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadXddAsync(
+        Stream stream,
         CancellationToken cancellationToken = default)
     {
-        var reader = new XdcReader();
-        return reader.ReadFileAsync(filePath, cancellationToken);
+        var reader = new XddReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
     }
 
     /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
+    /// Reads a CiA 311 XDD (XML Device Description) from a stream asynchronously.
+    /// The stream is not disposed by this method.
     /// </summary>
-    /// <param name="content">XDC file content as string</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public static DeviceConfigurationFile ReadXdcFromString(string content)
+    /// <param name="stream">Readable stream containing XDD content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadXddAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
     {
-        var reader = new XdcReader();
-        return reader.ReadString(content);
+        var reader = new XddReader();
+        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
     }
+
+    #endregion
+
+    #region XDD Write
 
     /// <summary>
     /// Writes an ElectronicDataSheet as a CiA 311 XDD file.
@@ -339,6 +731,18 @@ public static class CanOpenFile
     {
         var writer = new XddWriter();
         writer.WriteFile(xdd, filePath);
+    }
+
+    /// <summary>
+    /// Writes an ElectronicDataSheet as a CiA 311 XDD stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="xdd">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public static void WriteXdd(ElectronicDataSheet xdd, Stream stream)
+    {
+        var writer = new XddWriter();
+        writer.WriteStream(xdd, stream);
     }
 
     /// <summary>
@@ -357,6 +761,22 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes an ElectronicDataSheet as a CiA 311 XDD stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="xdd">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public static Task WriteXddAsync(
+        ElectronicDataSheet xdd,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new XddWriter();
+        return writer.WriteStreamAsync(xdd, stream, cancellationToken);
+    }
+
+    /// <summary>
     /// Generates XDD file content as string.
     /// </summary>
     /// <param name="xdd">The ElectronicDataSheet to convert</param>
@@ -367,6 +787,119 @@ public static class CanOpenFile
         return writer.GenerateString(xdd);
     }
 
+    #endregion
+
+    #region XDC Read
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) file.
+    /// </summary>
+    /// <param name="filePath">Path to the XDC file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadXdc(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+    {
+        var reader = new XdcReader();
+        return reader.ReadFile(filePath, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the XDC file</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XdcReader();
+        return reader.ReadFileAsync(filePath, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the XDC file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        string filePath,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XdcReader();
+        return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
+    /// </summary>
+    /// <param name="content">XDC file content as string</param>
+    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadXdcFromString(
+        string content,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+    {
+        var reader = new XdcReader();
+        return reader.ReadString(content, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDC content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static DeviceConfigurationFile ReadXdc(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+    {
+        var reader = new XdcReader();
+        return reader.ReadStream(stream, maxInputSize);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDC content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XdcReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDC content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XdcReader();
+        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
+    }
+
+    #endregion
+
+    #region XDC Write
+
     /// <summary>
     /// Writes a DeviceConfigurationFile as a CiA 311 XDC file.
     /// </summary>
@@ -376,6 +909,18 @@ public static class CanOpenFile
     {
         var writer = new XdcWriter();
         writer.WriteFile(xdc, filePath);
+    }
+
+    /// <summary>
+    /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="xdc">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    public static void WriteXdc(DeviceConfigurationFile xdc, Stream stream)
+    {
+        var writer = new XdcWriter();
+        writer.WriteStream(xdc, stream);
     }
 
     /// <summary>
@@ -394,6 +939,22 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="xdc">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    public static Task WriteXdcAsync(
+        DeviceConfigurationFile xdc,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var writer = new XdcWriter();
+        return writer.WriteStreamAsync(xdc, stream, cancellationToken);
+    }
+
+    /// <summary>
     /// Generates XDC file content as string.
     /// </summary>
     /// <param name="xdc">The DeviceConfigurationFile to convert</param>
@@ -403,6 +964,10 @@ public static class CanOpenFile
         var writer = new XdcWriter();
         return writer.GenerateString(xdc);
     }
+
+    #endregion
+
+    #region EDS to DCF Conversion
 
     /// <summary>
     /// Converts an EDS to a DCF with specified commissioning parameters.
@@ -425,10 +990,28 @@ public static class CanOpenFile
         ushort baudrate = 250,
         string? nodeName = null)
     {
+        return EdsToDcf(eds, nodeId, DateTime.Now, baudrate, nodeName);
+    }
+
+    /// <summary>
+    /// Converts an EDS to a DCF with specified commissioning parameters and an explicit timestamp.
+    /// </summary>
+    /// <param name="eds">The EDS to convert</param>
+    /// <param name="nodeId">Node ID for the device</param>
+    /// <param name="timestamp">Timestamp used for generated FileInfo creation date/time fields.</param>
+    /// <param name="baudrate">Baudrate in kbit/s (default: 250)</param>
+    /// <param name="nodeName">Optional node name</param>
+    /// <returns>A new DeviceConfigurationFile</returns>
+    public static DeviceConfigurationFile EdsToDcf(
+        ElectronicDataSheet eds,
+        byte nodeId,
+        DateTime timestamp,
+        ushort baudrate = 250,
+        string? nodeName = null)
+    {
         if (nodeId < 1 || nodeId > 127)
             throw new ArgumentOutOfRangeException(nameof(nodeId), nodeId, "CANopen Node-ID must be in range 1..127.");
 
-        var now = DateTime.Now;
         var dcf = new DeviceConfigurationFile
         {
             FileInfo = new Models.EdsFileInfo
@@ -438,12 +1021,12 @@ public static class CanOpenFile
                 FileRevision = (byte)(eds.FileInfo.FileRevision + 1),
                 EdsVersion = eds.FileInfo.EdsVersion,
                 Description = $"DCF generated from {eds.FileInfo.FileName}",
-                CreationDate = now.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
-                CreationTime = now.ToString("hh:mmtt", CultureInfo.InvariantCulture),
+                CreationDate = timestamp.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
+                CreationTime = timestamp.ToString("hh:mmtt", CultureInfo.InvariantCulture),
                 CreatedBy = "EdsDcfNet Library",
                 LastEds = eds.FileInfo.FileName
             },
-            DeviceInfo = CloneDeviceInfo(eds.DeviceInfo),
+            DeviceInfo = ModelCloner.CloneDeviceInfo(eds.DeviceInfo),
             DeviceCommissioning = new DeviceCommissioning
             {
                 NodeId = nodeId,
@@ -453,225 +1036,21 @@ public static class CanOpenFile
                 NetworkName = "CANopen Network",
                 CANopenManager = false
             },
-            ObjectDictionary = CloneObjectDictionary(eds.ObjectDictionary),
-            Comments = CloneComments(eds.Comments),
-            DynamicChannels = CloneDynamicChannels(eds.DynamicChannels),
-            // Keep ApplicationProcess available after EDS -> DCF conversion.
-            // Intentional decision: preserve by reference (no deep clone yet) to avoid
+            ObjectDictionary = ModelCloner.CloneObjectDictionary(eds.ObjectDictionary),
+            Comments = ModelCloner.CloneComments(eds.Comments),
+            DynamicChannels = ModelCloner.CloneDynamicChannels(eds.DynamicChannels),
+            // Preserve by reference (no deep clone yet) to avoid
             // partial/fragile cloning of the large CiA 311 object graph.
             ApplicationProcess = eds.ApplicationProcess
         };
 
-        dcf.SupportedModules.AddRange(CloneSupportedModules(eds.SupportedModules));
-        dcf.Tools.AddRange(CloneTools(eds.Tools));
-        foreach (var kvp in CloneAdditionalSections(eds.AdditionalSections))
+        dcf.SupportedModules.AddRange(ModelCloner.CloneSupportedModules(eds.SupportedModules));
+        dcf.Tools.AddRange(ModelCloner.CloneTools(eds.Tools));
+        foreach (var kvp in ModelCloner.CloneAdditionalSections(eds.AdditionalSections))
             dcf.AdditionalSections[kvp.Key] = kvp.Value;
 
         return dcf;
     }
 
-    private static DeviceInfo CloneDeviceInfo(DeviceInfo source)
-    {
-        return new DeviceInfo
-        {
-            VendorName = source.VendorName,
-            VendorNumber = source.VendorNumber,
-            ProductName = source.ProductName,
-            ProductNumber = source.ProductNumber,
-            RevisionNumber = source.RevisionNumber,
-            OrderCode = source.OrderCode,
-            SupportedBaudRates = new BaudRates
-            {
-                BaudRate10 = source.SupportedBaudRates.BaudRate10,
-                BaudRate20 = source.SupportedBaudRates.BaudRate20,
-                BaudRate50 = source.SupportedBaudRates.BaudRate50,
-                BaudRate125 = source.SupportedBaudRates.BaudRate125,
-                BaudRate250 = source.SupportedBaudRates.BaudRate250,
-                BaudRate500 = source.SupportedBaudRates.BaudRate500,
-                BaudRate800 = source.SupportedBaudRates.BaudRate800,
-                BaudRate1000 = source.SupportedBaudRates.BaudRate1000
-            },
-            SimpleBootUpMaster = source.SimpleBootUpMaster,
-            SimpleBootUpSlave = source.SimpleBootUpSlave,
-            Granularity = source.Granularity,
-            DynamicChannelsSupported = source.DynamicChannelsSupported,
-            GroupMessaging = source.GroupMessaging,
-            NrOfRxPdo = source.NrOfRxPdo,
-            NrOfTxPdo = source.NrOfTxPdo,
-            LssSupported = source.LssSupported,
-            CompactPdo = source.CompactPdo,
-            CANopenSafetySupported = source.CANopenSafetySupported
-        };
-    }
-
-    private static ObjectDictionary CloneObjectDictionary(ObjectDictionary source)
-    {
-        var clone = new ObjectDictionary();
-        clone.MandatoryObjects.AddRange(source.MandatoryObjects);
-        clone.OptionalObjects.AddRange(source.OptionalObjects);
-        clone.ManufacturerObjects.AddRange(source.ManufacturerObjects);
-        foreach (var kvp in source.DummyUsage)
-            clone.DummyUsage[kvp.Key] = kvp.Value;
-
-        foreach (var kvp in source.Objects)
-        {
-            clone.Objects[kvp.Key] = CloneObject(kvp.Value);
-        }
-
-        return clone;
-    }
-
-    private static CanOpenObject CloneObject(CanOpenObject source)
-    {
-        var clone = new CanOpenObject
-        {
-            Index = source.Index,
-            ParameterName = source.ParameterName,
-            ObjectType = source.ObjectType,
-            DataType = source.DataType,
-            AccessType = source.AccessType,
-            DefaultValue = source.DefaultValue,
-            LowLimit = source.LowLimit,
-            HighLimit = source.HighLimit,
-            PdoMapping = source.PdoMapping,
-            ObjFlags = source.ObjFlags,
-            SubNumber = source.SubNumber,
-            CompactSubObj = source.CompactSubObj,
-            ParameterValue = source.ParameterValue,
-            Denotation = source.Denotation,
-            UploadFile = source.UploadFile,
-            DownloadFile = source.DownloadFile,
-            SrdoMapping = source.SrdoMapping,
-            InvertedSrad = source.InvertedSrad,
-            ParamRefd = source.ParamRefd
-        };
-
-        clone.ObjectLinks.AddRange(source.ObjectLinks);
-
-        foreach (var kvp in source.SubObjects)
-        {
-            clone.SubObjects[kvp.Key] = CloneSubObject(kvp.Value);
-        }
-
-        return clone;
-    }
-
-    private static CanOpenSubObject CloneSubObject(CanOpenSubObject source)
-    {
-        return new CanOpenSubObject
-        {
-            SubIndex = source.SubIndex,
-            ParameterName = source.ParameterName,
-            ObjectType = source.ObjectType,
-            DataType = source.DataType,
-            AccessType = source.AccessType,
-            DefaultValue = source.DefaultValue,
-            LowLimit = source.LowLimit,
-            HighLimit = source.HighLimit,
-            PdoMapping = source.PdoMapping,
-            ParameterValue = source.ParameterValue,
-            Denotation = source.Denotation,
-            SrdoMapping = source.SrdoMapping,
-            InvertedSrad = source.InvertedSrad,
-            ParamRefd = source.ParamRefd
-        };
-    }
-
-    private static Comments? CloneComments(Comments? source)
-    {
-        if (source == null) return null;
-        var clone = new Comments { Lines = source.Lines };
-        foreach (var kvp in source.CommentLines)
-            clone.CommentLines[kvp.Key] = kvp.Value;
-        return clone;
-    }
-
-    private static List<ModuleInfo> CloneSupportedModules(List<ModuleInfo> source)
-    {
-        var clone = new List<ModuleInfo>(source.Count);
-        foreach (var module in source)
-        {
-            var clonedModule = new ModuleInfo
-            {
-                ModuleNumber = module.ModuleNumber,
-                ProductName = module.ProductName,
-                ProductVersion = module.ProductVersion,
-                ProductRevision = module.ProductRevision,
-                OrderCode = module.OrderCode,
-                Comments = CloneComments(module.Comments)
-            };
-
-            clonedModule.FixedObjects.AddRange(module.FixedObjects);
-            clonedModule.SubExtends.AddRange(module.SubExtends);
-
-            foreach (var kvp in module.FixedObjectDefinitions)
-            {
-                clonedModule.FixedObjectDefinitions[kvp.Key] = CloneObject(kvp.Value);
-            }
-
-            foreach (var kvp in module.SubExtensionDefinitions)
-            {
-                clonedModule.SubExtensionDefinitions[kvp.Key] = new ModuleSubExtension
-                {
-                    Index = kvp.Value.Index,
-                    ParameterName = kvp.Value.ParameterName,
-                    DataType = kvp.Value.DataType,
-                    AccessType = kvp.Value.AccessType,
-                    DefaultValue = kvp.Value.DefaultValue,
-                    PdoMapping = kvp.Value.PdoMapping,
-                    Count = kvp.Value.Count,
-                    ObjExtend = kvp.Value.ObjExtend
-                };
-            }
-
-            clone.Add(clonedModule);
-        }
-        return clone;
-    }
-
-    private static DynamicChannels? CloneDynamicChannels(DynamicChannels? source)
-    {
-        if (source == null)
-            return null;
-
-        var clone = new DynamicChannels();
-        foreach (var segment in source.Segments)
-        {
-            clone.Segments.Add(new DynamicChannelSegment
-            {
-                Type = segment.Type,
-                Dir = segment.Dir,
-                Range = segment.Range,
-                PPOffset = segment.PPOffset
-            });
-        }
-
-        return clone;
-    }
-
-    private static List<ToolInfo> CloneTools(List<ToolInfo> source)
-    {
-        var clone = new List<ToolInfo>(source.Count);
-        foreach (var tool in source)
-        {
-            clone.Add(new ToolInfo
-            {
-                Name = tool.Name,
-                Command = tool.Command
-            });
-        }
-
-        return clone;
-    }
-
-    private static Dictionary<string, Dictionary<string, string>> CloneAdditionalSections(
-        Dictionary<string, Dictionary<string, string>> source)
-    {
-        var clone = new Dictionary<string, Dictionary<string, string>>(source.Count);
-        foreach (var kvp in source)
-        {
-            clone[kvp.Key] = new Dictionary<string, string>(kvp.Value);
-        }
-        return clone;
-    }
+    #endregion
 }

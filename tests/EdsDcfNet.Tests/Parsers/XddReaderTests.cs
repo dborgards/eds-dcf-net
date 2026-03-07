@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Parsers;
 
+using System.Text;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
@@ -131,6 +132,15 @@ public class XddReaderTests
             .Where(ex => ex.FileName == filePath);
     }
 
+    [Fact]
+    public async Task ReadFileAsync_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        var act = () => _reader.ReadFileAsync("Fixtures/sample_device.xdd", maxInputSize: 256);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
     #endregion
 
     #region ReadString Tests
@@ -203,6 +213,23 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ReadString_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        var act = () => _reader.ReadString(MinimalXdd, maxInputSize: 128);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public void ReadString_ContentWithinCustomMaximumSize_ParsesSuccessfully()
+    {
+        var result = _reader.ReadString(MinimalXdd, maxInputSize: MinimalXdd.Length + 10);
+
+        result.FileInfo.FileName.Should().Be("test.xdd");
+    }
+
+    [Fact]
     public void ReadFile_ContentExceedsMaximumSize_ThrowsEdsParseException()
     {
         var tempFile = Path.GetTempFileName();
@@ -224,6 +251,77 @@ public class XddReaderTests
             if (File.Exists(tempFile))
                 File.Delete(tempFile);
         }
+    }
+
+    [Fact]
+    public void ReadFile_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        var act = () => _reader.ReadFile("Fixtures/sample_device.xdd", maxInputSize: 256);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public void ReadStream_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdd));
+        var act = () => _reader.ReadStream(stream, maxInputSize: 128);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public async Task ReadStreamAsync_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdd));
+        var act = () => _reader.ReadStreamAsync(stream, maxInputSize: 128);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public void ReadStream_ValidContent_ParsesSuccessfully()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdd));
+
+        var result = _reader.ReadStream(stream, maxInputSize: MinimalXdd.Length + 64);
+
+        result.FileInfo.FileName.Should().Be("test.xdd");
+        result.DeviceInfo.VendorName.Should().Be("Test Vendor");
+        stream.CanRead.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ReadStreamAsync_ValidContent_ParsesSuccessfully()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdd));
+
+        var result = await _reader.ReadStreamAsync(stream, maxInputSize: MinimalXdd.Length + 64);
+
+        result.FileInfo.FileName.Should().Be("test.xdd");
+        result.DeviceInfo.VendorName.Should().Be("Test Vendor");
+        stream.CanRead.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReadStream_NonSeekableReadableStream_ParsesSuccessfully()
+    {
+        using var stream = new NonSeekableReadStream(Encoding.UTF8.GetBytes(MinimalXdd));
+
+        var result = _reader.ReadStream(stream, maxInputSize: MinimalXdd.Length + 64);
+
+        result.FileInfo.FileName.Should().Be("test.xdd");
+        result.DeviceInfo.VendorName.Should().Be("Test Vendor");
+    }
+
+    [Fact]
+    public void ReadStream_NullStream_ThrowsArgumentNullException()
+    {
+        var act = () => _reader.ReadStream(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("stream");
     }
 
     #endregion
@@ -582,6 +680,87 @@ public class XddReaderTests
         result.ApplicationProcess.ParameterList.Should().HaveCount(1);
         result.ApplicationProcess.ParameterList[0].UniqueId.Should().Be("uid_p1");
         result.ApplicationProcess.ParameterList[0].Access.Should().Be("read");
+    }
+
+    [Fact]
+    public void ApplicationProcess_FunctionTypeTemplateAndInstanceLists_AreParsed()
+    {
+        // Arrange
+        const string xdd = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""t.xdd"" fileVersion=""1"">
+      <DeviceIdentity><vendorName>T</vendorName><vendorID>0x1</vendorID><productName>T</productName><productID>0x1</productID></DeviceIdentity>
+      <DeviceManager/>
+      <DeviceFunction/>
+      <ApplicationProcess>
+        <functionTypeList>
+          <functionType name=""Controller"" uniqueID=""uid_ft1"" package=""pkg.ctrl"">
+            <functionInstanceList>
+              <functionInstance name=""nested1"" uniqueID=""uid_fi_nested"" typeIDRef=""uid_ft1""/>
+            </functionInstanceList>
+          </functionType>
+        </functionTypeList>
+        <functionInstanceList>
+          <functionInstance name=""top1"" uniqueID=""uid_fi_top"" typeIDRef=""uid_ft1""/>
+          <connection source=""top1.Out"" destination=""top1.In"" description=""loop""/>
+        </functionInstanceList>
+        <templateList>
+          <parameterTemplate uniqueID=""uid_tpl1"" access=""readWrite"">
+            <UINT/>
+            <defaultValue value=""7""/>
+          </parameterTemplate>
+          <allowedValuesTemplate uniqueID=""uid_avt1"">
+            <value value=""1""/>
+            <value value=""2""/>
+          </allowedValuesTemplate>
+        </templateList>
+        <parameterList>
+          <parameter uniqueID=""uid_p1"" access=""read"" templateIDRef=""uid_tpl1""><UINT/></parameter>
+        </parameterList>
+      </ApplicationProcess>
+    </ProfileBody>
+  </ISO15745Profile>
+  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""t.xdd"" fileVersion=""1"">
+      <ApplicationLayers>
+        <CANopenObjectList mandatoryObjects=""1"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" PDOmapping=""no""/>
+        </CANopenObjectList>
+      </ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""250 Kbps""/></PhysicalLayer></TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0""
+                                bootUpSlave=""false"" layerSettingServiceSlave=""false""
+                                groupMessaging=""false"" dynamicChannels=""0""/>
+        <CANopenMasterFeatures bootUpMaster=""false""/>
+      </NetworkManagement>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>";
+
+        // Act
+        var result = _reader.ReadString(xdd);
+
+        // Assert
+        var ap = result.ApplicationProcess;
+        ap.Should().NotBeNull();
+        ap!.FunctionTypeList.Should().ContainSingle();
+        ap.FunctionTypeList[0].Name.Should().Be("Controller");
+        ap.FunctionTypeList[0].UniqueId.Should().Be("uid_ft1");
+        ap.FunctionTypeList[0].Package.Should().Be("pkg.ctrl");
+        ap.FunctionTypeList[0].FunctionInstanceList.Should().NotBeNull();
+        ap.FunctionTypeList[0].FunctionInstanceList!.FunctionInstances.Should().ContainSingle(fi => fi.Name == "nested1");
+
+        ap.FunctionInstanceList.Should().NotBeNull();
+        ap.FunctionInstanceList!.FunctionInstances.Should().ContainSingle(fi => fi.Name == "top1");
+        ap.FunctionInstanceList.Connections.Should().ContainSingle(c => c.Source == "top1.Out" && c.Destination == "top1.In");
+
+        ap.TemplateList.Should().NotBeNull();
+        ap.TemplateList!.ParameterTemplates.Should().ContainSingle(t => t.UniqueId == "uid_tpl1");
+        ap.TemplateList.AllowedValuesTemplates.Should().ContainSingle(t => t.UniqueId == "uid_avt1");
+        ap.ParameterList.Should().ContainSingle(p => p.UniqueId == "uid_p1" && p.TemplateIdRef == "uid_tpl1");
     }
 
     #endregion
@@ -1473,4 +1652,37 @@ public class XddReaderTests
     }
 
     #endregion
+
+    private sealed class NonSeekableReadStream : Stream
+    {
+        private readonly MemoryStream _inner;
+
+        public NonSeekableReadStream(byte[] data)
+        {
+            _inner = new MemoryStream(data);
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() => throw new NotSupportedException();
+        public override int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                _inner.Dispose();
+            base.Dispose(disposing);
+        }
+    }
 }

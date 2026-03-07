@@ -69,6 +69,52 @@ eds.FileInfo.FileRevision++;
 await CanOpenFile.WriteEdsAsync(eds, "device_updated.eds", cts.Token);
 ```
 
+### Stream-based I/O
+
+```csharp
+using EdsDcfNet;
+using System.IO;
+
+using var stream = File.OpenRead("device.eds");
+var eds = CanOpenFile.ReadEds(stream);
+
+using var outStream = new MemoryStream();
+CanOpenFile.WriteEds(eds, outStream);
+```
+
+> Stream ownership: stream overloads do **not** dispose input/output streams.  
+> The caller remains responsible for stream lifetime.
+
+## Output Encoding Policy
+
+All writer APIs that persist text (`WriteEds*`, `WriteDcf*`, `WriteCpj*`, `WriteXdd*`, `WriteXdc*`)
+write **UTF-8 without BOM** by default for file and stream output.
+
+This is an intentional interoperability choice:
+- CiA DS 306 is historically ASCII-oriented.
+- UTF-8 keeps full ASCII compatibility for 7-bit content.
+- UTF-8 also preserves non-ASCII characters in names/comments instead of replacing them.
+
+### Guidance for strict ASCII toolchains
+
+If a downstream tool only accepts strict ASCII, keep model text in 7-bit ASCII characters,
+or transcode explicitly to strict ASCII at your boundary and fail fast on non-ASCII content.
+
+```csharp
+using EdsDcfNet;
+using System.IO;
+using System.Text;
+
+var asciiStrict = Encoding.GetEncoding(
+    "us-ascii",
+    EncoderFallback.ExceptionFallback,
+    DecoderFallback.ExceptionFallback);
+
+var dcf = CanOpenFile.ReadDcf("device.dcf");
+var text = CanOpenFile.WriteDcfToString(dcf);
+File.WriteAllText("device_ascii.dcf", text, asciiStrict);
+```
+
 ### Reading an XDD File (CiA 311 XML)
 
 ```csharp
@@ -149,6 +195,34 @@ var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 2, baudrate: 500, nodeName: "MyDevic
 CanOpenFile.WriteDcf(dcf, "device_node2.dcf");
 ```
 
+### Validating models before write operations
+
+Use the validation API to detect invalid commissioning values and inconsistent
+object-list definitions before serializing files.
+
+```csharp
+using EdsDcfNet;
+using EdsDcfNet.Validation;
+
+var dcf = CanOpenFile.ReadDcf("configured_device.dcf");
+
+IReadOnlyList<ValidationIssue> issues = CanOpenFile.Validate(dcf);
+if (issues.Count > 0)
+{
+    foreach (var issue in issues)
+        Console.WriteLine(issue);
+}
+```
+
+`CanOpenFile.Validate(...)` is the recommended entry point and routes to the
+full model validator, returning path-based `ValidationIssue` entries.
+Current checks include:
+
+- commissioning constraints (Node-ID range `1..127` for commissioned nodes; `NodeId == 0` is accepted only when commissioning is omitted, baudrate range with `0` accepted for that omitted state, key string limits)
+- device info constraints (name/order-code length, granularity limit)
+- object dictionary consistency (list membership, duplicates, missing entries)
+- object-level constraints (object type validity, parameter-name length, SubNumber mismatch)
+
 ### Working with Nodelist Projects (CPJ)
 
 ```csharp
@@ -202,61 +276,129 @@ var tpdos = dcf.ObjectDictionary.GetPdoCommunicationParameters(transmit: true);
 
 ### Main Class: `CanOpenFile`
 
+Writer encoding note: all file/stream `Write*` APIs use UTF-8 without BOM.
+
 ```csharp
 // Read EDS
 ElectronicDataSheet ReadEds(string filePath)
+ElectronicDataSheet ReadEds(string filePath, long maxInputSize)
 Task<ElectronicDataSheet> ReadEdsAsync(string filePath, CancellationToken cancellationToken = default)
+Task<ElectronicDataSheet> ReadEdsAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 ElectronicDataSheet ReadEdsFromString(string content)
+ElectronicDataSheet ReadEdsFromString(string content, long maxInputSize)
+ElectronicDataSheet ReadEds(Stream stream)
+ElectronicDataSheet ReadEds(Stream stream, long maxInputSize)
+Task<ElectronicDataSheet> ReadEdsAsync(Stream stream, CancellationToken cancellationToken = default)
+Task<ElectronicDataSheet> ReadEdsAsync(Stream stream, long maxInputSize, CancellationToken cancellationToken = default)
 
 // Write EDS
 void WriteEds(ElectronicDataSheet eds, string filePath)
+void WriteEds(ElectronicDataSheet eds, Stream stream)
 Task WriteEdsAsync(ElectronicDataSheet eds, string filePath, CancellationToken cancellationToken = default)
+Task WriteEdsAsync(ElectronicDataSheet eds, Stream stream, CancellationToken cancellationToken = default)
 string WriteEdsToString(ElectronicDataSheet eds)
 
 // Read DCF
 DeviceConfigurationFile ReadDcf(string filePath)
+DeviceConfigurationFile ReadDcf(string filePath, long maxInputSize)
 Task<DeviceConfigurationFile> ReadDcfAsync(string filePath, CancellationToken cancellationToken = default)
+Task<DeviceConfigurationFile> ReadDcfAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 DeviceConfigurationFile ReadDcfFromString(string content)
+DeviceConfigurationFile ReadDcfFromString(string content, long maxInputSize)
+DeviceConfigurationFile ReadDcf(Stream stream)
+DeviceConfigurationFile ReadDcf(Stream stream, long maxInputSize)
+Task<DeviceConfigurationFile> ReadDcfAsync(Stream stream, CancellationToken cancellationToken = default)
+Task<DeviceConfigurationFile> ReadDcfAsync(Stream stream, long maxInputSize, CancellationToken cancellationToken = default)
 
 // Write DCF
 void WriteDcf(DeviceConfigurationFile dcf, string filePath)
+void WriteDcf(DeviceConfigurationFile dcf, Stream stream)
 Task WriteDcfAsync(DeviceConfigurationFile dcf, string filePath, CancellationToken cancellationToken = default)
+Task WriteDcfAsync(DeviceConfigurationFile dcf, Stream stream, CancellationToken cancellationToken = default)
 string WriteDcfToString(DeviceConfigurationFile dcf)
 
 // Read CPJ (CiA 306-3 Nodelist Project)
 NodelistProject ReadCpj(string filePath)
+NodelistProject ReadCpj(string filePath, long maxInputSize)
 Task<NodelistProject> ReadCpjAsync(string filePath, CancellationToken cancellationToken = default)
+Task<NodelistProject> ReadCpjAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 NodelistProject ReadCpjFromString(string content)
+NodelistProject ReadCpjFromString(string content, long maxInputSize)
+NodelistProject ReadCpj(Stream stream)
+NodelistProject ReadCpj(Stream stream, long maxInputSize)
+Task<NodelistProject> ReadCpjAsync(Stream stream, CancellationToken cancellationToken = default)
+Task<NodelistProject> ReadCpjAsync(Stream stream, long maxInputSize, CancellationToken cancellationToken = default)
 
 // Write CPJ
 void WriteCpj(NodelistProject cpj, string filePath)
+void WriteCpj(NodelistProject cpj, Stream stream)
 Task WriteCpjAsync(NodelistProject cpj, string filePath, CancellationToken cancellationToken = default)
+Task WriteCpjAsync(NodelistProject cpj, Stream stream, CancellationToken cancellationToken = default)
 string WriteCpjToString(NodelistProject cpj)
 
 // Read XDD (CiA 311 XML Device Description)
 ElectronicDataSheet ReadXdd(string filePath)
+ElectronicDataSheet ReadXdd(string filePath, long maxInputSize)
 Task<ElectronicDataSheet> ReadXddAsync(string filePath, CancellationToken cancellationToken = default)
+Task<ElectronicDataSheet> ReadXddAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 ElectronicDataSheet ReadXddFromString(string content)
+ElectronicDataSheet ReadXddFromString(string content, long maxInputSize)
+ElectronicDataSheet ReadXdd(Stream stream)
+ElectronicDataSheet ReadXdd(Stream stream, long maxInputSize)
+Task<ElectronicDataSheet> ReadXddAsync(Stream stream, CancellationToken cancellationToken = default)
+Task<ElectronicDataSheet> ReadXddAsync(Stream stream, long maxInputSize, CancellationToken cancellationToken = default)
 
 // Write XDD
 void WriteXdd(ElectronicDataSheet xdd, string filePath)
+void WriteXdd(ElectronicDataSheet xdd, Stream stream)
 Task WriteXddAsync(ElectronicDataSheet xdd, string filePath, CancellationToken cancellationToken = default)
+Task WriteXddAsync(ElectronicDataSheet xdd, Stream stream, CancellationToken cancellationToken = default)
 string WriteXddToString(ElectronicDataSheet xdd)
 
 // Read XDC (CiA 311 XML Device Configuration)
 DeviceConfigurationFile ReadXdc(string filePath)
+DeviceConfigurationFile ReadXdc(string filePath, long maxInputSize)
 Task<DeviceConfigurationFile> ReadXdcAsync(string filePath, CancellationToken cancellationToken = default)
+Task<DeviceConfigurationFile> ReadXdcAsync(string filePath, long maxInputSize, CancellationToken cancellationToken = default)
 DeviceConfigurationFile ReadXdcFromString(string content)
+DeviceConfigurationFile ReadXdcFromString(string content, long maxInputSize)
+DeviceConfigurationFile ReadXdc(Stream stream)
+DeviceConfigurationFile ReadXdc(Stream stream, long maxInputSize)
+Task<DeviceConfigurationFile> ReadXdcAsync(Stream stream, CancellationToken cancellationToken = default)
+Task<DeviceConfigurationFile> ReadXdcAsync(Stream stream, long maxInputSize, CancellationToken cancellationToken = default)
 
 // Write XDC
 void WriteXdc(DeviceConfigurationFile xdc, string filePath)
+void WriteXdc(DeviceConfigurationFile xdc, Stream stream)
 Task WriteXdcAsync(DeviceConfigurationFile xdc, string filePath, CancellationToken cancellationToken = default)
+Task WriteXdcAsync(DeviceConfigurationFile xdc, Stream stream, CancellationToken cancellationToken = default)
 string WriteXdcToString(DeviceConfigurationFile xdc)
+
+// Validate models
+IReadOnlyList<ValidationIssue> Validate(ElectronicDataSheet eds)
+IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
 
 // Convert EDS to DCF
 DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
                                   ushort baudrate = 250, string? nodeName = null)
 ```
+
+### Input Size Limits and Tuning
+
+All read APIs apply a safe default input-size limit of **10 MB**
+(`IniParser.DefaultMaxInputSize`) to reduce denial-of-service risk from
+unexpectedly large payloads.
+
+You can override this limit per operation when you need to process larger files:
+
+```csharp
+var xdd = CanOpenFile.ReadXdd("large-device.xdd", maxInputSize: 50L * 1024 * 1024);
+```
+
+Guidance:
+- Keep the default whenever possible.
+- Increase limits only for trusted sources and known use cases.
+- Set the limit just high enough for your expected maximum file size.
 
 ## Supported Features
 
@@ -275,9 +417,39 @@ DeviceConfigurationFile EdsToDcf(ElectronicDataSheet eds, byte nodeId,
 - ✅ CANopen Safety (EN 50325-5) - SRDOMapping, InvertedSRAD
 - ✅ Comments and additional sections
 
+## Error Handling
+
+Writer APIs expose format-specific exceptions with context:
+
+- `EdsWriter` / `CanOpenFile.WriteEds*`: `EdsWriteException`
+- `DcfWriter` / `CanOpenFile.WriteDcf*`: `DcfWriteException`
+- `CpjWriter` / `CanOpenFile.WriteCpj*`: `CpjWriteException`
+- `XddWriter` / `CanOpenFile.WriteXdd*`: `XddWriteException`
+- `XdcWriter` / `CanOpenFile.WriteXdc*`: `XdcWriteException`
+
+When a failure can be attributed to a concrete generated section/element,
+the exception contains a `SectionName` value (for example `DeviceInfo`,
+`Topology`, `DeviceProfile`, or `deviceCommissioning`).
+
 ## Examples
 
 Complete examples can be found in the `examples/EdsDcfNet.Examples` project.
+
+## Performance Benchmarks
+
+A dedicated BenchmarkDotNet project is available at:
+
+- `benchmarks/EdsDcfNet.Benchmarks`
+
+Run all benchmarks:
+
+```bash
+dotnet run -c Release -p benchmarks/EdsDcfNet.Benchmarks -- --filter "*"
+```
+
+Baseline scenario definitions and artifact locations are documented in:
+
+- `benchmarks/EdsDcfNet.Benchmarks/BASELINE.md`
 
 ## Project Structure
 
@@ -291,6 +463,8 @@ eds-dcf-net/
 │       ├── Utilities/          # Helper classes
 │       ├── Exceptions/         # Custom exceptions
 │       └── Extensions/         # Extension methods
+├── benchmarks/
+│   └── EdsDcfNet.Benchmarks/   # BenchmarkDotNet throughput/memory benchmarks
 ├── examples/
 │   └── EdsDcfNet.Examples/     # Example application
 └── docs/

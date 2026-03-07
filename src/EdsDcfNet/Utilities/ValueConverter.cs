@@ -9,6 +9,13 @@ using EdsDcfNet.Models;
 /// </summary>
 public static class ValueConverter
 {
+    private enum NumericBase
+    {
+        Decimal = 10,
+        Octal = 8,
+        Hexadecimal = 16
+    }
+
     /// <summary>
     /// Parses an integer value from string (supports decimal, hexadecimal, and octal).
     /// </summary>
@@ -37,25 +44,14 @@ public static class ValueConverter
 
         try
         {
-            // Hexadecimal (0x prefix)
-            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ||
-                value.StartsWith("0X", StringComparison.OrdinalIgnoreCase))
-            {
-                return Convert.ToUInt32(value[2..], 16);
-            }
-
-            // Octal (leading 0, but not 0x)
-            if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
-            {
-                return Convert.ToUInt32(value, 8);
-            }
-
-            // Decimal
-            return uint.Parse(value, CultureInfo.InvariantCulture);
+            return ParseUnsignedNumber(
+                value,
+                decimalParser: static v => uint.Parse(v, CultureInfo.InvariantCulture),
+                parser: static (v, numberBase) => Convert.ToUInt32(v, (int)numberBase));
         }
         catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
-            throw new EdsParseException($"Invalid integer value: '{value}'", ex);
+            throw new EdsParseException(BuildInvalidNumericLiteralMessage("uint", value, ex), ex);
         }
     }
 
@@ -86,24 +82,14 @@ public static class ValueConverter
 
         try
         {
-            // Hexadecimal
-            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            {
-                return Convert.ToByte(value[2..], 16);
-            }
-
-            // Octal
-            if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
-            {
-                return Convert.ToByte(value, 8);
-            }
-
-            // Decimal
-            return byte.Parse(value, CultureInfo.InvariantCulture);
+            return ParseUnsignedNumber(
+                value,
+                decimalParser: static v => byte.Parse(v, CultureInfo.InvariantCulture),
+                parser: static (v, numberBase) => Convert.ToByte(v, (int)numberBase));
         }
         catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
-            throw new EdsParseException($"Invalid byte value: '{value}'", ex);
+            throw new EdsParseException(BuildInvalidNumericLiteralMessage("byte", value, ex), ex);
         }
     }
 
@@ -119,24 +105,14 @@ public static class ValueConverter
 
         try
         {
-            // Hexadecimal
-            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            {
-                return Convert.ToUInt16(value[2..], 16);
-            }
-
-            // Octal
-            if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
-            {
-                return Convert.ToUInt16(value, 8);
-            }
-
-            // Decimal
-            return ushort.Parse(value, CultureInfo.InvariantCulture);
+            return ParseUnsignedNumber(
+                value,
+                decimalParser: static v => ushort.Parse(v, CultureInfo.InvariantCulture),
+                parser: static (v, numberBase) => Convert.ToUInt16(v, (int)numberBase));
         }
         catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {
-            throw new EdsParseException($"Invalid UInt16 value: '{value}'", ex);
+            throw new EdsParseException(BuildInvalidNumericLiteralMessage("UInt16", value, ex), ex);
         }
     }
 
@@ -190,6 +166,110 @@ public static class ValueConverter
     public static string FormatBoolean(bool value)
     {
         return value ? "1" : "0";
+    }
+
+    /// <summary>
+    /// Shared helper that detects the numeric base of <paramref name="value"/> and
+    /// delegates to the appropriate parser (decimal or non-decimal).
+    /// </summary>
+    private static T ParseUnsignedNumber<T>(
+        string value,
+        Func<string, T> decimalParser,
+        Func<string, NumericBase, T> parser)
+    {
+        var (normalizedValue, numberBase) = GetNumericFormat(value);
+        if (numberBase == NumericBase.Decimal)
+            return decimalParser(normalizedValue);
+
+        return parser(normalizedValue, numberBase);
+    }
+
+    private static (string Value, NumericBase NumberBase) GetNumericFormat(string value)
+    {
+        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            var hexDigits = value[2..];
+            if (hexDigits.Length == 0)
+                throw new FormatException($"The value '{value}' has no digits after the hex prefix.");
+
+            return (hexDigits, NumericBase.Hexadecimal);
+        }
+
+        if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
+            return (value, NumericBase.Octal);
+
+        return (value, NumericBase.Decimal);
+    }
+
+    /// <summary>
+    /// Builds a detailed error message for an invalid numeric literal, including its interpreted kind
+    /// (decimal/hex/octal) and whether the value is outside the valid range for the requested type.
+    /// </summary>
+    /// <param name="typeName">The logical type name being parsed (e.g. "uint", "byte").</param>
+    /// <param name="value">The original string literal value that failed to parse.</param>
+    /// <param name="exception">The exception that was thrown while parsing the value.</param>
+    /// <returns>A human-readable error message describing why the numeric literal is invalid.</returns>
+    private static string BuildInvalidNumericLiteralMessage(string typeName, string value, Exception exception)
+    {
+        var literalKind = DescribeNumericLiteral(value);
+        if (exception is OverflowException)
+        {
+            return $"Invalid {typeName} value: '{value}' ({literalKind}). The value is outside the representable range for this numeric type.";
+        }
+
+        return $"Invalid {typeName} value: '{value}' ({literalKind}).";
+    }
+
+    /// <summary>
+    /// Describes the shape of a numeric literal (hex/octal/decimal) for error diagnostics.
+    /// </summary>
+    private static string DescribeNumericLiteral(string value)
+    {
+        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            var digits = value[2..];
+            if (digits.Length == 0)
+                return "hexadecimal literal has no digits after the 0x prefix";
+
+            foreach (var c in digits)
+            {
+                var isHexDigit = (c >= '0' && c <= '9') ||
+                                 (c >= 'a' && c <= 'f') ||
+                                 (c >= 'A' && c <= 'F');
+                if (!isHexDigit)
+                    return "hexadecimal literal contains non-hex characters";
+            }
+
+            return "hexadecimal literal";
+        }
+
+        if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
+        {
+            foreach (var c in value)
+            {
+                if (c < '0' || c > '7')
+                    return "octal literal contains characters outside 0-7";
+            }
+
+            return "octal literal";
+        }
+
+        var startIndex = 0;
+        if (value[0] == '+' || value[0] == '-')
+        {
+            if (value.Length == 1)
+                return "decimal literal contains non-digit characters";
+
+            startIndex = 1;
+        }
+
+        for (var i = startIndex; i < value.Length; i++)
+        {
+            if (!char.IsDigit(value[i]))
+                return "decimal literal contains non-digit characters";
+        }
+
+        return "decimal literal";
     }
 
     /// <summary>

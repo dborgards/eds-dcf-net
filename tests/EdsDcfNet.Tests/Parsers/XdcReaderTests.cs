@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Parsers;
 
+using System.Text;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
@@ -54,6 +55,41 @@ public class XdcReaderTests
                              actualBaudRate=""500 Kbps"" networkNumber=""1""
                              networkName=""CANopen Network"" CANopenManager=""false""/>
       </NetworkManagement>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>";
+
+    /// <summary>
+    /// Minimal XDC with an unknown ProfileBody child so that AdditionalSections is non-empty
+    /// and XdcReader's clone loop is exercised (Codecov patch coverage for PR #168).
+    /// </summary>
+    private const string MinimalXdcWithAdditionalSection = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>Device</ProfileClassID></ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""test.xdc"" fileVersion=""1"">
+      <DeviceIdentity><vendorName>V</vendorName><vendorID>0x1</vendorID><productName>P</productName><productID>0x1</productID></DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+  </ISO15745Profile>
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>CommunicationNetwork</ProfileClassID></ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""test.xdc"" fileVersion=""1"">
+      <ApplicationLayers>
+        <CANopenObjectList mandatoryObjects=""0"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" PDOmapping=""no""/>
+        </CANopenObjectList>
+      </ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""250 Kbps""/></PhysicalLayer></TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0""
+                                bootUpSlave=""false"" layerSettingServiceSlave=""false""
+                                groupMessaging=""false"" dynamicChannels=""0""/>
+        <CANopenMasterFeatures bootUpMaster=""false""/>
+        <deviceCommissioning nodeID=""1"" networkNumber=""0"" CANopenManager=""false""/>
+      </NetworkManagement>
+      <VendorExtension customKey=""customValue"" AnotherAttr=""other""/>
     </ProfileBody>
   </ISO15745Profile>
 </ISO15745ProfileContainer>";
@@ -133,6 +169,17 @@ public class XdcReaderTests
             .Where(ex => ex.FileName == filePath);
     }
 
+    [Fact]
+    public async Task ReadFileAsync_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        const string path = "Fixtures/minimal.xdc";
+        var fileLength = new FileInfo(path).Length;
+        var act = () => _reader.ReadFileAsync(path, maxInputSize: fileLength - 1);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
     #endregion
 
     #region ReadString Tests
@@ -202,6 +249,24 @@ public class XdcReaderTests
     }
 
     [Fact]
+    public void ReadString_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        var contentLength = MinimalXdc.Length;
+        var act = () => _reader.ReadString(MinimalXdc, maxInputSize: contentLength - 1);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public void ReadString_ContentWithinCustomMaximumSize_ParsesSuccessfully()
+    {
+        var result = _reader.ReadString(MinimalXdc, maxInputSize: MinimalXdc.Length + 10);
+
+        result.FileInfo.FileName.Should().Be("test.xdc");
+    }
+
+    [Fact]
     public void ReadFile_ContentExceedsMaximumSize_ThrowsEdsParseException()
     {
         var tempFile = Path.GetTempFileName();
@@ -223,6 +288,89 @@ public class XdcReaderTests
             if (File.Exists(tempFile))
                 File.Delete(tempFile);
         }
+    }
+
+    [Fact]
+    public void ReadFile_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        const string path = "Fixtures/minimal.xdc";
+        var fileLength = new FileInfo(path).Length;
+        var act = () => _reader.ReadFile(path, maxInputSize: fileLength - 1);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public void ReadStream_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdc));
+        var act = () => _reader.ReadStream(stream, maxInputSize: 128);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public async Task ReadStreamAsync_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdc));
+        var act = () => _reader.ReadStreamAsync(stream, maxInputSize: 128);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public void ReadStream_ValidContent_ParsesSuccessfully()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdc));
+
+        var result = _reader.ReadStream(stream, maxInputSize: MinimalXdc.Length + 64);
+
+        result.FileInfo.FileName.Should().Be("test.xdc");
+        result.DeviceCommissioning.NodeId.Should().Be(3);
+        stream.CanRead.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ReadStreamAsync_ValidContent_ParsesSuccessfully()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdc));
+
+        var result = await _reader.ReadStreamAsync(stream, maxInputSize: MinimalXdc.Length + 64);
+
+        result.FileInfo.FileName.Should().Be("test.xdc");
+        result.DeviceCommissioning.NodeId.Should().Be(3);
+        stream.CanRead.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReadStream_UnreadableStream_ThrowsArgumentException()
+    {
+        using var stream = new WriteOnlyStream();
+
+        var act = () => _reader.ReadStream(stream);
+
+        act.Should().Throw<ArgumentException>().WithParameterName("stream");
+    }
+
+    [Fact]
+    public void ReadStream_NonSeekableReadableStream_ParsesSuccessfully()
+    {
+        using var stream = new NonSeekableReadStream(Encoding.UTF8.GetBytes(MinimalXdc));
+
+        var result = _reader.ReadStream(stream, maxInputSize: MinimalXdc.Length + 64);
+
+        result.FileInfo.FileName.Should().Be("test.xdc");
+        result.DeviceCommissioning.NodeId.Should().Be(3);
+    }
+
+    [Fact]
+    public void ReadStream_NullStream_ThrowsArgumentNullException()
+    {
+        var act = () => _reader.ReadStream(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("stream");
     }
 
     #endregion
@@ -331,6 +479,23 @@ public class XdcReaderTests
     #endregion
 
     #region Additional Coverage Tests
+
+    [Fact]
+    public void ReadString_XdcWithUnknownProfileBodyChild_CopiesAdditionalSectionsWithCaseInsensitiveClone()
+    {
+        // XddReader puts unknown ProfileBody children into AdditionalSections; XdcReader clones them
+        // via AdditionalSectionsCloner.CloneSectionEntriesCaseInsensitive (patch coverage for PR #168).
+        var result = _reader.ReadString(MinimalXdcWithAdditionalSection);
+
+        result.AdditionalSections.Should().ContainKey("VendorExtension");
+        var section = result.AdditionalSections["VendorExtension"];
+        section.Should().ContainKey("customKey");
+        section["customKey"].Should().Be("customValue");
+        section.Should().ContainKey("AnotherAttr");
+        section["AnotherAttr"].Should().Be("other");
+        section.Should().ContainKey("anotherattr"); // case-insensitive clone
+        section["anotherattr"].Should().Be("other");
+    }
 
     [Fact]
     public void ReadString_InvalidXml_ThrowsEdsParseException()
@@ -562,6 +727,47 @@ public class XdcReaderTests
 
         act.Should().Throw<EdsParseException>()
             .WithMessage("*nodeID*");
+    }
+
+    private sealed class WriteOnlyStream : MemoryStream
+    {
+        public override bool CanRead => false;
+
+        public override int Read(byte[] buffer, int offset, int count)
+            => throw new NotSupportedException();
+    }
+
+    private sealed class NonSeekableReadStream : Stream
+    {
+        private readonly MemoryStream _inner;
+
+        public NonSeekableReadStream(byte[] data)
+        {
+            _inner = new MemoryStream(data);
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() => throw new NotSupportedException();
+        public override int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                _inner.Dispose();
+            base.Dispose(disposing);
+        }
     }
 
     #endregion

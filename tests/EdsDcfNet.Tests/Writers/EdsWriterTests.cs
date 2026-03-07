@@ -338,6 +338,41 @@ public class EdsWriterTests
     }
 
     [Fact]
+    public void GenerateString_AdditionalSections_AreWrittenDeterministically()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.AdditionalSections["zSection"] = new Dictionary<string, string>
+        {
+            { "zKey", "Z" },
+            { "AKey", "A" }
+        };
+        eds.AdditionalSections["ASection"] = new Dictionary<string, string>
+        {
+            { "bKey", "B" },
+            { "aKey", "A" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        var aSectionIndex = result.IndexOf("[ASection]", StringComparison.Ordinal);
+        var zSectionIndex = result.IndexOf("[zSection]", StringComparison.Ordinal);
+        aSectionIndex.Should().BeGreaterThanOrEqualTo(0);
+        zSectionIndex.Should().BeGreaterThanOrEqualTo(0);
+        aSectionIndex.Should().BeLessThan(zSectionIndex);
+
+        var aSectionStart = aSectionIndex;
+        aSectionStart.Should().BeGreaterThanOrEqualTo(0);
+        var aKeyPos = result.IndexOf("aKey=A", aSectionStart, StringComparison.Ordinal);
+        var bKeyPos = result.IndexOf("bKey=B", aSectionStart, StringComparison.Ordinal);
+        aKeyPos.Should().BeGreaterThanOrEqualTo(0);
+        bKeyPos.Should().BeGreaterThanOrEqualTo(0);
+        aKeyPos.Should().BeLessThan(bKeyPos);
+    }
+
+    [Fact]
     public void GenerateString_NestedSectionFailure_WrapsUnexpectedExceptionWithSectionName()
     {
         // Arrange
@@ -477,5 +512,135 @@ public class EdsWriterTests
                 File.Delete(tempFile);
             }
         }
+    }
+
+    [Fact]
+    public void WriteStream_RoundTripsAndLeavesStreamOpen()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new MemoryStream();
+
+        _writer.WriteStream(eds, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = new EdsReader().ReadStream(stream);
+
+        parsed.DeviceInfo.ProductName.Should().Be(eds.DeviceInfo.ProductName);
+        parsed.ObjectDictionary.Objects.Should().ContainKey(0x1000);
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_RoundTripsAndLeavesStreamOpen()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new MemoryStream();
+
+        await _writer.WriteStreamAsync(eds, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = await new EdsReader().ReadStreamAsync(stream);
+
+        parsed.DeviceInfo.ProductName.Should().Be(eds.DeviceInfo.ProductName);
+        parsed.ObjectDictionary.Objects.Should().ContainKey(0x1000);
+    }
+
+    [Fact]
+    public void WriteStream_UnwritableStream_ThrowsArgumentException()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsArgumentException()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
+    }
+
+    [Fact]
+    public void WriteStream_NullStream_ThrowsArgumentNullException()
+    {
+        var eds = CreateMinimalEds();
+
+        var act = () => _writer.WriteStream(eds, null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public void WriteStream_GenerationThrowsEdsWriteException_Rethrows()
+    {
+        var eds = CreateMinimalEds();
+        eds.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        var ex = act.Should().Throw<EdsWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+    }
+
+    [Fact]
+    public void WriteStream_StreamWriteThrows_WrapsInEdsWriteException()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        var ex = act.Should().Throw<EdsWriteException>().Which;
+        ex.Message.Should().Contain("Failed to write EDS content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new MemoryStream();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream, cancellationToken: cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_GenerationThrowsEdsWriteException_Rethrows()
+    {
+        var eds = CreateMinimalEds();
+        eds.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        var ex = (await act.Should().ThrowAsync<EdsWriteException>()).Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_StreamWriteThrows_WrapsInEdsWriteException()
+    {
+        var eds = CreateMinimalEds();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        var ex = (await act.Should().ThrowAsync<EdsWriteException>()).Which;
+        ex.Message.Should().Contain("Failed to write EDS content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
     }
 }

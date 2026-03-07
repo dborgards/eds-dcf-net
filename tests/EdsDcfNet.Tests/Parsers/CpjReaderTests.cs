@@ -185,6 +185,31 @@ Version=1.0
     }
 
     [Fact]
+    public void ReadString_AdditionalSections_AreCaseInsensitiveAndResolveCaseCollisions()
+    {
+        // Arrange
+        var content = @"
+[Topology]
+Nodes=0x00
+
+[ProjectInfo]
+ProjectName=Initial
+Version=1.0
+
+[projectinfo]
+projectname=Override
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("PROJECTINFO");
+        result.AdditionalSections["projectinfo"]["PROJECTNAME"].Should().Be("Override");
+        result.AdditionalSections["ProjectInfo"]["version"].Should().Be("1.0");
+    }
+
+    [Fact]
     public void ReadString_NodeWithRefd_ParsesRefdField()
     {
         // Arrange
@@ -235,5 +260,50 @@ Node1Name=DecimalPresent
 
         // Assert
         result.Networks[0].Nodes[1].Present.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ReadStream_ValidContent_ParsesCorrectly()
+    {
+        // Arrange
+        const string content = "[Topology]\nNetName=StreamNet\nNodes=0\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        // Act
+        var result = _reader.ReadStream(stream, maxInputSize: content.Length + 16);
+
+        // Assert
+        result.Networks.Should().ContainSingle();
+        result.Networks[0].NetName.Should().Be("StreamNet");
+        stream.CanRead.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ReadStreamAsync_ValidContent_ParsesCorrectly()
+    {
+        // Arrange
+        const string content = "[Topology]\nNetName=StreamNet\nNodes=0\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        // Act
+        var result = await _reader.ReadStreamAsync(stream, maxInputSize: content.Length + 16);
+
+        // Assert
+        result.Networks.Should().ContainSingle();
+        result.Networks[0].NetName.Should().Be("StreamNet");
+        stream.CanRead.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ReadStreamAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        const string content = "[Topology]\nNetName=StreamNet\nNodes=0\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _reader.ReadStreamAsync(stream, cancellationToken: cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 }

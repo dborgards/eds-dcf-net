@@ -80,4 +80,62 @@ internal static class TextFileIo
 #endif
         cancellationToken.ThrowIfCancellationRequested();
     }
+
+    internal static void WriteAllText(
+        Stream stream,
+        string content,
+        Encoding encoding,
+        bool leaveOpen = true)
+    {
+        ThrowIfNull(stream, nameof(stream));
+        if (!stream.CanWrite) throw new ArgumentException("Stream must be writable.", nameof(stream));
+
+        using var writer = new StreamWriter(stream, encoding, bufferSize: 4096, leaveOpen: leaveOpen);
+        writer.Write(content);
+        writer.Flush();
+    }
+
+    internal static async Task WriteAllTextAsync(
+        Stream stream,
+        string content,
+        Encoding encoding,
+        bool leaveOpen = true,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfNull(stream, nameof(stream));
+        if (!stream.CanWrite) throw new ArgumentException("Stream must be writable.", nameof(stream));
+
+        cancellationToken.ThrowIfCancellationRequested();
+        using var writer = new StreamWriter(stream, encoding, bufferSize: 4096, leaveOpen: leaveOpen);
+
+#if NET10_0_OR_GREATER
+        await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);
+        await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+#else
+        const int chunkSize = 4096;
+        var buffer = new char[chunkSize];
+        for (var offset = 0; offset < content.Length; offset += chunkSize)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var length = Math.Min(chunkSize, content.Length - offset);
+            content.CopyTo(offset, buffer, 0, length);
+            await writer.WriteAsync(buffer, 0, length).ConfigureAwait(false);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        await writer.FlushAsync().ConfigureAwait(false);
+#endif
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    private static void ThrowIfNull(object? value, string parameterName)
+    {
+#if NET10_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(value, parameterName);
+#else
+        if (value == null)
+            throw new ArgumentNullException(parameterName);
+#endif
+    }
 }

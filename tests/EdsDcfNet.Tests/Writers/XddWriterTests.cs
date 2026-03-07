@@ -2,6 +2,7 @@ namespace EdsDcfNet.Tests.Writers;
 
 using System.Reflection;
 using System.Xml.Linq;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Writers;
 
@@ -79,6 +80,200 @@ public class XddWriterTests
         }
     }
 
+    [Fact]
+    public void WriteFile_InvalidPath_ThrowsXddWriteException()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        var invalidPath = "/invalid/path/that/does/not/exist/test.xdd";
+
+        // Act
+        var act = () => _writer.WriteFile(eds, invalidPath);
+
+        // Assert
+        act.Should().Throw<XddWriteException>()
+            .WithMessage("*Failed to write XDD file*");
+    }
+
+    [Fact]
+    public void WriteFile_GenerationThrowsXddWriteException_Rethrows()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo = null!;
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdd");
+
+        try
+        {
+            var act = () => _writer.WriteFile(eds, tempFile);
+
+            var ex = act.Should().Throw<XddWriteException>().Which;
+            ex.SectionName.Should().Be("DeviceProfile");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_InvalidPath_ThrowsXddWriteException()
+    {
+        var eds = CreateSampleEds();
+        var invalidPath = "/invalid/path/that/does/not/exist/async.xdd";
+
+        var act = () => _writer.WriteFileAsync(eds, invalidPath);
+
+        (await act.Should().ThrowAsync<XddWriteException>())
+            .WithMessage("*Failed to write XDD file*");
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_Cancelled_ThrowsOperationCanceledException()
+    {
+        var eds = CreateSampleEds();
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdd");
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(eds, tempFile, cts.Token);
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void WriteStream_RoundTripsAndLeavesStreamOpen()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream();
+
+        _writer.WriteStream(eds, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = new EdsDcfNet.Parsers.XddReader().ReadStream(stream);
+
+        parsed.DeviceInfo.ProductName.Should().Be("Test Product");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_RoundTripsAndLeavesStreamOpen()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream();
+
+        await _writer.WriteStreamAsync(eds, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = await new EdsDcfNet.Parsers.XddReader().ReadStreamAsync(stream);
+
+        parsed.DeviceInfo.ProductName.Should().Be("Test Product");
+    }
+
+    [Fact]
+    public void WriteStream_UnwritableStream_ThrowsArgumentException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsArgumentException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
+    }
+
+    [Fact]
+    public void WriteStream_NullStream_ThrowsArgumentNullException()
+    {
+        var eds = CreateSampleEds();
+
+        var act = () => _writer.WriteStream(eds, null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public void WriteStream_GenerationThrowsXddWriteException_Rethrows()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        var ex = act.Should().Throw<XddWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceProfile");
+    }
+
+    [Fact]
+    public void WriteStream_StreamWriteThrows_WrapsInXddWriteException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStream(eds, stream);
+
+        var ex = act.Should().Throw<XddWriteException>().Which;
+        ex.Message.Should().Contain("Failed to write XDD content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new MemoryStream();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_GenerationThrowsXddWriteException_Rethrows()
+    {
+        var eds = CreateSampleEds();
+        eds.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        var ex = (await act.Should().ThrowAsync<XddWriteException>()).Which;
+        ex.SectionName.Should().Be("DeviceProfile");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_StreamWriteThrows_WrapsInXddWriteException()
+    {
+        var eds = CreateSampleEds();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStreamAsync(eds, stream);
+
+        var ex = (await act.Should().ThrowAsync<XddWriteException>()).Which;
+        ex.Message.Should().Contain("Failed to write XDD content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
     #endregion
 
     #region GenerateString Tests
@@ -91,6 +286,57 @@ public class XddWriterTests
 
         // Assert
         result.Should().Contain("ISO15745ProfileContainer");
+    }
+
+    [Fact]
+    public void GenerateString_InvalidDeviceInfo_ThrowsXddWriteExceptionWithSectionName()
+    {
+        // Arrange
+        var eds = CreateSampleEds();
+        eds.DeviceInfo = null!;
+
+        // Act
+        var act = () => _writer.GenerateString(eds);
+
+        // Assert
+        var ex = act.Should().Throw<XddWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceProfile");
+        ex.Message.Should().Contain("DeviceProfile");
+    }
+
+    [Fact]
+    public void GenerateString_WhenSubclassThrowsXdcWriteException_PreservesXdcContext()
+    {
+        var writer = new ThrowingNetworkManagementWriter();
+
+        var act = () => writer.GenerateString(CreateSampleEds());
+
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.SectionName.Should().Be("deviceCommissioning");
+        ex.Message.Should().Contain("forced");
+    }
+
+    [Fact]
+    public void GenerateString_WhenSubclassThrowsXddWriteException_RethrowsOriginal()
+    {
+        var writer = new ThrowingXddDocumentWriter();
+
+        var act = () => writer.GenerateString(CreateSampleEds());
+
+        var ex = act.Should().Throw<XddWriteException>().Which;
+        ex.Should().BeSameAs(writer.ExpectedException);
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_WhenGenerationThrowsXddWriteException_Rethrows()
+    {
+        var writer = new ThrowingXddDocumentWriter();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdd");
+
+        var act = () => writer.WriteFileAsync(CreateSampleEds(), tempFile);
+
+        var ex = (await act.Should().ThrowAsync<XddWriteException>()).Which;
+        ex.Should().BeSameAs(writer.ExpectedException);
     }
 
     [Fact]
@@ -109,10 +355,11 @@ public class XddWriterTests
     {
         // Act
         var result = _writer.GenerateString(CreateSampleEds());
+        var document = XDocument.Parse(result);
 
         // Assert
-        result.Should().Contain("<vendorName>Test Vendor</vendorName>");
-        result.Should().Contain("<productName>Test Product</productName>");
+        GetSingleElement(document, "vendorName").Value.Should().Be("Test Vendor");
+        GetSingleElement(document, "productName").Value.Should().Be("Test Product");
         result.Should().Contain("0x00000100");
         result.Should().Contain("0x00001001");
     }
@@ -125,11 +372,13 @@ public class XddWriterTests
 
         // Act
         var result = _writer.GenerateString(eds);
+        var document = XDocument.Parse(result);
+        var objectList = GetSingleElement(document, "CANopenObjectList");
 
         // Assert
-        result.Should().Contain("mandatoryObjects=\"1\"");
-        result.Should().Contain("optionalObjects=\"0\"");
-        result.Should().Contain("manufacturerObjects=\"0\"");
+        GetAttributeValue(objectList, "mandatoryObjects").Should().Be("1");
+        GetAttributeValue(objectList, "optionalObjects").Should().Be("0");
+        GetAttributeValue(objectList, "manufacturerObjects").Should().Be("0");
     }
 
     [Fact]
@@ -137,15 +386,17 @@ public class XddWriterTests
     {
         // Act
         var result = _writer.GenerateString(CreateSampleEds());
+        var document = XDocument.Parse(result);
+        var canOpenObject = document.Descendants()
+            .Single(e => e.Name.LocalName == "CANopenObject" && GetAttributeValue(e, "index") == "1000");
 
         // Assert
-        result.Should().Contain("index=\"1000\"");
-        result.Should().Contain("name=\"Device Type\"");
-        result.Should().Contain("objectType=\"7\"");
-        result.Should().Contain("dataType=\"0007\"");
-        result.Should().Contain("accessType=\"ro\"");
-        result.Should().Contain("defaultValue=\"0x00000191\"");
-        result.Should().Contain("PDOmapping=\"no\"");
+        GetAttributeValue(canOpenObject, "name").Should().Be("Device Type");
+        GetAttributeValue(canOpenObject, "objectType").Should().Be("7");
+        GetAttributeValue(canOpenObject, "dataType").Should().Be("0007");
+        GetAttributeValue(canOpenObject, "accessType").Should().Be("ro");
+        GetAttributeValue(canOpenObject, "defaultValue").Should().Be("0x00000191");
+        GetAttributeValue(canOpenObject, "PDOmapping").Should().Be("no");
     }
 
     [Fact]
@@ -175,11 +426,12 @@ public class XddWriterTests
 
         // Act
         var result = _writer.GenerateString(eds);
+        var document = XDocument.Parse(result);
+        var subObject = document.Descendants()
+            .Single(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "00");
 
         // Assert
-        result.Should().Contain("<CANopenSubObject");
-        result.Should().Contain("subIndex=\"00\"");
-        result.Should().Contain("name=\"Number of Entries\"");
+        GetAttributeValue(subObject, "name").Should().Be("Number of Entries");
     }
 
     [Fact]
@@ -209,10 +461,12 @@ public class XddWriterTests
 
         // Act
         var result = _writer.GenerateString(eds);
+        var document = XDocument.Parse(result);
+        var subObject = document.Descendants()
+            .Single(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "00");
 
         // Assert
-        result.Should().Contain("<CANopenSubObject");
-        result.Should().Contain("PDOmapping=\"optional\"");
+        GetAttributeValue(subObject, "PDOmapping").Should().Be("optional");
     }
 
     [Fact]
@@ -237,10 +491,15 @@ public class XddWriterTests
     {
         // Act
         var result = _writer.GenerateString(CreateSampleEds());
+        var document = XDocument.Parse(result);
+        var supportedRates = document.Descendants()
+            .Where(e => e.Name.LocalName == "supportedBaudRate")
+            .Select(e => GetAttributeValue(e, "value"))
+            .ToList();
 
         // Assert
-        result.Should().Contain("250 Kbps");
-        result.Should().Contain("500 Kbps");
+        supportedRates.Should().Contain("250 Kbps");
+        supportedRates.Should().Contain("500 Kbps");
     }
 
     [Fact]
@@ -652,6 +911,14 @@ public class XddWriterTests
     }
 
     [Fact]
+    public void FormatBaudRate_ProtectedHelper_ReturnsExpectedXddValue()
+    {
+        var result = FormatHelperProbeWriter.CallFormatBaudRate(250);
+
+        result.Should().Be("250 Kbps");
+    }
+
+    [Fact]
     public void StringBuilderWriter_WriteCharAndString_AreCallable()
     {
         var nestedType = typeof(XddWriter).GetNestedType("StringBuilderWriter", BindingFlags.NonPublic);
@@ -702,6 +969,43 @@ public class XddWriterTests
             WasCalled = true;
             return base.BuildDocument(eds, commissioning);
         }
+    }
+
+    private sealed class ThrowingNetworkManagementWriter : XddWriter
+    {
+        protected override XElement BuildNetworkManagement(
+            ElectronicDataSheet eds,
+            DeviceCommissioning? commissioning)
+        {
+            throw new XdcWriteException("forced", "deviceCommissioning");
+        }
+    }
+
+    private sealed class ThrowingXddDocumentWriter : XddWriter
+    {
+        public XddWriteException ExpectedException { get; } = new("forced-xdd", "Document");
+
+        protected override XDocument BuildDocument(
+            ElectronicDataSheet eds,
+            DeviceCommissioning? commissioning)
+        {
+            throw ExpectedException;
+        }
+    }
+
+    private sealed class FormatHelperProbeWriter : XddWriter
+    {
+        public static string CallFormatBaudRate(ushort kbps) => FormatBaudRate(kbps);
+    }
+
+    private static XElement GetSingleElement(XContainer container, string localName)
+    {
+        return container.Descendants().Single(e => e.Name.LocalName == localName);
+    }
+
+    private static string GetAttributeValue(XElement element, string attributeName)
+    {
+        return element.Attributes().Single(a => a.Name.LocalName == attributeName).Value;
     }
 
     #endregion

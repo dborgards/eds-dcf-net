@@ -1,4 +1,5 @@
 namespace EdsDcfNet.Models;
+using EdsDcfNet.Validation;
 
 /// <summary>
 /// Represents a complete Device Configuration File (DCF) for a CANopen device.
@@ -55,9 +56,12 @@ public class DeviceConfigurationFile
 
     /// <summary>
     /// Additional sections not covered by standard specification.
-    /// Key is section name, value is dictionary of key-value pairs.
+    /// Section names are compared case-insensitively using <see cref="StringComparer.OrdinalIgnoreCase"/>,
+    /// so assigning names that differ only by case overwrites the previous section.
+    /// Each section contains key-value pairs that are treated case-insensitively by readers/writers.
     /// </summary>
-    public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } = new();
+    public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Parsed <c>ApplicationProcess</c> element from the XDC device-profile body (CiA 311 §6.4.5).
@@ -66,4 +70,13 @@ public class DeviceConfigurationFile
     /// <c>ApplicationProcess</c> element was present in the XDD/XDC file.
     /// </summary>
     public ApplicationProcess? ApplicationProcess { get; set; }
+
+    /// <summary>
+    /// Validates this model instance against common CANopen constraints.
+    /// </summary>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public IReadOnlyList<ValidationIssue> Validate()
+    {
+        return CanOpenModelValidator.Validate(this);
+    }
 }

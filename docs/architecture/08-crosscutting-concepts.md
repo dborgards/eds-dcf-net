@@ -11,10 +11,12 @@ The library uses **exceptions** as its primary error mechanism:
 | `EdsParseException`     | Errors during EDS/DCF/CPJ/XDD/XDC parsing                   | `LineNumber`, `SectionName`  |
 | `EdsWriteException`     | Errors during EDS writing                                   | `SectionName`                |
 | `DcfWriteException`     | Errors during DCF writing                                   | `SectionName`                |
-| `InvalidOperationException` | Validation failures during XDC writing (e.g., invalid NodeId) | Standard .NET message |
+| `CpjWriteException`     | Errors during CPJ writing                                   | `SectionName`                |
+| `XddWriteException`     | Errors during XDD writing                                   | `SectionName`                |
+| `XdcWriteException`     | Errors during XDC writing (including commissioning validation) | `SectionName`             |
 | `ArgumentException`     | Invalid input parameters where validation is performed by the API | Standard .NET          |
 
-> **Note:** `CanOpenFile.EdsToDcf`, DCF parsing, and XDC writing enforce CANopen Node-ID constraints for explicit commissioning data. `EdsToDcf` and DCF parsing require `1..127`; XDC writing emits commissioning only when a configured NodeId is present and valid.
+> **Note:** `CanOpenFile.EdsToDcf`, DCF parsing, and XDC writing enforce CANopen Node-ID constraints for explicit commissioning data. `EdsToDcf` and DCF parsing require `1..127`; XDC writing emits commissioning only when a configured NodeId is present and valid and throws `XdcWriteException` for out-of-range values.
 
 > **Compatibility note (AccessType):** Parsing of invalid or unknown `AccessType` values is intentionally tolerant and falls back to `ReadOnly` instead of failing. This is a deliberate trade-off to maximize interoperability with non-compliant manufacturer EDS/DCF files.
 
@@ -36,6 +38,17 @@ flowchart TD
 - **Optional fields**: Missing optional values result in `null` or default values.
 - **Unknown INI sections**: Preserved in `AdditionalSections` (no warning, no error).
 - **CiA 311 XML**: Parsed against supported profile structures; unsupported XML nodes are not represented as generic passthrough data.
+
+### Input Size Limits
+
+To mitigate memory-pressure and oversized-input scenarios, all read APIs enforce a default
+maximum input size of `IniParser.DefaultMaxInputSize` (10 MB).
+
+The limit is configurable per read operation (`Read*`, `Read*Async`, `Read*FromString`)
+for EDS/DCF/CPJ/XDD/XDC, including the `CanOpenFile` facade.
+
+Guideline: keep the default for untrusted inputs and raise limits only as needed for
+trusted, known-large payloads.
 
 ## 8.2 Culture Independence (InvariantCulture)
 
@@ -111,7 +124,7 @@ CiA 311 support is implemented through explicit mapping of ISO 15745 profile ele
 XDC writer behavior:
 - NodeId `0` means "commissioning not configured" and omits the XML `deviceCommissioning` element.
 - NodeId `1..127` emits a valid `deviceCommissioning` element.
-- Out-of-range NodeId values cause an exception.
+- Out-of-range NodeId values cause an `XdcWriteException`.
 
 ## 8.6 Modular Devices (CiA DS 306)
 

@@ -10,7 +10,7 @@ using EdsDcfNet.Utilities;
 /// Reader for Device Configuration File (DCF) files.
 /// DCF files extend EDS files with configured values and device-specific settings.
 /// </summary>
-public class DcfReader : CanOpenReaderBase
+public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
 {
     private static readonly string[] DcfKnownSectionNames =
     {
@@ -27,10 +27,27 @@ public class DcfReader : CanOpenReaderBase
     /// Reads a DCF file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the DCF file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public DeviceConfigurationFile ReadFile(string filePath)
+    public DeviceConfigurationFile ReadFile(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromFile(filePath);
+        var sections = ParseSectionsFromFile(filePath, maxInputSize);
+        return ParseDcf(sections);
+    }
+
+    /// <summary>
+    /// Reads a DCF file from a stream.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public DeviceConfigurationFile ReadStream(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+    {
+        var sections = ParseSectionsFromStream(stream, maxInputSize);
         return ParseDcf(sections);
     }
 
@@ -40,11 +57,51 @@ public class DcfReader : CanOpenReaderBase
     /// <param name="filePath">Path to the DCF file</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public async Task<DeviceConfigurationFile> ReadFileAsync(
+    public Task<DeviceConfigurationFile> ReadFileAsync(
         string filePath,
         CancellationToken cancellationToken = default)
+        => ReadFileAsync(filePath, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads a DCF file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the DCF file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public async Task<DeviceConfigurationFile> ReadFileAsync(
+        string filePath,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
     {
-        var sections = await ParseSectionsFromFileAsync(filePath, cancellationToken).ConfigureAwait(false);
+        var sections = await ParseSectionsFromFileAsync(filePath, maxInputSize, cancellationToken).ConfigureAwait(false);
+        return ParseDcf(sections);
+    }
+
+    /// <summary>
+    /// Reads a DCF file from a stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public Task<DeviceConfigurationFile> ReadStreamAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+        => ReadStreamAsync(stream, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads a DCF file from a stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public async Task<DeviceConfigurationFile> ReadStreamAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var sections = await ParseSectionsFromStreamAsync(stream, maxInputSize, cancellationToken).ConfigureAwait(false);
         return ParseDcf(sections);
     }
 
@@ -52,10 +109,13 @@ public class DcfReader : CanOpenReaderBase
     /// Reads a DCF from a string.
     /// </summary>
     /// <param name="content">DCF file content as string</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
-    public DeviceConfigurationFile ReadString(string content)
+    public DeviceConfigurationFile ReadString(
+        string content,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromString(content);
+        var sections = ParseSectionsFromString(content, maxInputSize);
         return ParseDcf(sections);
     }
 
@@ -101,7 +161,8 @@ public class DcfReader : CanOpenReaderBase
                 !IsToolSectionForParsedTools(sectionName, dcf.Tools.Count) &&
                 !ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(sectionName, dcf.ObjectDictionary))
             {
-                dcf.AdditionalSections[sectionName] = new Dictionary<string, string>(sections[sectionName]);
+                dcf.AdditionalSections[sectionName] =
+                    new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
             }
         }
 
@@ -131,7 +192,7 @@ public class DcfReader : CanOpenReaderBase
             return null;
 
         // DCF-specific fields
-        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", index);
+        var sectionName = ToHexInvariant(index);
         obj.ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue");
         obj.Denotation = IniParser.GetValue(sections, sectionName, "Denotation");
         obj.ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd");
@@ -147,7 +208,7 @@ public class DcfReader : CanOpenReaderBase
         base.ParseSubObjects(sections, index, obj);
 
         // Parse compact value storage
-        var valueSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Value", index);
+        var valueSectionName = string.Concat(ToHexInvariant(index), "Value");
         if (IniParser.HasSection(sections, valueSectionName))
         {
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, valueSectionName, "NrOfEntries", "0"));
@@ -166,7 +227,7 @@ public class DcfReader : CanOpenReaderBase
         }
 
         // Parse compact denotation storage
-        var denotationSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Denotation", index);
+        var denotationSectionName = string.Concat(ToHexInvariant(index), "Denotation");
         if (IniParser.HasSection(sections, denotationSectionName))
         {
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, denotationSectionName, "NrOfEntries", "0"));
@@ -193,7 +254,7 @@ public class DcfReader : CanOpenReaderBase
             return null;
 
         // DCF-specific fields
-        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", index, subIndex);
+        var sectionName = string.Concat(ToHexInvariant(index), "sub", ToHexInvariant(subIndex));
         subObj.ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue");
         subObj.Denotation = IniParser.GetValue(sections, sectionName, "Denotation");
         subObj.ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd");

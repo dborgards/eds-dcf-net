@@ -2,7 +2,7 @@
   "name": "eds-dcf-net",
   "version": "0.0.0-development",
   "private": true,
-  "description": "C# .NET library for reading and writing CiA DS 306 EDS and DCF files for CANopen devices",
+  "description": "C# .NET library for reading and writing CiA DS 306 (EDS, DCF, CPJ) and CiA 311 (XDD, XDC) files for CANopen devices",
   "repository": {
     "type": "git",
     "url": "https://github.com/dborgards/eds-dcf-net.git"

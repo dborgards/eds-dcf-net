@@ -10,17 +10,35 @@ using EdsDcfNet.Utilities;
 /// <summary>
 /// Reader for CiA 306-3 nodelist project (.cpj) files.
 /// </summary>
-public class CpjReader
+public class CpjReader : IFileReader<NodelistProject>
 {
     /// <summary>
     /// Reads a CPJ file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the CPJ file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <returns>Parsed NodelistProject object</returns>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
-    public NodelistProject ReadFile(string filePath)
+    public NodelistProject ReadFile(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var sections = IniParser.ParseFile(filePath);
+        var sections = IniParser.ParseFile(filePath, maxInputSize);
+        return ParseCpj(sections);
+    }
+
+    /// <summary>
+    /// Reads a CPJ file from a stream.
+    /// </summary>
+    /// <param name="stream">Readable stream containing CPJ content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public NodelistProject ReadStream(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+    {
+        var sections = IniParser.ParseStream(stream, maxInputSize);
         return ParseCpj(sections);
     }
 
@@ -31,11 +49,54 @@ public class CpjReader
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed NodelistProject object</returns>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
-    public async Task<NodelistProject> ReadFileAsync(
+    public Task<NodelistProject> ReadFileAsync(
         string filePath,
         CancellationToken cancellationToken = default)
+        => ReadFileAsync(filePath, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads a CPJ file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the CPJ file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public async Task<NodelistProject> ReadFileAsync(
+        string filePath,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
     {
-        var sections = await IniParser.ParseFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var sections = await IniParser.ParseFileAsync(filePath, maxInputSize, cancellationToken).ConfigureAwait(false);
+        return ParseCpj(sections);
+    }
+
+    /// <summary>
+    /// Reads a CPJ file from a stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Readable stream containing CPJ content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public Task<NodelistProject> ReadStreamAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+        => ReadStreamAsync(stream, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads a CPJ file from a stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Readable stream containing CPJ content.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
+    public async Task<NodelistProject> ReadStreamAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var sections = await IniParser.ParseStreamAsync(stream, maxInputSize, cancellationToken).ConfigureAwait(false);
         return ParseCpj(sections);
     }
 
@@ -43,11 +104,14 @@ public class CpjReader
     /// Reads a CPJ from a string.
     /// </summary>
     /// <param name="content">CPJ file content as string</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
     /// <returns>Parsed NodelistProject object</returns>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
-    public NodelistProject ReadString(string content)
+    public NodelistProject ReadString(
+        string content,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var sections = IniParser.ParseString(content);
+        var sections = IniParser.ParseString(content, maxInputSize);
         return ParseCpj(sections);
     }
 
@@ -64,7 +128,8 @@ public class CpjReader
             }
             else
             {
-                project.AdditionalSections[sectionName] = new Dictionary<string, string>(sections[sectionName]);
+                project.AdditionalSections[sectionName] =
+                    new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
             }
         }
 

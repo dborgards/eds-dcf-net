@@ -1,12 +1,170 @@
 namespace EdsDcfNet.Tests.Integration;
 
 using EdsDcfNet;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
+using EdsDcfNet.Validation;
 using FluentAssertions;
 using Xunit;
 
 public class CanOpenFileTests
 {
+    [Fact]
+    public void SyncReadMethods_AcceptOptionalMaxInputSize()
+    {
+        var signature = new[] { typeof(string), typeof(long) };
+
+        var readEds = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadEds), signature);
+        readEds.Should().NotBeNull();
+        readEds!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readDcf = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadDcf), signature);
+        readDcf.Should().NotBeNull();
+        readDcf!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readCpj = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadCpj), signature);
+        readCpj.Should().NotBeNull();
+        readCpj!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readXdd = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdd), signature);
+        readXdd.Should().NotBeNull();
+        readXdd!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readXdc = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdc), signature);
+        readXdc.Should().NotBeNull();
+        readXdc!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SyncReadMethods_DefaultAndExplicitMaxInputSizeOverloads_BothWork()
+    {
+        var edsDefault = CanOpenFile.ReadEds("Fixtures/sample_device.eds");
+        var edsExplicit = CanOpenFile.ReadEds("Fixtures/sample_device.eds", IniParser.DefaultMaxInputSize);
+        edsDefault.FileInfo.FileName.Should().Be(edsExplicit.FileInfo.FileName);
+
+        var dcfDefault = CanOpenFile.ReadDcf("Fixtures/minimal.dcf");
+        var dcfExplicit = CanOpenFile.ReadDcf("Fixtures/minimal.dcf", IniParser.DefaultMaxInputSize);
+        dcfDefault.DeviceCommissioning.NodeId.Should().Be(dcfExplicit.DeviceCommissioning.NodeId);
+
+        var xddDefault = CanOpenFile.ReadXdd("Fixtures/sample_device.xdd");
+        var xddExplicit = CanOpenFile.ReadXdd("Fixtures/sample_device.xdd", IniParser.DefaultMaxInputSize);
+        xddDefault.DeviceInfo.ProductName.Should().Be(xddExplicit.DeviceInfo.ProductName);
+
+        var xdcDefault = CanOpenFile.ReadXdc("Fixtures/minimal.xdc");
+        var xdcExplicit = CanOpenFile.ReadXdc("Fixtures/minimal.xdc", IniParser.DefaultMaxInputSize);
+        xdcDefault.DeviceCommissioning.NodeId.Should().Be(xdcExplicit.DeviceCommissioning.NodeId);
+
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, "[Topology]\nNetName=Coverage Network\nNodes=0");
+
+            var cpjDefault = CanOpenFile.ReadCpj(tempFile);
+            var cpjExplicit = CanOpenFile.ReadCpj(tempFile, IniParser.DefaultMaxInputSize);
+
+            cpjDefault.Networks.Should().ContainSingle();
+            cpjDefault.Networks[0].NetName.Should().Be("Coverage Network");
+            cpjExplicit.Networks.Should().ContainSingle();
+            cpjExplicit.Networks[0].NetName.Should().Be("Coverage Network");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void SyncReadFromStringMethods_AcceptOptionalMaxInputSize()
+    {
+        var signature = new[] { typeof(string), typeof(long) };
+
+        var readEds = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadEdsFromString), signature);
+        readEds.Should().NotBeNull();
+        readEds!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readDcf = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadDcfFromString), signature);
+        readDcf.Should().NotBeNull();
+        readDcf!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readCpj = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadCpjFromString), signature);
+        readCpj.Should().NotBeNull();
+        readCpj!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readXdd = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXddFromString), signature);
+        readXdd.Should().NotBeNull();
+        readXdd!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+
+        var readXdc = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdcFromString), signature);
+        readXdc.Should().NotBeNull();
+        readXdc!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SyncReadFromStringMethods_DefaultAndExplicitMaxInputSizeOverloads_BothWork()
+    {
+        const string edsContent = """
+                                  [FileInfo]
+                                  FileName=fromstring.eds
+                                  FileVersion=1
+                                  [DeviceInfo]
+                                  VendorName=Vendor
+                                  ProductName=Product
+                                  [MandatoryObjects]
+                                  SupportedObjects=1
+                                  1=0x1000
+                                  [1000]
+                                  ParameterName=Device Type
+                                  ObjectType=0x7
+                                  DataType=0x0007
+                                  AccessType=ro
+                                  PDOMapping=0
+                                  """;
+        var edsDefault = CanOpenFile.ReadEdsFromString(edsContent);
+        var edsExplicit = CanOpenFile.ReadEdsFromString(edsContent, IniParser.DefaultMaxInputSize);
+        edsDefault.FileInfo.FileName.Should().Be(edsExplicit.FileInfo.FileName);
+
+        const string dcfContent = """
+                                  [FileInfo]
+                                  FileName=fromstring.dcf
+                                  FileVersion=1
+                                  [DeviceInfo]
+                                  VendorName=Vendor
+                                  ProductName=Product
+                                  [DeviceCommissioning]
+                                  NodeID=5
+                                  Baudrate=500
+                                  [MandatoryObjects]
+                                  SupportedObjects=1
+                                  1=0x1000
+                                  [1000]
+                                  ParameterName=Device Type
+                                  ObjectType=0x7
+                                  DataType=0x0007
+                                  AccessType=ro
+                                  PDOMapping=0
+                                  """;
+        var dcfDefault = CanOpenFile.ReadDcfFromString(dcfContent);
+        var dcfExplicit = CanOpenFile.ReadDcfFromString(dcfContent, IniParser.DefaultMaxInputSize);
+        dcfDefault.DeviceCommissioning.NodeId.Should().Be(dcfExplicit.DeviceCommissioning.NodeId);
+
+        const string cpjContent = "[Topology]\nNetName=FromString\nNodes=0";
+        var cpjDefault = CanOpenFile.ReadCpjFromString(cpjContent);
+        var cpjExplicit = CanOpenFile.ReadCpjFromString(cpjContent, IniParser.DefaultMaxInputSize);
+        cpjDefault.Networks[0].NetName.Should().Be(cpjExplicit.Networks[0].NetName);
+
+        var xddContent = File.ReadAllText("Fixtures/sample_device.xdd");
+        var xddDefault = CanOpenFile.ReadXddFromString(xddContent);
+        var xddExplicit = CanOpenFile.ReadXddFromString(xddContent, IniParser.DefaultMaxInputSize);
+        xddDefault.DeviceInfo.ProductName.Should().Be(xddExplicit.DeviceInfo.ProductName);
+
+        var xdcContent = File.ReadAllText("Fixtures/minimal.xdc");
+        var xdcDefault = CanOpenFile.ReadXdcFromString(xdcContent);
+        var xdcExplicit = CanOpenFile.ReadXdcFromString(xdcContent, IniParser.DefaultMaxInputSize);
+        xdcDefault.DeviceCommissioning.NodeId.Should().Be(xdcExplicit.DeviceCommissioning.NodeId);
+    }
+
     #region ReadEds Tests
 
     [Fact]
@@ -36,6 +194,15 @@ public class CanOpenFileTests
 
         // Assert
         act.Should().Throw<FileNotFoundException>();
+    }
+
+    [Fact]
+    public void ReadEds_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var result = CanOpenFile.ReadEds("Fixtures/sample_device.eds", IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.FileInfo.FileName.Should().Be("sample_device.eds");
     }
 
     #endregion
@@ -81,6 +248,17 @@ PDOMapping=0
         result.FileInfo.FileName.Should().Be("test.eds");
         result.DeviceInfo.VendorName.Should().Be("Test Vendor");
         result.DeviceInfo.ProductName.Should().Be("Test Product");
+    }
+
+    [Fact]
+    public void ReadEdsFromString_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var content = "[FileInfo]\nFileName=size.eds\nFileVersion=1\n[DeviceInfo]\nVendorName=V\n[MandatoryObjects]\nSupportedObjects=1\n1=0x1000\n[1000]\nParameterName=Device Type\nObjectType=0x7\nDataType=0x0007\nAccessType=ro\nPDOMapping=0\n";
+
+        var result = CanOpenFile.ReadEdsFromString(content, IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.FileInfo.FileName.Should().Be("size.eds");
     }
 
     #endregion
@@ -231,9 +409,20 @@ PDOMapping=0
         result.DeviceCommissioning.Baudrate.Should().Be(500);
     }
 
+    [Fact]
+    public void ReadDcfFromString_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var content = "[FileInfo]\nFileName=size.dcf\nFileVersion=1\n[DeviceInfo]\nVendorName=V\n[DeviceCommissioning]\nNodeID=1\nBaudrate=250\n[MandatoryObjects]\nSupportedObjects=1\n1=0x1000\n[1000]\nParameterName=Device Type\nObjectType=0x7\nDataType=0x0007\nAccessType=ro\nPDOMapping=0\n";
+
+        var result = CanOpenFile.ReadDcfFromString(content, IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.FileInfo.FileName.Should().Be("size.dcf");
+    }
+
     #endregion
 
-    #region WriteDcfToString Tests
+    #region WriteDcf/ReadDcf Tests
 
     [Fact]
     public void WriteDcfToString_ValidDcf_GeneratesString()
@@ -319,6 +508,15 @@ PDOMapping=0
                 File.Delete(tempFile);
             }
         }
+    }
+
+    [Fact]
+    public void ReadDcf_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var result = CanOpenFile.ReadDcf("Fixtures/minimal.dcf", IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.DeviceCommissioning.NodeId.Should().Be(5);
     }
 
     #endregion
@@ -455,6 +653,55 @@ PDOMapping=0
         // Assert
         dcf.FileInfo.FileVersion.Should().Be(2);
         dcf.FileInfo.FileRevision.Should().Be(4); // Incremented
+    }
+
+    [Fact]
+    public void EdsToDcf_WithExplicitTimestamp_UsesProvidedFileInfoTimeFields()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test Product" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+        var timestamp = new DateTime(2026, 03, 05, 13, 47, 00);
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5, timestamp: timestamp);
+
+        // Assert
+        dcf.FileInfo.CreationDate.Should().Be("03-05-2026");
+        dcf.FileInfo.CreationTime.Should().Be("01:47PM");
+    }
+
+    [Fact]
+    public void EdsToDcf_DefaultOverload_UsesSpecCompliantDateAndTimeFormatting()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test Product" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert
+        DateTime.TryParseExact(
+            dcf.FileInfo.CreationDate,
+            "MM-dd-yyyy",
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None,
+            out _).Should().BeTrue();
+        DateTime.TryParseExact(
+            dcf.FileInfo.CreationTime,
+            "hh:mmtt",
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None,
+            out _).Should().BeTrue();
     }
 
     [Fact]
@@ -983,6 +1230,36 @@ PDOMapping=0
         eds.AdditionalSections["VendorSection"]["Key1"].Should().Be("OriginalValue");
     }
 
+    [Fact]
+    public void EdsToDcf_AdditionalSectionInnerCaseCollision_DoesNotThrowAndUsesLastValue()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+        eds.AdditionalSections["VendorSection"] = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Key"] = "First",
+            ["key"] = "Second"
+        };
+
+        DeviceConfigurationFile? dcf = null;
+
+        // Act
+        var act = () => dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert
+        act.Should().NotThrow();
+        dcf.Should().NotBeNull();
+        dcf!.AdditionalSections.Should().ContainKey("VendorSection");
+        dcf.AdditionalSections["VendorSection"].Should().ContainKey("KEY");
+        dcf.AdditionalSections["VendorSection"].Count.Should().Be(1);
+        dcf.AdditionalSections["VendorSection"]["key"].Should().Be("Second");
+    }
+
     #endregion
 
     #region Round-trip Tests
@@ -1043,6 +1320,15 @@ PDOMapping=0
     }
 
     [Fact]
+    public void ReadXdd_CustomMaxInputSizeTooSmall_ThrowsEdsParseException()
+    {
+        var act = () => CanOpenFile.ReadXdd("Fixtures/sample_device.xdd", maxInputSize: 256);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
     public void ReadXddFromString_ValidContent_ReturnsElectronicDataSheet()
     {
         var content = File.ReadAllText("Fixtures/sample_device.xdd");
@@ -1060,6 +1346,15 @@ PDOMapping=0
 
         result.Should().NotBeNull();
         result.DeviceCommissioning.NodeId.Should().Be(5);
+    }
+
+    [Fact]
+    public void ReadXdc_CustomMaxInputSizeTooSmall_ThrowsEdsParseException()
+    {
+        var act = () => CanOpenFile.ReadXdc("Fixtures/minimal.xdc", maxInputSize: 256);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
     }
 
     [Fact]
@@ -1192,6 +1487,84 @@ PDOMapping=0
         {
             if (File.Exists(filePath)) File.Delete(filePath);
         }
+    }
+
+    [Fact]
+    public void Validate_DcfModel_UsesFacadeOverload()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning
+            {
+                NodeId = 5,
+                Baudrate = 42
+            }
+        };
+        dcf.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        dcf.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly
+        };
+
+        var issues = CanOpenFile.Validate(dcf);
+
+        issues.Should().Contain(i => i.Path == "DeviceCommissioning.Baudrate");
+    }
+
+    [Fact]
+    public void Validate_DcfModel_FacadeOverload_IsInvokableViaReflection()
+    {
+        var method = typeof(CanOpenFile).GetMethod(
+            nameof(CanOpenFile.Validate),
+            new[] { typeof(DeviceConfigurationFile) });
+        method.Should().NotBeNull();
+
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning
+            {
+                NodeId = 5,
+                Baudrate = 42
+            }
+        };
+        dcf.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        dcf.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly
+        };
+
+        var result = method!.Invoke(null, new object[] { dcf });
+        result.Should().BeAssignableTo<IReadOnlyList<ValidationIssue>>();
+
+        var issues = (IReadOnlyList<ValidationIssue>)result!;
+        issues.Should().Contain(i => i.Path == "DeviceCommissioning.Baudrate");
+    }
+
+    [Fact]
+    public void Validate_EdsModel_UsesFacadeOverload()
+    {
+        var eds = new ElectronicDataSheet();
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly
+        };
+
+        var issues = CanOpenFile.Validate(eds);
+
+        issues.Should().BeEmpty();
     }
 
     #endregion

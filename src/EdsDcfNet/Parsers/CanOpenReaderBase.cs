@@ -24,8 +24,10 @@ public abstract class CanOpenReaderBase
     /// Parses INI sections from a file path.
     /// </summary>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromFile().")]
-    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromFile(string filePath)
-        => IniParser.ParseFile(filePath);
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromFile(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+        => IniParser.ParseFile(filePath, maxInputSize);
 
     /// <summary>
     /// Parses INI sections from a file path asynchronously.
@@ -33,15 +35,37 @@ public abstract class CanOpenReaderBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromFileAsync().")]
     protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromFileAsync(
         string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize,
         CancellationToken cancellationToken = default)
-        => IniParser.ParseFileAsync(filePath, cancellationToken: cancellationToken);
+        => IniParser.ParseFileAsync(filePath, maxInputSize, cancellationToken);
 
     /// <summary>
     /// Parses INI sections from a string.
     /// </summary>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromString().")]
-    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromString(string content)
-        => IniParser.ParseString(content);
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromString(
+        string content,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+        => IniParser.ParseString(content, maxInputSize);
+
+    /// <summary>
+    /// Parses INI sections from a stream.
+    /// </summary>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromStream().")]
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromStream(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+        => IniParser.ParseStream(stream, maxInputSize);
+
+    /// <summary>
+    /// Parses INI sections from a stream asynchronously.
+    /// </summary>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromStreamAsync().")]
+    protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromStreamAsync(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize,
+        CancellationToken cancellationToken = default)
+        => IniParser.ParseStreamAsync(stream, maxInputSize, cancellationToken);
 
     /// <summary>
     /// Parses the <c>[FileInfo]</c> section into an <see cref="EdsFileInfo"/> object.
@@ -199,7 +223,7 @@ public abstract class CanOpenReaderBase
     /// </summary>
     protected virtual CanOpenObject? ParseObject(Dictionary<string, Dictionary<string, string>> sections, ushort index)
     {
-        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", index);
+        var sectionName = ToHexInvariant(index);
         if (!IniParser.HasSection(sections, sectionName))
             return null;
 
@@ -249,7 +273,7 @@ public abstract class CanOpenReaderBase
         }
 
         // Parse object links
-        var linksSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}ObjectLinks", index);
+        var linksSectionName = string.Concat(ToHexInvariant(index), "ObjectLinks");
         if (IniParser.HasSection(sections, linksSectionName))
         {
             var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, linksSectionName, "ObjectLinks", "0"));
@@ -297,7 +321,7 @@ public abstract class CanOpenReaderBase
     /// </summary>
     protected virtual CanOpenSubObject? ParseSubObject(Dictionary<string, Dictionary<string, string>> sections, ushort index, byte subIndex)
     {
-        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", index, subIndex);
+        var sectionName = string.Concat(ToHexInvariant(index), "sub", ToHexInvariant(subIndex));
         if (!IniParser.HasSection(sections, sectionName))
             return null;
 
@@ -530,6 +554,18 @@ public abstract class CanOpenReaderBase
             NumberStyles.HexNumber,
             CultureInfo.InvariantCulture, out _);
     }
+
+    /// <summary>
+    /// Formats an object index as uppercase hexadecimal using invariant culture.
+    /// </summary>
+    protected static string ToHexInvariant(ushort value)
+        => value.ToString("X", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Formats a sub-index as uppercase hexadecimal using invariant culture.
+    /// </summary>
+    protected static string ToHexInvariant(byte value)
+        => value.ToString("X", CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Checks if a section name matches a module section pattern: M{Digits}{KnownSuffix}.

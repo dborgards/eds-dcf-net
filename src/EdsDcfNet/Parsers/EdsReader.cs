@@ -5,7 +5,7 @@ using EdsDcfNet.Models;
 /// <summary>
 /// Reader for Electronic Data Sheet (EDS) files.
 /// </summary>
-public class EdsReader : CanOpenReaderBase
+public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
 {
     private static readonly string[] EdsKnownSectionNames =
     {
@@ -21,10 +21,31 @@ public class EdsReader : CanOpenReaderBase
     /// Reads an EDS file from the specified path.
     /// </summary>
     /// <param name="filePath">Path to the EDS file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
-    public ElectronicDataSheet ReadFile(string filePath)
+    public ElectronicDataSheet ReadFile(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromFile(filePath);
+        var sections = ParseSectionsFromFile(filePath, maxInputSize);
+        return ParseEds(sections);
+    }
+
+    /// <summary>
+    /// Reads an EDS file from a stream.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content. The stream is not disposed by this method.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <remarks>
+    /// <paramref name="stream"/> must be readable.
+    /// The caller keeps ownership of <paramref name="stream"/> and is responsible for disposing it.
+    /// </remarks>
+    public ElectronicDataSheet ReadStream(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+    {
+        var sections = ParseSectionsFromStream(stream, maxInputSize);
         return ParseEds(sections);
     }
 
@@ -34,11 +55,59 @@ public class EdsReader : CanOpenReaderBase
     /// <param name="filePath">Path to the EDS file</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
-    public async Task<ElectronicDataSheet> ReadFileAsync(
+    public Task<ElectronicDataSheet> ReadFileAsync(
         string filePath,
         CancellationToken cancellationToken = default)
+        => ReadFileAsync(filePath, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads an EDS file from the specified path asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the EDS file</param>
+    /// <param name="maxInputSize">Maximum file size in bytes.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public async Task<ElectronicDataSheet> ReadFileAsync(
+        string filePath,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
     {
-        var sections = await ParseSectionsFromFileAsync(filePath, cancellationToken).ConfigureAwait(false);
+        var sections = await ParseSectionsFromFileAsync(filePath, maxInputSize, cancellationToken).ConfigureAwait(false);
+        return ParseEds(sections);
+    }
+
+    /// <summary>
+    /// Reads an EDS file from a stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content. The stream is not disposed by this method.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <remarks>
+    /// <paramref name="stream"/> must be readable.
+    /// The caller keeps ownership of <paramref name="stream"/> and is responsible for disposing it.
+    /// </remarks>
+    public Task<ElectronicDataSheet> ReadStreamAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+        => ReadStreamAsync(stream, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Reads an EDS file from a stream asynchronously.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content. The stream is not disposed by this method.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <remarks>
+    /// <paramref name="stream"/> must be readable.
+    /// The caller keeps ownership of <paramref name="stream"/> and is responsible for disposing it.
+    /// </remarks>
+    public async Task<ElectronicDataSheet> ReadStreamAsync(
+        Stream stream,
+        long maxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        var sections = await ParseSectionsFromStreamAsync(stream, maxInputSize, cancellationToken).ConfigureAwait(false);
         return ParseEds(sections);
     }
 
@@ -46,10 +115,13 @@ public class EdsReader : CanOpenReaderBase
     /// Reads an EDS from a string.
     /// </summary>
     /// <param name="content">EDS file content as string</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
-    public ElectronicDataSheet ReadString(string content)
+    public ElectronicDataSheet ReadString(
+        string content,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromString(content);
+        var sections = ParseSectionsFromString(content, maxInputSize);
         return ParseEds(sections);
     }
 
@@ -86,7 +158,8 @@ public class EdsReader : CanOpenReaderBase
         {
             if (!IsKnownSection(sectionName) && !IsToolSectionForParsedTools(sectionName, eds.Tools.Count))
             {
-                eds.AdditionalSections[sectionName] = new Dictionary<string, string>(sections[sectionName]);
+                eds.AdditionalSections[sectionName] =
+                    new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
             }
         }
 

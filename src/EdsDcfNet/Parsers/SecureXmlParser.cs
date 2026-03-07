@@ -1,6 +1,8 @@
 namespace EdsDcfNet.Parsers;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
@@ -10,12 +12,15 @@ using EdsDcfNet.Exceptions;
 /// </summary>
 internal static class SecureXmlParser
 {
-    internal const long DefaultMaxInputSize = IniParser.DefaultMaxInputSize;
+    internal const long DefaultMaxInputSize = ReaderDefaults.DefaultMaxInputSize;
 
-    internal static void EnsureFileWithinSizeLimit(string filePath, string formatName)
+    internal static void EnsureFileWithinSizeLimit(
+        string filePath,
+        string formatName,
+        long maxInputSize = DefaultMaxInputSize)
     {
         var fileInfo = new FileInfo(filePath);
-        if (fileInfo.Length > DefaultMaxInputSize)
+        if (fileInfo.Length > maxInputSize)
         {
             throw new EdsParseException(
                 string.Format(
@@ -24,17 +29,21 @@ internal static class SecureXmlParser
                     formatName,
                     filePath,
                     fileInfo.Length,
-                    DefaultMaxInputSize));
+                    maxInputSize));
         }
     }
 
-    internal static XDocument ParseDocument(string content, string formatName, string parseErrorMessage)
+    internal static XDocument ParseDocument(
+        string content,
+        string formatName,
+        string parseErrorMessage,
+        long maxInputSize = DefaultMaxInputSize)
     {
-        EnsureContentWithinSizeLimit(content, formatName);
+        EnsureContentWithinSizeLimit(content, formatName, maxInputSize);
 
         try
         {
-            var settings = CreateSecureReaderSettings();
+            var settings = CreateSecureReaderSettings(maxInputSize);
             using var stringReader = new StringReader(content);
             using var xmlReader = XmlReader.Create(stringReader, settings);
             return XDocument.Load(xmlReader, LoadOptions.None);
@@ -45,9 +54,48 @@ internal static class SecureXmlParser
         }
     }
 
-    private static void EnsureContentWithinSizeLimit(string content, string formatName)
+    internal static string ReadContentFromStreamWithLimit(
+        Stream stream,
+        string formatName,
+        long maxInputSize = DefaultMaxInputSize)
     {
-        if (content.Length > DefaultMaxInputSize)
+        EnsureStreamReadable(stream);
+
+        using var reader = new StreamReader(
+            stream,
+            Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: true,
+            bufferSize: 4096,
+            leaveOpen: true);
+
+        return ReadAllWithLimit(reader, formatName, maxInputSize);
+    }
+
+    internal static async Task<string> ReadContentFromStreamWithLimitAsync(
+        Stream stream,
+        string formatName,
+        long maxInputSize = DefaultMaxInputSize,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureStreamReadable(stream);
+
+        using var reader = new StreamReader(
+            stream,
+            Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: true,
+            bufferSize: 4096,
+            leaveOpen: true);
+
+        return await ReadAllWithLimitAsync(reader, formatName, maxInputSize, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static void EnsureContentWithinSizeLimit(
+        string content,
+        string formatName,
+        long maxInputSize)
+    {
+        if (content.Length > maxInputSize)
         {
             throw new EdsParseException(
                 string.Format(
@@ -55,18 +103,109 @@ internal static class SecureXmlParser
                     "{0} content is too large ({1:N0} characters). Maximum supported size is {2:N0} characters.",
                     formatName,
                     content.Length,
-                    DefaultMaxInputSize));
+                    maxInputSize));
         }
     }
 
-    private static XmlReaderSettings CreateSecureReaderSettings()
+    private static void EnsureStreamReadable(Stream stream)
+    {
+        ThrowIfNull(stream, nameof(stream));
+        if (!stream.CanRead)
+            throw new ArgumentException("Stream must be readable.", nameof(stream));
+    }
+
+    private static string ReadAllWithLimit(
+        StreamReader reader,
+        string formatName,
+        long maxInputSize)
+    {
+        var builder = new StringBuilder();
+        var buffer = new char[4096];
+        long totalChars = 0;
+
+        while (true)
+        {
+            var charsRead = reader.Read(buffer, 0, buffer.Length);
+            if (charsRead == 0)
+                break;
+
+            totalChars += charsRead;
+            if (totalChars > maxInputSize)
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0} content is too large ({1:N0} characters). Maximum supported size is {2:N0} characters.",
+                        formatName,
+                        totalChars,
+                        maxInputSize));
+            }
+
+            builder.Append(buffer, 0, charsRead);
+        }
+
+        return builder.ToString();
+    }
+
+    private static async Task<string> ReadAllWithLimitAsync(
+        StreamReader reader,
+        string formatName,
+        long maxInputSize,
+        CancellationToken cancellationToken)
+    {
+        var builder = new StringBuilder();
+        var buffer = new char[4096];
+        long totalChars = 0;
+
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+#if NET10_0_OR_GREATER
+            var charsRead = await reader.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+#else
+            var charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+#endif
+            if (charsRead == 0)
+                break;
+
+            totalChars += charsRead;
+            if (totalChars > maxInputSize)
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0} content is too large ({1:N0} characters). Maximum supported size is {2:N0} characters.",
+                        formatName,
+                        totalChars,
+                        maxInputSize));
+            }
+
+            builder.Append(buffer, 0, charsRead);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return builder.ToString();
+    }
+
+    private static XmlReaderSettings CreateSecureReaderSettings(long maxInputSize)
     {
         return new XmlReaderSettings
         {
             DtdProcessing = DtdProcessing.Prohibit,
             XmlResolver = null,
-            MaxCharactersInDocument = DefaultMaxInputSize,
-            MaxCharactersFromEntities = DefaultMaxInputSize
+            MaxCharactersInDocument = maxInputSize,
+            MaxCharactersFromEntities = maxInputSize
         };
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static void ThrowIfNull(object? value, string parameterName)
+    {
+#if NET10_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(value, parameterName);
+#else
+        if (value == null)
+            throw new ArgumentNullException(parameterName);
+#endif
     }
 }

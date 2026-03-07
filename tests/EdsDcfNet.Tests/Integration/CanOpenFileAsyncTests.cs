@@ -1,7 +1,9 @@
 namespace EdsDcfNet.Tests.Integration;
 
 using EdsDcfNet;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 using FluentAssertions;
 using Xunit;
 
@@ -14,6 +16,15 @@ public class CanOpenFileAsyncTests
 
         result.Should().NotBeNull();
         result.DeviceInfo.ProductName.Should().Be("IO-Module 16x16");
+    }
+
+    [Fact]
+    public async Task ReadEdsAsync_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var result = await CanOpenFile.ReadEdsAsync("Fixtures/sample_device.eds", IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.FileInfo.FileName.Should().Be("sample_device.eds");
     }
 
     [Fact]
@@ -46,6 +57,15 @@ public class CanOpenFileAsyncTests
         result.Should().NotBeNull();
         result.DeviceCommissioning.NodeId.Should().Be(5);
         result.DeviceCommissioning.Baudrate.Should().Be(500);
+    }
+
+    [Fact]
+    public async Task ReadDcfAsync_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var result = await CanOpenFile.ReadDcfAsync("Fixtures/minimal.dcf", IniParser.DefaultMaxInputSize);
+
+        result.Should().NotBeNull();
+        result.DeviceCommissioning.NodeId.Should().Be(5);
     }
 
     [Fact]
@@ -101,6 +121,24 @@ public class CanOpenFileAsyncTests
     }
 
     [Fact]
+    public async Task ReadCpjAsync_WithExplicitMaxInputSize_InvokesOverload()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "[Topology]\nNetName=SizeTest\nNodes=0");
+            var result = await CanOpenFile.ReadCpjAsync(tempFile, IniParser.DefaultMaxInputSize);
+
+            result.Should().NotBeNull();
+            result.Networks[0].NetName.Should().Be("SizeTest");
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public async Task WriteCpjAsync_ValidModel_WritesAndReadsBackFile()
     {
         var cpj = new NodelistProject();
@@ -147,12 +185,30 @@ public class CanOpenFileAsyncTests
     }
 
     [Fact]
+    public async Task ReadXddAsync_CustomMaxInputSizeTooSmall_ThrowsEdsParseException()
+    {
+        var act = () => CanOpenFile.ReadXddAsync("Fixtures/sample_device.xdd", maxInputSize: 256);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
     public async Task ReadXdcAsync_ValidFile_ReturnsDeviceConfigurationFile()
     {
         var result = await CanOpenFile.ReadXdcAsync("Fixtures/minimal.xdc");
 
         result.Should().NotBeNull();
         result.DeviceCommissioning.NodeId.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task ReadXdcAsync_CustomMaxInputSizeTooSmall_ThrowsEdsParseException()
+    {
+        var act = () => CanOpenFile.ReadXdcAsync("Fixtures/minimal.xdc", maxInputSize: 256);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
     }
 
     [Fact]
@@ -205,6 +261,60 @@ public class CanOpenFileAsyncTests
     }
 
     [Fact]
+    public async Task ReadDcfAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => CanOpenFile.ReadDcfAsync("Fixtures/minimal.dcf", cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task ReadCpjAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "[Topology]\nNetName=CancelTest\nNodes=0");
+            var act = () => CanOpenFile.ReadCpjAsync(tempFile, cts.Token);
+
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ReadXddAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => CanOpenFile.ReadXddAsync("Fixtures/sample_device.xdd", cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task ReadXdcAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => CanOpenFile.ReadXdcAsync("Fixtures/minimal.xdc", cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
     public async Task WriteEdsAsync_CanceledToken_ThrowsOperationCanceledException()
     {
         using var cts = new CancellationTokenSource();
@@ -225,6 +335,48 @@ public class CanOpenFileAsyncTests
         var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
         var act = () => CanOpenFile.WriteDcfAsync(CreateMinimalDcf(), filePath, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        File.Exists(filePath).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task WriteCpjAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+
+        var cpj = new NodelistProject();
+        cpj.Networks.Add(new NetworkTopology { NetName = "Cancel Network" });
+
+        var act = () => CanOpenFile.WriteCpjAsync(cpj, filePath, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        File.Exists(filePath).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task WriteXddAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdd");
+
+        var act = () => CanOpenFile.WriteXddAsync(CreateMinimalEds(), filePath, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        File.Exists(filePath).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task WriteXdcAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var filePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".xdc");
+
+        var act = () => CanOpenFile.WriteXdcAsync(CreateMinimalDcf(), filePath, cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
         File.Exists(filePath).Should().BeFalse();

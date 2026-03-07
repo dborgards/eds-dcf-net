@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Tests.Writers;
 
+using System.Reflection;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Writers;
 using FluentAssertions;
@@ -121,6 +123,20 @@ public class DcfWriterTests
         result.Should().Contain("NodeName=TestNode");
         result.Should().Contain("NetNumber=1");
         result.Should().Contain("NetworkName=TestNetwork");
+    }
+
+    [Fact]
+    public void GenerateString_OmittedCommissioning_OmitsDeviceCommissioningSection()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceCommissioning = new DeviceCommissioning();
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().NotContain("[DeviceCommissioning]");
     }
 
     [Fact]
@@ -484,6 +500,42 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void GenerateString_ObjectWithObjectLinks_WritesObjectLinksSection()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.Objects[0x1000].ObjectLinks.Add(0x2000);
+        dcf.ObjectDictionary.Objects[0x1000].ObjectLinks.Add(0x2100);
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[1000ObjectLinks]");
+        result.Should().Contain("ObjectLinks=2");
+        result.Should().Contain("1=0x2000");
+        result.Should().Contain("2=0x2100");
+    }
+
+    [Fact]
+    public void GenerateString_ConnectedModules_WritesSectionAndEntries()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ConnectedModules.AddRange([1, 2, 1]);
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("[ConnectedModules]");
+        result.Should().Contain("NrOfEntries=3");
+        result.Should().Contain("1=1");
+        result.Should().Contain("2=2");
+        result.Should().Contain("3=1");
+    }
+
+    [Fact]
     public void GenerateString_CANopenSafetySupported_WrittenWhenTrue()
     {
         // Arrange
@@ -759,7 +811,8 @@ public class DcfWriterTests
         var dcf = CreateMinimalDcf();
         dcf.AdditionalSections["VendorSpecific"] = new Dictionary<string, string>
         {
-            { "Key", "Value" }
+            { "Key1", "Value1" },
+            { "Key2", "Value2" }
         };
 
         // Act
@@ -767,7 +820,43 @@ public class DcfWriterTests
 
         // Assert
         result.Should().Contain("[VendorSpecific]");
-        result.Should().Contain("Key=Value");
+        result.Should().Contain("Key1=Value1");
+        result.Should().Contain("Key2=Value2");
+    }
+
+    [Fact]
+    public void GenerateString_AdditionalSections_AreWrittenDeterministically()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.AdditionalSections["zSection"] = new Dictionary<string, string>
+        {
+            { "zKey", "Z" },
+            { "AKey", "A" }
+        };
+        dcf.AdditionalSections["ASection"] = new Dictionary<string, string>
+        {
+            { "bKey", "B" },
+            { "aKey", "A" }
+        };
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        var aSectionIndex = result.IndexOf("[ASection]", StringComparison.Ordinal);
+        var zSectionIndex = result.IndexOf("[zSection]", StringComparison.Ordinal);
+        aSectionIndex.Should().BeGreaterThanOrEqualTo(0);
+        zSectionIndex.Should().BeGreaterThanOrEqualTo(0);
+        aSectionIndex.Should().BeLessThan(zSectionIndex);
+
+        var aSectionStart = aSectionIndex;
+        aSectionStart.Should().BeGreaterThanOrEqualTo(0);
+        var aKeyPos = result.IndexOf("aKey=A", aSectionStart, StringComparison.Ordinal);
+        var bKeyPos = result.IndexOf("bKey=B", aSectionStart, StringComparison.Ordinal);
+        aKeyPos.Should().BeGreaterThanOrEqualTo(0);
+        bKeyPos.Should().BeGreaterThanOrEqualTo(0);
+        aKeyPos.Should().BeLessThan(bKeyPos);
     }
 
     [Fact]
@@ -849,6 +938,115 @@ public class DcfWriterTests
         // Assert
         act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>()
             .WithMessage("*Failed to write DCF file*");
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_InvalidPath_ThrowsDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        var invalidPath = "/invalid/path/that/does/not/exist/async.dcf";
+
+        var act = () => _writer.WriteFileAsync(dcf, invalidPath);
+
+        (await act.Should().ThrowAsync<EdsDcfNet.Exceptions.DcfWriteException>())
+            .WithMessage("*Failed to write DCF file*");
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_Cancelled_ThrowsOperationCanceledException()
+    {
+        var dcf = CreateMinimalDcf();
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".dcf");
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(dcf, tempFile, cts.Token);
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_GenerationFailure_RethrowsDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            var act = () => _writer.WriteFileAsync(dcf, tempFile);
+
+            var ex = (await act.Should().ThrowAsync<EdsDcfNet.Exceptions.DcfWriteException>()).Which;
+            ex.SectionName.Should().Be("DeviceInfo");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void GenerateString_InvalidDeviceInfo_ThrowsDcfWriteExceptionWithSectionName()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+
+        // Act
+        var act = () => _writer.GenerateString(dcf);
+
+        // Assert
+        var ex = act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+        ex.Message.Should().Contain("DeviceInfo");
+    }
+
+    [Fact]
+    public void WriteSection_WhenActionThrowsDcfWriteException_RethrowsOriginal()
+    {
+        var method = typeof(DcfWriter).GetMethod("WriteSection", BindingFlags.NonPublic | BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var expected = new EdsDcfNet.Exceptions.DcfWriteException("forced", "DeviceInfo");
+
+        var act = () => method!.Invoke(
+            null,
+            new object[] { "DeviceInfo", (Action)(() => throw expected) });
+
+        var tie = act.Should().Throw<TargetInvocationException>().Which;
+        tie.InnerException.Should().BeSameAs(expected);
+    }
+
+    [Fact]
+    public void WriteFile_GenerationFailure_PreservesSectionName()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            // Act
+            var act = () => _writer.WriteFile(dcf, tempFile);
+
+            // Assert
+            var ex = act.Should().Throw<EdsDcfNet.Exceptions.DcfWriteException>().Which;
+            ex.SectionName.Should().Be("DeviceInfo");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
     }
 
     [Fact]
@@ -1017,6 +1215,142 @@ public class DcfWriterTests
         parsed.Tools[0].Command.Should().Be("checker.exe $EDS");
         parsed.Tools[1].Name.Should().Be("Configurator");
         parsed.Tools[1].Command.Should().Be("config.exe $DCF $NODEID");
+    }
+
+    [Fact]
+    public void WriteStream_RoundTripsAndLeavesStreamOpen()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        using var stream = new MemoryStream();
+
+        // Act
+        _writer.WriteStream(dcf, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = new EdsDcfNet.Parsers.DcfReader().ReadStream(stream);
+
+        // Assert
+        parsed.DeviceCommissioning.NodeId.Should().Be(dcf.DeviceCommissioning.NodeId);
+        parsed.ObjectDictionary.Objects.Should().ContainKey(0x1000);
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_RoundTripsAndLeavesStreamOpen()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        using var stream = new MemoryStream();
+
+        // Act
+        await _writer.WriteStreamAsync(dcf, stream);
+        stream.CanWrite.Should().BeTrue();
+        stream.Position = 0;
+        var parsed = await new EdsDcfNet.Parsers.DcfReader().ReadStreamAsync(stream);
+
+        // Assert
+        parsed.DeviceCommissioning.NodeId.Should().Be(dcf.DeviceCommissioning.NodeId);
+        parsed.ObjectDictionary.Objects.Should().ContainKey(0x1000);
+    }
+
+    [Fact]
+    public void WriteStream_UnwritableStream_ThrowsArgumentException()
+    {
+        var dcf = CreateMinimalDcf();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStream(dcf, stream);
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_UnwritableStream_ThrowsArgumentException()
+    {
+        var dcf = CreateMinimalDcf();
+        using var stream = new MemoryStream(new byte[16], writable: false);
+
+        var act = () => _writer.WriteStreamAsync(dcf, stream);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
+    }
+
+    [Fact]
+    public void WriteStream_NullStream_ThrowsArgumentNullException()
+    {
+        var dcf = CreateMinimalDcf();
+
+        var act = () => _writer.WriteStream(dcf, null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("stream");
+    }
+
+    [Fact]
+    public void WriteStream_GenerationThrowsDcfWriteException_Rethrows()
+    {
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStream(dcf, stream);
+
+        var ex = act.Should().Throw<DcfWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+    }
+
+    [Fact]
+    public void WriteStream_StreamWriteThrows_WrapsInDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStream(dcf, stream);
+
+        var ex = act.Should().Throw<DcfWriteException>().Which;
+        ex.Message.Should().Contain("Failed to write DCF content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        var dcf = CreateMinimalDcf();
+        using var stream = new MemoryStream();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _writer.WriteStreamAsync(dcf, stream, cancellationToken: cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_GenerationThrowsDcfWriteException_Rethrows()
+    {
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceInfo = null!;
+        using var stream = new MemoryStream();
+
+        var act = () => _writer.WriteStreamAsync(dcf, stream);
+
+        var ex = (await act.Should().ThrowAsync<DcfWriteException>()).Which;
+        ex.SectionName.Should().Be("DeviceInfo");
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_StreamWriteThrows_WrapsInDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        using var stream = new ThrowingWritableStream();
+
+        var act = () => _writer.WriteStreamAsync(dcf, stream);
+
+        var ex = (await act.Should().ThrowAsync<DcfWriteException>()).Which;
+        ex.Message.Should().Contain("Failed to write DCF content to stream.");
+        ex.InnerException.Should().BeOfType<InvalidOperationException>();
     }
 
     #endregion

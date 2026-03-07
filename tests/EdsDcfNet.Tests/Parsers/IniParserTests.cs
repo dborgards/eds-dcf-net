@@ -97,6 +97,24 @@ Key2=Value2
     }
 
     [Fact]
+    public void ParseString_MixedLineEndingsAndEmptyLines_ParsesCorrectly()
+    {
+        // Arrange: ParseString splits on '\r' and '\n' and intentionally ignores blank lines.
+        const string content = "[Section1]\r\n\r\nKey1=Value1\rKey2=Value2\n\n[Section2]\nKey3=Value3\r\n";
+
+        // Act
+        var result = IniParser.ParseString(content);
+
+        // Assert
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+        result["Section1"]["Key2"].Should().Be("Value2");
+
+        result.Should().ContainKey("Section2");
+        result["Section2"]["Key3"].Should().Be("Value3");
+    }
+
+    [Fact]
     public void ParseString_WhitespaceIsTrimmed()
     {
         // Arrange
@@ -494,6 +512,190 @@ DataType=0x0005
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
+    [Fact]
+    public void ParseStream_ValidContent_ParsesCorrectly()
+    {
+        // Arrange
+        const string content = "[Section1]\nKey1=Value1\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        // Act
+        var result = IniParser.ParseStream(stream, maxInputSize: content.Length + 16);
+
+        // Assert
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+        stream.CanRead.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_ValidContent_ParsesCorrectly()
+    {
+        // Arrange
+        const string content = "[Section1]\nKey1=Value1\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        // Act
+        var result = await IniParser.ParseStreamAsync(stream, maxInputSize: content.Length + 16);
+
+        // Assert
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+        stream.CanRead.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseStream_UnreadableStream_ThrowsArgumentException()
+    {
+        using var stream = new WriteOnlyStream();
+        var act = () => IniParser.ParseStream(stream);
+        act.Should().Throw<ArgumentException>().WithParameterName("stream");
+    }
+
+    [Fact]
+    public void ParseStream_NullStream_ThrowsArgumentNullException()
+    {
+        var act = () => IniParser.ParseStream(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("stream");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_UnreadableStream_ThrowsArgumentException()
+    {
+        using var stream = new WriteOnlyStream();
+        var act = () => IniParser.ParseStreamAsync(stream);
+        await act.Should().ThrowAsync<ArgumentException>()
+            .Where(ex => ex.ParamName == "stream");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_NullStream_ThrowsArgumentNullException()
+    {
+        var act = () => IniParser.ParseStreamAsync(null!);
+        await act.Should().ThrowAsync<ArgumentNullException>()
+            .Where(ex => ex.ParamName == "stream");
+    }
+
+    [Fact]
+    public void ParseStream_ContentTooLarge_ThrowsEdsParseException()
+    {
+        const string content = "[Section1]\nKey1=Value1\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var act = () => IniParser.ParseStream(stream, maxInputSize: 8);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public void ParseStream_SizeLimitCountsLineTerminators()
+    {
+        const string content = "[S]\nK=V\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var act = () => IniParser.ParseStream(stream, maxInputSize: 7);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_ContentTooLarge_ThrowsEdsParseException()
+    {
+        const string content = "[Section1]\nKey1=Value1\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var act = () => IniParser.ParseStreamAsync(stream, maxInputSize: 8);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_SizeLimitCountsLineTerminators()
+    {
+        const string content = "[S]\nK=V\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var act = () => IniParser.ParseStreamAsync(stream, maxInputSize: 7);
+
+        await act.Should().ThrowAsync<EdsParseException>()
+            .WithMessage("*too large*");
+    }
+
+    [Fact]
+    public void ParseStream_CrLfLineEndings_ParsesCorrectly()
+    {
+        const string content = "[Section1]\r\nKey1=Value1\r\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var result = IniParser.ParseStream(stream);
+
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
+    [Fact]
+    public void ParseStream_BareCarriageReturn_ParsesCorrectly()
+    {
+        const string content = "[Section1]\rKey1=Value1\r";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var result = IniParser.ParseStream(stream);
+
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
+    [Fact]
+    public void ParseStream_NoTrailingNewline_ParsesCorrectly()
+    {
+        const string content = "[Section1]\nKey1=Value1";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var result = IniParser.ParseStream(stream);
+
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_CrLfLineEndings_ParsesCorrectly()
+    {
+        const string content = "[Section1]\r\nKey1=Value1\r\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var result = await IniParser.ParseStreamAsync(stream);
+
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_BareCarriageReturn_ParsesCorrectly()
+    {
+        const string content = "[Section1]\rKey1=Value1\r";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var result = await IniParser.ParseStreamAsync(stream);
+
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
+    [Fact]
+    public async Task ParseStreamAsync_NoTrailingNewline_ParsesCorrectly()
+    {
+        const string content = "[Section1]\nKey1=Value1";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var result = await IniParser.ParseStreamAsync(stream);
+
+        result.Should().ContainKey("Section1");
+        result["Section1"]["Key1"].Should().Be("Value1");
+    }
+
     #endregion
 
     #region GetValue Tests
@@ -702,4 +904,12 @@ DataType=0x0005
     }
 
     #endregion
+
+    private sealed class WriteOnlyStream : MemoryStream
+    {
+        public override bool CanRead => false;
+
+        public override int Read(byte[] buffer, int offset, int count)
+            => throw new NotSupportedException();
+    }
 }
