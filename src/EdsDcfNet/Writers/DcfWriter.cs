@@ -262,7 +262,10 @@ public class DcfWriter : IniWriterBase
 
         WriteSection("DeviceInfo", () => WriteDeviceInfo(sb, dcf.DeviceInfo));
 
-        WriteSection("DeviceCommissioning", () => WriteDeviceCommissioning(sb, dcf.DeviceCommissioning));
+        if (!DeviceCommissioningSemantics.IsOmitted(dcf.DeviceCommissioning))
+        {
+            WriteSection("DeviceCommissioning", () => WriteDeviceCommissioning(sb, dcf.DeviceCommissioning));
+        }
 
         if (dcf.ObjectDictionary.DummyUsage.Count > 0)
         {

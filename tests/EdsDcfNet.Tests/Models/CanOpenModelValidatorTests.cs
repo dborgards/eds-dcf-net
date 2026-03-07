@@ -97,11 +97,25 @@ public class CanOpenModelValidatorTests
     }
 
     [Fact]
-    public void Validate_NodeIdZero_IsAcceptedAsUnconfigured()
+    public void Validate_NodeIdZero_ReturnsIssue()
     {
         // Arrange
         var dcf = CreateValidDcf();
         dcf.DeviceCommissioning.NodeId = 0;
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        // Assert
+        issues.Should().Contain(i => i.Path == "DeviceCommissioning.NodeId");
+    }
+
+    [Fact]
+    public void Validate_OmittedCommissioning_NodeIdZeroIsAccepted()
+    {
+        // Arrange
+        var dcf = CreateValidDcf();
+        dcf.DeviceCommissioning = new DeviceCommissioning();
 
         // Act
         var issues = CanOpenModelValidator.Validate(dcf);
