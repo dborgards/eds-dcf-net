@@ -101,6 +101,8 @@ If a downstream tool only accepts strict ASCII, keep model text in 7-bit ASCII c
 or transcode explicitly to strict ASCII at your boundary and fail fast on non-ASCII content.
 
 ```csharp
+using EdsDcfNet;
+using System.IO;
 using System.Text;
 
 var asciiStrict = Encoding.GetEncoding(
@@ -108,6 +110,7 @@ var asciiStrict = Encoding.GetEncoding(
     EncoderFallback.ExceptionFallback,
     DecoderFallback.ExceptionFallback);
 
+var dcf = CanOpenFile.ReadDcf("device.dcf");
 var text = CanOpenFile.WriteDcfToString(dcf);
 File.WriteAllText("device_ascii.dcf", text, asciiStrict);
 ```
