@@ -135,12 +135,27 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing EDS content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadEdsAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new EdsReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads an Electronic Data Sheet (EDS) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing EDS content.</param>
     /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static Task<ElectronicDataSheet> ReadEdsAsync(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize,
+        long maxInputSize,
         CancellationToken cancellationToken = default)
     {
         var reader = new EdsReader();
@@ -312,12 +327,27 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing DCF content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadDcfAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new DcfReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a Device Configuration File (DCF) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing DCF content.</param>
     /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize,
+        long maxInputSize,
         CancellationToken cancellationToken = default)
     {
         var reader = new DcfReader();
@@ -483,12 +513,27 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing CPJ content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed NodelistProject object</returns>
+    public static Task<NodelistProject> ReadCpjAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new CpjReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing CPJ content.</param>
     /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed NodelistProject object</returns>
     public static Task<NodelistProject> ReadCpjAsync(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize,
+        long maxInputSize,
         CancellationToken cancellationToken = default)
     {
         var reader = new CpjReader();
@@ -646,12 +691,27 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing XDD content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed ElectronicDataSheet object</returns>
+    public static Task<ElectronicDataSheet> ReadXddAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XddReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDD (XML Device Description) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDD content.</param>
     /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed ElectronicDataSheet object</returns>
     public static Task<ElectronicDataSheet> ReadXddAsync(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize,
+        long maxInputSize,
         CancellationToken cancellationToken = default)
     {
         var reader = new XddReader();
@@ -809,12 +869,27 @@ public static class CanOpenFile
     /// The stream is not disposed by this method.
     /// </summary>
     /// <param name="stream">Readable stream containing XDC content.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        Stream stream,
+        CancellationToken cancellationToken = default)
+    {
+        var reader = new XdcReader();
+        return reader.ReadStreamAsync(stream, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="stream">Readable stream containing XDC content.</param>
     /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
     /// <returns>Parsed DeviceConfigurationFile object</returns>
     public static Task<DeviceConfigurationFile> ReadXdcAsync(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize,
+        long maxInputSize,
         CancellationToken cancellationToken = default)
     {
         var reader = new XdcReader();
