@@ -14,8 +14,10 @@ public static class IniParser
 {
     private static readonly char[] LineEndChars = { '\r', '\n' };
     /// <summary>
-    /// Default maximum input size (10 MB) used by <see cref="ParseFile"/> and
-    /// <see cref="ParseString"/> to guard against unbounded memory consumption.
+    /// Default maximum input size (10 MB) used by parsing methods such as
+    /// <see cref="ParseFile"/>, <see cref="ParseFileAsync"/>, <see cref="ParseStream"/>,
+    /// <see cref="ParseStreamAsync"/>, and <see cref="ParseString"/> to guard against
+    /// unbounded memory consumption.
     /// </summary>
     /// <remarks>
     /// Delegates to <see cref="ReaderDefaults.DefaultMaxInputSize"/>. Kept for
