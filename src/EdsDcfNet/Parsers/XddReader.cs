@@ -22,7 +22,7 @@ public class XddReader : IFileReader<ElectronicDataSheet>
     /// <exception cref="EdsParseException">Thrown when the XDD content is invalid</exception>
     public ElectronicDataSheet ReadFile(
         string filePath,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"XDD file not found: {filePath}", filePath);
@@ -41,7 +41,7 @@ public class XddReader : IFileReader<ElectronicDataSheet>
     /// <exception cref="EdsParseException">Thrown when the XDD content is invalid</exception>
     public ElectronicDataSheet ReadStream(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var content = SecureXmlParser.ReadContentFromStreamWithLimit(stream, "XDD", maxInputSize);
         return ReadString(content, maxInputSize);
@@ -58,7 +58,7 @@ public class XddReader : IFileReader<ElectronicDataSheet>
     public Task<ElectronicDataSheet> ReadFileAsync(
         string filePath,
         CancellationToken cancellationToken = default)
-        => ReadFileAsync(filePath, IniParser.DefaultMaxInputSize, cancellationToken);
+        => ReadFileAsync(filePath, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
 
     /// <summary>
     /// Reads an XDD file from the specified path asynchronously.
@@ -95,7 +95,7 @@ public class XddReader : IFileReader<ElectronicDataSheet>
     public Task<ElectronicDataSheet> ReadStreamAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
-        => ReadStreamAsync(stream, IniParser.DefaultMaxInputSize, cancellationToken);
+        => ReadStreamAsync(stream, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
 
     /// <summary>
     /// Reads an XDD file from a stream asynchronously.
@@ -129,7 +129,7 @@ public class XddReader : IFileReader<ElectronicDataSheet>
         Justification = "Public API — instance method for consistency with EdsReader pattern.")]
     public ElectronicDataSheet ReadString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var doc = SecureXmlParser.ParseDocument(content, "XDD", "Failed to parse XDD XML content.", maxInputSize);
         return ParseDocument(doc, includeActualValues: false);

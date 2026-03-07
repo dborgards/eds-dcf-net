@@ -23,7 +23,7 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
     /// <exception cref="EdsParseException">Thrown when the XDC content is invalid</exception>
     public DeviceConfigurationFile ReadFile(
         string filePath,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
@@ -42,7 +42,7 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
     /// <exception cref="EdsParseException">Thrown when the XDC content is invalid</exception>
     public DeviceConfigurationFile ReadStream(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var content = SecureXmlParser.ReadContentFromStreamWithLimit(stream, "XDC", maxInputSize);
         return ReadString(content, maxInputSize);
@@ -59,7 +59,7 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
     public Task<DeviceConfigurationFile> ReadFileAsync(
         string filePath,
         CancellationToken cancellationToken = default)
-        => ReadFileAsync(filePath, IniParser.DefaultMaxInputSize, cancellationToken);
+        => ReadFileAsync(filePath, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
 
     /// <summary>
     /// Reads an XDC file from the specified path asynchronously.
@@ -96,7 +96,7 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
     public Task<DeviceConfigurationFile> ReadStreamAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
-        => ReadStreamAsync(stream, IniParser.DefaultMaxInputSize, cancellationToken);
+        => ReadStreamAsync(stream, ReaderDefaults.DefaultMaxInputSize, cancellationToken);
 
     /// <summary>
     /// Reads an XDC file from a stream asynchronously.
@@ -130,7 +130,7 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
         Justification = "Public API — instance method for consistency with EdsReader pattern.")]
     public DeviceConfigurationFile ReadString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
         var doc = SecureXmlParser.ParseDocument(content, "XDC", "Failed to parse XDC XML content.", maxInputSize);
         return ParseXdcDocument(doc);

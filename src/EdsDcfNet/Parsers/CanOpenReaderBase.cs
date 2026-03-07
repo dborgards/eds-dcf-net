@@ -26,7 +26,7 @@ public abstract class CanOpenReaderBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromFile().")]
     protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromFile(
         string filePath,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => IniParser.ParseFile(filePath, maxInputSize);
 
     /// <summary>
@@ -35,7 +35,7 @@ public abstract class CanOpenReaderBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromFileAsync().")]
     protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromFileAsync(
         string filePath,
-        long maxInputSize = IniParser.DefaultMaxInputSize,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize,
         CancellationToken cancellationToken = default)
         => IniParser.ParseFileAsync(filePath, maxInputSize, cancellationToken);
 
@@ -45,7 +45,7 @@ public abstract class CanOpenReaderBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromString().")]
     protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromString(
         string content,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => IniParser.ParseString(content, maxInputSize);
 
     /// <summary>
@@ -54,7 +54,7 @@ public abstract class CanOpenReaderBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromStream().")]
     protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromStream(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize)
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => IniParser.ParseStream(stream, maxInputSize);
 
     /// <summary>
@@ -63,7 +63,7 @@ public abstract class CanOpenReaderBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromStreamAsync().")]
     protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromStreamAsync(
         Stream stream,
-        long maxInputSize = IniParser.DefaultMaxInputSize,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize,
         CancellationToken cancellationToken = default)
         => IniParser.ParseStreamAsync(stream, maxInputSize, cancellationToken);
 

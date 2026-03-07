@@ -12,7 +12,7 @@ using EdsDcfNet.Exceptions;
 /// </summary>
 internal static class SecureXmlParser
 {
-    internal const long DefaultMaxInputSize = IniParser.DefaultMaxInputSize;
+    internal const long DefaultMaxInputSize = ReaderDefaults.DefaultMaxInputSize;
 
     internal static void EnsureFileWithinSizeLimit(
         string filePath,
