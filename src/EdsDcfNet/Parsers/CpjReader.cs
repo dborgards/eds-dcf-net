@@ -10,7 +10,7 @@ using EdsDcfNet.Utilities;
 /// <summary>
 /// Reader for CiA 306-3 nodelist project (.cpj) files.
 /// </summary>
-public class CpjReader
+public class CpjReader : IFileReader<NodelistProject>
 {
     /// <summary>
     /// Reads a CPJ file from the specified path.

@@ -10,7 +10,7 @@ using EdsDcfNet.Utilities;
 /// Reader for Device Configuration File (DCF) files.
 /// DCF files extend EDS files with configured values and device-specific settings.
 /// </summary>
-public class DcfReader : CanOpenReaderBase
+public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
 {
     private static readonly string[] DcfKnownSectionNames =
     {

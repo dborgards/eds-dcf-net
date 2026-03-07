@@ -6,7 +6,7 @@
 graph LR
     subgraph EdsDcfNet ["EdsDcfNet (NuGet Package)"]
         API["CanOpenFile<br/><i>Static Facade</i>"]
-        Parsers["Parsers<br/><i>IniParser, CanOpenReaderBase,<br/>EdsReader, DcfReader, CpjReader,<br/>XddReader, XdcReader</i>"]
+        Parsers["Parsers<br/><i>IniParser, IFileReader&lt;T&gt;, CanOpenReaderBase,<br/>EdsReader, DcfReader, CpjReader,<br/>XddReader, XdcReader</i>"]
         Writers["Writers<br/><i>EdsWriter, DcfWriter, CpjWriter,<br/>XddWriter, XdcWriter</i>"]
         Models["Models<br/><i>Domain Models</i>"]
         Utilities["Utilities<br/><i>ValueConverter, TextFileIo</i>"]
@@ -68,6 +68,15 @@ classDiagram
         +GetKeys(sections, sectionName) IEnumerable~string~$
     }
 
+    class IFileReader~T~ {
+        <<interface>>
+        +ReadFile(string filePath) T
+        +ReadFileAsync(string filePath, long maxInputSize, CancellationToken ct) Task~T~
+        +ReadStream(Stream stream) T
+        +ReadStreamAsync(Stream stream, long maxInputSize, CancellationToken ct) Task~T~
+        +ReadString(string content) T
+    }
+
     class CanOpenReaderBase {
         #ParseSectionsFromFile(string filePath) Dictionary~string, Dictionary~string, string~~
         #ParseSectionsFromFileAsync(string filePath, CancellationToken ct) Task
@@ -108,6 +117,11 @@ classDiagram
     }
 
     IniParser <-- CanOpenReaderBase : uses static methods
+    IFileReader~ElectronicDataSheet~ <|.. EdsReader
+    IFileReader~DeviceConfigurationFile~ <|.. DcfReader
+    IFileReader~NodelistProject~ <|.. CpjReader
+    IFileReader~ElectronicDataSheet~ <|.. XddReader
+    IFileReader~DeviceConfigurationFile~ <|.. XdcReader
     CanOpenReaderBase <|-- EdsReader
     CanOpenReaderBase <|-- DcfReader
 ```
@@ -115,6 +129,8 @@ classDiagram
 **IniParser** is a static component that transforms raw INI text into a sections dictionary (`Dictionary<string, Dictionary<string, string>>`). It uses a case-insensitive comparer for section/key lookups.
 
 **CanOpenReaderBase** centralizes shared EDS/DCF parsing logic (object dictionary, modules, comments, dynamic channels) and is specialized by `EdsReader` and `DcfReader`.
+
+**IFileReader<T>** is the cross-format parser contract for path/stream/string input plus async overloads. It aligns all reader APIs without forcing shared inheritance.
 
 **CpjReader** parses CiA 306-3 nodelist projects by reading `[Topology]`, `[Topology2]`, ... sections and mapping node entries (`NodeXPresent`, `NodeXName`, `NodeXDCFName`, `NodeXRefd`) to `NetworkTopology`/`NetworkNode`.
 

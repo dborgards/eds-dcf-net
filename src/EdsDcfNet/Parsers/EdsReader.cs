@@ -5,7 +5,7 @@ using EdsDcfNet.Models;
 /// <summary>
 /// Reader for Electronic Data Sheet (EDS) files.
 /// </summary>
-public class EdsReader : CanOpenReaderBase
+public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
 {
     private static readonly string[] EdsKnownSectionNames =
     {

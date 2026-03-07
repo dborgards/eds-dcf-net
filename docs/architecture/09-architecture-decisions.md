@@ -173,3 +173,33 @@ Replace the raw `string? ApplicationProcessXml` property on `ElectronicDataSheet
 - (+) Consistent model-first design: no internal raw XML state.
 - (-) Breaking change: consumers who used `ApplicationProcessXml` directly must migrate to the typed API (`ApplicationProcess.ParameterList`, etc.).
 - (-) Increased model surface area (several new `Ap*` classes).
+
+---
+
+## ADR-8: Interface-Based Reader Abstraction Across File Formats
+
+### Context
+
+`EdsReader` and `DcfReader` share internal INI parsing through `CanOpenReaderBase`, while
+`CpjReader` intentionally does not inherit from that base class because CPJ has a different structure.
+This created an API inconsistency: consumers had no common contract to reference when handling
+multiple reader types uniformly.
+
+### Decision
+
+Introduce a lightweight generic interface `IFileReader<TModel>` with shared read operations
+(`ReadFile`, `ReadStream`, `ReadString`, and async variants with explicit `maxInputSize`).
+`EdsReader`, `DcfReader`, `CpjReader`, `XddReader`, and `XdcReader` implement this interface.
+
+### Rationale
+
+- Provides a consistent public reader contract without forcing incorrect inheritance.
+- Preserves existing parser internals (`CanOpenReaderBase` remains only for shared EDS/DCF logic).
+- Improves discoverability and enables polymorphic reader handling in consumer code.
+
+### Consequences
+
+- (+) Unified reader API surface across INI and XML formats.
+- (+) No behavior change and no forced coupling of CPJ parsing to EDS/DCF internals.
+- (-) Introduces one additional public abstraction to maintain.
+- (-) Writer abstraction is intentionally left unchanged for now and can be addressed separately if needed.

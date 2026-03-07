@@ -11,7 +11,7 @@ using EdsDcfNet.Utilities;
 /// Reader for CiA 311 XDC (XML Device Configuration) files.
 /// XDC extends XDD with actualValue, denotation, and deviceCommissioning.
 /// </summary>
-public class XdcReader
+public class XdcReader : IFileReader<DeviceConfigurationFile>
 {
     /// <summary>
     /// Reads an XDC file from the specified path.
