@@ -1,0 +1,42 @@
+[FileInfo]
+FileName=max_subnumber.eds
+FileVersion=1
+FileRevision=0
+EDSVersion=4.0
+
+[DeviceInfo]
+VendorName=Test Vendor
+VendorNumber=0x00000001
+ProductName=Test Product
+ProductNumber=0x00000002
+RevisionNumber=0x00000003
+BaudRate_125=1
+SimpleBootUpSlave=1
+Granularity=8
+NrOfRXPDO=0
+NrOfTXPDO=0
+LSS_Supported=0
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2000
+
+[2000]
+ParameterName=Max Sub Object Array
+ObjectType=0x8
+SubNumber=0xFF
+
+[2000sub0]
+ParameterName=Number of entries
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+PDOMapping=0
+DefaultValue=255
+
+[2000subFF]
+ParameterName=Last entry
+ObjectType=0x7
+DataType=0x0005
+AccessType=rw
+PDOMapping=0
