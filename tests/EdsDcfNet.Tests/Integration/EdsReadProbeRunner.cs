@@ -145,6 +145,26 @@ internal static class EdsReadProbeRunner
             throw new XunitException($"Unable to determine test configuration from base directory '{AppContext.BaseDirectory}'.");
         }
 
+        var candidates = new[]
+        {
+            BuildProbeDllPath(repoRoot, configuration, targetFramework),
+            BuildProbeDllPath(repoRoot, "Release", targetFramework),
+            BuildProbeDllPath(repoRoot, "Debug", targetFramework)
+        };
+
+        foreach (var candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return candidates[0];
+    }
+
+    private static string BuildProbeDllPath(string repoRoot, string configuration, string targetFramework)
+    {
         return Path.Combine(
             repoRoot,
             "tests",
