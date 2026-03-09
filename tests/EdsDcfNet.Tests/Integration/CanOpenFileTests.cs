@@ -205,6 +205,16 @@ public class CanOpenFileTests
         result.FileInfo.FileName.Should().Be("sample_device.eds");
     }
 
+    [Fact]
+    public async Task ReadEds_MaxSubNumber_DoesNotHangAndParsesHighestSubObject()
+    {
+        var result = await EdsReadProbeRunner.RunAsync("sync", "max_subnumber.eds", TimeSpan.FromSeconds(5));
+
+        result.SubNumber.Should().Be(0xFF);
+        result.HasSub0.Should().BeTrue();
+        result.HasSubFF.Should().BeTrue();
+    }
+
     #endregion
 
     #region ReadEdsFromString Tests

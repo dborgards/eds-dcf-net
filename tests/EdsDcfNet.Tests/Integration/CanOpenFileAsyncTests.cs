@@ -28,6 +28,16 @@ public class CanOpenFileAsyncTests
     }
 
     [Fact]
+    public async Task ReadEdsAsync_MaxSubNumber_DoesNotHangAndParsesHighestSubObject()
+    {
+        var result = await EdsReadProbeRunner.RunAsync("async", "max_subnumber.eds", TimeSpan.FromSeconds(5));
+
+        result.SubNumber.Should().Be(0xFF);
+        result.HasSub0.Should().BeTrue();
+        result.HasSubFF.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task WriteEdsAsync_ValidModel_WritesAndReadsBackFile()
     {
         var eds = CreateMinimalEds();

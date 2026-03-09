@@ -298,18 +298,20 @@ public abstract class CanOpenReaderBase
     protected virtual void ParseSubObjects(Dictionary<string, Dictionary<string, string>> sections, ushort index, CanOpenObject obj)
     {
         // Determine the number of sub-objects to parse
-        var maxSubIndex = obj.SubNumber ?? 0;
+        var maxSubIndex = (int)(obj.SubNumber ?? 0);
         if (obj.CompactSubObj.HasValue && obj.CompactSubObj.Value > 0)
         {
             maxSubIndex = Math.Max(maxSubIndex, obj.CompactSubObj.Value);
         }
 
-        for (byte subIndex = 0; subIndex <= maxSubIndex; subIndex++)
+        // Use an int loop counter so a max sub-index of 0xFF does not wrap back to 0.
+        for (var subIndex = 0; subIndex <= maxSubIndex; subIndex++)
         {
-            var subObj = ParseSubObject(sections, index, subIndex);
+            var subIndexValue = (byte)subIndex;
+            var subObj = ParseSubObject(sections, index, subIndexValue);
             if (subObj != null)
             {
-                obj.SubObjects[subIndex] = subObj;
+                obj.SubObjects[subIndexValue] = subObj;
             }
         }
     }
