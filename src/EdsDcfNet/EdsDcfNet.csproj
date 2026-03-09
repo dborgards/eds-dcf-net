@@ -4,7 +4,7 @@
 		<TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<PackageId>EdsDcfNet</PackageId>
-		<Version>1.8.1-beta.1</Version>
+		<Version>1.8.1</Version>
 		<Authors>Dietmar Borgards</Authors>
 		<Description>A comprehensive C# .NET library for reading and writing CiA DS 306 (EDS, DCF, CPJ) and CiA 311 (XDD, XDC) files for CANopen devices.</Description>
 		<PackageTags>CANopen;EDS;DCF;CPJ;XDD;XDC;CiA;DS306;CiA311;Industrial Automation</PackageTags>
