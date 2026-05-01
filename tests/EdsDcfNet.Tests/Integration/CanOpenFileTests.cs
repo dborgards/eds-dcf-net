@@ -1166,7 +1166,7 @@ PDOMapping=0
     }
 
     [Fact]
-    public void EdsToDcf_WithApplicationProcess_PreservesReferenceByDesign()
+    public void EdsToDcf_WithApplicationProcess_ClonesCorrectly()
     {
         // Arrange
         var eds = new ElectronicDataSheet
@@ -1181,9 +1181,38 @@ PDOMapping=0
         // Act
         var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
 
-        // Assert — preservation is intentional; deep clone is deferred.
-        dcf.ApplicationProcess.Should().BeSameAs(eds.ApplicationProcess);
+        // Assert
+        dcf.ApplicationProcess.Should().NotBeSameAs(eds.ApplicationProcess);
         dcf.ApplicationProcess!.ParameterList.Should().ContainSingle(p => p.UniqueId == "P1");
+    }
+
+    [Fact]
+    public void EdsToDcf_MutatingDcfApplicationProcess_DoesNotAffectEds()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary(),
+            ApplicationProcess = new ApplicationProcess
+            {
+                DataTypeList = new ApDataTypeList()
+            }
+        };
+        eds.ApplicationProcess.ParameterList.Add(new ApParameter { UniqueId = "P1", Access = "readWrite" });
+        eds.ApplicationProcess.DataTypeList!.Structs.Add(new ApStructType { Name = "MyStruct", UniqueId = "S1" });
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Mutate clone
+        dcf.ApplicationProcess!.ParameterList[0].UniqueId = "P1_changed";
+        dcf.ApplicationProcess.DataTypeList!.Structs[0].Name = "MyStructChanged";
+
+        // Assert source isolation
+        eds.ApplicationProcess.ParameterList[0].UniqueId.Should().Be("P1");
+        eds.ApplicationProcess.DataTypeList!.Structs[0].Name.Should().Be("MyStruct");
     }
 
     #endregion

@@ -1039,9 +1039,7 @@ public static class CanOpenFile
             ObjectDictionary = ModelCloner.CloneObjectDictionary(eds.ObjectDictionary),
             Comments = ModelCloner.CloneComments(eds.Comments),
             DynamicChannels = ModelCloner.CloneDynamicChannels(eds.DynamicChannels),
-            // Preserve by reference (no deep clone yet) to avoid
-            // partial/fragile cloning of the large CiA 311 object graph.
-            ApplicationProcess = eds.ApplicationProcess
+            ApplicationProcess = ModelCloner.CloneApplicationProcess(eds.ApplicationProcess)
         };
 
         dcf.SupportedModules.AddRange(ModelCloner.CloneSupportedModules(eds.SupportedModules));
