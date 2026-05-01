@@ -976,6 +976,10 @@ public static class CanOpenFile
     /// <param name="nodeId">Node ID for the device</param>
     /// <param name="baudrate">Baudrate in kbit/s (default: 250)</param>
     /// <param name="nodeName">Optional node name</param>
+    /// <remarks>
+    /// Uses <see cref="DateTime.UtcNow"/> for generated FileInfo date/time fields.
+    /// Use the overload with explicit timestamp for fully deterministic output.
+    /// </remarks>
     /// <returns>A new DeviceConfigurationFile</returns>
     /// <example>
     /// <code>
@@ -990,7 +994,7 @@ public static class CanOpenFile
         ushort baudrate = 250,
         string? nodeName = null)
     {
-        return EdsToDcf(eds, nodeId, DateTime.Now, baudrate, nodeName);
+        return EdsToDcf(eds, nodeId, DateTime.UtcNow, baudrate, nodeName);
     }
 
     /// <summary>
