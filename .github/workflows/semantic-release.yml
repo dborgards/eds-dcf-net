@@ -89,6 +89,7 @@ jobs:
 
       - name: Semantic Release
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GIT_CREDENTIALS: x-access-token:${{ secrets.RELEASE_TOKEN }}
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           GIT_AUTHOR_NAME: semantic-release-bot
