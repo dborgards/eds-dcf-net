@@ -126,8 +126,9 @@ This project uses a **develop → main** integration model:
    **Important:** merge this PR with a **regular merge commit** (not squash, not rebase).
    Squash-merging collapses all individual `fix:`/`feat:` commits into one commit whose
    type (`release:`) is not recognised by semantic-release, so the stable release is
-   silently skipped. See `semantic-release.yml` for the orphaned-prerelease fallback that
-   partially mitigates this, but a regular merge remains the correct approach.
+   silently skipped. See `.releaserc.json` and
+   `tools/semantic-release-analyze-commits.sh` for the orphaned-prerelease
+   fallback that partially mitigates this, but a regular merge remains the correct approach.
 5. On merge to `main`, semantic-release publishes the stable release to NuGet.
 
 ### CI Behaviour

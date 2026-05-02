@@ -10,7 +10,17 @@ if [[ "$branch_name" != "main" ]]; then
   exit 0
 fi
 
-latest_beta="$(git tag --merged origin/develop --list 'v*-beta.*' | sort -V | tail -n 1)"
+develop_ref="origin/develop"
+if ! git rev-parse -q --verify "${develop_ref}^{commit}" >/dev/null; then
+  develop_ref="develop"
+fi
+
+if ! git rev-parse -q --verify "${develop_ref}^{commit}" >/dev/null; then
+  echo "Skipping orphaned prerelease fallback: no develop ref is available." >&2
+  exit 0
+fi
+
+latest_beta="$(git tag --merged "$develop_ref" --list 'v*-beta.*' | sort -V | tail -n 1)"
 if [[ -z "$latest_beta" ]]; then
   exit 0
 fi
@@ -28,13 +38,14 @@ if git merge-base --is-ancestor "$beta_sha" HEAD; then
   exit 0
 fi
 
-if ! git diff --quiet HEAD origin/develop; then
-  echo "Skipping orphaned prerelease fallback: HEAD does not match origin/develop." >&2
+if ! git diff --quiet HEAD "$beta_sha"; then
+  echo "Skipping orphaned prerelease fallback: HEAD does not match ${latest_beta}." >&2
   exit 0
 fi
 
 latest_stable="$(git tag --merged HEAD --list 'v[0-9]*.[0-9]*.[0-9]*' | sed -nE '/-[0-9A-Za-z]/!p' | sort -V | tail -n 1)"
 if [[ -z "$latest_stable" ]]; then
+  echo "Skipping orphaned prerelease fallback: no stable tag exists in main history." >&2
   exit 0
 fi
 
