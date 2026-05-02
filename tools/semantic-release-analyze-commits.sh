@@ -28,6 +28,11 @@ if git merge-base --is-ancestor "$beta_sha" HEAD; then
   exit 0
 fi
 
+if ! git diff --quiet HEAD origin/develop; then
+  echo "Skipping orphaned prerelease fallback: HEAD does not match origin/develop." >&2
+  exit 0
+fi
+
 latest_stable="$(git tag --merged HEAD --list 'v[0-9]*.[0-9]*.[0-9]*' | sed -nE '/-[0-9A-Za-z]/!p' | sort -V | tail -n 1)"
 if [[ -z "$latest_stable" ]]; then
   exit 0
