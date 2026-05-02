@@ -38,8 +38,8 @@ if git merge-base --is-ancestor "$beta_sha" HEAD; then
   exit 0
 fi
 
-if ! git diff --quiet HEAD "$beta_sha"; then
-  echo "Skipping orphaned prerelease fallback: HEAD does not match ${latest_beta}." >&2
+if ! git diff --quiet HEAD "$beta_sha" -- . ':(exclude)CHANGELOG.md' ':(exclude)src/**/*.csproj'; then
+  echo "Skipping orphaned prerelease fallback: HEAD does not match ${latest_beta} outside release artifacts." >&2
   exit 0
 fi
 
