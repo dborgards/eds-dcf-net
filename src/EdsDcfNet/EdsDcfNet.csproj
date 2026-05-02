@@ -4,7 +4,7 @@
 		<TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<PackageId>EdsDcfNet</PackageId>
-		<Version>1.8.1</Version>
+		<Version>1.8.2-beta.1</Version>
 		<Authors>Dietmar Borgards</Authors>
 		<Description>A comprehensive C# .NET library for reading and writing CiA DS 306 (EDS, DCF, CPJ) and CiA 311 (XDD, XDC) files for CANopen devices.</Description>
 		<PackageTags>CANopen;EDS;DCF;CPJ;XDD;XDC;CiA;DS306;CiA311;Industrial Automation</PackageTags>
@@ -24,12 +24,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.201">
+		<PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.203">
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		  <PrivateAssets>all</PrivateAssets>
 		</PackageReference>
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.*" PrivateAssets="All" />
-		<PackageReference Include="Polyfill" Version="9.23.0" PrivateAssets="all">
+		<PackageReference Include="Polyfill" Version="10.3.0" PrivateAssets="all">
 		  <IncludeAssets>compile; build; analyzers; contentfiles</IncludeAssets>
 		</PackageReference>
 	</ItemGroup>
