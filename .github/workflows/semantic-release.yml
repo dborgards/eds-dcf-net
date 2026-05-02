@@ -89,12 +89,9 @@ jobs:
 
       - name: Semantic Release
         env:
-          # Use the default workflow token for GitHub API operations performed
-          # by semantic-release/@semantic-release/github.
-          GH_TOKEN: ${{ github.token }}
-          # Keep the higher-privilege release token scoped to git operations:
-          # semantic-release tries GIT_CREDENTIALS when deriving its push URL.
-          GIT_CREDENTIALS: x-access-token:${{ secrets.RELEASE_TOKEN }}
+          # semantic-release checks GH_TOKEN before GIT_CREDENTIALS for git pushes,
+          # so use the bypass-capable release token for both git and GitHub API calls.
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           GIT_AUTHOR_NAME: semantic-release-bot
           GIT_AUTHOR_EMAIL: ${{ vars.SEMANTIC_RELEASE_BOT_EMAIL }}
