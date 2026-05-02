@@ -229,6 +229,467 @@ internal static class ModelCloner
     }
 
     /// <summary>
+    /// Creates a deep copy of an <see cref="ApplicationProcess"/> instance.
+    /// Returns <see langword="null"/> when the source is <see langword="null"/>.
+    /// </summary>
+    internal static ApplicationProcess? CloneApplicationProcess(ApplicationProcess? source)
+    {
+        if (source == null)
+            return null;
+
+        var clone = new ApplicationProcess
+        {
+            DataTypeList = CloneDataTypeList(source.DataTypeList),
+            FunctionInstanceList = CloneFunctionInstanceList(source.FunctionInstanceList),
+            TemplateList = CloneTemplateList(source.TemplateList)
+        };
+
+        foreach (var functionType in source.FunctionTypeList)
+            clone.FunctionTypeList.Add(CloneFunctionType(functionType));
+
+        foreach (var parameter in source.ParameterList)
+            clone.ParameterList.Add(CloneParameter(parameter));
+
+        foreach (var parameterGroup in source.ParameterGroupList)
+            clone.ParameterGroupList.Add(CloneParameterGroup(parameterGroup));
+
+        return clone;
+    }
+
+    private static ApDataTypeList? CloneDataTypeList(ApDataTypeList? source)
+    {
+        if (source == null)
+            return null;
+
+        var clone = new ApDataTypeList();
+        foreach (var item in source.Arrays)
+            clone.Arrays.Add(CloneArrayType(item));
+        foreach (var item in source.Structs)
+            clone.Structs.Add(CloneStructType(item));
+        foreach (var item in source.Enums)
+            clone.Enums.Add(CloneEnumType(item));
+        foreach (var item in source.Derived)
+            clone.Derived.Add(CloneDerivedType(item));
+        return clone;
+    }
+
+    private static ApArrayType CloneArrayType(ApArrayType source)
+    {
+        var clone = new ApArrayType
+        {
+            Name = source.Name,
+            UniqueId = source.UniqueId,
+            ElementType = CloneTypeRef(source.ElementType)
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        foreach (var subrange in source.Subranges)
+        {
+            clone.Subranges.Add(new ApSubrange
+            {
+                LowerLimit = subrange.LowerLimit,
+                UpperLimit = subrange.UpperLimit
+            });
+        }
+        return clone;
+    }
+
+    private static ApStructType CloneStructType(ApStructType source)
+    {
+        var clone = new ApStructType
+        {
+            Name = source.Name,
+            UniqueId = source.UniqueId
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        foreach (var declaration in source.VarDeclarations)
+            clone.VarDeclarations.Add(CloneVarDeclaration(declaration));
+        return clone;
+    }
+
+    private static ApVarDeclaration CloneVarDeclaration(ApVarDeclaration source)
+    {
+        var clone = new ApVarDeclaration
+        {
+            Name = source.Name,
+            UniqueId = source.UniqueId,
+            Start = source.Start,
+            Size = source.Size,
+            IsSigned = source.IsSigned,
+            Offset = source.Offset,
+            Multiplier = source.Multiplier,
+            InitialValue = source.InitialValue,
+            Type = CloneTypeRef(source.Type),
+            DefaultValue = CloneParameterValue(source.DefaultValue),
+            AllowedValues = CloneAllowedValues(source.AllowedValues),
+            Unit = CloneUnit(source.Unit)
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        clone.ConditionalSupports.AddRange(source.ConditionalSupports);
+        return clone;
+    }
+
+    private static ApEnumType CloneEnumType(ApEnumType source)
+    {
+        var clone = new ApEnumType
+        {
+            Name = source.Name,
+            UniqueId = source.UniqueId,
+            Size = source.Size,
+            SimpleTypeName = source.SimpleTypeName
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        foreach (var value in source.EnumValues)
+            clone.EnumValues.Add(CloneEnumValue(value));
+        return clone;
+    }
+
+    private static ApEnumValue CloneEnumValue(ApEnumValue source)
+    {
+        var clone = new ApEnumValue
+        {
+            Value = source.Value
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        return clone;
+    }
+
+    private static ApDerivedType CloneDerivedType(ApDerivedType source)
+    {
+        var clone = new ApDerivedType
+        {
+            Name = source.Name,
+            UniqueId = source.UniqueId,
+            Count = CloneDerivedCount(source.Count),
+            BaseType = CloneTypeRef(source.BaseType)
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        return clone;
+    }
+
+    private static ApDerivedCount? CloneDerivedCount(ApDerivedCount? source)
+    {
+        if (source == null)
+            return null;
+
+        var clone = new ApDerivedCount
+        {
+            UniqueId = source.UniqueId,
+            Access = source.Access,
+            DefaultValue = CloneParameterValue(source.DefaultValue),
+            AllowedValues = CloneAllowedValues(source.AllowedValues)
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        return clone;
+    }
+
+    private static ApTypeRef? CloneTypeRef(ApTypeRef? source)
+    {
+        if (source == null)
+            return null;
+
+        return new ApTypeRef
+        {
+            SimpleTypeName = source.SimpleTypeName,
+            DataTypeIdRef = source.DataTypeIdRef
+        };
+    }
+
+    private static ApFunctionType CloneFunctionType(ApFunctionType source)
+    {
+        var clone = new ApFunctionType
+        {
+            Name = source.Name,
+            UniqueId = source.UniqueId,
+            Package = source.Package,
+            InterfaceList = CloneInterfaceList(source.InterfaceList),
+            FunctionInstanceList = CloneFunctionInstanceList(source.FunctionInstanceList)
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        foreach (var versionInfo in source.VersionInfos)
+            clone.VersionInfos.Add(CloneVersionInfo(versionInfo));
+        return clone;
+    }
+
+    private static ApVersionInfo CloneVersionInfo(ApVersionInfo source)
+    {
+        var clone = new ApVersionInfo
+        {
+            Organization = source.Organization,
+            Version = source.Version,
+            Author = source.Author,
+            Date = source.Date
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        return clone;
+    }
+
+    private static ApInterfaceList? CloneInterfaceList(ApInterfaceList? source)
+    {
+        if (source == null)
+            return null;
+
+        var clone = new ApInterfaceList();
+        foreach (var input in source.InputVars)
+            clone.InputVars.Add(CloneVarDeclaration(input));
+        foreach (var output in source.OutputVars)
+            clone.OutputVars.Add(CloneVarDeclaration(output));
+        foreach (var config in source.ConfigVars)
+            clone.ConfigVars.Add(CloneVarDeclaration(config));
+        return clone;
+    }
+
+    private static ApFunctionInstanceList? CloneFunctionInstanceList(ApFunctionInstanceList? source)
+    {
+        if (source == null)
+            return null;
+
+        var clone = new ApFunctionInstanceList();
+        foreach (var instance in source.FunctionInstances)
+            clone.FunctionInstances.Add(CloneFunctionInstance(instance));
+        foreach (var connection in source.Connections)
+            clone.Connections.Add(new ApConnection
+            {
+                Source = connection.Source,
+                Destination = connection.Destination,
+                Description = connection.Description
+            });
+        return clone;
+    }
+
+    private static ApFunctionInstance CloneFunctionInstance(ApFunctionInstance source)
+    {
+        var clone = new ApFunctionInstance
+        {
+            Name = source.Name,
+            UniqueId = source.UniqueId,
+            TypeIdRef = source.TypeIdRef
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        return clone;
+    }
+
+    private static ApTemplateList? CloneTemplateList(ApTemplateList? source)
+    {
+        if (source == null)
+            return null;
+
+        var clone = new ApTemplateList();
+        foreach (var template in source.ParameterTemplates)
+            clone.ParameterTemplates.Add(CloneParameterTemplate(template));
+        foreach (var template in source.AllowedValuesTemplates)
+            clone.AllowedValuesTemplates.Add(CloneAllowedValuesTemplate(template));
+        return clone;
+    }
+
+    private static ApParameterTemplate CloneParameterTemplate(ApParameterTemplate source)
+    {
+        var clone = new ApParameterTemplate
+        {
+            UniqueId = source.UniqueId,
+            Access = source.Access,
+            AccessList = source.AccessList,
+            Support = source.Support,
+            Persistent = source.Persistent,
+            Offset = source.Offset,
+            Multiplier = source.Multiplier,
+            TypeRef = CloneTypeRef(source.TypeRef),
+            ActualValue = CloneParameterValue(source.ActualValue),
+            DefaultValue = CloneParameterValue(source.DefaultValue),
+            SubstituteValue = CloneParameterValue(source.SubstituteValue),
+            AllowedValues = CloneAllowedValues(source.AllowedValues),
+            Unit = CloneUnit(source.Unit)
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        clone.ConditionalSupports.AddRange(source.ConditionalSupports);
+        foreach (var property in source.Properties)
+        {
+            clone.Properties.Add(new ApProperty
+            {
+                Name = property.Name,
+                Value = property.Value
+            });
+        }
+        return clone;
+    }
+
+    private static ApAllowedValuesTemplate CloneAllowedValuesTemplate(ApAllowedValuesTemplate source)
+    {
+        var clone = new ApAllowedValuesTemplate
+        {
+            UniqueId = source.UniqueId
+        };
+        foreach (var value in source.Values)
+            clone.Values.Add(CloneParameterValue(value)!);
+        foreach (var range in source.Ranges)
+            clone.Ranges.Add(CloneAllowedRange(range));
+        return clone;
+    }
+
+    private static ApParameter CloneParameter(ApParameter source)
+    {
+        var clone = new ApParameter
+        {
+            UniqueId = source.UniqueId,
+            Access = source.Access,
+            AccessList = source.AccessList,
+            Support = source.Support,
+            Persistent = source.Persistent,
+            Offset = source.Offset,
+            Multiplier = source.Multiplier,
+            TemplateIdRef = source.TemplateIdRef,
+            TypeRef = CloneTypeRef(source.TypeRef),
+            Denotation = CloneLabelGroup(source.Denotation),
+            ActualValue = CloneParameterValue(source.ActualValue),
+            DefaultValue = CloneParameterValue(source.DefaultValue),
+            SubstituteValue = CloneParameterValue(source.SubstituteValue),
+            AllowedValues = CloneAllowedValues(source.AllowedValues),
+            Unit = CloneUnit(source.Unit)
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        clone.ConditionalSupports.AddRange(source.ConditionalSupports);
+        foreach (var variableRef in source.VariableRefs)
+            clone.VariableRefs.Add(CloneVariableRef(variableRef));
+        foreach (var property in source.Properties)
+        {
+            clone.Properties.Add(new ApProperty
+            {
+                Name = property.Name,
+                Value = property.Value
+            });
+        }
+        return clone;
+    }
+
+    private static ApVariableRef CloneVariableRef(ApVariableRef source)
+    {
+        var clone = new ApVariableRef
+        {
+            Position = source.Position,
+            VariableIdRef = source.VariableIdRef,
+            MemberRef = source.MemberRef == null
+                ? null
+                : new ApMemberRef
+                {
+                    UniqueIdRef = source.MemberRef.UniqueIdRef,
+                    Index = source.MemberRef.Index
+                }
+        };
+        clone.InstanceIdRefs.AddRange(source.InstanceIdRefs);
+        return clone;
+    }
+
+    private static ApAllowedValues? CloneAllowedValues(ApAllowedValues? source)
+    {
+        if (source == null)
+            return null;
+
+        var clone = new ApAllowedValues
+        {
+            TemplateIdRef = source.TemplateIdRef
+        };
+        foreach (var value in source.Values)
+            clone.Values.Add(CloneParameterValue(value)!);
+        foreach (var range in source.Ranges)
+            clone.Ranges.Add(CloneAllowedRange(range));
+        return clone;
+    }
+
+    private static ApAllowedRange CloneAllowedRange(ApAllowedRange source)
+    {
+        return new ApAllowedRange
+        {
+            MinValue = CloneParameterValue(source.MinValue),
+            MaxValue = CloneParameterValue(source.MaxValue),
+            Step = CloneParameterValue(source.Step)
+        };
+    }
+
+    private static ApParameterValue? CloneParameterValue(ApParameterValue? source)
+    {
+        if (source == null)
+            return null;
+
+        var clone = new ApParameterValue
+        {
+            Value = source.Value,
+            Offset = source.Offset,
+            Multiplier = source.Multiplier
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        return clone;
+    }
+
+    private static ApUnit? CloneUnit(ApUnit? source)
+    {
+        if (source == null)
+            return null;
+
+        var clone = new ApUnit
+        {
+            Multiplier = source.Multiplier,
+            UnitUri = source.UnitUri
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        return clone;
+    }
+
+    private static ApParameterGroup CloneParameterGroup(ApParameterGroup source)
+    {
+        var clone = new ApParameterGroup
+        {
+            UniqueId = source.UniqueId,
+            KindOfAccess = source.KindOfAccess
+        };
+        CopyLabelGroup(source.LabelGroup, clone.LabelGroup);
+        clone.ParameterRefs.AddRange(source.ParameterRefs);
+        foreach (var subGroup in source.SubGroups)
+            clone.SubGroups.Add(CloneParameterGroup(subGroup));
+        return clone;
+    }
+
+    private static ApLabelGroup? CloneLabelGroup(ApLabelGroup? source)
+    {
+        if (source == null)
+            return null;
+        var clone = new ApLabelGroup();
+        CopyLabelGroup(source, clone);
+        return clone;
+    }
+
+    private static void CopyLabelGroup(ApLabelGroup source, ApLabelGroup target)
+    {
+        foreach (var label in source.Labels)
+        {
+            target.Labels.Add(new ApLabel
+            {
+                Lang = label.Lang,
+                Text = label.Text
+            });
+        }
+
+        foreach (var description in source.Descriptions)
+        {
+            target.Descriptions.Add(new ApDescription
+            {
+                Lang = description.Lang,
+                Text = description.Text,
+                Uri = description.Uri
+            });
+        }
+
+        foreach (var textRef in source.TextRefs)
+        {
+            target.TextRefs.Add(new ApTextRef
+            {
+                DictId = textRef.DictId,
+                TextId = textRef.TextId,
+                Uri = textRef.Uri,
+                IsDescriptionRef = textRef.IsDescriptionRef
+            });
+        }
+    }
+
+    /// <summary>
     /// Creates a deep copy of additional sections (string-keyed dictionaries)
     /// preserving case-insensitive key comparison.
     /// </summary>
