@@ -40,9 +40,9 @@ IFS=. read -r latest_major latest_minor latest_patch <<< "$latest_stable_version
 release_type="patch"
 if (( stable_major > latest_major )); then
   release_type="major"
-elif (( stable_minor > latest_minor )); then
+elif (( stable_major == latest_major && stable_minor > latest_minor )); then
   release_type="minor"
-elif (( stable_patch <= latest_patch )); then
+elif (( stable_major != latest_major || stable_minor != latest_minor || stable_patch <= latest_patch )); then
   exit 0
 fi
 
