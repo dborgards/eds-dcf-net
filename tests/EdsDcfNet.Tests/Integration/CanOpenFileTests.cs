@@ -1215,6 +1215,392 @@ PDOMapping=0
         eds.ApplicationProcess.DataTypeList!.Structs[0].Name.Should().Be("MyStruct");
     }
 
+    [Fact]
+    public void EdsToDcf_MutatingDcfApplicationProcess_NestedGraph_DoesNotAffectEds()
+    {
+        // Arrange — build a fully populated ApplicationProcess so each cloner branch is
+        // exercised and every nested object can be mutated independently of the source.
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary(),
+            ApplicationProcess = BuildFullyPopulatedApplicationProcess()
+        };
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        var dcfAp = dcf.ApplicationProcess!;
+        var edsAp = eds.ApplicationProcess!;
+
+        dcfAp.Should().NotBeSameAs(edsAp);
+
+        // TemplateList.ParameterTemplates[0].Properties (mutate first property)
+        dcfAp.TemplateList!.ParameterTemplates[0].Properties[0].Value = "TPL_PROP_CHANGED";
+        edsAp.TemplateList!.ParameterTemplates[0].Properties[0].Value.Should().Be("tpl-prop-1");
+
+        // TemplateList.ParameterTemplates allowed-values & label group
+        dcfAp.TemplateList.ParameterTemplates[0].AllowedValues!.Values[0].Value = "999";
+        edsAp.TemplateList.ParameterTemplates[0].AllowedValues!.Values[0].Value.Should().Be("1");
+        dcfAp.TemplateList.ParameterTemplates[0].LabelGroup.Labels[0].Text = "tpl-changed";
+        edsAp.TemplateList.ParameterTemplates[0].LabelGroup.Labels[0].Text.Should().Be("tpl");
+
+        // TemplateList.AllowedValuesTemplates[0]
+        dcfAp.TemplateList.AllowedValuesTemplates[0].Values[0].Value = "Z";
+        edsAp.TemplateList.AllowedValuesTemplates[0].Values[0].Value.Should().Be("A");
+        dcfAp.TemplateList.AllowedValuesTemplates[0].Ranges[0].MinValue!.Value = "-999";
+        edsAp.TemplateList.AllowedValuesTemplates[0].Ranges[0].MinValue!.Value.Should().Be("0");
+
+        // FunctionTypeList[0].InterfaceList.InputVars[0]
+        dcfAp.FunctionTypeList[0].InterfaceList!.InputVars[0].Name = "InputChanged";
+        edsAp.FunctionTypeList[0].InterfaceList!.InputVars[0].Name.Should().Be("Input1");
+        dcfAp.FunctionTypeList[0].InterfaceList!.InputVars[0].DefaultValue!.Value = "0xDEAD";
+        edsAp.FunctionTypeList[0].InterfaceList!.InputVars[0].DefaultValue!.Value.Should().Be("42");
+        dcfAp.FunctionTypeList[0].InterfaceList!.InputVars[0].Unit!.Multiplier = "1e9";
+        edsAp.FunctionTypeList[0].InterfaceList!.InputVars[0].Unit!.Multiplier.Should().Be("1e3");
+
+        // FunctionTypeList[0].InterfaceList.OutputVars / ConfigVars
+        dcfAp.FunctionTypeList[0].InterfaceList!.OutputVars[0].UniqueId = "OUT_CHANGED";
+        edsAp.FunctionTypeList[0].InterfaceList!.OutputVars[0].UniqueId.Should().Be("V_OUT");
+        dcfAp.FunctionTypeList[0].InterfaceList!.ConfigVars[0].Name = "CFG_CHANGED";
+        edsAp.FunctionTypeList[0].InterfaceList!.ConfigVars[0].Name.Should().Be("Cfg1");
+
+        // FunctionTypeList[0].VersionInfos
+        dcfAp.FunctionTypeList[0].VersionInfos[0].Version = "9.9";
+        edsAp.FunctionTypeList[0].VersionInfos[0].Version.Should().Be("1.0");
+
+        // FunctionTypeList[0].FunctionInstanceList (nested instance list inside a function type)
+        dcfAp.FunctionTypeList[0].FunctionInstanceList!.FunctionInstances[0].Name = "NestedInstChanged";
+        edsAp.FunctionTypeList[0].FunctionInstanceList!.FunctionInstances[0].Name.Should().Be("NestedInst");
+
+        // FunctionInstanceList.Connections[0] (top-level connections)
+        dcfAp.FunctionInstanceList!.Connections[0].Source = "ChangedSource";
+        edsAp.FunctionInstanceList!.Connections[0].Source.Should().Be("InstA.OutVar");
+        dcfAp.FunctionInstanceList!.FunctionInstances[0].TypeIdRef = "TYPE_CHANGED";
+        edsAp.FunctionInstanceList!.FunctionInstances[0].TypeIdRef.Should().Be("F1");
+
+        // Nested ParameterGroup (root group → sub-group → leaf)
+        dcfAp.ParameterGroupList[0].SubGroups[0].UniqueId = "SUB_CHANGED";
+        edsAp.ParameterGroupList[0].SubGroups[0].UniqueId.Should().Be("PG_Sub1");
+        dcfAp.ParameterGroupList[0].SubGroups[0].SubGroups[0].LabelGroup.Labels[0].Text = "leaf-changed";
+        edsAp.ParameterGroupList[0].SubGroups[0].SubGroups[0].LabelGroup.Labels[0].Text.Should().Be("leaf");
+        dcfAp.ParameterGroupList[0].ParameterRefs[0] = "REF_CHANGED";
+        edsAp.ParameterGroupList[0].ParameterRefs[0].Should().Be("P1");
+
+        // ParameterList[0] graph: VariableRefs, MemberRef, AllowedValues, Properties, Denotation
+        dcfAp.ParameterList[0].VariableRefs[0].MemberRef!.UniqueIdRef = "MEMBER_CHANGED";
+        edsAp.ParameterList[0].VariableRefs[0].MemberRef!.UniqueIdRef.Should().Be("MemberId");
+        dcfAp.ParameterList[0].VariableRefs[0].InstanceIdRefs[0] = "INSTANCE_CHANGED";
+        edsAp.ParameterList[0].VariableRefs[0].InstanceIdRefs[0].Should().Be("InstA");
+        dcfAp.ParameterList[0].AllowedValues!.Ranges[0].MaxValue!.Value = "1234";
+        edsAp.ParameterList[0].AllowedValues!.Ranges[0].MaxValue!.Value.Should().Be("100");
+        dcfAp.ParameterList[0].Properties[0].Name = "PROP_CHANGED";
+        edsAp.ParameterList[0].Properties[0].Name.Should().Be("vendor.prop");
+        dcfAp.ParameterList[0].Denotation!.Labels[0].Text = "denotation-changed";
+        edsAp.ParameterList[0].Denotation!.Labels[0].Text.Should().Be("Denotation");
+
+        // DataTypeList: arrays (subrange + element type), structs (var declarations),
+        // enums (enum values), derived types (count + base type)
+        dcfAp.DataTypeList!.Arrays[0].Subranges[0].UpperLimit = 999;
+        edsAp.DataTypeList!.Arrays[0].Subranges[0].UpperLimit.Should().Be(9);
+        dcfAp.DataTypeList.Arrays[0].ElementType!.SimpleTypeName = "DINT";
+        edsAp.DataTypeList.Arrays[0].ElementType!.SimpleTypeName.Should().Be("UINT");
+        dcfAp.DataTypeList.Structs[0].VarDeclarations[0].Name = "MEMBER_CHANGED";
+        edsAp.DataTypeList.Structs[0].VarDeclarations[0].Name.Should().Be("Field1");
+        dcfAp.DataTypeList.Enums[0].EnumValues[0].Value = "0xFF";
+        edsAp.DataTypeList.Enums[0].EnumValues[0].Value.Should().Be("0");
+        dcfAp.DataTypeList.Derived[0].Count!.DefaultValue!.Value = "999";
+        edsAp.DataTypeList.Derived[0].Count!.DefaultValue!.Value.Should().Be("4");
+        dcfAp.DataTypeList.Derived[0].BaseType!.DataTypeIdRef = "BASE_CHANGED";
+        edsAp.DataTypeList.Derived[0].BaseType!.DataTypeIdRef.Should().Be("S1");
+
+        // ApLabelGroup descriptions and text refs (covers all CopyLabelGroup branches)
+        dcfAp.ParameterList[0].LabelGroup.Descriptions[0].Text = "desc-changed";
+        edsAp.ParameterList[0].LabelGroup.Descriptions[0].Text.Should().Be("Param description");
+        dcfAp.ParameterList[0].LabelGroup.TextRefs[0].TextId = "TEXT_CHANGED";
+        edsAp.ParameterList[0].LabelGroup.TextRefs[0].TextId.Should().Be("T100");
+    }
+
+    [Fact]
+    public void EdsToDcf_WithNullApplicationProcess_ClonesAsNull()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary(),
+            ApplicationProcess = null
+        };
+
+        // Act
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        // Assert
+        dcf.ApplicationProcess.Should().BeNull();
+    }
+
+    private static ApplicationProcess BuildFullyPopulatedApplicationProcess()
+    {
+        var ap = new ApplicationProcess
+        {
+            DataTypeList = new ApDataTypeList(),
+            FunctionInstanceList = new ApFunctionInstanceList(),
+            TemplateList = new ApTemplateList()
+        };
+
+        // Arrays
+        var arrayType = new ApArrayType
+        {
+            Name = "MyArray",
+            UniqueId = "A1",
+            ElementType = new ApTypeRef { SimpleTypeName = "UINT" }
+        };
+        arrayType.Subranges.Add(new ApSubrange { LowerLimit = 0, UpperLimit = 9 });
+        arrayType.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Array label" });
+        ap.DataTypeList.Arrays.Add(arrayType);
+
+        // Structs
+        var structType = new ApStructType { Name = "MyStruct", UniqueId = "S1" };
+        structType.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Struct label" });
+        var member = new ApVarDeclaration
+        {
+            Name = "Field1",
+            UniqueId = "F1",
+            Start = "0",
+            Size = "8",
+            IsSigned = true,
+            Offset = "0",
+            Multiplier = "1",
+            InitialValue = "0",
+            Type = new ApTypeRef { SimpleTypeName = "INT" },
+            DefaultValue = new ApParameterValue { Value = "0" },
+            AllowedValues = new ApAllowedValues { TemplateIdRef = "AVT1" },
+            Unit = new ApUnit { Multiplier = "1e0", UnitUri = "uri:unit" }
+        };
+        member.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Field" });
+        member.ConditionalSupports.Add("CS1");
+        structType.VarDeclarations.Add(member);
+        ap.DataTypeList.Structs.Add(structType);
+
+        // Enums
+        var enumType = new ApEnumType
+        {
+            Name = "MyEnum",
+            UniqueId = "E1",
+            Size = "8",
+            SimpleTypeName = "USINT"
+        };
+        enumType.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Enum" });
+        var enumValue = new ApEnumValue { Value = "0" };
+        enumValue.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Zero" });
+        enumType.EnumValues.Add(enumValue);
+        ap.DataTypeList.Enums.Add(enumType);
+
+        // Derived
+        var derivedType = new ApDerivedType
+        {
+            Name = "MyDerived",
+            UniqueId = "D1",
+            Count = new ApDerivedCount
+            {
+                UniqueId = "DC1",
+                Access = "read",
+                DefaultValue = new ApParameterValue { Value = "4" },
+                AllowedValues = new ApAllowedValues()
+            },
+            BaseType = new ApTypeRef { DataTypeIdRef = "S1" }
+        };
+        derivedType.Count!.AllowedValues!.Values.Add(new ApParameterValue { Value = "4" });
+        derivedType.Count.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Count" });
+        derivedType.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Derived" });
+        ap.DataTypeList.Derived.Add(derivedType);
+
+        // Function type with full interface list and nested function-instance list
+        var functionType = new ApFunctionType
+        {
+            Name = "F",
+            UniqueId = "F1",
+            Package = "vendor.pkg",
+            InterfaceList = new ApInterfaceList(),
+            FunctionInstanceList = new ApFunctionInstanceList()
+        };
+        functionType.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "FunctionType" });
+        var version = new ApVersionInfo
+        {
+            Organization = "Org",
+            Version = "1.0",
+            Author = "Author",
+            Date = "2026-01-01"
+        };
+        version.LabelGroup.Descriptions.Add(new ApDescription { Lang = "en", Text = "v1", Uri = "uri:v1" });
+        functionType.VersionInfos.Add(version);
+
+        var inputVar = new ApVarDeclaration
+        {
+            Name = "Input1",
+            UniqueId = "V_IN",
+            DefaultValue = new ApParameterValue { Value = "42" },
+            Unit = new ApUnit { Multiplier = "1e3" },
+            Type = new ApTypeRef { SimpleTypeName = "UINT" }
+        };
+        inputVar.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "InputVar" });
+        functionType.InterfaceList.InputVars.Add(inputVar);
+
+        functionType.InterfaceList.OutputVars.Add(new ApVarDeclaration
+        {
+            Name = "Output1",
+            UniqueId = "V_OUT",
+            Type = new ApTypeRef { SimpleTypeName = "UINT" }
+        });
+
+        functionType.InterfaceList.ConfigVars.Add(new ApVarDeclaration
+        {
+            Name = "Cfg1",
+            UniqueId = "V_CFG",
+            Type = new ApTypeRef { SimpleTypeName = "BOOL" }
+        });
+
+        var nestedInstance = new ApFunctionInstance
+        {
+            Name = "NestedInst",
+            UniqueId = "FI_NESTED",
+            TypeIdRef = "F1"
+        };
+        nestedInstance.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Nested" });
+        functionType.FunctionInstanceList.FunctionInstances.Add(nestedInstance);
+        functionType.FunctionInstanceList.Connections.Add(new ApConnection
+        {
+            Source = "Nested.Out",
+            Destination = "Nested.In",
+            Description = "Nested connection"
+        });
+        ap.FunctionTypeList.Add(functionType);
+
+        // Top-level function instance list with connections
+        var topInstance = new ApFunctionInstance
+        {
+            Name = "InstA",
+            UniqueId = "FIA",
+            TypeIdRef = "F1"
+        };
+        topInstance.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Top instance" });
+        ap.FunctionInstanceList.FunctionInstances.Add(topInstance);
+        ap.FunctionInstanceList.Connections.Add(new ApConnection
+        {
+            Source = "InstA.OutVar",
+            Destination = "InstB.InVar",
+            Description = "Wire 1"
+        });
+
+        // Templates
+        var paramTemplate = new ApParameterTemplate
+        {
+            UniqueId = "PT1",
+            Access = "readWrite",
+            AccessList = "read",
+            Support = "mandatory",
+            Persistent = true,
+            Offset = "0",
+            Multiplier = "1",
+            TypeRef = new ApTypeRef { SimpleTypeName = "UINT" },
+            ActualValue = new ApParameterValue { Value = "1" },
+            DefaultValue = new ApParameterValue { Value = "0" },
+            SubstituteValue = new ApParameterValue { Value = "0" },
+            AllowedValues = new ApAllowedValues(),
+            Unit = new ApUnit { Multiplier = "1e0" }
+        };
+        paramTemplate.AllowedValues!.Values.Add(new ApParameterValue { Value = "1" });
+        paramTemplate.AllowedValues.Ranges.Add(new ApAllowedRange
+        {
+            MinValue = new ApParameterValue { Value = "0" },
+            MaxValue = new ApParameterValue { Value = "10" },
+            Step = new ApParameterValue { Value = "1" }
+        });
+        paramTemplate.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "tpl" });
+        paramTemplate.ConditionalSupports.Add("CS_TPL");
+        paramTemplate.Properties.Add(new ApProperty { Name = "tpl-prop", Value = "tpl-prop-1" });
+        ap.TemplateList.ParameterTemplates.Add(paramTemplate);
+
+        var avTemplate = new ApAllowedValuesTemplate { UniqueId = "AVT1" };
+        avTemplate.Values.Add(new ApParameterValue { Value = "A" });
+        avTemplate.Ranges.Add(new ApAllowedRange
+        {
+            MinValue = new ApParameterValue { Value = "0" },
+            MaxValue = new ApParameterValue { Value = "100" }
+        });
+        ap.TemplateList.AllowedValuesTemplates.Add(avTemplate);
+
+        // Parameter with full graph: type ref, denotation, allowed values, variable refs,
+        // properties, conditional supports, label group with descriptions and text refs.
+        var parameter = new ApParameter
+        {
+            UniqueId = "P1",
+            Access = "readWrite",
+            AccessList = "read",
+            Support = "mandatory",
+            Persistent = true,
+            Offset = "0",
+            Multiplier = "1",
+            TemplateIdRef = "PT1",
+            TypeRef = new ApTypeRef { SimpleTypeName = "UINT" },
+            Denotation = new ApLabelGroup(),
+            ActualValue = new ApParameterValue { Value = "10" },
+            DefaultValue = new ApParameterValue { Value = "0" },
+            SubstituteValue = new ApParameterValue { Value = "0" },
+            AllowedValues = new ApAllowedValues(),
+            Unit = new ApUnit { Multiplier = "1e0" }
+        };
+        parameter.Denotation!.Labels.Add(new ApLabel { Lang = "en", Text = "Denotation" });
+        parameter.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Param" });
+        parameter.LabelGroup.Descriptions.Add(new ApDescription
+        {
+            Lang = "en",
+            Text = "Param description",
+            Uri = "uri:doc"
+        });
+        parameter.LabelGroup.TextRefs.Add(new ApTextRef
+        {
+            DictId = "D1",
+            TextId = "T100",
+            Uri = "uri:dict",
+            IsDescriptionRef = false
+        });
+        parameter.AllowedValues!.Values.Add(new ApParameterValue { Value = "1" });
+        parameter.AllowedValues.Ranges.Add(new ApAllowedRange
+        {
+            MinValue = new ApParameterValue { Value = "0" },
+            MaxValue = new ApParameterValue { Value = "100" },
+            Step = new ApParameterValue { Value = "1" }
+        });
+        parameter.ConditionalSupports.Add("CS_P");
+        parameter.Properties.Add(new ApProperty { Name = "vendor.prop", Value = "v" });
+        var variableRef = new ApVariableRef
+        {
+            Position = 2,
+            VariableIdRef = "V_IN",
+            MemberRef = new ApMemberRef { UniqueIdRef = "MemberId", Index = 3 }
+        };
+        variableRef.InstanceIdRefs.Add("InstA");
+        parameter.VariableRefs.Add(variableRef);
+        ap.ParameterList.Add(parameter);
+
+        // Parameter group with nested sub-groups (root → sub → leaf)
+        var rootGroup = new ApParameterGroup { UniqueId = "PG_Root", KindOfAccess = "HMI" };
+        rootGroup.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "root" });
+        rootGroup.ParameterRefs.Add("P1");
+        var subGroup = new ApParameterGroup { UniqueId = "PG_Sub1" };
+        subGroup.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "sub" });
+        var leafGroup = new ApParameterGroup { UniqueId = "PG_Leaf" };
+        leafGroup.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "leaf" });
+        subGroup.SubGroups.Add(leafGroup);
+        rootGroup.SubGroups.Add(subGroup);
+        ap.ParameterGroupList.Add(rootGroup);
+
+        return ap;
+    }
+
     #endregion
 
     #region EdsToDcf AdditionalSections Tests
