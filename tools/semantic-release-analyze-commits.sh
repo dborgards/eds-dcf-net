@@ -10,7 +10,7 @@ if [[ "$branch_name" != "main" ]]; then
   exit 0
 fi
 
-latest_beta="$(git tag --list 'v*-beta.*' | sort -V | tail -n 1)"
+latest_beta="$(git tag --merged origin/develop --list 'v*-beta.*' | sort -V | tail -n 1)"
 if [[ -z "$latest_beta" ]]; then
   exit 0
 fi
