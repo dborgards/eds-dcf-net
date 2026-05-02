@@ -107,6 +107,33 @@ jobs:
           }
 
           next_version="$(sed -nE 's/.*The next release version is ([^[:space:]]+).*/\1/p' "$dry_run_log" | tail -n 1)"
+          release_as=""
+
+          # Detect orphaned prerelease: when develop→main is squash-merged, the
+          # individual fix/feat commits are buried in the squash-commit body and
+          # not visible to semantic-release as separate commits. Semantic-release
+          # then finds no releasable commits and skips the release, even though a
+          # prerelease tag (e.g. v1.8.2-beta.1) already exists for the next version.
+          # In that case fall back to --release-as to promote the prerelease to
+          # a stable release. Only runs on main to avoid interfering with beta flow.
+          if [[ -z "$next_version" && "${GITHUB_REF_NAME:-}" == "main" ]]; then
+            latest_beta="$(git tag --list 'v*-beta.*' | sort -V | tail -n 1)"
+            if [[ -n "$latest_beta" ]]; then
+              beta_base="${latest_beta%%-beta.*}"
+              beta_base="${beta_base#v}"
+              stable_tag="v${beta_base}"
+              if ! git rev-parse -q --verify "refs/tags/${stable_tag}" >/dev/null 2>&1; then
+                beta_sha="$(git rev-list -n 1 "$latest_beta")"
+                if ! git merge-base --is-ancestor "$beta_sha" HEAD; then
+                  echo "Detected orphaned prerelease ${latest_beta} (commit ${beta_sha} not in main history)."
+                  echo "Falling back to --release-as ${beta_base} to promote prerelease to stable."
+                  release_as="${beta_base}"
+                  next_version="${beta_base}"
+                fi
+              fi
+            fi
+          fi
+
           if [[ -n "$next_version" ]]; then
             next_tag="v${next_version}"
             if git rev-parse -q --verify "refs/tags/$next_tag" >/dev/null; then
@@ -119,4 +146,8 @@ jobs:
             fi
           fi
 
-          npx semantic-release
+          if [[ -n "$release_as" ]]; then
+            npx semantic-release --release-as "$release_as"
+          else
+            npx semantic-release
+          fi
