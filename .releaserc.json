@@ -66,6 +66,7 @@
     [
       "@semantic-release/exec",
       {
+        "analyzeCommitsCmd": "bash ./tools/semantic-release-analyze-commits.sh",
         "prepareCmd": "bash ./tools/semantic-release-prepare.sh ${nextRelease.version}",
         "publishCmd": "bash ./tools/semantic-release-publish.sh ${nextRelease.version}"
       }
