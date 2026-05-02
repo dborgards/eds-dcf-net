@@ -1273,6 +1273,7 @@ PDOMapping=0
         // FunctionTypeList[0].FunctionInstanceList (nested instance list inside a function type)
         dcfAp.FunctionTypeList[0].FunctionInstanceList!.FunctionInstances[0].Name = "NestedInstChanged";
         edsAp.FunctionTypeList[0].FunctionInstanceList!.FunctionInstances[0].Name.Should().Be("NestedInst");
+        dcfAp.FunctionTypeList[1].InterfaceList.Should().BeNull();
 
         // FunctionInstanceList.Connections[0] (top-level connections)
         dcfAp.FunctionInstanceList!.Connections[0].Source = "ChangedSource";
@@ -1293,6 +1294,7 @@ PDOMapping=0
         edsAp.ParameterList[0].VariableRefs[0].MemberRef!.UniqueIdRef.Should().Be("MemberId");
         dcfAp.ParameterList[0].VariableRefs[0].InstanceIdRefs[0] = "INSTANCE_CHANGED";
         edsAp.ParameterList[0].VariableRefs[0].InstanceIdRefs[0].Should().Be("InstA");
+        dcfAp.ParameterList[0].VariableRefs[1].MemberRef.Should().BeNull();
         dcfAp.ParameterList[0].AllowedValues!.Ranges[0].MaxValue!.Value = "1234";
         edsAp.ParameterList[0].AllowedValues!.Ranges[0].MaxValue!.Value.Should().Be("100");
         dcfAp.ParameterList[0].Properties[0].Name = "PROP_CHANGED";
@@ -1314,6 +1316,7 @@ PDOMapping=0
         edsAp.DataTypeList.Derived[0].Count!.DefaultValue!.Value.Should().Be("4");
         dcfAp.DataTypeList.Derived[0].BaseType!.DataTypeIdRef = "BASE_CHANGED";
         edsAp.DataTypeList.Derived[0].BaseType!.DataTypeIdRef.Should().Be("S1");
+        dcfAp.DataTypeList.Derived[1].Count.Should().BeNull();
 
         // ApLabelGroup descriptions and text refs (covers all CopyLabelGroup branches)
         dcfAp.ParameterList[0].LabelGroup.Descriptions[0].Text = "desc-changed";
@@ -1416,6 +1419,12 @@ PDOMapping=0
         derivedType.Count.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Count" });
         derivedType.LabelGroup.Labels.Add(new ApLabel { Lang = "en", Text = "Derived" });
         ap.DataTypeList.Derived.Add(derivedType);
+        ap.DataTypeList.Derived.Add(new ApDerivedType
+        {
+            Name = "MyAlias",
+            UniqueId = "D2",
+            BaseType = new ApTypeRef { SimpleTypeName = "UINT" }
+        });
 
         // Function type with full interface list and nested function-instance list
         var functionType = new ApFunctionType
@@ -1477,6 +1486,12 @@ PDOMapping=0
             Description = "Nested connection"
         });
         ap.FunctionTypeList.Add(functionType);
+        ap.FunctionTypeList.Add(new ApFunctionType
+        {
+            Name = "NoInterface",
+            UniqueId = "F2",
+            InterfaceList = null
+        });
 
         // Top-level function instance list with connections
         var topInstance = new ApFunctionInstance
@@ -1584,6 +1599,13 @@ PDOMapping=0
         };
         variableRef.InstanceIdRefs.Add("InstA");
         parameter.VariableRefs.Add(variableRef);
+        var variableRefWithoutMember = new ApVariableRef
+        {
+            Position = 3,
+            VariableIdRef = "V_OUT"
+        };
+        variableRefWithoutMember.InstanceIdRefs.Add("InstA");
+        parameter.VariableRefs.Add(variableRefWithoutMember);
         ap.ParameterList.Add(parameter);
 
         // Parameter group with nested sub-groups (root → sub → leaf)
