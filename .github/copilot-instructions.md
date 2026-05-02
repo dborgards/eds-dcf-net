@@ -123,6 +123,12 @@ This project uses a **develop → main** integration model:
 2. Open a PR from the feature branch **into `develop`** (never directly into `main`).
 3. On merge to `develop`, semantic-release publishes a `beta` pre-release to NuGet automatically.
 4. When ready for a stable release, open a PR from `develop` → `main`.
+   **Important:** merge this PR with a **regular merge commit** (not squash, not rebase).
+   Squash-merging collapses all individual `fix:`/`feat:` commits into one commit whose
+   type (`release:`) is not recognised by semantic-release, so the stable release is
+   silently skipped. See `.releaserc.json` and
+   `tools/semantic-release-analyze-commits.sh` for the orphaned-prerelease
+   fallback that partially mitigates this, but a regular merge remains the correct approach.
 5. On merge to `main`, semantic-release publishes the stable release to NuGet.
 
 ### CI Behaviour

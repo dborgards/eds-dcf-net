@@ -107,6 +107,7 @@ jobs:
           }
 
           next_version="$(sed -nE 's/.*The next release version is ([^[:space:]]+).*/\1/p' "$dry_run_log" | tail -n 1)"
+
           if [[ -n "$next_version" ]]; then
             next_tag="v${next_version}"
             if git rev-parse -q --verify "refs/tags/$next_tag" >/dev/null; then
