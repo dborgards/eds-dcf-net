@@ -21,9 +21,11 @@ dotnet nuget push "./packages/*.nupkg" \
 # --- SBOM: CycloneDX ---
 # Use && chain so each step's failure is properly detected under set -euo pipefail,
 # while || ensures a failed SBOM never aborts the release.
+# Clear any stale SBOM file first so a failed generation cannot upload a previous run's artifact.
 echo "Generating CycloneDX SBOM..."
+rm -f packages/bom.cdx.json packages/bom.json
 dotnet tool restore \
-  && dotnet CycloneDX src/EdsDcfNet/EdsDcfNet.csproj \
+  && dotnet tool run dotnet-CycloneDX src/EdsDcfNet/EdsDcfNet.csproj \
   --output packages \
   --json \
   && mv packages/bom.json packages/bom.cdx.json \
