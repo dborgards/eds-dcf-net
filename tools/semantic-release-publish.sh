@@ -35,7 +35,7 @@ dotnet tool restore \
 # handles both transport errors and API errors without aborting the release.
 echo "Generating SPDX SBOM..."
 if [[ -n "${GH_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
-  rm -f packages/sbom.spdx.json /tmp/sbom.spdx.json
+  rm -f packages/sbom.spdx.json /tmp/sbom.spdx.json /tmp/spdx_raw.json
   curl -sLf \
     -H "Authorization: Bearer ${GH_TOKEN}" \
     -H "Accept: application/vnd.github+json" \
