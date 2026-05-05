@@ -42,9 +42,6 @@ jobs:
       - name: Restore .NET dependencies
         run: dotnet restore
 
-      - name: Restore dotnet tools
-        run: dotnet tool restore
-
       - name: Build
         env:
           CI: true
