@@ -19,31 +19,30 @@ dotnet nuget push "./packages/*.nupkg" \
   --skip-duplicate
 
 # --- SBOM: CycloneDX ---
+# Use && chain so each step's failure is properly detected under set -euo pipefail,
+# while || ensures a failed SBOM never aborts the release.
 echo "Generating CycloneDX SBOM..."
-{
-  dotnet CycloneDX src/EdsDcfNet/EdsDcfNet.csproj \
-    --output packages \
-    --json
-  mv packages/bom.json packages/bom.cdx.json
-  echo "CycloneDX SBOM written to packages/bom.cdx.json"
-} || echo "Warning: CycloneDX SBOM generation failed; skipping."
+dotnet CycloneDX src/EdsDcfNet/EdsDcfNet.csproj \
+  --output packages \
+  --json \
+  && mv packages/bom.json packages/bom.cdx.json \
+  && echo "CycloneDX SBOM written to packages/bom.cdx.json" \
+  || echo "Warning: CycloneDX SBOM generation failed; skipping."
 
 # --- SBOM: SPDX via GitHub Dependency Graph API ---
+# curl -f returns a non-zero exit code on HTTP 4xx/5xx, so the && chain below
+# handles both transport errors and API errors without aborting the release.
 echo "Generating SPDX SBOM..."
 if [[ -n "${GH_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
-  http_status="$(curl -sL \
+  curl -sLf \
     -H "Authorization: Bearer ${GH_TOKEN}" \
     -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
-    --write-out "%{http_code}" \
     --output /tmp/spdx_raw.json \
-    "https://api.github.com/repos/${GITHUB_REPOSITORY}/dependency-graph/sbom")"
-  if [[ "$http_status" == "200" ]]; then
-    jq '.sbom' /tmp/spdx_raw.json > packages/sbom.spdx.json
-    echo "SPDX SBOM written to packages/sbom.spdx.json"
-  else
-    echo "Warning: GitHub SBOM API returned HTTP ${http_status}; SPDX SBOM skipped."
-  fi
+    "https://api.github.com/repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" \
+    && jq '.sbom' /tmp/spdx_raw.json > packages/sbom.spdx.json \
+    && echo "SPDX SBOM written to packages/sbom.spdx.json" \
+    || echo "Warning: SPDX SBOM generation failed; skipping."
 else
   echo "Warning: GH_TOKEN or GITHUB_REPOSITORY not set; SPDX SBOM skipped."
 fi
