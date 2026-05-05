@@ -88,6 +88,14 @@
           {
             "path": "packages/*.nupkg",
             "label": "NuGet Packages"
+          },
+          {
+            "path": "packages/bom.cdx.json",
+            "label": "CycloneDX SBOM (JSON)"
+          },
+          {
+            "path": "packages/sbom.spdx.json",
+            "label": "SPDX SBOM (GitHub Dependency Graph)"
           }
         ],
         "successComment": false,
