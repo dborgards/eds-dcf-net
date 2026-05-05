@@ -23,8 +23,8 @@ dotnet nuget push "./packages/*.nupkg" \
 # while || ensures a failed SBOM never aborts the release.
 # Clear any stale SBOM file first so a failed generation cannot upload a previous run's artifact.
 echo "Generating CycloneDX SBOM..."
-rm -f packages/bom.cdx.json packages/bom.json
-dotnet tool restore \
+rm -f packages/bom.cdx.json packages/bom.json \
+  && dotnet tool restore \
   && dotnet tool run dotnet-CycloneDX src/EdsDcfNet/EdsDcfNet.csproj \
   --output packages \
   --json \
