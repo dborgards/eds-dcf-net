@@ -29,3 +29,9 @@ SBOM generation is fully automated as part of the Semantic Release workflow:
 3. Both files are attached to the GitHub Release as downloadable assets.
 
 The CycloneDX tool version is pinned in [`.config/dotnet-tools.json`](../.config/dotnet-tools.json) and kept up to date by Renovate.
+
+## Known limitation: SPDX reflects the default branch
+
+The GitHub Dependency Graph SBOM API (`GET /repos/{owner}/{repo}/dependency-graph/sbom`) has no `ref` or commit parameter — it always exports the dependency graph for the repository's default branch. This means the `sbom.spdx.json` attached to a pre-release (from `develop`) may not exactly match the released commit.
+
+This is an inherent API limitation with no workaround. In practice the impact is negligible for this library: all package references carry `PrivateAssets="all"` (build/dev tools only), so the library has zero transitive runtime dependencies and the dependency graph is stable across branches. The **CycloneDX BOM** (`bom.cdx.json`) is generated directly from the released project file and is always accurate; use it as the authoritative source for SCA tooling.
