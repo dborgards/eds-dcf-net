@@ -23,8 +23,8 @@ dotnet nuget push "./packages/*.nupkg" \
 # while || ensures a failed SBOM never aborts the release.
 # Clear any stale SBOM file first so a failed generation cannot upload a previous run's artifact.
 echo "Generating CycloneDX SBOM..."
-rm -f packages/bom.cdx.json packages/bom.json \
-  && dotnet tool restore \
+rm -f packages/bom.cdx.json packages/bom.json || true
+dotnet tool restore \
   && dotnet tool run dotnet-CycloneDX src/EdsDcfNet/EdsDcfNet.csproj \
   --output packages \
   --json \
@@ -37,7 +37,7 @@ rm -f packages/bom.cdx.json packages/bom.json \
 # handles both transport errors and API errors without aborting the release.
 echo "Generating SPDX SBOM..."
 if [[ -n "${GH_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
-  rm -f packages/sbom.spdx.json /tmp/sbom.spdx.json /tmp/spdx_raw.json
+  rm -f packages/sbom.spdx.json /tmp/sbom.spdx.json /tmp/spdx_raw.json || true
   curl -sLf \
     -H "Authorization: Bearer ${GH_TOKEN}" \
     -H "Accept: application/vnd.github+json" \
