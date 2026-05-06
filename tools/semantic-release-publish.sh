@@ -28,7 +28,8 @@ dotnet tool restore \
   && dotnet CycloneDX src/EdsDcfNet/EdsDcfNet.csproj \
     --output packages \
     --json \
-    --set-version "${next_version}" \   # ← das hinzufügen
+    --set-version "${next_version}" \
+    --set-type Library \
   && mv packages/bom.json packages/bom.cdx.json \
   && echo "CycloneDX SBOM written to packages/bom.cdx.json with version ${next_version}" \
   || echo "Warning: CycloneDX SBOM generation failed; skipping."
