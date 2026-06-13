@@ -27,4 +27,4 @@ def closure($adj):
 | .dependencies = [ (.dependencies // [])[]
                     | select(.ref as $r | $reach | index($r))
                     | .dependsOn = [ (.dependsOn // [])[] | select(. as $r | $reach | index($r)) ] ]
-| .compositions = [ { "aggregate": "complete", "assemblies": [$root], "dependencies": $reach } ]
+| .compositions = [ { "aggregate": "complete", "assemblies": [$root], "dependencies": [$root] } ]
