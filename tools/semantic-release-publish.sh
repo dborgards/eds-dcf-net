@@ -34,8 +34,11 @@ generate_cyclonedx_sbom() {
   dotnet tool run dotnet-CycloneDX -- src/EdsDcfNet/EdsDcfNet.csproj \
     --output packages \
     --json \
+    --set-name EdsDcfNet \
     --set-version "${next_version}" \
     --set-type Library \
+    --set-nuget-purl \
+    --import-metadata-path sbom/bom-metadata.template.xml \
     --exclude-dev \
     --exclude-test-projects \
     --enable-github-licenses || return
