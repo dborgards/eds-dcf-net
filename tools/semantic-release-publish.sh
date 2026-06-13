@@ -27,6 +27,9 @@ best_effort() {
 }
 
 generate_cyclonedx_sbom() {
+  local cdx_json
+  local exit_code
+
   echo "Generating CycloneDX SBOM..."
 
   rm -f packages/bom.cdx.json packages/bom.json || return
@@ -42,8 +45,18 @@ generate_cyclonedx_sbom() {
     --exclude-dev \
     --exclude-test-projects \
     --enable-github-licenses || return
-  jq -f sbom/prune-cyclonedx.jq packages/bom.json > packages/bom.cdx.json || return
-  rm -f packages/bom.json
+  cdx_json="$(mktemp packages/bom.cdx.XXXXXX)" || return
+  jq -f sbom/prune-cyclonedx.jq packages/bom.json > "$cdx_json" || {
+    exit_code=$?
+    rm -f "$cdx_json"
+    return "$exit_code"
+  }
+  mv "$cdx_json" packages/bom.cdx.json || {
+    exit_code=$?
+    rm -f "$cdx_json"
+    return "$exit_code"
+  }
+  rm -f packages/bom.json "$cdx_json"
 
   echo "CycloneDX SBOM written to packages/bom.cdx.json with version ${next_version}"
 }
