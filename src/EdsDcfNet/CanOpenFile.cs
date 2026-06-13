@@ -1005,6 +1005,9 @@ public static class CanOpenFile
     /// <param name="timestamp">Timestamp used for generated FileInfo creation date/time fields.</param>
     /// <param name="baudrate">Baudrate in kbit/s (default: 250)</param>
     /// <param name="nodeName">Optional node name</param>
+    /// <remarks>
+    /// The timestamp is formatted as provided using invariant culture; no timezone conversion is applied.
+    /// </remarks>
     /// <returns>A new DeviceConfigurationFile</returns>
     public static DeviceConfigurationFile EdsToDcf(
         ElectronicDataSheet eds,

@@ -686,6 +686,30 @@ PDOMapping=0
     }
 
     [Fact]
+    public void EdsToDcf_WithExplicitTimestamp_WritesDeterministicDcfContent()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo { FileName = "test.eds" },
+            DeviceInfo = new DeviceInfo { ProductName = "Test Product" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+        var timestamp = new DateTime(2026, 03, 05, 13, 47, 00);
+
+        // Act
+        var first = CanOpenFile.WriteDcfToString(
+            CanOpenFile.EdsToDcf(eds, nodeId: 5, timestamp: timestamp));
+        var second = CanOpenFile.WriteDcfToString(
+            CanOpenFile.EdsToDcf(eds, nodeId: 5, timestamp: timestamp));
+
+        // Assert
+        first.Should().Be(second);
+        first.Should().Contain("CreationDate=03-05-2026");
+        first.Should().Contain("CreationTime=01:47PM");
+    }
+
+    [Fact]
     public void EdsToDcf_DefaultOverload_UsesSpecCompliantDateAndTimeFormatting()
     {
         // Arrange
