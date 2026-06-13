@@ -30,6 +30,18 @@ SBOM generation is fully automated as part of the Semantic Release workflow:
 
 The CycloneDX tool version is pinned in [`.config/dotnet-tools.json`](../.config/dotnet-tools.json) and kept up to date by Renovate.
 
+## Triage release-tooling advisories
+
+Dependency alerts can target runtime packages, test packages, GitHub Actions, or the Node-based release tooling used by semantic-release. Triage the alert before changing package versions:
+
+1. Identify the dependency path in the alert or lockfile. For example, a vulnerable package may be bundled under `@semantic-release/npm` → `npm` → `node_modules/npm/node_modules/...` rather than referenced by the library itself.
+2. Classify the blast radius. Runtime dependencies affect consumers; packages with `PrivateAssets="all"`, test-only packages, GitHub Actions, and semantic-release dependencies affect build or release automation.
+3. Prefer the smallest version movement that refreshes the vulnerable subtree. For bundled `npm` dependencies, this may require re-resolving the locked `npm` package instead of editing the nested package directly.
+4. Verify the local dependency state with the relevant package manager, for example `npm audit` for release tooling alerts.
+5. For release-impacting changes, confirm the next GitHub Release contains the expected `bom.cdx.json` and `sbom.spdx.json` assets.
+
+When an advisory only affects release tooling, the fix should still be reviewed as supply-chain work because those tools publish the package and release artifacts.
+
 ## Known limitation: SPDX reflects the default branch
 
 The GitHub Dependency Graph SBOM API (`GET /repos/{owner}/{repo}/dependency-graph/sbom`) has no `ref` or commit parameter — it always exports the dependency graph for the repository's default branch. This means the `sbom.spdx.json` attached to a pre-release (from `develop`) may not exactly match the released commit.
