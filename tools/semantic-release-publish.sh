@@ -62,17 +62,33 @@ generate_spdx_sbom() {
     rm -f "$raw_json"
     return "$exit_code"
   }
-  trap 'rm -f "$raw_json" "$spdx_json"' RETURN
 
-  rm -f packages/sbom.spdx.json || return
+  rm -f packages/sbom.spdx.json || {
+    exit_code=$?
+    rm -f "$raw_json" "$spdx_json"
+    return "$exit_code"
+  }
   curl -sLf \
     -H "Authorization: Bearer ${GH_TOKEN}" \
     -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     --output "$raw_json" \
-    "https://api.github.com/repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" || return
-  jq -e '.sbom' "$raw_json" > "$spdx_json" || return
-  mv "$spdx_json" packages/sbom.spdx.json || return
+    "https://api.github.com/repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" || {
+    exit_code=$?
+    rm -f "$raw_json" "$spdx_json"
+    return "$exit_code"
+  }
+  jq -e '.sbom' "$raw_json" > "$spdx_json" || {
+    exit_code=$?
+    rm -f "$raw_json" "$spdx_json"
+    return "$exit_code"
+  }
+  mv "$spdx_json" packages/sbom.spdx.json || {
+    exit_code=$?
+    rm -f "$raw_json" "$spdx_json"
+    return "$exit_code"
+  }
+  rm -f "$raw_json" "$spdx_json"
 
   echo "SPDX SBOM written to packages/sbom.spdx.json"
 }
