@@ -42,7 +42,8 @@ generate_cyclonedx_sbom() {
     --exclude-dev \
     --exclude-test-projects \
     --enable-github-licenses || return
-  mv packages/bom.json packages/bom.cdx.json || return
+  jq -f sbom/prune-cyclonedx.jq packages/bom.json > packages/bom.cdx.json || return
+  rm -f packages/bom.json
 
   echo "CycloneDX SBOM written to packages/bom.cdx.json with version ${next_version}"
 }

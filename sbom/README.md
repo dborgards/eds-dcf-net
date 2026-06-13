@@ -36,6 +36,12 @@ The `dotnet CycloneDX` CLI reads only the *version* from the project file; it do
 
 Keep the template in sync with `src/EdsDcfNet/EdsDcfNet.csproj` (authors, license expression, description) when those values change.
 
+### Dependency-graph pruning and completeness
+
+`dotnet CycloneDX --exclude-dev` removes packages flagged as development dependencies (analyzers, SourceLink, Polyfill) but leaves their transitive dependencies behind as orphan components no longer reachable from the root. Because the published package declares zero runtime dependencies, those orphans would misrepresent the supply chain.
+
+After generation the BOM is post-processed with [`prune-cyclonedx.jq`](prune-cyclonedx.jq), which keeps only components reachable from the root component, drops dangling dependency entries, and adds a `compositions` block asserting the dependency inventory is `complete`. The filter uses no hardcoded package names, so genuine runtime dependencies added later are retained automatically.
+
 ## Triage release-tooling advisories
 
 Dependency alerts can target runtime packages, test packages, GitHub Actions, or the Node-based release tooling used by `semantic-release`. Triage the alert before changing package versions:
