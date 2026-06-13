@@ -7,6 +7,73 @@ if [[ -z "$next_version" ]]; then
   exit 1
 fi
 
+warn() {
+  echo "Warning: $*" >&2
+}
+
+best_effort() {
+  local description="$1"
+  local exit_code
+  shift
+
+  if "$@"; then
+    return 0
+  fi
+
+  exit_code=$?
+  warn "${description} failed with exit code ${exit_code}; skipping."
+  return 0
+}
+
+generate_cyclonedx_sbom() {
+  echo "Generating CycloneDX SBOM..."
+
+  rm -f packages/bom.cdx.json packages/bom.json || return
+  dotnet tool restore || return
+  dotnet tool run dotnet-CycloneDX -- src/EdsDcfNet/EdsDcfNet.csproj \
+    --output packages \
+    --json \
+    --set-version "${next_version}" \
+    --set-type Library \
+    --exclude-dev \
+    --exclude-test-projects \
+    --enable-github-licenses || return
+  mv packages/bom.json packages/bom.cdx.json || return
+
+  echo "CycloneDX SBOM written to packages/bom.cdx.json with version ${next_version}"
+}
+
+generate_spdx_sbom() {
+  local raw_json
+  local spdx_json
+
+  echo "Generating SPDX SBOM..."
+
+  if [[ -z "${GH_TOKEN:-}" || -z "${GITHUB_REPOSITORY:-}" ]]; then
+    warn "GH_TOKEN or GITHUB_REPOSITORY not set; SPDX SBOM skipped."
+    return 0
+  fi
+
+  raw_json="$(mktemp "${TMPDIR:-/tmp}/spdx_raw.XXXXXX")" || return
+  spdx_json="$(mktemp "${TMPDIR:-/tmp}/sbom_spdx.XXXXXX")" || {
+    rm -f "$raw_json"
+    return
+  }
+  trap 'rm -f "$raw_json" "$spdx_json"' RETURN
+
+  rm -f packages/sbom.spdx.json || return
+  curl -sLf \
+    -H "Authorization: Bearer ${GH_TOKEN}" \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    --output "$raw_json" \
+    "https://api.github.com/repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" || return
+  jq -e '.sbom' "$raw_json" > "$spdx_json" || return
+  mv "$spdx_json" packages/sbom.spdx.json || return
+
+  echo "SPDX SBOM written to packages/sbom.spdx.json"
+}
+
 dotnet pack src/EdsDcfNet/EdsDcfNet.csproj \
   --configuration Release \
   --no-restore \
@@ -18,41 +85,5 @@ dotnet nuget push "./packages/*.nupkg" \
   --source https://api.nuget.org/v3/index.json \
   --skip-duplicate
 
-# --- SBOM: CycloneDX ---
-# Use && chain so each step's failure is properly detected under set -euo pipefail,
-# while || ensures a failed SBOM never aborts the release.
-# Clear any stale SBOM file first so a failed generation cannot upload a previous run's artifact.
-echo "Generating CycloneDX SBOM..."
-rm -f packages/bom.cdx.json packages/bom.json || true
-dotnet tool restore \
-  && dotnet tool run dotnet-CycloneDX -- src/EdsDcfNet/EdsDcfNet.csproj \
-    --output packages \
-    --json \
-    --set-version "${next_version}" \
-    --set-type Library \
-    --exclude-dev \
-    --exclude-test-projects \
-    --enable-github-licenses \
-  && mv packages/bom.json packages/bom.cdx.json \
-  && echo "CycloneDX SBOM written to packages/bom.cdx.json with version ${next_version}" \
-  || echo "Warning: CycloneDX SBOM generation failed; skipping."
-
-# --- SBOM: SPDX via GitHub Dependency Graph API ---
-# curl -f returns a non-zero exit code on HTTP 4xx/5xx, so the && chain below
-# handles both transport errors and API errors without aborting the release.
-echo "Generating SPDX SBOM..."
-if [[ -n "${GH_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
-  rm -f packages/sbom.spdx.json /tmp/sbom.spdx.json /tmp/spdx_raw.json || true
-  curl -sLf \
-    -H "Authorization: Bearer ${GH_TOKEN}" \
-    -H "Accept: application/vnd.github+json" \
-    -H "X-GitHub-Api-Version: 2022-11-28" \
-    --output /tmp/spdx_raw.json \
-    "https://api.github.com/repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" \
-    && jq -e '.sbom' /tmp/spdx_raw.json > /tmp/sbom.spdx.json \
-    && mv /tmp/sbom.spdx.json packages/sbom.spdx.json \
-    && echo "SPDX SBOM written to packages/sbom.spdx.json" \
-    || echo "Warning: SPDX SBOM generation failed; skipping."
-else
-  echo "Warning: GH_TOKEN or GITHUB_REPOSITORY not set; SPDX SBOM skipped."
-fi
+best_effort "CycloneDX SBOM generation" generate_cyclonedx_sbom
+best_effort "SPDX SBOM generation" generate_spdx_sbom
