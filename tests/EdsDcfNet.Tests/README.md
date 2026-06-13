@@ -111,6 +111,8 @@ Tests for the `CanOpenFile` API:
 - Round-trip tests (EDS → DCF → String → DCF)
 - Data preservation through conversions
 
+Clone and mapping tests should pair each clone mutation with an immediate source assertion. For complex graphs, cover at least one representative nested object, collection element, scalar field, and reference/list field so shallow copy regressions are visible in review.
+
 #### Integration/CanOpenFileAsyncTests.cs
 Tests for async `CanOpenFile` file I/O APIs:
 - ReadEdsAsync / WriteEdsAsync
