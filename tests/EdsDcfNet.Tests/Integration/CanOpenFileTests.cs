@@ -1235,26 +1235,32 @@ PDOMapping=0
         var edsAp = eds.ApplicationProcess!;
 
         dcfAp.Should().NotBeSameAs(edsAp);
+        var dcfTemplates = dcfAp.TemplateList!;
+        var edsTemplates = edsAp.TemplateList!;
 
         // TemplateList.ParameterTemplates[0].Properties (mutate first property)
-        dcfAp.TemplateList!.ParameterTemplates[0].Properties[0].Value = "TPL_PROP_CHANGED";
-        edsAp.TemplateList!.ParameterTemplates[0].Properties[0].Value.Should().Be("tpl-prop-1");
+        AssertCloneMutationDoesNotAffectSource(
+            () => dcfTemplates.ParameterTemplates[0].Properties[0].Value = "TPL_PROP_CHANGED",
+            () => edsTemplates.ParameterTemplates[0].Properties[0].Value,
+            "tpl-prop-1");
 
         // TemplateList.ParameterTemplates allowed-values & label group
-        dcfAp.TemplateList.ParameterTemplates[0].AllowedValues!.Values[0].Value = "999";
-        edsAp.TemplateList.ParameterTemplates[0].AllowedValues!.Values[0].Value.Should().Be("1");
-        dcfAp.TemplateList.ParameterTemplates[0].LabelGroup.Labels[0].Text = "tpl-changed";
-        edsAp.TemplateList.ParameterTemplates[0].LabelGroup.Labels[0].Text.Should().Be("tpl");
+        dcfTemplates.ParameterTemplates[0].AllowedValues!.Values[0].Value = "999";
+        edsTemplates.ParameterTemplates[0].AllowedValues!.Values[0].Value.Should().Be("1");
+        dcfTemplates.ParameterTemplates[0].LabelGroup.Labels[0].Text = "tpl-changed";
+        edsTemplates.ParameterTemplates[0].LabelGroup.Labels[0].Text.Should().Be("tpl");
 
         // TemplateList.AllowedValuesTemplates[0]
-        dcfAp.TemplateList.AllowedValuesTemplates[0].Values[0].Value = "Z";
-        edsAp.TemplateList.AllowedValuesTemplates[0].Values[0].Value.Should().Be("A");
-        dcfAp.TemplateList.AllowedValuesTemplates[0].Ranges[0].MinValue!.Value = "-999";
-        edsAp.TemplateList.AllowedValuesTemplates[0].Ranges[0].MinValue!.Value.Should().Be("0");
+        dcfTemplates.AllowedValuesTemplates[0].Values[0].Value = "Z";
+        edsTemplates.AllowedValuesTemplates[0].Values[0].Value.Should().Be("A");
+        dcfTemplates.AllowedValuesTemplates[0].Ranges[0].MinValue!.Value = "-999";
+        edsTemplates.AllowedValuesTemplates[0].Ranges[0].MinValue!.Value.Should().Be("0");
 
         // FunctionTypeList[0].InterfaceList.InputVars[0]
-        dcfAp.FunctionTypeList[0].InterfaceList!.InputVars[0].Name = "InputChanged";
-        edsAp.FunctionTypeList[0].InterfaceList!.InputVars[0].Name.Should().Be("Input1");
+        AssertCloneMutationDoesNotAffectSource(
+            () => dcfAp.FunctionTypeList[0].InterfaceList!.InputVars[0].Name = "InputChanged",
+            () => edsAp.FunctionTypeList[0].InterfaceList!.InputVars[0].Name,
+            "Input1");
         dcfAp.FunctionTypeList[0].InterfaceList!.InputVars[0].DefaultValue!.Value = "0xDEAD";
         edsAp.FunctionTypeList[0].InterfaceList!.InputVars[0].DefaultValue!.Value.Should().Be("42");
         dcfAp.FunctionTypeList[0].InterfaceList!.InputVars[0].Unit!.Multiplier = "1e9";
@@ -1276,14 +1282,18 @@ PDOMapping=0
         dcfAp.FunctionTypeList[1].InterfaceList.Should().BeNull();
 
         // FunctionInstanceList.Connections[0] (top-level connections)
-        dcfAp.FunctionInstanceList!.Connections[0].Source = "ChangedSource";
-        edsAp.FunctionInstanceList!.Connections[0].Source.Should().Be("InstA.OutVar");
+        AssertCloneMutationDoesNotAffectSource(
+            () => dcfAp.FunctionInstanceList!.Connections[0].Source = "ChangedSource",
+            () => edsAp.FunctionInstanceList!.Connections[0].Source,
+            "InstA.OutVar");
         dcfAp.FunctionInstanceList!.FunctionInstances[0].TypeIdRef = "TYPE_CHANGED";
         edsAp.FunctionInstanceList!.FunctionInstances[0].TypeIdRef.Should().Be("F1");
 
         // Nested ParameterGroup (root group → sub-group → leaf)
-        dcfAp.ParameterGroupList[0].SubGroups[0].UniqueId = "SUB_CHANGED";
-        edsAp.ParameterGroupList[0].SubGroups[0].UniqueId.Should().Be("PG_Sub1");
+        AssertCloneMutationDoesNotAffectSource(
+            () => dcfAp.ParameterGroupList[0].SubGroups[0].UniqueId = "SUB_CHANGED",
+            () => edsAp.ParameterGroupList[0].SubGroups[0].UniqueId,
+            "PG_Sub1");
         dcfAp.ParameterGroupList[0].SubGroups[0].SubGroups[0].LabelGroup.Labels[0].Text = "leaf-changed";
         edsAp.ParameterGroupList[0].SubGroups[0].SubGroups[0].LabelGroup.Labels[0].Text.Should().Be("leaf");
         dcfAp.ParameterGroupList[0].ParameterRefs[0] = "REF_CHANGED";
@@ -1621,6 +1631,15 @@ PDOMapping=0
         ap.ParameterGroupList.Add(rootGroup);
 
         return ap;
+    }
+
+    private static void AssertCloneMutationDoesNotAffectSource<T>(
+        Action mutateClone,
+        Func<T> readSourceValue,
+        T expectedSourceValue)
+    {
+        mutateClone();
+        readSourceValue().Should().Be(expectedSourceValue);
     }
 
     #endregion
