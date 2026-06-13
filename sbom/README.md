@@ -32,10 +32,10 @@ The CycloneDX tool version is pinned in [`.config/dotnet-tools.json`](../.config
 
 ## Triage release-tooling advisories
 
-Dependency alerts can target runtime packages, test packages, GitHub Actions, or the Node-based release tooling used by semantic-release. Triage the alert before changing package versions:
+Dependency alerts can target runtime packages, test packages, GitHub Actions, or the Node-based release tooling used by `semantic-release`. Triage the alert before changing package versions:
 
 1. Identify the dependency path in the alert or lockfile. For example, a vulnerable package may be bundled under `@semantic-release/npm` → `npm` → `node_modules/npm/node_modules/...` rather than referenced by the library itself.
-2. Classify the blast radius. Runtime dependencies affect consumers; packages with `PrivateAssets="all"`, test-only packages, GitHub Actions, and semantic-release dependencies affect build or release automation.
+2. Classify the blast radius. Runtime dependencies affect consumers; packages with `PrivateAssets="all"`, test-only packages, GitHub Actions, and `semantic-release` dependencies affect build or release automation.
 3. Prefer the smallest version movement that refreshes the vulnerable subtree. For bundled `npm` dependencies, this may require re-resolving the locked `npm` package instead of editing the nested package directly.
 4. Verify the local dependency state with the relevant package manager, for example `npm audit` for release tooling alerts.
 5. For release-impacting changes, confirm the next GitHub Release contains the expected `bom.cdx.json` and `sbom.spdx.json` assets.
