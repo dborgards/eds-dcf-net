@@ -25,11 +25,14 @@ dotnet nuget push "./packages/*.nupkg" \
 echo "Generating CycloneDX SBOM..."
 rm -f packages/bom.cdx.json packages/bom.json || true
 dotnet tool restore \
-  && dotnet CycloneDX src/EdsDcfNet/EdsDcfNet.csproj \
+  && dotnet tool run dotnet-CycloneDX -- src/EdsDcfNet/EdsDcfNet.csproj \
     --output packages \
     --json \
     --set-version "${next_version}" \
     --set-type Library \
+    --exclude-dev \
+    --exclude-test-projects \
+    --enable-github-licenses \
   && mv packages/bom.json packages/bom.cdx.json \
   && echo "CycloneDX SBOM written to packages/bom.cdx.json with version ${next_version}" \
   || echo "Warning: CycloneDX SBOM generation failed; skipping."
