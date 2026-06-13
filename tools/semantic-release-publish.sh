@@ -18,9 +18,10 @@ best_effort() {
 
   if "$@"; then
     return 0
+  else
+    exit_code=$?
   fi
 
-  exit_code=$?
   warn "${description} failed with exit code ${exit_code}; skipping."
   return 0
 }
@@ -46,6 +47,7 @@ generate_cyclonedx_sbom() {
 generate_spdx_sbom() {
   local raw_json
   local spdx_json
+  local exit_code
 
   echo "Generating SPDX SBOM..."
 
@@ -56,8 +58,9 @@ generate_spdx_sbom() {
 
   raw_json="$(mktemp "${TMPDIR:-/tmp}/spdx_raw.XXXXXX")" || return
   spdx_json="$(mktemp "${TMPDIR:-/tmp}/sbom_spdx.XXXXXX")" || {
+    exit_code=$?
     rm -f "$raw_json"
-    return
+    return "$exit_code"
   }
   trap 'rm -f "$raw_json" "$spdx_json"' RETURN
 
