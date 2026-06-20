@@ -700,6 +700,71 @@ public class CanOpenModelValidatorTests
     }
 
     [Fact]
+    public void Validate_ApplicationProcess_DuplicateIdBetweenDataTypeAndParameter_ReturnIssue()
+    {
+        var eds = new ElectronicDataSheet { ApplicationProcess = new ApplicationProcess() };
+        eds.ApplicationProcess.DataTypeList = new ApDataTypeList();
+        eds.ApplicationProcess.DataTypeList.Structs.Add(new ApStructType { UniqueId = "SHARED_ID", Name = "MyStruct" });
+        eds.ApplicationProcess.ParameterList.Add(new ApParameter { UniqueId = "SHARED_ID" });
+
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        issues.Should().Contain(i =>
+            i.Path == "ApplicationProcess.ParameterList[0].UniqueId" &&
+            i.Message.Contains("Duplicate unique ID 'SHARED_ID'", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_ParameterWithMissingDataTypeRef_ReturnIssue()
+    {
+        var eds = new ElectronicDataSheet { ApplicationProcess = new ApplicationProcess() };
+        eds.ApplicationProcess.ParameterList.Add(new ApParameter
+        {
+            UniqueId = "P_1",
+            TypeRef = new ApTypeRef { DataTypeIdRef = "MissingStruct" }
+        });
+
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.ParameterList[0].TypeRef");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_ValidDataTypeRef_ReturnsNoTypeRefIssue()
+    {
+        var eds = new ElectronicDataSheet { ApplicationProcess = new ApplicationProcess() };
+        eds.ApplicationProcess.DataTypeList = new ApDataTypeList();
+        eds.ApplicationProcess.DataTypeList.Structs.Add(new ApStructType { UniqueId = "DT_1", Name = "MyStruct" });
+        eds.ApplicationProcess.ParameterList.Add(new ApParameter
+        {
+            UniqueId = "P_1",
+            TypeRef = new ApTypeRef { DataTypeIdRef = "DT_1" }
+        });
+
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        issues.Should().NotContain(i => i.Path.Contains("TypeRef", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_TemplateAndVarDeclarationIds_EnforceGlobalUniqueness()
+    {
+        var eds = new ElectronicDataSheet { ApplicationProcess = new ApplicationProcess() };
+        eds.ApplicationProcess.DataTypeList = new ApDataTypeList();
+        var structType = new ApStructType { UniqueId = "DT_1", Name = "MyStruct" };
+        structType.VarDeclarations.Add(new ApVarDeclaration { UniqueId = "VAR_1", Name = "Field1" });
+        eds.ApplicationProcess.DataTypeList.Structs.Add(structType);
+        eds.ApplicationProcess.TemplateList = new ApTemplateList();
+        eds.ApplicationProcess.TemplateList.ParameterTemplates.Add(new ApParameterTemplate { UniqueId = "VAR_1" });
+
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        issues.Should().Contain(i =>
+            i.Path == "ApplicationProcess.TemplateList.ParameterTemplates[0].UniqueId" &&
+            i.Message.Contains("Duplicate unique ID 'VAR_1'", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Validate_Cpj_FacadeAndModelValidate_ReturnSameIssues()
     {
         // Arrange
