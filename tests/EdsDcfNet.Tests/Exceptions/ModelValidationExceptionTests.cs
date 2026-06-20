@@ -1,7 +1,10 @@
 namespace EdsDcfNet.Tests.Exceptions;
 
+using System.Collections.ObjectModel;
 using System.Globalization;
+using EdsDcfNet;
 using EdsDcfNet.Exceptions;
+using EdsDcfNet.Models;
 using EdsDcfNet.Validation;
 
 public class ModelValidationExceptionTests
@@ -14,7 +17,10 @@ public class ModelValidationExceptionTests
         var exception = new ModelValidationException(issues);
 
         exception.Message.Should().Contain("DeviceCommissioning.NodeId");
-        exception.Message.Should().Be("Model validation failed: " + issues[0]);
+        exception.Message.Should().Be(string.Format(
+            CultureInfo.InvariantCulture,
+            "Model validation failed: {0}",
+            issues[0]));
         exception.Issues.Should().ContainSingle();
     }
 
@@ -56,5 +62,38 @@ public class ModelValidationExceptionTests
         issues.Add(new ValidationIssue("Other", "Changed"));
 
         exception.Issues.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Constructor_WithSingleIssueFromReadOnlyCollection_FormatsMessageAndSnapshotsIssues()
+    {
+        var issues = new ReadOnlyCollection<ValidationIssue>(
+            new List<ValidationIssue> { new("DeviceCommissioning.NodeId", "Invalid node id.") });
+
+        var exception = new ModelValidationException(issues);
+
+        exception.Message.Should().Be(string.Format(
+            CultureInfo.InvariantCulture,
+            "Model validation failed: {0}",
+            issues[0]));
+        exception.Issues.Should().ContainSingle().Which.Should().Be(issues[0]);
+    }
+
+    [Fact]
+    public void EnsureValid_SingleIssueFromValidationReadOnlyCollection_FormatsMessageAndIssues()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+
+        var act = () => CanOpenFile.EnsureValid(dcf);
+
+        var exception = act.Should().Throw<ModelValidationException>().Which;
+        exception.Issues.Should().ContainSingle();
+        exception.Message.Should().Be(string.Format(
+            CultureInfo.InvariantCulture,
+            "Model validation failed: {0}",
+            exception.Issues[0]));
     }
 }

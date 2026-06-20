@@ -222,6 +222,7 @@ public class ApplicationProcessValidationCoverageTests
         var ap = new ApplicationProcess { DataTypeList = new ApDataTypeList() };
         ap.DataTypeList.Arrays.Add(new ApArrayType { Name = "Buf" });
         ap.DataTypeList.Enums.Add(new ApEnumType { Name = "Mode" });
+        ap.DataTypeList.Structs.Add(new ApStructType { Name = "Container" });
         ap.DataTypeList.Derived.Add(new ApDerivedType
         {
             Name = "Alias",
@@ -233,8 +234,63 @@ public class ApplicationProcessValidationCoverageTests
 
         issues.Should().Contain(i => i.Path == "ApplicationProcess.DataTypeList.Arrays[0].UniqueId");
         issues.Should().Contain(i => i.Path == "ApplicationProcess.DataTypeList.Enums[0].UniqueId");
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.DataTypeList.Structs[0].UniqueId");
         issues.Should().Contain(i => i.Path == "ApplicationProcess.DataTypeList.Derived[0].UniqueId");
         issues.Should().Contain(i => i.Path == "ApplicationProcess.DataTypeList.Derived[0].Count.UniqueId");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_ParameterWithNullDataTypeIdRef_ReturnsNoTypeRefIssue()
+    {
+        var ap = new ApplicationProcess();
+        ap.ParameterList.Add(new ApParameter
+        {
+            UniqueId = "P_1",
+            TypeRef = new ApTypeRef { DataTypeIdRef = null }
+        });
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().NotContain(i => i.Path.Contains("TypeRef", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_ConfigVarWithValidDataTypeIdRef_ReturnsNoTypeRefIssue()
+    {
+        var ap = new ApplicationProcess { DataTypeList = new ApDataTypeList() };
+        ap.DataTypeList.Enums.Add(new ApEnumType { UniqueId = "DT_ENUM", Name = "Mode" });
+
+        var functionType = new ApFunctionType { UniqueId = "FT_1", Name = "Ctrl" };
+        functionType.VersionInfos.Add(new ApVersionInfo());
+        functionType.InterfaceList = new ApInterfaceList();
+        functionType.InterfaceList.ConfigVars.Add(new ApVarDeclaration
+        {
+            UniqueId = "V_CFG",
+            Name = "Cfg",
+            Type = new ApTypeRef { DataTypeIdRef = "DT_ENUM" }
+        });
+        ap.FunctionTypeList.Add(functionType);
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().NotContain(i =>
+            i.Path == "ApplicationProcess.FunctionTypeList[0].InterfaceList.ConfigVars[0].Type");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_DerivedWithoutCount_ReturnsNoCountUniqueIdIssue()
+    {
+        var ap = new ApplicationProcess { DataTypeList = new ApDataTypeList() };
+        ap.DataTypeList.Derived.Add(new ApDerivedType
+        {
+            UniqueId = "DT_DERIVED",
+            Name = "Alias",
+            BaseType = new ApTypeRef { SimpleTypeName = "UINT" }
+        });
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().NotContain(i => i.Path.Contains(".Count.", StringComparison.Ordinal));
     }
 
     private static IReadOnlyList<ValidationIssue> ValidateEdsApplicationProcess(ApplicationProcess applicationProcess)

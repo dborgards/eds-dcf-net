@@ -30,7 +30,12 @@ public sealed class ModelValidationException : Exception
             return "Model validation failed.";
 
         if (issues.Count == 1)
-            return "Model validation failed: " + issues[0];
+        {
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                "Model validation failed: {0}",
+                issues[0]);
+        }
 
         return string.Format(
             CultureInfo.InvariantCulture,

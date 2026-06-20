@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Integration;
 
+using System.Globalization;
 using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
@@ -28,7 +29,10 @@ public class WriteValidationGuardTests
 
         var exception = act.Should().Throw<ModelValidationException>().Which;
         exception.Issues.Should().ContainSingle();
-        exception.Message.Should().Be("Model validation failed: " + exception.Issues[0]);
+        exception.Message.Should().Be(string.Format(
+            CultureInfo.InvariantCulture,
+            "Model validation failed: {0}",
+            exception.Issues[0]));
     }
 
     [Fact]
@@ -43,7 +47,10 @@ public class WriteValidationGuardTests
 
         var exception = act.Should().Throw<ModelValidationException>().Which;
         exception.Issues.Should().ContainSingle();
-        exception.Message.Should().Be("Model validation failed: " + exception.Issues[0]);
+        exception.Message.Should().Be(string.Format(
+            CultureInfo.InvariantCulture,
+            "Model validation failed: {0}",
+            exception.Issues[0]));
     }
 
     [Fact]
