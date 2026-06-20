@@ -13,6 +13,7 @@ public class ModelValidationExceptionTests
         var exception = new ModelValidationException(issues);
 
         exception.Message.Should().Contain("DeviceCommissioning.NodeId");
+        exception.Message.Should().Be("Model validation failed: " + issues[0]);
         exception.Issues.Should().ContainSingle();
     }
 

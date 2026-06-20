@@ -276,6 +276,86 @@ public class WriteValidationGuardTests
     }
 
     [Fact]
+    public void WriteWithDefaultOptions_SkipsValidationForInvalidModel()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+
+        var act = () => CanOpenFile.WriteDcfToString(dcf, CanOpenWriteOptions.Default);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void WriteXdd_WithValidatedOptions_Stream_Succeeds()
+    {
+        var xdd = CreateValidEds();
+        using var stream = new MemoryStream();
+
+        var act = () => CanOpenFile.WriteXdd(xdd, stream, CanOpenWriteOptions.Validated);
+
+        act.Should().NotThrow();
+        stream.Length.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void WriteXdd_WithValidatedOptions_Stream_ThrowsForInvalidModel()
+    {
+        var xdd = new ElectronicDataSheet();
+        xdd.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Unclassified",
+            ObjectType = 0x7
+        };
+        using var stream = new MemoryStream();
+
+        var act = () => CanOpenFile.WriteXdd(xdd, stream, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>();
+    }
+
+    [Fact]
+    public void WriteXdc_WithValidatedOptions_Stream_Succeeds()
+    {
+        var xdc = CreateValidDcf();
+        using var stream = new MemoryStream();
+
+        var act = () => CanOpenFile.WriteXdc(xdc, stream, CanOpenWriteOptions.Validated);
+
+        act.Should().NotThrow();
+        stream.Length.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void WriteXdc_WithValidatedOptions_Stream_ThrowsForInvalidModel()
+    {
+        var xdc = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+        using var stream = new MemoryStream();
+
+        var act = () => CanOpenFile.WriteXdc(xdc, stream, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>();
+    }
+
+    [Fact]
+    public void WriteDcf_WithValidatedOptions_Stream_Succeeds()
+    {
+        var dcf = CreateValidDcf();
+        using var stream = new MemoryStream();
+
+        var act = () => CanOpenFile.WriteDcf(dcf, stream, CanOpenWriteOptions.Validated);
+
+        act.Should().NotThrow();
+        stream.Length.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
     public void WriteEds_WithValidatedOptions_AllowsValidModel()
     {
         var eds = new ElectronicDataSheet();

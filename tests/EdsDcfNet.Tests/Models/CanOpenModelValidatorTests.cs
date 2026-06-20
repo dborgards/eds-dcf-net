@@ -683,6 +683,23 @@ public class CanOpenModelValidatorTests
     }
 
     [Fact]
+    public void Validate_ApplicationProcess_EmptyParameterUniqueId_SkipsParameterIdIndex()
+    {
+        var eds = new ElectronicDataSheet { ApplicationProcess = new ApplicationProcess() };
+        eds.ApplicationProcess.ParameterList.Add(new ApParameter());
+        eds.ApplicationProcess.ParameterGroupList.Add(new ApParameterGroup
+        {
+            UniqueId = "PG_1",
+            ParameterRefs = { "MissingParam" }
+        });
+
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.ParameterList[0].UniqueId");
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.ParameterGroupList[0].ParameterRefs");
+    }
+
+    [Fact]
     public void Validate_Cpj_FacadeAndModelValidate_ReturnSameIssues()
     {
         // Arrange
