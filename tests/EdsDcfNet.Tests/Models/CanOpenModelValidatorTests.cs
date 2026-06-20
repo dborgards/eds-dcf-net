@@ -509,6 +509,75 @@ public class CanOpenModelValidatorTests
         issues.Should().Contain(i => i.Path == "ApplicationProcess.FunctionInstanceList.FunctionInstances[0].UniqueId");
     }
 
+    [Theory]
+    [InlineData("FunctionTypeAndParameter")]
+    [InlineData("FunctionTypeAndParameterGroup")]
+    [InlineData("ParameterAndFunctionInstance")]
+    [InlineData("ParameterGroupAndFunctionInstance")]
+    public void Validate_ApplicationProcess_DuplicateIdsAcrossKinds_ReturnIssue(string scenario)
+    {
+        // Arrange — xsd:ID values must be unique across all applicationProcess ID-bearing elements
+        var eds = new ElectronicDataSheet();
+        eds.ApplicationProcess = new ApplicationProcess();
+        const string sharedId = "SHARED_ID";
+
+        switch (scenario)
+        {
+            case "FunctionTypeAndParameter":
+            {
+                var functionType = new ApFunctionType { UniqueId = sharedId };
+                functionType.VersionInfos.Add(new ApVersionInfo());
+                eds.ApplicationProcess.FunctionTypeList.Add(functionType);
+                eds.ApplicationProcess.ParameterList.Add(new ApParameter { UniqueId = sharedId });
+                break;
+            }
+            case "FunctionTypeAndParameterGroup":
+            {
+                var functionType = new ApFunctionType { UniqueId = sharedId };
+                functionType.VersionInfos.Add(new ApVersionInfo());
+                eds.ApplicationProcess.FunctionTypeList.Add(functionType);
+                eds.ApplicationProcess.ParameterGroupList.Add(new ApParameterGroup { UniqueId = sharedId });
+                break;
+            }
+            case "ParameterAndFunctionInstance":
+            {
+                var functionType = new ApFunctionType { UniqueId = "FT_1" };
+                functionType.VersionInfos.Add(new ApVersionInfo());
+                eds.ApplicationProcess.FunctionTypeList.Add(functionType);
+                eds.ApplicationProcess.ParameterList.Add(new ApParameter { UniqueId = sharedId });
+                eds.ApplicationProcess.FunctionInstanceList = new ApFunctionInstanceList();
+                eds.ApplicationProcess.FunctionInstanceList.FunctionInstances.Add(new ApFunctionInstance
+                {
+                    UniqueId = sharedId,
+                    TypeIdRef = "FT_1"
+                });
+                break;
+            }
+            case "ParameterGroupAndFunctionInstance":
+            {
+                var functionType = new ApFunctionType { UniqueId = "FT_1" };
+                functionType.VersionInfos.Add(new ApVersionInfo());
+                eds.ApplicationProcess.FunctionTypeList.Add(functionType);
+                eds.ApplicationProcess.ParameterGroupList.Add(new ApParameterGroup { UniqueId = sharedId });
+                eds.ApplicationProcess.FunctionInstanceList = new ApFunctionInstanceList();
+                eds.ApplicationProcess.FunctionInstanceList.FunctionInstances.Add(new ApFunctionInstance
+                {
+                    UniqueId = sharedId,
+                    TypeIdRef = "FT_1"
+                });
+                break;
+            }
+        }
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        // Assert
+        issues.Should().Contain(i =>
+            i.Path.EndsWith(".UniqueId", StringComparison.Ordinal) &&
+            i.Message.Contains("Duplicate unique ID '" + sharedId + "'", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Validate_Cpj_FacadeAndModelValidate_ReturnSameIssues()
     {

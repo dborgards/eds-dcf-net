@@ -331,12 +331,15 @@ public static class CanOpenModelValidator
         string path,
         List<ValidationIssue> issues)
     {
+        var allUniqueIds = new HashSet<string>(StringComparer.Ordinal);
         var functionTypeIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < applicationProcess.FunctionTypeList.Count; index++)
         {
             var functionType = applicationProcess.FunctionTypeList[index];
             var functionTypePath = path + ".FunctionTypeList[" + index.ToString(CultureInfo.InvariantCulture) + "]";
-            RegisterUniqueId(functionType.UniqueId, functionTypePath + ".UniqueId", functionTypeIds, issues);
+            RegisterUniqueId(functionType.UniqueId, functionTypePath + ".UniqueId", allUniqueIds, issues);
+            if (!string.IsNullOrEmpty(functionType.UniqueId))
+                functionTypeIds.Add(functionType.UniqueId);
 
             if (functionType.VersionInfos.Count == 0)
             {
@@ -346,7 +349,6 @@ public static class CanOpenModelValidator
             }
         }
 
-        var instanceIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < applicationProcess.FunctionTypeList.Count; index++)
         {
             var functionType = applicationProcess.FunctionTypeList[index];
@@ -357,7 +359,7 @@ public static class CanOpenModelValidator
                     functionType.FunctionInstanceList,
                     functionTypePath + ".FunctionInstanceList",
                     functionTypeIds,
-                    instanceIds,
+                    allUniqueIds,
                     issues);
             }
         }
@@ -369,17 +371,18 @@ public static class CanOpenModelValidator
             RegisterUniqueId(
                 parameter.UniqueId,
                 path + ".ParameterList[" + index.ToString(CultureInfo.InvariantCulture) + "].UniqueId",
-                parameterIds,
+                allUniqueIds,
                 issues);
+            if (!string.IsNullOrEmpty(parameter.UniqueId))
+                parameterIds.Add(parameter.UniqueId);
         }
 
-        var parameterGroupIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < applicationProcess.ParameterGroupList.Count; index++)
         {
             ValidateParameterGroup(
                 applicationProcess.ParameterGroupList[index],
                 path + ".ParameterGroupList[" + index.ToString(CultureInfo.InvariantCulture) + "]",
-                parameterGroupIds,
+                allUniqueIds,
                 parameterIds,
                 issues);
         }
@@ -390,7 +393,7 @@ public static class CanOpenModelValidator
                 applicationProcess.FunctionInstanceList,
                 path + ".FunctionInstanceList",
                 functionTypeIds,
-                instanceIds,
+                allUniqueIds,
                 issues);
         }
     }
@@ -398,11 +401,11 @@ public static class CanOpenModelValidator
     private static void ValidateParameterGroup(
         ApParameterGroup group,
         string path,
-        HashSet<string> seenGroupIds,
+        HashSet<string> allUniqueIds,
         HashSet<string> parameterIds,
         List<ValidationIssue> issues)
     {
-        RegisterUniqueId(group.UniqueId, path + ".UniqueId", seenGroupIds, issues);
+        RegisterUniqueId(group.UniqueId, path + ".UniqueId", allUniqueIds, issues);
 
         foreach (var parameterRef in group.ParameterRefs)
         {
@@ -425,7 +428,7 @@ public static class CanOpenModelValidator
             ValidateParameterGroup(
                 group.SubGroups[index],
                 path + ".SubGroups[" + index.ToString(CultureInfo.InvariantCulture) + "]",
-                seenGroupIds,
+                allUniqueIds,
                 parameterIds,
                 issues);
         }
@@ -435,14 +438,14 @@ public static class CanOpenModelValidator
         ApFunctionInstanceList instanceList,
         string path,
         HashSet<string> functionTypeIds,
-        HashSet<string> instanceIds,
+        HashSet<string> allUniqueIds,
         List<ValidationIssue> issues)
     {
         for (var index = 0; index < instanceList.FunctionInstances.Count; index++)
         {
             var instance = instanceList.FunctionInstances[index];
             var instancePath = path + ".FunctionInstances[" + index.ToString(CultureInfo.InvariantCulture) + "]";
-            RegisterUniqueId(instance.UniqueId, instancePath + ".UniqueId", instanceIds, issues);
+            RegisterUniqueId(instance.UniqueId, instancePath + ".UniqueId", allUniqueIds, issues);
 
             if (string.IsNullOrEmpty(instance.TypeIdRef))
             {
