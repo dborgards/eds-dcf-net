@@ -5,7 +5,7 @@ using System.Globalization;
 using EdsDcfNet.Models;
 
 /// <summary>
-/// Validates CANopen models against common CiA 306 constraints.
+/// Validates CANopen models against common CiA 306 and CiA 311 constraints.
 /// </summary>
 public static class CanOpenModelValidator
 {
@@ -35,6 +35,8 @@ public static class CanOpenModelValidator
         var issues = new List<ValidationIssue>();
         ValidateDeviceInfo(eds.DeviceInfo, issues);
         ValidateObjectDictionary(eds.ObjectDictionary, issues);
+        if (eds.ApplicationProcess != null)
+            ValidateApplicationProcess(eds.ApplicationProcess, "ApplicationProcess", issues);
 
         return new ReadOnlyCollection<ValidationIssue>(issues);
     }
@@ -52,6 +54,24 @@ public static class CanOpenModelValidator
         ValidateDeviceInfo(dcf.DeviceInfo, issues);
         ValidateObjectDictionary(dcf.ObjectDictionary, issues);
         ValidateDeviceCommissioning(dcf.DeviceCommissioning, issues);
+        if (dcf.ApplicationProcess != null)
+            ValidateApplicationProcess(dcf.ApplicationProcess, "ApplicationProcess", issues);
+
+        return new ReadOnlyCollection<ValidationIssue>(issues);
+    }
+
+    /// <summary>
+    /// Validates a <see cref="NodelistProject"/> instance.
+    /// </summary>
+    /// <param name="cpj">Model instance to validate.</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(NodelistProject cpj)
+    {
+        ThrowIfNull(cpj, nameof(cpj));
+
+        var issues = new List<ValidationIssue>();
+        for (var networkIndex = 0; networkIndex < cpj.Networks.Count; networkIndex++)
+            ValidateNetworkTopology(cpj.Networks[networkIndex], "Networks[" + networkIndex.ToString(CultureInfo.InvariantCulture) + "]", issues);
 
         return new ReadOnlyCollection<ValidationIssue>(issues);
     }
@@ -254,14 +274,459 @@ public static class CanOpenModelValidator
                objectType == 0x9;
     }
 
+    private static void ValidateNetworkTopology(
+        NetworkTopology network,
+        string path,
+        List<ValidationIssue> issues)
+    {
+        ValidateMaxLength(network.NetName, MaxNetworkNameLength, path + ".NetName", issues);
+        ValidateMaxLength(network.NetRefd, MaxReferenceNameLength, path + ".NetRefd", issues);
+
+        foreach (var kvp in network.Nodes.OrderBy(n => n.Key))
+        {
+            var nodePath = string.Format(
+                CultureInfo.InvariantCulture,
+                "{0}.Nodes[{1}]",
+                path,
+                kvp.Key);
+
+            if (kvp.Key < 1 || kvp.Key > 127)
+            {
+                issues.Add(new ValidationIssue(
+                    nodePath,
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Node dictionary key {0} is outside the CANopen range 1..127.",
+                        kvp.Key)));
+            }
+
+            if (kvp.Key != kvp.Value.NodeId)
+            {
+                issues.Add(new ValidationIssue(
+                    nodePath + ".NodeId",
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "NodeId {0} does not match the dictionary key {1}.",
+                        kvp.Value.NodeId,
+                        kvp.Key)));
+            }
+
+            if (kvp.Value.NodeId < 1 || kvp.Value.NodeId > 127)
+            {
+                issues.Add(new ValidationIssue(
+                    nodePath + ".NodeId",
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Node-ID {0} is outside the CANopen range 1..127.",
+                        kvp.Value.NodeId)));
+            }
+
+            ValidateMaxLength(kvp.Value.Name, MaxNodeNameLength, nodePath + ".Name", issues);
+            ValidateMaxLength(kvp.Value.Refd, MaxReferenceNameLength, nodePath + ".Refd", issues);
+        }
+    }
+
+    private static void ValidateApplicationProcess(
+        ApplicationProcess applicationProcess,
+        string path,
+        List<ValidationIssue> issues)
+    {
+        var allUniqueIds = new HashSet<string>(StringComparer.Ordinal);
+        var dataTypeIds = new HashSet<string>(StringComparer.Ordinal);
+        var parameterTemplateIds = new HashSet<string>(StringComparer.Ordinal);
+        var allowedValuesTemplateIds = new HashSet<string>(StringComparer.Ordinal);
+
+        if (applicationProcess.DataTypeList != null)
+        {
+            ValidateDataTypeList(
+                applicationProcess.DataTypeList,
+                path + ".DataTypeList",
+                allUniqueIds,
+                dataTypeIds,
+                issues);
+        }
+
+        if (applicationProcess.TemplateList != null)
+        {
+            ValidateTemplateList(
+                applicationProcess.TemplateList,
+                path + ".TemplateList",
+                allUniqueIds,
+                dataTypeIds,
+                issues);
+
+            foreach (var template in applicationProcess.TemplateList.ParameterTemplates)
+            {
+                if (!string.IsNullOrEmpty(template.UniqueId))
+                    parameterTemplateIds.Add(template.UniqueId);
+            }
+
+            foreach (var template in applicationProcess.TemplateList.AllowedValuesTemplates)
+            {
+                if (!string.IsNullOrEmpty(template.UniqueId))
+                    allowedValuesTemplateIds.Add(template.UniqueId);
+            }
+        }
+
+        var functionTypeIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < applicationProcess.FunctionTypeList.Count; index++)
+        {
+            var functionType = applicationProcess.FunctionTypeList[index];
+            var functionTypePath = IndexedPath(path + ".FunctionTypeList", index);
+            RegisterUniqueId(functionType.UniqueId, functionTypePath + ".UniqueId", allUniqueIds, issues);
+            if (!string.IsNullOrEmpty(functionType.UniqueId))
+                functionTypeIds.Add(functionType.UniqueId);
+
+            if (functionType.VersionInfos.Count == 0)
+            {
+                issues.Add(new ValidationIssue(
+                    functionTypePath + ".VersionInfos",
+                    "At least one versionInfo entry is required."));
+            }
+
+            if (functionType.InterfaceList != null)
+            {
+                ValidateInterfaceList(
+                    functionType.InterfaceList,
+                    functionTypePath + ".InterfaceList",
+                    allUniqueIds,
+                    dataTypeIds,
+                    issues);
+            }
+        }
+
+        for (var index = 0; index < applicationProcess.FunctionTypeList.Count; index++)
+        {
+            var functionType = applicationProcess.FunctionTypeList[index];
+            if (functionType.FunctionInstanceList != null)
+            {
+                var functionTypePath = IndexedPath(path + ".FunctionTypeList", index);
+                ValidateFunctionInstanceList(
+                    functionType.FunctionInstanceList,
+                    functionTypePath + ".FunctionInstanceList",
+                    functionTypeIds,
+                    allUniqueIds,
+                    issues);
+            }
+        }
+
+        var parameterIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < applicationProcess.ParameterList.Count; index++)
+        {
+            var parameter = applicationProcess.ParameterList[index];
+            var parameterPath = IndexedPath(path + ".ParameterList", index);
+            RegisterUniqueId(
+                parameter.UniqueId,
+                parameterPath + ".UniqueId",
+                allUniqueIds,
+                issues);
+            if (!string.IsNullOrEmpty(parameter.UniqueId))
+                parameterIds.Add(parameter.UniqueId);
+
+            ValidateDataTypeRef(parameter.TypeRef, parameterPath + ".TypeRef", dataTypeIds, issues);
+            ValidateParameterTemplateIdRef(
+                parameter.TemplateIdRef,
+                parameterPath + ".TemplateIdRef",
+                parameterTemplateIds,
+                issues);
+            if (parameter.AllowedValues != null)
+            {
+                ValidateAllowedValuesTemplateIdRef(
+                    parameter.AllowedValues.TemplateIdRef,
+                    parameterPath + ".AllowedValues.TemplateIdRef",
+                    allowedValuesTemplateIds,
+                    issues);
+            }
+        }
+
+        for (var index = 0; index < applicationProcess.ParameterGroupList.Count; index++)
+        {
+            ValidateParameterGroup(
+                applicationProcess.ParameterGroupList[index],
+                IndexedPath(path + ".ParameterGroupList", index),
+                allUniqueIds,
+                parameterIds,
+                issues);
+        }
+
+        if (applicationProcess.FunctionInstanceList != null)
+        {
+            ValidateFunctionInstanceList(
+                applicationProcess.FunctionInstanceList,
+                path + ".FunctionInstanceList",
+                functionTypeIds,
+                allUniqueIds,
+                issues);
+        }
+    }
+
+    private static void ValidateDataTypeList(
+        ApDataTypeList dataTypeList,
+        string path,
+        HashSet<string> allUniqueIds,
+        HashSet<string> dataTypeIds,
+        List<ValidationIssue> issues)
+    {
+        for (var index = 0; index < dataTypeList.Arrays.Count; index++)
+        {
+            var arrayType = dataTypeList.Arrays[index];
+            var arrayPath = IndexedPath(path + ".Arrays", index);
+            RegisterUniqueId(arrayType.UniqueId, arrayPath + ".UniqueId", allUniqueIds, issues);
+            if (!string.IsNullOrEmpty(arrayType.UniqueId))
+                dataTypeIds.Add(arrayType.UniqueId);
+        }
+
+        for (var index = 0; index < dataTypeList.Structs.Count; index++)
+        {
+            var structType = dataTypeList.Structs[index];
+            var structPath = IndexedPath(path + ".Structs", index);
+            RegisterUniqueId(structType.UniqueId, structPath + ".UniqueId", allUniqueIds, issues);
+            if (!string.IsNullOrEmpty(structType.UniqueId))
+                dataTypeIds.Add(structType.UniqueId);
+        }
+
+        for (var index = 0; index < dataTypeList.Enums.Count; index++)
+        {
+            var enumType = dataTypeList.Enums[index];
+            var enumPath = IndexedPath(path + ".Enums", index);
+            RegisterUniqueId(enumType.UniqueId, enumPath + ".UniqueId", allUniqueIds, issues);
+            if (!string.IsNullOrEmpty(enumType.UniqueId))
+                dataTypeIds.Add(enumType.UniqueId);
+        }
+
+        for (var index = 0; index < dataTypeList.Derived.Count; index++)
+        {
+            var derivedType = dataTypeList.Derived[index];
+            var derivedPath = IndexedPath(path + ".Derived", index);
+            RegisterUniqueId(derivedType.UniqueId, derivedPath + ".UniqueId", allUniqueIds, issues);
+            if (!string.IsNullOrEmpty(derivedType.UniqueId))
+                dataTypeIds.Add(derivedType.UniqueId);
+
+            if (derivedType.Count != null)
+            {
+                RegisterUniqueId(
+                    derivedType.Count.UniqueId,
+                    derivedPath + ".Count.UniqueId",
+                    allUniqueIds,
+                    issues);
+            }
+        }
+
+        for (var index = 0; index < dataTypeList.Arrays.Count; index++)
+        {
+            var arrayType = dataTypeList.Arrays[index];
+            var arrayPath = IndexedPath(path + ".Arrays", index);
+            ValidateDataTypeRef(arrayType.ElementType, arrayPath + ".ElementType", dataTypeIds, issues);
+        }
+
+        for (var index = 0; index < dataTypeList.Structs.Count; index++)
+        {
+            ValidateVarDeclarations(
+                dataTypeList.Structs[index].VarDeclarations,
+                IndexedPath(path + ".Structs", index) + ".VarDeclarations",
+                allUniqueIds,
+                dataTypeIds,
+                issues);
+        }
+
+        for (var index = 0; index < dataTypeList.Derived.Count; index++)
+        {
+            var derivedPath = IndexedPath(path + ".Derived", index);
+            ValidateDataTypeRef(
+                dataTypeList.Derived[index].BaseType,
+                derivedPath + ".BaseType",
+                dataTypeIds,
+                issues);
+        }
+    }
+
+    private static void ValidateTemplateList(
+        ApTemplateList templateList,
+        string path,
+        HashSet<string> allUniqueIds,
+        HashSet<string> dataTypeIds,
+        List<ValidationIssue> issues)
+    {
+        for (var index = 0; index < templateList.ParameterTemplates.Count; index++)
+        {
+            var template = templateList.ParameterTemplates[index];
+            var templatePath = IndexedPath(path + ".ParameterTemplates", index);
+            RegisterUniqueId(template.UniqueId, templatePath + ".UniqueId", allUniqueIds, issues);
+            ValidateDataTypeRef(template.TypeRef, templatePath + ".TypeRef", dataTypeIds, issues);
+        }
+
+        for (var index = 0; index < templateList.AllowedValuesTemplates.Count; index++)
+        {
+            var template = templateList.AllowedValuesTemplates[index];
+            var templatePath = IndexedPath(path + ".AllowedValuesTemplates", index);
+            RegisterUniqueId(template.UniqueId, templatePath + ".UniqueId", allUniqueIds, issues);
+        }
+    }
+
+    private static void ValidateInterfaceList(
+        ApInterfaceList interfaceList,
+        string path,
+        HashSet<string> allUniqueIds,
+        HashSet<string> dataTypeIds,
+        List<ValidationIssue> issues)
+    {
+        ValidateVarDeclarations(interfaceList.InputVars, path + ".InputVars", allUniqueIds, dataTypeIds, issues);
+        ValidateVarDeclarations(interfaceList.OutputVars, path + ".OutputVars", allUniqueIds, dataTypeIds, issues);
+        ValidateVarDeclarations(interfaceList.ConfigVars, path + ".ConfigVars", allUniqueIds, dataTypeIds, issues);
+    }
+
+    private static void ValidateVarDeclarations(
+        List<ApVarDeclaration> varDeclarations,
+        string path,
+        HashSet<string> allUniqueIds,
+        HashSet<string> dataTypeIds,
+        List<ValidationIssue> issues)
+    {
+        for (var index = 0; index < varDeclarations.Count; index++)
+        {
+            var varDeclaration = varDeclarations[index];
+            var varPath = IndexedPath(path, index);
+            RegisterUniqueId(varDeclaration.UniqueId, varPath + ".UniqueId", allUniqueIds, issues);
+            ValidateDataTypeRef(varDeclaration.Type, varPath + ".Type", dataTypeIds, issues);
+        }
+    }
+
+    private static void ValidateDataTypeRef(
+        ApTypeRef? typeRef,
+        string path,
+        HashSet<string> dataTypeIds,
+        List<ValidationIssue> issues)
+    {
+        if (typeRef?.DataTypeIdRef is not { Length: > 0 } dataTypeIdRef)
+            return;
+
+        if (!dataTypeIds.Contains(dataTypeIdRef))
+        {
+            issues.Add(new ValidationIssue(
+                path,
+                "Data type reference '" + dataTypeIdRef + "' does not match any dataTypeList uniqueID."));
+        }
+    }
+
+    private static void ValidateParameterTemplateIdRef(
+        string? templateIdRef,
+        string path,
+        HashSet<string> parameterTemplateIds,
+        List<ValidationIssue> issues)
+    {
+        if (templateIdRef is not { Length: > 0 })
+            return;
+
+        if (!parameterTemplateIds.Contains(templateIdRef))
+        {
+            issues.Add(new ValidationIssue(
+                path,
+                "Parameter template reference '" + templateIdRef + "' does not match any parameterTemplate uniqueID."));
+        }
+    }
+
+    private static void ValidateAllowedValuesTemplateIdRef(
+        string? templateIdRef,
+        string path,
+        HashSet<string> allowedValuesTemplateIds,
+        List<ValidationIssue> issues)
+    {
+        if (templateIdRef is not { Length: > 0 })
+            return;
+
+        if (!allowedValuesTemplateIds.Contains(templateIdRef))
+        {
+            issues.Add(new ValidationIssue(
+                path,
+                "Allowed values template reference '" + templateIdRef + "' does not match any allowedValuesTemplate uniqueID."));
+        }
+    }
+
+    private static string IndexedPath(string path, int index)
+        => path + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+
+    private static void ValidateParameterGroup(
+        ApParameterGroup group,
+        string path,
+        HashSet<string> allUniqueIds,
+        HashSet<string> parameterIds,
+        List<ValidationIssue> issues)
+    {
+        RegisterUniqueId(group.UniqueId, path + ".UniqueId", allUniqueIds, issues);
+
+        foreach (var parameterRef in group.ParameterRefs)
+        {
+            if (string.IsNullOrEmpty(parameterRef))
+            {
+                issues.Add(new ValidationIssue(path + ".ParameterRefs", "Parameter reference must not be empty."));
+                continue;
+            }
+
+            if (!parameterIds.Contains(parameterRef))
+            {
+                issues.Add(new ValidationIssue(
+                    path + ".ParameterRefs",
+                    "Parameter reference '" + parameterRef + "' does not match any parameter uniqueID."));
+            }
+        }
+
+        for (var index = 0; index < group.SubGroups.Count; index++)
+        {
+            ValidateParameterGroup(
+                group.SubGroups[index],
+                IndexedPath(path + ".SubGroups", index),
+                allUniqueIds,
+                parameterIds,
+                issues);
+        }
+    }
+
+    private static void ValidateFunctionInstanceList(
+        ApFunctionInstanceList instanceList,
+        string path,
+        HashSet<string> functionTypeIds,
+        HashSet<string> allUniqueIds,
+        List<ValidationIssue> issues)
+    {
+        for (var index = 0; index < instanceList.FunctionInstances.Count; index++)
+        {
+            var instance = instanceList.FunctionInstances[index];
+            var instancePath = IndexedPath(path + ".FunctionInstances", index);
+            RegisterUniqueId(instance.UniqueId, instancePath + ".UniqueId", allUniqueIds, issues);
+
+            if (string.IsNullOrEmpty(instance.TypeIdRef))
+            {
+                issues.Add(new ValidationIssue(instancePath + ".TypeIdRef", "Function instance type reference must not be empty."));
+            }
+            else if (!functionTypeIds.Contains(instance.TypeIdRef))
+            {
+                issues.Add(new ValidationIssue(
+                    instancePath + ".TypeIdRef",
+                    "Function instance references unknown function type '" + instance.TypeIdRef + "'."));
+            }
+        }
+    }
+
+    private static void RegisterUniqueId(
+        string uniqueId,
+        string path,
+        HashSet<string> seenIds,
+        List<ValidationIssue> issues)
+    {
+        if (string.IsNullOrEmpty(uniqueId))
+        {
+            issues.Add(new ValidationIssue(path, "Unique ID must not be empty."));
+            return;
+        }
+
+        if (!seenIds.Add(uniqueId))
+            issues.Add(new ValidationIssue(path, "Duplicate unique ID '" + uniqueId + "'."));
+    }
+
     private static void ThrowIfNull(object? value, string paramName)
     {
-#if NET10_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(value, paramName);
-#else
-        if (value == null)
+        if (value is null)
             throw new ArgumentNullException(paramName);
-#endif
     }
 
     private static void ValidateMaxLength(

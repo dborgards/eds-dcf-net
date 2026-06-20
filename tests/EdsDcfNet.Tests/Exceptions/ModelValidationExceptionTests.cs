@@ -1,0 +1,99 @@
+namespace EdsDcfNet.Tests.Exceptions;
+
+using System.Collections.ObjectModel;
+using System.Globalization;
+using EdsDcfNet;
+using EdsDcfNet.Exceptions;
+using EdsDcfNet.Models;
+using EdsDcfNet.Validation;
+
+public class ModelValidationExceptionTests
+{
+    [Fact]
+    public void Constructor_WithSingleIssue_FormatsMessage()
+    {
+        var issues = new[] { new ValidationIssue("DeviceCommissioning.NodeId", "Invalid node id.") };
+
+        var exception = new ModelValidationException(issues);
+
+        exception.Message.Should().Contain("DeviceCommissioning.NodeId");
+        exception.Message.Should().Be(string.Format(
+            CultureInfo.InvariantCulture,
+            "Model validation failed: {0}",
+            issues[0]));
+        exception.Issues.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Constructor_WithMultipleIssues_IncludesCountInMessage()
+    {
+        var issues = new[]
+        {
+            new ValidationIssue("A", "First"),
+            new ValidationIssue("B", "Second")
+        };
+
+        var exception = new ModelValidationException(issues);
+
+        exception.Message.Should().Contain("2 issue(s)");
+        exception.Message.Should().Be(string.Format(
+            CultureInfo.InvariantCulture,
+            "Model validation failed with {0} issue(s). First issue: {1}",
+            2,
+            issues[0]));
+        exception.Issues.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void Constructor_WithNoIssues_UsesDefaultMessage()
+    {
+        var exception = new ModelValidationException(Array.Empty<ValidationIssue>());
+
+        exception.Message.Should().Be("Model validation failed.");
+        exception.Issues.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Issues_ReturnsSnapshotNotLiveList()
+    {
+        var issues = new List<ValidationIssue> { new("Path", "Message") };
+        var exception = new ModelValidationException(issues);
+
+        issues.Add(new ValidationIssue("Other", "Changed"));
+
+        exception.Issues.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Constructor_WithSingleIssueFromReadOnlyCollection_FormatsMessageAndSnapshotsIssues()
+    {
+        var issues = new ReadOnlyCollection<ValidationIssue>(
+            new List<ValidationIssue> { new("DeviceCommissioning.NodeId", "Invalid node id.") });
+
+        var exception = new ModelValidationException(issues);
+
+        exception.Message.Should().Be(string.Format(
+            CultureInfo.InvariantCulture,
+            "Model validation failed: {0}",
+            issues[0]));
+        exception.Issues.Should().ContainSingle().Which.Should().Be(issues[0]);
+    }
+
+    [Fact]
+    public void EnsureValid_SingleIssueFromValidationReadOnlyCollection_FormatsMessageAndIssues()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+
+        var act = () => CanOpenFile.EnsureValid(dcf);
+
+        var exception = act.Should().Throw<ModelValidationException>().Which;
+        exception.Issues.Should().ContainSingle();
+        exception.Message.Should().Be(string.Format(
+            CultureInfo.InvariantCulture,
+            "Model validation failed: {0}",
+            exception.Issues[0]));
+    }
+}
