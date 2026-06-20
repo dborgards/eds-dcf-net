@@ -344,13 +344,20 @@ public static class CanOpenModelValidator
                     functionTypePath + ".VersionInfos",
                     "At least one versionInfo entry is required."));
             }
+        }
 
+        var instanceIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < applicationProcess.FunctionTypeList.Count; index++)
+        {
+            var functionType = applicationProcess.FunctionTypeList[index];
             if (functionType.FunctionInstanceList != null)
             {
+                var functionTypePath = path + ".FunctionTypeList[" + index.ToString(CultureInfo.InvariantCulture) + "]";
                 ValidateFunctionInstanceList(
                     functionType.FunctionInstanceList,
                     functionTypePath + ".FunctionInstanceList",
                     functionTypeIds,
+                    instanceIds,
                     issues);
             }
         }
@@ -383,6 +390,7 @@ public static class CanOpenModelValidator
                 applicationProcess.FunctionInstanceList,
                 path + ".FunctionInstanceList",
                 functionTypeIds,
+                instanceIds,
                 issues);
         }
     }
@@ -427,9 +435,9 @@ public static class CanOpenModelValidator
         ApFunctionInstanceList instanceList,
         string path,
         HashSet<string> functionTypeIds,
+        HashSet<string> instanceIds,
         List<ValidationIssue> issues)
     {
-        var instanceIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < instanceList.FunctionInstances.Count; index++)
         {
             var instance = instanceList.FunctionInstances[index];

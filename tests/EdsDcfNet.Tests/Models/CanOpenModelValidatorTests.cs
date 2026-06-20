@@ -450,6 +450,66 @@ public class CanOpenModelValidatorTests
     }
 
     [Fact]
+    public void Validate_ApplicationProcess_NestedInstanceTypeRefToLaterFunctionType_ReturnsNoTypeRefIssue()
+    {
+        // Arrange — nested instance under FT_1 references FT_2 defined later in the list
+        var eds = new ElectronicDataSheet();
+        eds.ApplicationProcess = new ApplicationProcess();
+
+        var firstType = new ApFunctionType { UniqueId = "FT_1" };
+        firstType.VersionInfos.Add(new ApVersionInfo());
+        firstType.FunctionInstanceList = new ApFunctionInstanceList();
+        firstType.FunctionInstanceList.FunctionInstances.Add(new ApFunctionInstance
+        {
+            UniqueId = "FI_NESTED",
+            TypeIdRef = "FT_2"
+        });
+
+        var secondType = new ApFunctionType { UniqueId = "FT_2" };
+        secondType.VersionInfos.Add(new ApVersionInfo());
+
+        eds.ApplicationProcess.FunctionTypeList.Add(firstType);
+        eds.ApplicationProcess.FunctionTypeList.Add(secondType);
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        // Assert
+        issues.Should().NotContain(i => i.Path.Contains("TypeIdRef", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_DuplicateInstanceIdsAcrossLists_ReturnIssue()
+    {
+        // Arrange — same UniqueId in nested and top-level instance lists
+        var eds = new ElectronicDataSheet();
+        eds.ApplicationProcess = new ApplicationProcess();
+
+        var functionType = new ApFunctionType { UniqueId = "FT_1" };
+        functionType.VersionInfos.Add(new ApVersionInfo());
+        functionType.FunctionInstanceList = new ApFunctionInstanceList();
+        functionType.FunctionInstanceList.FunctionInstances.Add(new ApFunctionInstance
+        {
+            UniqueId = "FI_DUP",
+            TypeIdRef = "FT_1"
+        });
+        eds.ApplicationProcess.FunctionTypeList.Add(functionType);
+
+        eds.ApplicationProcess.FunctionInstanceList = new ApFunctionInstanceList();
+        eds.ApplicationProcess.FunctionInstanceList.FunctionInstances.Add(new ApFunctionInstance
+        {
+            UniqueId = "FI_DUP",
+            TypeIdRef = "FT_1"
+        });
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        // Assert
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.FunctionInstanceList.FunctionInstances[0].UniqueId");
+    }
+
+    [Fact]
     public void Validate_Cpj_FacadeAndModelValidate_ReturnSameIssues()
     {
         // Arrange
