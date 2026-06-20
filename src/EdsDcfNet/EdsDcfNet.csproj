@@ -30,7 +30,7 @@
 		  <PrivateAssets>all</PrivateAssets>
 		</PackageReference>
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.*" PrivateAssets="All" />
-		<PackageReference Include="Polyfill" Version="10.8.1" PrivateAssets="all">
+		<PackageReference Include="Polyfill" Version="10.10.0" PrivateAssets="all">
 		  <IncludeAssets>compile; build; analyzers; contentfiles</IncludeAssets>
 		</PackageReference>
 	</ItemGroup>
