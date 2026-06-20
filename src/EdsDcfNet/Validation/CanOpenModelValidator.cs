@@ -570,14 +570,14 @@ public static class CanOpenModelValidator
         HashSet<string> dataTypeIds,
         List<ValidationIssue> issues)
     {
-        if (typeRef == null || string.IsNullOrEmpty(typeRef.DataTypeIdRef))
+        if (typeRef?.DataTypeIdRef is not { Length: > 0 } dataTypeIdRef)
             return;
 
-        if (!dataTypeIds.Contains(typeRef.DataTypeIdRef))
+        if (!dataTypeIds.Contains(dataTypeIdRef))
         {
             issues.Add(new ValidationIssue(
                 path,
-                "Data type reference '" + typeRef.DataTypeIdRef + "' does not match any dataTypeList uniqueID."));
+                "Data type reference '" + dataTypeIdRef + "' does not match any dataTypeList uniqueID."));
         }
     }
 
