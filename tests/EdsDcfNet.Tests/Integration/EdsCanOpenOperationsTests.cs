@@ -54,4 +54,55 @@ public class EdsCanOpenOperationsTests
 
         viaEntryPoint.Should().Be(viaFacade);
     }
+
+    [Fact]
+    public void ReadEdsFromString_WithCanOpenFileOptionsOverload_MatchesMaxInputSizeOverload()
+    {
+        var content = File.ReadAllText("Fixtures/sample_device.eds");
+        var options = new CanOpenFileOptions { MaxInputSize = IniParser.DefaultMaxInputSize };
+
+        var optionsResult = CanOpenFile.ReadEdsFromString(content, options);
+        var legacyResult = CanOpenFile.ReadEdsFromString(content, IniParser.DefaultMaxInputSize);
+
+        legacyResult.DeviceInfo.ProductName.Should().Be(optionsResult.DeviceInfo.ProductName);
+    }
+
+    [Fact]
+    public void ReadEds_Stream_WithCanOpenFileOptionsOverload_MatchesMaxInputSizeOverload()
+    {
+        var content = File.ReadAllText("Fixtures/sample_device.eds");
+        using var optionsStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+        using var legacyStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+        var options = new CanOpenFileOptions { MaxInputSize = IniParser.DefaultMaxInputSize };
+
+        var optionsResult = CanOpenFile.ReadEds(optionsStream, options);
+        var legacyResult = CanOpenFile.ReadEds(legacyStream, IniParser.DefaultMaxInputSize);
+
+        legacyResult.DeviceInfo.ProductName.Should().Be(optionsResult.DeviceInfo.ProductName);
+    }
+
+    [Fact]
+    public async Task ReadEdsAsync_File_WithCanOpenFileOptionsOverload_MatchesMaxInputSizeOverload()
+    {
+        var options = new CanOpenFileOptions { MaxInputSize = IniParser.DefaultMaxInputSize };
+
+        var optionsResult = await CanOpenFile.ReadEdsAsync("Fixtures/sample_device.eds", options);
+        var legacyResult = await CanOpenFile.ReadEdsAsync("Fixtures/sample_device.eds", IniParser.DefaultMaxInputSize);
+
+        legacyResult.DeviceInfo.ProductName.Should().Be(optionsResult.DeviceInfo.ProductName);
+    }
+
+    [Fact]
+    public async Task ReadEdsAsync_Stream_WithCanOpenFileOptionsOverload_MatchesMaxInputSizeOverload()
+    {
+        var content = File.ReadAllText("Fixtures/sample_device.eds");
+        using var optionsStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+        using var legacyStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+        var options = new CanOpenFileOptions { MaxInputSize = IniParser.DefaultMaxInputSize };
+
+        var optionsResult = await CanOpenFile.ReadEdsAsync(optionsStream, options);
+        var legacyResult = await CanOpenFile.ReadEdsAsync(legacyStream, IniParser.DefaultMaxInputSize);
+
+        legacyResult.DeviceInfo.ProductName.Should().Be(optionsResult.DeviceInfo.ProductName);
+    }
 }
