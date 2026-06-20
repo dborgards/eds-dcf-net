@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Exceptions;
 
+using System.Globalization;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Validation;
 
@@ -29,6 +30,11 @@ public class ModelValidationExceptionTests
         var exception = new ModelValidationException(issues);
 
         exception.Message.Should().Contain("2 issue(s)");
+        exception.Message.Should().Be(string.Format(
+            CultureInfo.InvariantCulture,
+            "Model validation failed with {0} issue(s). First issue: {1}",
+            2,
+            issues[0]));
         exception.Issues.Should().HaveCount(2);
     }
 

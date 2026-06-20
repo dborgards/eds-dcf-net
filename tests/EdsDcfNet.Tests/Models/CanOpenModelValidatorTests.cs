@@ -765,6 +765,49 @@ public class CanOpenModelValidatorTests
     }
 
     [Fact]
+    public void Validate_ApplicationProcess_ComplexGraphWithInterfacesAndDataTypes_ReturnsNoIssues()
+    {
+        var eds = new ElectronicDataSheet { ApplicationProcess = new ApplicationProcess() };
+        eds.ApplicationProcess.DataTypeList = new ApDataTypeList();
+        eds.ApplicationProcess.DataTypeList.Structs.Add(new ApStructType { UniqueId = "DT_STRUCT", Name = "Status" });
+        eds.ApplicationProcess.DataTypeList.Arrays.Add(new ApArrayType
+        {
+            UniqueId = "DT_ARRAY",
+            Name = "Values",
+            ElementType = new ApTypeRef { DataTypeIdRef = "DT_STRUCT" }
+        });
+        eds.ApplicationProcess.DataTypeList.Derived.Add(new ApDerivedType
+        {
+            UniqueId = "DT_DERIVED",
+            Name = "AliasStruct",
+            BaseType = new ApTypeRef { DataTypeIdRef = "DT_STRUCT" }
+        });
+        eds.ApplicationProcess.TemplateList = new ApTemplateList();
+        eds.ApplicationProcess.TemplateList.AllowedValuesTemplates.Add(
+            new ApAllowedValuesTemplate { UniqueId = "AVT_1" });
+
+        var functionType = new ApFunctionType { UniqueId = "FT_1", Name = "Controller" };
+        functionType.VersionInfos.Add(new ApVersionInfo());
+        functionType.InterfaceList = new ApInterfaceList();
+        functionType.InterfaceList.InputVars.Add(new ApVarDeclaration
+        {
+            UniqueId = "VAR_IN",
+            Name = "Input",
+            Type = new ApTypeRef { SimpleTypeName = "UINT" }
+        });
+        eds.ApplicationProcess.FunctionTypeList.Add(functionType);
+        eds.ApplicationProcess.ParameterList.Add(new ApParameter
+        {
+            UniqueId = "P_1",
+            TypeRef = new ApTypeRef { DataTypeIdRef = "DT_STRUCT" }
+        });
+
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        issues.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Validate_Cpj_FacadeAndModelValidate_ReturnSameIssues()
     {
         // Arrange

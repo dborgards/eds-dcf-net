@@ -289,6 +289,34 @@ public class WriteValidationGuardTests
     }
 
     [Fact]
+    public void WriteEdsToString_WithDefaultOptions_SkipsValidationForInvalidModel()
+    {
+        var eds = new ElectronicDataSheet();
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Unclassified",
+            ObjectType = 0x7
+        };
+
+        var act = () => CanOpenFile.WriteEdsToString(eds, CanOpenWriteOptions.Default);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void WriteCpjToString_WithDefaultOptions_SkipsValidationForInvalidModel()
+    {
+        var cpj = new NodelistProject();
+        cpj.Networks.Add(new NetworkTopology());
+        cpj.Networks[0].Nodes[0] = new NetworkNode { NodeId = 0, Present = true };
+
+        var act = () => CanOpenFile.WriteCpjToString(cpj, CanOpenWriteOptions.Default);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
     public void WriteXdd_WithValidatedOptions_Stream_Succeeds()
     {
         var xdd = CreateValidEds();
