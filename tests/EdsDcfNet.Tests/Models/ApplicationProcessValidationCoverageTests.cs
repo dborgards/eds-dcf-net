@@ -193,6 +193,55 @@ public class ApplicationProcessValidationCoverageTests
     }
 
     [Fact]
+    public void Validate_ApplicationProcess_ParameterWithNullAllowedValuesTemplateIdRef_ReturnsNoTemplateRefIssue()
+    {
+        var ap = new ApplicationProcess();
+        ap.ParameterList.Add(new ApParameter
+        {
+            UniqueId = "P_1",
+            AllowedValues = new ApAllowedValues { TemplateIdRef = null }
+        });
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().NotContain(i =>
+            i.Path == "ApplicationProcess.ParameterList[0].AllowedValues.TemplateIdRef");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_ParameterWithEmptyAllowedValuesTemplateIdRef_ReturnsNoTemplateRefIssue()
+    {
+        var ap = new ApplicationProcess();
+        ap.ParameterList.Add(new ApParameter
+        {
+            UniqueId = "P_1",
+            AllowedValues = new ApAllowedValues { TemplateIdRef = string.Empty }
+        });
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().NotContain(i =>
+            i.Path == "ApplicationProcess.ParameterList[0].AllowedValues.TemplateIdRef");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_ParameterWithValidAllowedValuesTemplateRef_ReturnsNoTemplateRefIssue()
+    {
+        var ap = new ApplicationProcess { TemplateList = new ApTemplateList() };
+        ap.TemplateList.AllowedValuesTemplates.Add(new ApAllowedValuesTemplate { UniqueId = "TPL_AV" });
+        ap.ParameterList.Add(new ApParameter
+        {
+            UniqueId = "P_1",
+            AllowedValues = new ApAllowedValues { TemplateIdRef = "TPL_AV" }
+        });
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().NotContain(i =>
+            i.Path == "ApplicationProcess.ParameterList[0].AllowedValues.TemplateIdRef");
+    }
+
+    [Fact]
     public void Validate_ApplicationProcess_InterfaceInputVarMissingDataTypeRef_ReturnIssue()
     {
         var ap = new ApplicationProcess();
