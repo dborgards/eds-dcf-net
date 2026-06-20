@@ -40,8 +40,8 @@ class Program
                 FileRevision = 0,
                 EdsVersion = "4.0",
                 Description = "Example CANopen Device",
-                CreationDate = DateTime.Now.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
-                CreationTime = DateTime.Now.ToString("hh:mmtt", CultureInfo.InvariantCulture),
+                CreationDate = DateTime.UtcNow.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
+                CreationTime = DateTime.UtcNow.ToString("hh:mmtt", CultureInfo.InvariantCulture),
                 CreatedBy = "EdsDcfNet Example"
             },
             DeviceInfo = new DeviceInfo
