@@ -333,6 +333,8 @@ public static class CanOpenModelValidator
     {
         var allUniqueIds = new HashSet<string>(StringComparer.Ordinal);
         var dataTypeIds = new HashSet<string>(StringComparer.Ordinal);
+        var parameterTemplateIds = new HashSet<string>(StringComparer.Ordinal);
+        var allowedValuesTemplateIds = new HashSet<string>(StringComparer.Ordinal);
 
         if (applicationProcess.DataTypeList != null)
         {
@@ -352,13 +354,25 @@ public static class CanOpenModelValidator
                 allUniqueIds,
                 dataTypeIds,
                 issues);
+
+            foreach (var template in applicationProcess.TemplateList.ParameterTemplates)
+            {
+                if (!string.IsNullOrEmpty(template.UniqueId))
+                    parameterTemplateIds.Add(template.UniqueId);
+            }
+
+            foreach (var template in applicationProcess.TemplateList.AllowedValuesTemplates)
+            {
+                if (!string.IsNullOrEmpty(template.UniqueId))
+                    allowedValuesTemplateIds.Add(template.UniqueId);
+            }
         }
 
         var functionTypeIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < applicationProcess.FunctionTypeList.Count; index++)
         {
             var functionType = applicationProcess.FunctionTypeList[index];
-            var functionTypePath = path + ".FunctionTypeList[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            var functionTypePath = IndexedPath(path + ".FunctionTypeList", index);
             RegisterUniqueId(functionType.UniqueId, functionTypePath + ".UniqueId", allUniqueIds, issues);
             if (!string.IsNullOrEmpty(functionType.UniqueId))
                 functionTypeIds.Add(functionType.UniqueId);
@@ -386,7 +400,7 @@ public static class CanOpenModelValidator
             var functionType = applicationProcess.FunctionTypeList[index];
             if (functionType.FunctionInstanceList != null)
             {
-                var functionTypePath = path + ".FunctionTypeList[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+                var functionTypePath = IndexedPath(path + ".FunctionTypeList", index);
                 ValidateFunctionInstanceList(
                     functionType.FunctionInstanceList,
                     functionTypePath + ".FunctionInstanceList",
@@ -400,7 +414,7 @@ public static class CanOpenModelValidator
         for (var index = 0; index < applicationProcess.ParameterList.Count; index++)
         {
             var parameter = applicationProcess.ParameterList[index];
-            var parameterPath = path + ".ParameterList[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            var parameterPath = IndexedPath(path + ".ParameterList", index);
             RegisterUniqueId(
                 parameter.UniqueId,
                 parameterPath + ".UniqueId",
@@ -410,13 +424,26 @@ public static class CanOpenModelValidator
                 parameterIds.Add(parameter.UniqueId);
 
             ValidateDataTypeRef(parameter.TypeRef, parameterPath + ".TypeRef", dataTypeIds, issues);
+            ValidateParameterTemplateIdRef(
+                parameter.TemplateIdRef,
+                parameterPath + ".TemplateIdRef",
+                parameterTemplateIds,
+                issues);
+            if (parameter.AllowedValues != null)
+            {
+                ValidateAllowedValuesTemplateIdRef(
+                    parameter.AllowedValues.TemplateIdRef,
+                    parameterPath + ".AllowedValues.TemplateIdRef",
+                    allowedValuesTemplateIds,
+                    issues);
+            }
         }
 
         for (var index = 0; index < applicationProcess.ParameterGroupList.Count; index++)
         {
             ValidateParameterGroup(
                 applicationProcess.ParameterGroupList[index],
-                path + ".ParameterGroupList[" + index.ToString(CultureInfo.InvariantCulture) + "]",
+                IndexedPath(path + ".ParameterGroupList", index),
                 allUniqueIds,
                 parameterIds,
                 issues);
@@ -443,7 +470,7 @@ public static class CanOpenModelValidator
         for (var index = 0; index < dataTypeList.Arrays.Count; index++)
         {
             var arrayType = dataTypeList.Arrays[index];
-            var arrayPath = path + ".Arrays[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            var arrayPath = IndexedPath(path + ".Arrays", index);
             RegisterUniqueId(arrayType.UniqueId, arrayPath + ".UniqueId", allUniqueIds, issues);
             if (!string.IsNullOrEmpty(arrayType.UniqueId))
                 dataTypeIds.Add(arrayType.UniqueId);
@@ -452,7 +479,7 @@ public static class CanOpenModelValidator
         for (var index = 0; index < dataTypeList.Structs.Count; index++)
         {
             var structType = dataTypeList.Structs[index];
-            var structPath = path + ".Structs[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            var structPath = IndexedPath(path + ".Structs", index);
             RegisterUniqueId(structType.UniqueId, structPath + ".UniqueId", allUniqueIds, issues);
             if (!string.IsNullOrEmpty(structType.UniqueId))
                 dataTypeIds.Add(structType.UniqueId);
@@ -461,7 +488,7 @@ public static class CanOpenModelValidator
         for (var index = 0; index < dataTypeList.Enums.Count; index++)
         {
             var enumType = dataTypeList.Enums[index];
-            var enumPath = path + ".Enums[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            var enumPath = IndexedPath(path + ".Enums", index);
             RegisterUniqueId(enumType.UniqueId, enumPath + ".UniqueId", allUniqueIds, issues);
             if (!string.IsNullOrEmpty(enumType.UniqueId))
                 dataTypeIds.Add(enumType.UniqueId);
@@ -470,7 +497,7 @@ public static class CanOpenModelValidator
         for (var index = 0; index < dataTypeList.Derived.Count; index++)
         {
             var derivedType = dataTypeList.Derived[index];
-            var derivedPath = path + ".Derived[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            var derivedPath = IndexedPath(path + ".Derived", index);
             RegisterUniqueId(derivedType.UniqueId, derivedPath + ".UniqueId", allUniqueIds, issues);
             if (!string.IsNullOrEmpty(derivedType.UniqueId))
                 dataTypeIds.Add(derivedType.UniqueId);
@@ -488,7 +515,7 @@ public static class CanOpenModelValidator
         for (var index = 0; index < dataTypeList.Arrays.Count; index++)
         {
             var arrayType = dataTypeList.Arrays[index];
-            var arrayPath = path + ".Arrays[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            var arrayPath = IndexedPath(path + ".Arrays", index);
             ValidateDataTypeRef(arrayType.ElementType, arrayPath + ".ElementType", dataTypeIds, issues);
         }
 
@@ -496,7 +523,7 @@ public static class CanOpenModelValidator
         {
             ValidateVarDeclarations(
                 dataTypeList.Structs[index].VarDeclarations,
-                path + ".Structs[" + index.ToString(CultureInfo.InvariantCulture) + "].VarDeclarations",
+                IndexedPath(path + ".Structs", index) + ".VarDeclarations",
                 allUniqueIds,
                 dataTypeIds,
                 issues);
@@ -504,7 +531,7 @@ public static class CanOpenModelValidator
 
         for (var index = 0; index < dataTypeList.Derived.Count; index++)
         {
-            var derivedPath = path + ".Derived[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            var derivedPath = IndexedPath(path + ".Derived", index);
             ValidateDataTypeRef(
                 dataTypeList.Derived[index].BaseType,
                 derivedPath + ".BaseType",
@@ -523,7 +550,7 @@ public static class CanOpenModelValidator
         for (var index = 0; index < templateList.ParameterTemplates.Count; index++)
         {
             var template = templateList.ParameterTemplates[index];
-            var templatePath = path + ".ParameterTemplates[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            var templatePath = IndexedPath(path + ".ParameterTemplates", index);
             RegisterUniqueId(template.UniqueId, templatePath + ".UniqueId", allUniqueIds, issues);
             ValidateDataTypeRef(template.TypeRef, templatePath + ".TypeRef", dataTypeIds, issues);
         }
@@ -531,7 +558,7 @@ public static class CanOpenModelValidator
         for (var index = 0; index < templateList.AllowedValuesTemplates.Count; index++)
         {
             var template = templateList.AllowedValuesTemplates[index];
-            var templatePath = path + ".AllowedValuesTemplates[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            var templatePath = IndexedPath(path + ".AllowedValuesTemplates", index);
             RegisterUniqueId(template.UniqueId, templatePath + ".UniqueId", allUniqueIds, issues);
         }
     }
@@ -558,7 +585,7 @@ public static class CanOpenModelValidator
         for (var index = 0; index < varDeclarations.Count; index++)
         {
             var varDeclaration = varDeclarations[index];
-            var varPath = path + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            var varPath = IndexedPath(path, index);
             RegisterUniqueId(varDeclaration.UniqueId, varPath + ".UniqueId", allUniqueIds, issues);
             ValidateDataTypeRef(varDeclaration.Type, varPath + ".Type", dataTypeIds, issues);
         }
@@ -580,6 +607,43 @@ public static class CanOpenModelValidator
                 "Data type reference '" + dataTypeIdRef + "' does not match any dataTypeList uniqueID."));
         }
     }
+
+    private static void ValidateParameterTemplateIdRef(
+        string? templateIdRef,
+        string path,
+        HashSet<string> parameterTemplateIds,
+        List<ValidationIssue> issues)
+    {
+        if (templateIdRef is not { Length: > 0 })
+            return;
+
+        if (!parameterTemplateIds.Contains(templateIdRef))
+        {
+            issues.Add(new ValidationIssue(
+                path,
+                "Parameter template reference '" + templateIdRef + "' does not match any parameterTemplate uniqueID."));
+        }
+    }
+
+    private static void ValidateAllowedValuesTemplateIdRef(
+        string? templateIdRef,
+        string path,
+        HashSet<string> allowedValuesTemplateIds,
+        List<ValidationIssue> issues)
+    {
+        if (templateIdRef is not { Length: > 0 })
+            return;
+
+        if (!allowedValuesTemplateIds.Contains(templateIdRef))
+        {
+            issues.Add(new ValidationIssue(
+                path,
+                "Allowed values template reference '" + templateIdRef + "' does not match any allowedValuesTemplate uniqueID."));
+        }
+    }
+
+    private static string IndexedPath(string path, int index)
+        => path + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
 
     private static void ValidateParameterGroup(
         ApParameterGroup group,
@@ -610,7 +674,7 @@ public static class CanOpenModelValidator
         {
             ValidateParameterGroup(
                 group.SubGroups[index],
-                path + ".SubGroups[" + index.ToString(CultureInfo.InvariantCulture) + "]",
+                IndexedPath(path + ".SubGroups", index),
                 allUniqueIds,
                 parameterIds,
                 issues);
@@ -627,7 +691,7 @@ public static class CanOpenModelValidator
         for (var index = 0; index < instanceList.FunctionInstances.Count; index++)
         {
             var instance = instanceList.FunctionInstances[index];
-            var instancePath = path + ".FunctionInstances[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            var instancePath = IndexedPath(path + ".FunctionInstances", index);
             RegisterUniqueId(instance.UniqueId, instancePath + ".UniqueId", allUniqueIds, issues);
 
             if (string.IsNullOrEmpty(instance.TypeIdRef))

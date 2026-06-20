@@ -277,7 +277,26 @@ public static class CanOpenFile
         ElectronicDataSheet eds,
         string filePath,
         CancellationToken cancellationToken = default)
+        => WriteEdsAsync(eds, filePath, options: null, cancellationToken);
+
+    /// <summary>
+    /// Writes an Electronic Data Sheet (EDS) to disk asynchronously.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="filePath">Path where the EDS file should be written</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static Task WriteEdsAsync(
+        ElectronicDataSheet eds,
+        string filePath,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
     {
+        EnsureValidEdsForWrite(eds, options);
         var writer = new EdsWriter();
         return writer.WriteFileAsync(eds, filePath, cancellationToken);
     }
@@ -293,7 +312,27 @@ public static class CanOpenFile
         ElectronicDataSheet eds,
         Stream stream,
         CancellationToken cancellationToken = default)
+        => WriteEdsAsync(eds, stream, options: null, cancellationToken);
+
+    /// <summary>
+    /// Writes an Electronic Data Sheet (EDS) to a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static Task WriteEdsAsync(
+        ElectronicDataSheet eds,
+        Stream stream,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
     {
+        EnsureValidEdsForWrite(eds, options);
         var writer = new EdsWriter();
         return writer.WriteStreamAsync(eds, stream, cancellationToken);
     }
@@ -513,7 +552,26 @@ public static class CanOpenFile
         DeviceConfigurationFile dcf,
         string filePath,
         CancellationToken cancellationToken = default)
+        => WriteDcfAsync(dcf, filePath, options: null, cancellationToken);
+
+    /// <summary>
+    /// Writes a Device Configuration File (DCF) to disk asynchronously.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="filePath">Path where the DCF file should be written</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static Task WriteDcfAsync(
+        DeviceConfigurationFile dcf,
+        string filePath,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
     {
+        EnsureValidDcfForWrite(dcf, options);
         var writer = new DcfWriter();
         return writer.WriteFileAsync(dcf, filePath, cancellationToken);
     }
@@ -529,7 +587,27 @@ public static class CanOpenFile
         DeviceConfigurationFile dcf,
         Stream stream,
         CancellationToken cancellationToken = default)
+        => WriteDcfAsync(dcf, stream, options: null, cancellationToken);
+
+    /// <summary>
+    /// Writes a Device Configuration File (DCF) to a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static Task WriteDcfAsync(
+        DeviceConfigurationFile dcf,
+        Stream stream,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
     {
+        EnsureValidDcfForWrite(dcf, options);
         var writer = new DcfWriter();
         return writer.WriteStreamAsync(dcf, stream, cancellationToken);
     }
@@ -734,7 +812,26 @@ public static class CanOpenFile
         NodelistProject cpj,
         string filePath,
         CancellationToken cancellationToken = default)
+        => WriteCpjAsync(cpj, filePath, options: null, cancellationToken);
+
+    /// <summary>
+    /// Writes a CiA 306-3 nodelist project (.cpj) to disk asynchronously.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write</param>
+    /// <param name="filePath">Path where the CPJ file should be written</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static Task WriteCpjAsync(
+        NodelistProject cpj,
+        string filePath,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
     {
+        EnsureValidCpjForWrite(cpj, options);
         var writer = new CpjWriter();
         return writer.WriteFileAsync(cpj, filePath, cancellationToken);
     }
@@ -750,7 +847,27 @@ public static class CanOpenFile
         NodelistProject cpj,
         Stream stream,
         CancellationToken cancellationToken = default)
+        => WriteCpjAsync(cpj, stream, options: null, cancellationToken);
+
+    /// <summary>
+    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static Task WriteCpjAsync(
+        NodelistProject cpj,
+        Stream stream,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
     {
+        EnsureValidCpjForWrite(cpj, options);
         var writer = new CpjWriter();
         return writer.WriteStreamAsync(cpj, stream, cancellationToken);
     }
@@ -955,7 +1072,26 @@ public static class CanOpenFile
         ElectronicDataSheet xdd,
         string filePath,
         CancellationToken cancellationToken = default)
+        => WriteXddAsync(xdd, filePath, options: null, cancellationToken);
+
+    /// <summary>
+    /// Writes an ElectronicDataSheet as a CiA 311 XDD file asynchronously.
+    /// </summary>
+    /// <param name="xdd">The ElectronicDataSheet to write</param>
+    /// <param name="filePath">Path where the XDD file should be written</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static Task WriteXddAsync(
+        ElectronicDataSheet xdd,
+        string filePath,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
     {
+        EnsureValidEdsForWrite(xdd, options);
         var writer = new XddWriter();
         return writer.WriteFileAsync(xdd, filePath, cancellationToken);
     }
@@ -971,7 +1107,27 @@ public static class CanOpenFile
         ElectronicDataSheet xdd,
         Stream stream,
         CancellationToken cancellationToken = default)
+        => WriteXddAsync(xdd, stream, options: null, cancellationToken);
+
+    /// <summary>
+    /// Writes an ElectronicDataSheet as a CiA 311 XDD stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="xdd">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static Task WriteXddAsync(
+        ElectronicDataSheet xdd,
+        Stream stream,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
     {
+        EnsureValidEdsForWrite(xdd, options);
         var writer = new XddWriter();
         return writer.WriteStreamAsync(xdd, stream, cancellationToken);
     }
@@ -1176,7 +1332,26 @@ public static class CanOpenFile
         DeviceConfigurationFile xdc,
         string filePath,
         CancellationToken cancellationToken = default)
+        => WriteXdcAsync(xdc, filePath, options: null, cancellationToken);
+
+    /// <summary>
+    /// Writes a DeviceConfigurationFile as a CiA 311 XDC file asynchronously.
+    /// </summary>
+    /// <param name="xdc">The DeviceConfigurationFile to write</param>
+    /// <param name="filePath">Path where the XDC file should be written</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static Task WriteXdcAsync(
+        DeviceConfigurationFile xdc,
+        string filePath,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
     {
+        EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();
         return writer.WriteFileAsync(xdc, filePath, cancellationToken);
     }
@@ -1192,7 +1367,27 @@ public static class CanOpenFile
         DeviceConfigurationFile xdc,
         Stream stream,
         CancellationToken cancellationToken = default)
+        => WriteXdcAsync(xdc, stream, options: null, cancellationToken);
+
+    /// <summary>
+    /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream asynchronously.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="xdc">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static Task WriteXdcAsync(
+        DeviceConfigurationFile xdc,
+        Stream stream,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
     {
+        EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();
         return writer.WriteStreamAsync(xdc, stream, cancellationToken);
     }

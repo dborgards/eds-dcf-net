@@ -93,6 +93,37 @@ public class WriteValidationGuardTests
     }
 
     [Fact]
+    public async Task WriteEdsAsync_WithValidatedOptions_ThrowsForInvalidModel()
+    {
+        var eds = new ElectronicDataSheet();
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Unclassified",
+            ObjectType = 0x7
+        };
+
+        using var stream = new MemoryStream();
+        var act = () => CanOpenFile.WriteEdsAsync(eds, stream, CanOpenWriteOptions.Validated);
+
+        await act.Should().ThrowAsync<ModelValidationException>();
+    }
+
+    [Fact]
+    public async Task WriteDcfAsync_WithValidatedOptions_ThrowsForInvalidModel()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+
+        using var stream = new MemoryStream();
+        var act = () => CanOpenFile.WriteDcfAsync(dcf, stream, CanOpenWriteOptions.Validated);
+
+        await act.Should().ThrowAsync<ModelValidationException>();
+    }
+
+    [Fact]
     public void WriteXddToString_WithValidatedOptions_ThrowsForInvalidModel()
     {
         var xdd = new ElectronicDataSheet();

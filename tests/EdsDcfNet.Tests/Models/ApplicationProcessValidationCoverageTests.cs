@@ -142,6 +142,57 @@ public class ApplicationProcessValidationCoverageTests
     }
 
     [Fact]
+    public void Validate_ApplicationProcess_ParameterMissingParameterTemplateRef_ReturnIssue()
+    {
+        var ap = new ApplicationProcess { TemplateList = new ApTemplateList() };
+        ap.TemplateList.ParameterTemplates.Add(new ApParameterTemplate { UniqueId = "TPL_PARAM" });
+        ap.ParameterList.Add(new ApParameter { UniqueId = "P_1", TemplateIdRef = "MissingTemplate" });
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.ParameterList[0].TemplateIdRef");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_ParameterWithValidParameterTemplateRef_ReturnsNoTemplateRefIssue()
+    {
+        var ap = new ApplicationProcess { TemplateList = new ApTemplateList() };
+        ap.TemplateList.ParameterTemplates.Add(new ApParameterTemplate { UniqueId = "TPL_PARAM" });
+        ap.ParameterList.Add(new ApParameter { UniqueId = "P_1", TemplateIdRef = "TPL_PARAM" });
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().NotContain(i => i.Path == "ApplicationProcess.ParameterList[0].TemplateIdRef");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_ParameterMissingAllowedValuesTemplateRef_ReturnIssue()
+    {
+        var ap = new ApplicationProcess { TemplateList = new ApTemplateList() };
+        ap.TemplateList.AllowedValuesTemplates.Add(new ApAllowedValuesTemplate { UniqueId = "TPL_AV" });
+        ap.ParameterList.Add(new ApParameter
+        {
+            UniqueId = "P_1",
+            AllowedValues = new ApAllowedValues { TemplateIdRef = "MissingAvTemplate" }
+        });
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.ParameterList[0].AllowedValues.TemplateIdRef");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_ParameterWithNullTemplateIdRef_ReturnsNoTemplateRefIssue()
+    {
+        var ap = new ApplicationProcess();
+        ap.ParameterList.Add(new ApParameter { UniqueId = "P_1", TemplateIdRef = null });
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().NotContain(i => i.Path.Contains("TemplateIdRef", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Validate_ApplicationProcess_InterfaceInputVarMissingDataTypeRef_ReturnIssue()
     {
         var ap = new ApplicationProcess();
