@@ -24,4 +24,7 @@ public sealed class CanOpenFileOptions
     /// compared against decoded character count.
     /// </summary>
     public long MaxInputSize { get; init; } = ReaderDefaults.DefaultMaxInputSize;
+
+    internal static long ResolveMaxInputSize(CanOpenFileOptions? options)
+        => options?.MaxInputSize ?? ReaderDefaults.DefaultMaxInputSize;
 }
