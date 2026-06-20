@@ -661,12 +661,8 @@ public static class CanOpenModelValidator
 
     private static void ThrowIfNull(object? value, string paramName)
     {
-#if NET10_0_OR_GREATER
-        ArgumentNullException.ThrowIfNull(value, paramName);
-#else
-        if (value == null)
+        if (value is null)
             throw new ArgumentNullException(paramName);
-#endif
     }
 
     private static void ValidateMaxLength(

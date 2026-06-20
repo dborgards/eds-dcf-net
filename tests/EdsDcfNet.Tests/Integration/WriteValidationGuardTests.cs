@@ -17,6 +17,36 @@ public class WriteValidationGuardTests
     }
 
     [Fact]
+    public void EnsureValid_SingleIssueDcf_FormatsModelValidationExceptionMessage()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+
+        var act = () => CanOpenFile.EnsureValid(dcf);
+
+        var exception = act.Should().Throw<ModelValidationException>().Which;
+        exception.Issues.Should().ContainSingle();
+        exception.Message.Should().Be("Model validation failed: " + exception.Issues[0]);
+    }
+
+    [Fact]
+    public void WriteDcfToString_WithValidatedOptions_SingleIssue_FormatsModelValidationExceptionMessage()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+
+        var act = () => CanOpenFile.WriteDcfToString(dcf, CanOpenWriteOptions.Validated);
+
+        var exception = act.Should().Throw<ModelValidationException>().Which;
+        exception.Issues.Should().ContainSingle();
+        exception.Message.Should().Be("Model validation failed: " + exception.Issues[0]);
+    }
+
+    [Fact]
     public void EnsureValid_InvalidEds_ThrowsModelValidationException()
     {
         var eds = new ElectronicDataSheet();

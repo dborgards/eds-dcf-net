@@ -78,6 +78,55 @@ public class ApplicationProcessValidationCoverageTests
     }
 
     [Fact]
+    public void Validate_ApplicationProcess_ParameterWithNullTypeRef_ReturnsNoTypeRefIssue()
+    {
+        var ap = new ApplicationProcess();
+        ap.ParameterList.Add(new ApParameter { UniqueId = "P_1", TypeRef = null });
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().NotContain(i => i.Path.Contains("TypeRef", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_ParameterWithEmptyDataTypeIdRef_ReturnsNoTypeRefIssue()
+    {
+        var ap = new ApplicationProcess();
+        ap.ParameterList.Add(new ApParameter
+        {
+            UniqueId = "P_1",
+            TypeRef = new ApTypeRef { DataTypeIdRef = string.Empty }
+        });
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().NotContain(i => i.Path.Contains("TypeRef", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_OutputVarWithValidDataTypeIdRef_ReturnsNoTypeRefIssue()
+    {
+        var ap = new ApplicationProcess { DataTypeList = new ApDataTypeList() };
+        ap.DataTypeList.Structs.Add(new ApStructType { UniqueId = "DT_STRUCT", Name = "Status" });
+
+        var functionType = new ApFunctionType { UniqueId = "FT_1", Name = "Ctrl" };
+        functionType.VersionInfos.Add(new ApVersionInfo());
+        functionType.InterfaceList = new ApInterfaceList();
+        functionType.InterfaceList.OutputVars.Add(new ApVarDeclaration
+        {
+            UniqueId = "V_OUT",
+            Name = "Out",
+            Type = new ApTypeRef { DataTypeIdRef = "DT_STRUCT" }
+        });
+        ap.FunctionTypeList.Add(functionType);
+
+        var issues = ValidateEdsApplicationProcess(ap);
+
+        issues.Should().NotContain(i =>
+            i.Path == "ApplicationProcess.FunctionTypeList[0].InterfaceList.OutputVars[0].Type");
+    }
+
+    [Fact]
     public void Validate_ApplicationProcess_TemplateParameterMissingDataTypeRef_ReturnIssue()
     {
         var ap = new ApplicationProcess { TemplateList = new ApTemplateList() };
