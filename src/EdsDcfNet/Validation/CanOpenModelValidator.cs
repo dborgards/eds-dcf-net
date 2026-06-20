@@ -5,7 +5,7 @@ using System.Globalization;
 using EdsDcfNet.Models;
 
 /// <summary>
-/// Validates CANopen models against common CiA 306 constraints.
+/// Validates CANopen models against common CiA 306 and CiA 311 constraints.
 /// </summary>
 public static class CanOpenModelValidator
 {
@@ -35,6 +35,8 @@ public static class CanOpenModelValidator
         var issues = new List<ValidationIssue>();
         ValidateDeviceInfo(eds.DeviceInfo, issues);
         ValidateObjectDictionary(eds.ObjectDictionary, issues);
+        if (eds.ApplicationProcess != null)
+            ValidateApplicationProcess(eds.ApplicationProcess, "ApplicationProcess", issues);
 
         return new ReadOnlyCollection<ValidationIssue>(issues);
     }
@@ -52,6 +54,24 @@ public static class CanOpenModelValidator
         ValidateDeviceInfo(dcf.DeviceInfo, issues);
         ValidateObjectDictionary(dcf.ObjectDictionary, issues);
         ValidateDeviceCommissioning(dcf.DeviceCommissioning, issues);
+        if (dcf.ApplicationProcess != null)
+            ValidateApplicationProcess(dcf.ApplicationProcess, "ApplicationProcess", issues);
+
+        return new ReadOnlyCollection<ValidationIssue>(issues);
+    }
+
+    /// <summary>
+    /// Validates a <see cref="NodelistProject"/> instance.
+    /// </summary>
+    /// <param name="cpj">Model instance to validate.</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(NodelistProject cpj)
+    {
+        ThrowIfNull(cpj, nameof(cpj));
+
+        var issues = new List<ValidationIssue>();
+        for (var networkIndex = 0; networkIndex < cpj.Networks.Count; networkIndex++)
+            ValidateNetworkTopology(cpj.Networks[networkIndex], "Networks[" + networkIndex.ToString(CultureInfo.InvariantCulture) + "]", issues);
 
         return new ReadOnlyCollection<ValidationIssue>(issues);
     }
@@ -252,6 +272,197 @@ public static class CanOpenModelValidator
                objectType == 0x7 ||
                objectType == 0x8 ||
                objectType == 0x9;
+    }
+
+    private static void ValidateNetworkTopology(
+        NetworkTopology network,
+        string path,
+        List<ValidationIssue> issues)
+    {
+        ValidateMaxLength(network.NetName, MaxNetworkNameLength, path + ".NetName", issues);
+        ValidateMaxLength(network.NetRefd, MaxReferenceNameLength, path + ".NetRefd", issues);
+
+        foreach (var kvp in network.Nodes.OrderBy(n => n.Key))
+        {
+            var nodePath = string.Format(
+                CultureInfo.InvariantCulture,
+                "{0}.Nodes[{1}]",
+                path,
+                kvp.Key);
+
+            if (kvp.Key < 1 || kvp.Key > 127)
+            {
+                issues.Add(new ValidationIssue(
+                    nodePath,
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Node dictionary key {0} is outside the CANopen range 1..127.",
+                        kvp.Key)));
+            }
+
+            if (kvp.Key != kvp.Value.NodeId)
+            {
+                issues.Add(new ValidationIssue(
+                    nodePath + ".NodeId",
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "NodeId {0} does not match the dictionary key {1}.",
+                        kvp.Value.NodeId,
+                        kvp.Key)));
+            }
+
+            if (kvp.Value.NodeId < 1 || kvp.Value.NodeId > 127)
+            {
+                issues.Add(new ValidationIssue(
+                    nodePath + ".NodeId",
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Node-ID {0} is outside the CANopen range 1..127.",
+                        kvp.Value.NodeId)));
+            }
+
+            ValidateMaxLength(kvp.Value.Name, MaxNodeNameLength, nodePath + ".Name", issues);
+            ValidateMaxLength(kvp.Value.Refd, MaxReferenceNameLength, nodePath + ".Refd", issues);
+        }
+    }
+
+    private static void ValidateApplicationProcess(
+        ApplicationProcess applicationProcess,
+        string path,
+        List<ValidationIssue> issues)
+    {
+        var functionTypeIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < applicationProcess.FunctionTypeList.Count; index++)
+        {
+            var functionType = applicationProcess.FunctionTypeList[index];
+            var functionTypePath = path + ".FunctionTypeList[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            RegisterUniqueId(functionType.UniqueId, functionTypePath + ".UniqueId", functionTypeIds, issues);
+
+            if (functionType.VersionInfos.Count == 0)
+            {
+                issues.Add(new ValidationIssue(
+                    functionTypePath + ".VersionInfos",
+                    "At least one versionInfo entry is required."));
+            }
+
+            if (functionType.FunctionInstanceList != null)
+            {
+                ValidateFunctionInstanceList(
+                    functionType.FunctionInstanceList,
+                    functionTypePath + ".FunctionInstanceList",
+                    functionTypeIds,
+                    issues);
+            }
+        }
+
+        var parameterIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < applicationProcess.ParameterList.Count; index++)
+        {
+            var parameter = applicationProcess.ParameterList[index];
+            RegisterUniqueId(
+                parameter.UniqueId,
+                path + ".ParameterList[" + index.ToString(CultureInfo.InvariantCulture) + "].UniqueId",
+                parameterIds,
+                issues);
+        }
+
+        var parameterGroupIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < applicationProcess.ParameterGroupList.Count; index++)
+        {
+            ValidateParameterGroup(
+                applicationProcess.ParameterGroupList[index],
+                path + ".ParameterGroupList[" + index.ToString(CultureInfo.InvariantCulture) + "]",
+                parameterGroupIds,
+                parameterIds,
+                issues);
+        }
+
+        if (applicationProcess.FunctionInstanceList != null)
+        {
+            ValidateFunctionInstanceList(
+                applicationProcess.FunctionInstanceList,
+                path + ".FunctionInstanceList",
+                functionTypeIds,
+                issues);
+        }
+    }
+
+    private static void ValidateParameterGroup(
+        ApParameterGroup group,
+        string path,
+        HashSet<string> seenGroupIds,
+        HashSet<string> parameterIds,
+        List<ValidationIssue> issues)
+    {
+        RegisterUniqueId(group.UniqueId, path + ".UniqueId", seenGroupIds, issues);
+
+        foreach (var parameterRef in group.ParameterRefs)
+        {
+            if (string.IsNullOrEmpty(parameterRef))
+            {
+                issues.Add(new ValidationIssue(path + ".ParameterRefs", "Parameter reference must not be empty."));
+                continue;
+            }
+
+            if (!parameterIds.Contains(parameterRef))
+            {
+                issues.Add(new ValidationIssue(
+                    path + ".ParameterRefs",
+                    "Parameter reference '" + parameterRef + "' does not match any parameter uniqueID."));
+            }
+        }
+
+        for (var index = 0; index < group.SubGroups.Count; index++)
+        {
+            ValidateParameterGroup(
+                group.SubGroups[index],
+                path + ".SubGroups[" + index.ToString(CultureInfo.InvariantCulture) + "]",
+                seenGroupIds,
+                parameterIds,
+                issues);
+        }
+    }
+
+    private static void ValidateFunctionInstanceList(
+        ApFunctionInstanceList instanceList,
+        string path,
+        HashSet<string> functionTypeIds,
+        List<ValidationIssue> issues)
+    {
+        var instanceIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < instanceList.FunctionInstances.Count; index++)
+        {
+            var instance = instanceList.FunctionInstances[index];
+            var instancePath = path + ".FunctionInstances[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+            RegisterUniqueId(instance.UniqueId, instancePath + ".UniqueId", instanceIds, issues);
+
+            if (string.IsNullOrEmpty(instance.TypeIdRef))
+            {
+                issues.Add(new ValidationIssue(instancePath + ".TypeIdRef", "Function instance type reference must not be empty."));
+            }
+            else if (!functionTypeIds.Contains(instance.TypeIdRef))
+            {
+                issues.Add(new ValidationIssue(
+                    instancePath + ".TypeIdRef",
+                    "Function instance references unknown function type '" + instance.TypeIdRef + "'."));
+            }
+        }
+    }
+
+    private static void RegisterUniqueId(
+        string uniqueId,
+        string path,
+        HashSet<string> seenIds,
+        List<ValidationIssue> issues)
+    {
+        if (string.IsNullOrEmpty(uniqueId))
+        {
+            issues.Add(new ValidationIssue(path, "Unique ID must not be empty."));
+            return;
+        }
+
+        if (!seenIds.Add(uniqueId))
+            issues.Add(new ValidationIssue(path, "Duplicate unique ID '" + uniqueId + "'."));
     }
 
     private static void ThrowIfNull(object? value, string paramName)

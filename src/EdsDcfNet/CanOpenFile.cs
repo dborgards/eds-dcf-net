@@ -1,5 +1,6 @@
 namespace EdsDcfNet;
 
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Utilities;
@@ -47,6 +48,47 @@ public static class CanOpenFile
     public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
     {
         return CanOpenModelValidator.Validate(dcf);
+    }
+
+    /// <summary>
+    /// Validates a nodelist project (CPJ) model using the full
+    /// <see cref="CanOpenModelValidator"/> rule set.
+    /// </summary>
+    /// <param name="cpj">Model instance to validate</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(NodelistProject cpj)
+    {
+        return CanOpenModelValidator.Validate(cpj);
+    }
+
+    /// <summary>
+    /// Validates an EDS model and throws <see cref="ModelValidationException"/> when issues are found.
+    /// </summary>
+    /// <param name="eds">Model instance to validate</param>
+    /// <exception cref="ModelValidationException">Thrown when validation issues are found.</exception>
+    public static void EnsureValid(ElectronicDataSheet eds)
+    {
+        ThrowIfInvalid(Validate(eds));
+    }
+
+    /// <summary>
+    /// Validates a DCF model and throws <see cref="ModelValidationException"/> when issues are found.
+    /// </summary>
+    /// <param name="dcf">Model instance to validate</param>
+    /// <exception cref="ModelValidationException">Thrown when validation issues are found.</exception>
+    public static void EnsureValid(DeviceConfigurationFile dcf)
+    {
+        ThrowIfInvalid(Validate(dcf));
+    }
+
+    /// <summary>
+    /// Validates a CPJ model and throws <see cref="ModelValidationException"/> when issues are found.
+    /// </summary>
+    /// <param name="cpj">Model instance to validate</param>
+    /// <exception cref="ModelValidationException">Thrown when validation issues are found.</exception>
+    public static void EnsureValid(NodelistProject cpj)
+    {
+        ThrowIfInvalid(Validate(cpj));
     }
 
     #region EDS Read
@@ -179,7 +221,21 @@ public static class CanOpenFile
     /// </code>
     /// </example>
     public static void WriteEds(ElectronicDataSheet eds, string filePath)
+        => WriteEds(eds, filePath, options: null);
+
+    /// <summary>
+    /// Writes an Electronic Data Sheet (EDS) to disk.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="filePath">Path where the EDS file should be written</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static void WriteEds(ElectronicDataSheet eds, string filePath, CanOpenWriteOptions? options)
     {
+        EnsureValidEdsForWrite(eds, options);
         var writer = new EdsWriter();
         writer.WriteFile(eds, filePath);
     }
@@ -191,7 +247,22 @@ public static class CanOpenFile
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="stream">Writable destination stream</param>
     public static void WriteEds(ElectronicDataSheet eds, Stream stream)
+        => WriteEds(eds, stream, options: null);
+
+    /// <summary>
+    /// Writes an Electronic Data Sheet (EDS) to a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static void WriteEds(ElectronicDataSheet eds, Stream stream, CanOpenWriteOptions? options)
     {
+        EnsureValidEdsForWrite(eds, options);
         var writer = new EdsWriter();
         writer.WriteStream(eds, stream);
     }
@@ -233,7 +304,21 @@ public static class CanOpenFile
     /// <param name="eds">The ElectronicDataSheet to convert</param>
     /// <returns>EDS content as string</returns>
     public static string WriteEdsToString(ElectronicDataSheet eds)
+        => WriteEdsToString(eds, options: null);
+
+    /// <summary>
+    /// Generates an EDS file content as string.
+    /// </summary>
+    /// <param name="eds">The ElectronicDataSheet to convert</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <returns>EDS content as string</returns>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static string WriteEdsToString(ElectronicDataSheet eds, CanOpenWriteOptions? options)
     {
+        EnsureValidEdsForWrite(eds, options);
         var writer = new EdsWriter();
         return writer.GenerateString(eds);
     }
@@ -372,7 +457,21 @@ public static class CanOpenFile
     /// </code>
     /// </example>
     public static void WriteDcf(DeviceConfigurationFile dcf, string filePath)
+        => WriteDcf(dcf, filePath, options: null);
+
+    /// <summary>
+    /// Writes a Device Configuration File (DCF) to disk.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="filePath">Path where the DCF file should be written</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static void WriteDcf(DeviceConfigurationFile dcf, string filePath, CanOpenWriteOptions? options)
     {
+        EnsureValidDcfForWrite(dcf, options);
         var writer = new DcfWriter();
         writer.WriteFile(dcf, filePath);
     }
@@ -384,7 +483,22 @@ public static class CanOpenFile
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="stream">Writable destination stream</param>
     public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream)
+        => WriteDcf(dcf, stream, options: null);
+
+    /// <summary>
+    /// Writes a Device Configuration File (DCF) to a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream, CanOpenWriteOptions? options)
     {
+        EnsureValidDcfForWrite(dcf, options);
         var writer = new DcfWriter();
         writer.WriteStream(dcf, stream);
     }
@@ -426,7 +540,21 @@ public static class CanOpenFile
     /// <param name="dcf">The DeviceConfigurationFile to convert</param>
     /// <returns>DCF content as string</returns>
     public static string WriteDcfToString(DeviceConfigurationFile dcf)
+        => WriteDcfToString(dcf, options: null);
+
+    /// <summary>
+    /// Generates a DCF file content as string.
+    /// </summary>
+    /// <param name="dcf">The DeviceConfigurationFile to convert</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <returns>DCF content as string</returns>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static string WriteDcfToString(DeviceConfigurationFile dcf, CanOpenWriteOptions? options)
     {
+        EnsureValidDcfForWrite(dcf, options);
         var writer = new DcfWriter();
         return writer.GenerateString(dcf);
     }
@@ -550,7 +678,21 @@ public static class CanOpenFile
     /// <param name="cpj">The NodelistProject to write</param>
     /// <param name="filePath">Path where the CPJ file should be written</param>
     public static void WriteCpj(NodelistProject cpj, string filePath)
+        => WriteCpj(cpj, filePath, options: null);
+
+    /// <summary>
+    /// Writes a CiA 306-3 nodelist project (.cpj) to disk.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write</param>
+    /// <param name="filePath">Path where the CPJ file should be written</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static void WriteCpj(NodelistProject cpj, string filePath, CanOpenWriteOptions? options)
     {
+        EnsureValidCpjForWrite(cpj, options);
         var writer = new CpjWriter();
         writer.WriteFile(cpj, filePath);
     }
@@ -562,7 +704,22 @@ public static class CanOpenFile
     /// <param name="cpj">The NodelistProject to write</param>
     /// <param name="stream">Writable destination stream</param>
     public static void WriteCpj(NodelistProject cpj, Stream stream)
+        => WriteCpj(cpj, stream, options: null);
+
+    /// <summary>
+    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static void WriteCpj(NodelistProject cpj, Stream stream, CanOpenWriteOptions? options)
     {
+        EnsureValidCpjForWrite(cpj, options);
         var writer = new CpjWriter();
         writer.WriteStream(cpj, stream);
     }
@@ -604,7 +761,21 @@ public static class CanOpenFile
     /// <param name="cpj">The NodelistProject to convert</param>
     /// <returns>CPJ content as string</returns>
     public static string WriteCpjToString(NodelistProject cpj)
+        => WriteCpjToString(cpj, options: null);
+
+    /// <summary>
+    /// Generates a CPJ file content as string.
+    /// </summary>
+    /// <param name="cpj">The NodelistProject to convert</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <returns>CPJ content as string</returns>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static string WriteCpjToString(NodelistProject cpj, CanOpenWriteOptions? options)
     {
+        EnsureValidCpjForWrite(cpj, options);
         var writer = new CpjWriter();
         return writer.GenerateString(cpj);
     }
@@ -728,7 +899,21 @@ public static class CanOpenFile
     /// <param name="xdd">The ElectronicDataSheet to write</param>
     /// <param name="filePath">Path where the XDD file should be written</param>
     public static void WriteXdd(ElectronicDataSheet xdd, string filePath)
+        => WriteXdd(xdd, filePath, options: null);
+
+    /// <summary>
+    /// Writes an ElectronicDataSheet as a CiA 311 XDD file.
+    /// </summary>
+    /// <param name="xdd">The ElectronicDataSheet to write</param>
+    /// <param name="filePath">Path where the XDD file should be written</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static void WriteXdd(ElectronicDataSheet xdd, string filePath, CanOpenWriteOptions? options)
     {
+        EnsureValidEdsForWrite(xdd, options);
         var writer = new XddWriter();
         writer.WriteFile(xdd, filePath);
     }
@@ -740,7 +925,22 @@ public static class CanOpenFile
     /// <param name="xdd">The ElectronicDataSheet to write</param>
     /// <param name="stream">Writable destination stream</param>
     public static void WriteXdd(ElectronicDataSheet xdd, Stream stream)
+        => WriteXdd(xdd, stream, options: null);
+
+    /// <summary>
+    /// Writes an ElectronicDataSheet as a CiA 311 XDD stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="xdd">The ElectronicDataSheet to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static void WriteXdd(ElectronicDataSheet xdd, Stream stream, CanOpenWriteOptions? options)
     {
+        EnsureValidEdsForWrite(xdd, options);
         var writer = new XddWriter();
         writer.WriteStream(xdd, stream);
     }
@@ -782,7 +982,21 @@ public static class CanOpenFile
     /// <param name="xdd">The ElectronicDataSheet to convert</param>
     /// <returns>XDD content as string</returns>
     public static string WriteXddToString(ElectronicDataSheet xdd)
+        => WriteXddToString(xdd, options: null);
+
+    /// <summary>
+    /// Generates a CiA 311 XDD file content as string.
+    /// </summary>
+    /// <param name="xdd">The ElectronicDataSheet to convert</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <returns>XDD content as string</returns>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static string WriteXddToString(ElectronicDataSheet xdd, CanOpenWriteOptions? options)
     {
+        EnsureValidEdsForWrite(xdd, options);
         var writer = new XddWriter();
         return writer.GenerateString(xdd);
     }
@@ -906,7 +1120,21 @@ public static class CanOpenFile
     /// <param name="xdc">The DeviceConfigurationFile to write</param>
     /// <param name="filePath">Path where the XDC file should be written</param>
     public static void WriteXdc(DeviceConfigurationFile xdc, string filePath)
+        => WriteXdc(xdc, filePath, options: null);
+
+    /// <summary>
+    /// Writes a DeviceConfigurationFile as a CiA 311 XDC file.
+    /// </summary>
+    /// <param name="xdc">The DeviceConfigurationFile to write</param>
+    /// <param name="filePath">Path where the XDC file should be written</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static void WriteXdc(DeviceConfigurationFile xdc, string filePath, CanOpenWriteOptions? options)
     {
+        EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();
         writer.WriteFile(xdc, filePath);
     }
@@ -918,7 +1146,22 @@ public static class CanOpenFile
     /// <param name="xdc">The DeviceConfigurationFile to write</param>
     /// <param name="stream">Writable destination stream</param>
     public static void WriteXdc(DeviceConfigurationFile xdc, Stream stream)
+        => WriteXdc(xdc, stream, options: null);
+
+    /// <summary>
+    /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream.
+    /// The stream is not disposed by this method.
+    /// </summary>
+    /// <param name="xdc">The DeviceConfigurationFile to write</param>
+    /// <param name="stream">Writable destination stream</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static void WriteXdc(DeviceConfigurationFile xdc, Stream stream, CanOpenWriteOptions? options)
     {
+        EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();
         writer.WriteStream(xdc, stream);
     }
@@ -960,7 +1203,21 @@ public static class CanOpenFile
     /// <param name="xdc">The DeviceConfigurationFile to convert</param>
     /// <returns>XDC content as string</returns>
     public static string WriteXdcToString(DeviceConfigurationFile xdc)
+        => WriteXdcToString(xdc, options: null);
+
+    /// <summary>
+    /// Generates a CiA 311 XDC file content as string.
+    /// </summary>
+    /// <param name="xdc">The DeviceConfigurationFile to convert</param>
+    /// <param name="options">Optional write behavior such as pre-write validation.</param>
+    /// <returns>XDC content as string</returns>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
+    /// <see langword="true"/> and the model has validation issues.
+    /// </exception>
+    public static string WriteXdcToString(DeviceConfigurationFile xdc, CanOpenWriteOptions? options)
     {
+        EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();
         return writer.GenerateString(xdc);
     }
@@ -1057,6 +1314,34 @@ public static class CanOpenFile
             dcf.AdditionalSections[kvp.Key] = kvp.Value;
 
         return dcf;
+    }
+
+    #endregion
+
+    #region Write validation helpers
+
+    private static void EnsureValidEdsForWrite(ElectronicDataSheet eds, CanOpenWriteOptions? options)
+    {
+        if (options?.ValidateBeforeWrite == true)
+            EnsureValid(eds);
+    }
+
+    private static void EnsureValidDcfForWrite(DeviceConfigurationFile dcf, CanOpenWriteOptions? options)
+    {
+        if (options?.ValidateBeforeWrite == true)
+            EnsureValid(dcf);
+    }
+
+    private static void EnsureValidCpjForWrite(NodelistProject cpj, CanOpenWriteOptions? options)
+    {
+        if (options?.ValidateBeforeWrite == true)
+            EnsureValid(cpj);
+    }
+
+    private static void ThrowIfInvalid(IReadOnlyList<ValidationIssue> issues)
+    {
+        if (issues.Count > 0)
+            throw new ModelValidationException(issues);
     }
 
     #endregion

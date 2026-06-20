@@ -1,0 +1,33 @@
+namespace EdsDcfNet.Tests.Exceptions;
+
+using EdsDcfNet.Exceptions;
+using EdsDcfNet.Validation;
+
+public class ModelValidationExceptionTests
+{
+    [Fact]
+    public void Constructor_WithSingleIssue_FormatsMessage()
+    {
+        var issues = new[] { new ValidationIssue("DeviceCommissioning.NodeId", "Invalid node id.") };
+
+        var exception = new ModelValidationException(issues);
+
+        exception.Message.Should().Contain("DeviceCommissioning.NodeId");
+        exception.Issues.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Constructor_WithMultipleIssues_IncludesCountInMessage()
+    {
+        var issues = new[]
+        {
+            new ValidationIssue("A", "First"),
+            new ValidationIssue("B", "Second")
+        };
+
+        var exception = new ModelValidationException(issues);
+
+        exception.Message.Should().Contain("2 issue(s)");
+        exception.Issues.Should().HaveCount(2);
+    }
+}

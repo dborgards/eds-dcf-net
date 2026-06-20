@@ -2057,5 +2057,58 @@ PDOMapping=0
         issues.Should().BeEmpty();
     }
 
+    [Fact]
+    public void WriteDcfToString_WithValidatedOptions_ThrowsModelValidationExceptionForInvalidModel()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+
+        var act = () => CanOpenFile.WriteDcfToString(dcf, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>()
+            .Which.Issues.Should().Contain(i => i.Path == "DeviceCommissioning.NodeId");
+    }
+
+    [Fact]
+    public void WriteDcfToString_WithoutValidation_AllowsInvalidModelForBackwardCompatibility()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+
+        var act = () => CanOpenFile.WriteDcfToString(dcf);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void EnsureValid_InvalidDcf_ThrowsModelValidationExceptionWithIssues()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 0, Baudrate = 42 }
+        };
+
+        var act = () => CanOpenFile.EnsureValid(dcf);
+
+        act.Should().Throw<ModelValidationException>()
+            .Which.Issues.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void WriteCpjToString_WithValidatedOptions_ThrowsForInvalidNodeId()
+    {
+        var cpj = new NodelistProject();
+        cpj.Networks.Add(new NetworkTopology());
+        cpj.Networks[0].Nodes[0] = new NetworkNode { NodeId = 0, Present = true };
+
+        var act = () => CanOpenFile.WriteCpjToString(cpj, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>();
+    }
+
     #endregion
 }

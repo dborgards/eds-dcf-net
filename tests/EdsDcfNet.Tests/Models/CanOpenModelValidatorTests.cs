@@ -345,6 +345,146 @@ public class CanOpenModelValidatorTests
         eds.ApplicationProcess.Should().BeSameAs(process);
     }
 
+    [Fact]
+    public void Validate_ValidCpj_ReturnsNoIssues()
+    {
+        // Arrange
+        var cpj = CreateValidCpj();
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(cpj);
+
+        // Assert
+        issues.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Validate_Cpj_InvalidNodeIdAndKeyMismatch_ReturnsIssues()
+    {
+        // Arrange
+        var cpj = CreateValidCpj();
+        cpj.Networks[0].Nodes[2] = new NetworkNode { NodeId = 3, Present = true, Name = "Mismatch" };
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(cpj);
+
+        // Assert
+        issues.Should().Contain(i => i.Path == "Networks[0].Nodes[2].NodeId");
+    }
+
+    [Fact]
+    public void Validate_Cpj_NodeIdOutOfRange_ReturnsIssue()
+    {
+        // Arrange
+        var cpj = new NodelistProject();
+        var network = new NetworkTopology();
+        network.Nodes[200] = new NetworkNode { NodeId = 200, Present = true };
+        cpj.Networks.Add(network);
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(cpj);
+
+        // Assert
+        issues.Should().Contain(i => i.Path == "Networks[0].Nodes[200]");
+        issues.Should().Contain(i => i.Path == "Networks[0].Nodes[200].NodeId");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_MissingReferencesAndDuplicateIds_ReturnIssues()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet();
+        eds.ApplicationProcess = new ApplicationProcess();
+        eds.ApplicationProcess.FunctionTypeList.Add(new ApFunctionType { UniqueId = "FT_1" });
+        eds.ApplicationProcess.FunctionTypeList.Add(new ApFunctionType { UniqueId = "FT_1" });
+        eds.ApplicationProcess.ParameterList.Add(new ApParameter { UniqueId = "P_1" });
+        eds.ApplicationProcess.ParameterGroupList.Add(new ApParameterGroup
+        {
+            UniqueId = "PG_1",
+            ParameterRefs = { "MissingParam" }
+        });
+        eds.ApplicationProcess.FunctionInstanceList = new ApFunctionInstanceList();
+        eds.ApplicationProcess.FunctionInstanceList.FunctionInstances.Add(new ApFunctionInstance
+        {
+            UniqueId = "FI_1",
+            TypeIdRef = "MissingType"
+        });
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        // Assert
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.FunctionTypeList[1].UniqueId");
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.FunctionTypeList[0].VersionInfos");
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.ParameterGroupList[0].ParameterRefs");
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.FunctionInstanceList.FunctionInstances[0].TypeIdRef");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_ValidReferences_ReturnNoApplicationProcessIssues()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet();
+        eds.ApplicationProcess = new ApplicationProcess();
+        var functionType = new ApFunctionType { UniqueId = "FT_1" };
+        functionType.VersionInfos.Add(new ApVersionInfo());
+        eds.ApplicationProcess.FunctionTypeList.Add(functionType);
+        eds.ApplicationProcess.ParameterList.Add(new ApParameter { UniqueId = "P_1" });
+        eds.ApplicationProcess.ParameterGroupList.Add(new ApParameterGroup
+        {
+            UniqueId = "PG_1",
+            ParameterRefs = { "P_1" }
+        });
+        eds.ApplicationProcess.FunctionInstanceList = new ApFunctionInstanceList();
+        eds.ApplicationProcess.FunctionInstanceList.FunctionInstances.Add(new ApFunctionInstance
+        {
+            UniqueId = "FI_1",
+            TypeIdRef = "FT_1"
+        });
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        // Assert
+        issues.Should().NotContain(i => i.Path.StartsWith("ApplicationProcess", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_Cpj_FacadeAndModelValidate_ReturnSameIssues()
+    {
+        // Arrange
+        var cpj = new NodelistProject();
+        cpj.Networks.Add(new NetworkTopology());
+        cpj.Networks[0].Nodes[0] = new NetworkNode { NodeId = 0, Present = true };
+
+        // Act
+        var facadeIssues = CanOpenFile.Validate(cpj);
+        var modelIssues = cpj.Validate();
+
+        // Assert
+        facadeIssues.Should().BeEquivalentTo(modelIssues);
+        facadeIssues.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void Validate_NodelistProject_Null_ThrowsArgumentNullException()
+    {
+        // Act
+        var act = () => CanOpenModelValidator.Validate((NodelistProject)null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    private static NodelistProject CreateValidCpj()
+    {
+        var cpj = new NodelistProject();
+        var network = new NetworkTopology { NetName = "Main Network" };
+        network.Nodes[2] = new NetworkNode { NodeId = 2, Present = true, Name = "Node-2" };
+        cpj.Networks.Add(network);
+        return cpj;
+    }
+
     private static DeviceConfigurationFile CreateValidDcf()
     {
         var dcf = new DeviceConfigurationFile

@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Models;
 
+using EdsDcfNet.Validation;
+
 /// <summary>
 /// Represents a CiA 306-3 nodelist project (.cpj) file containing one or more network topologies.
 /// </summary>
@@ -18,4 +20,13 @@ public class NodelistProject
     /// </summary>
     public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } =
         new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Validates this model instance against common CANopen constraints.
+    /// </summary>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public IReadOnlyList<ValidationIssue> Validate()
+    {
+        return CanOpenModelValidator.Validate(this);
+    }
 }
