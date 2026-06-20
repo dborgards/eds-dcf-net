@@ -39,4 +39,15 @@ public class ModelValidationExceptionTests
         exception.Message.Should().Be("Model validation failed.");
         exception.Issues.Should().BeEmpty();
     }
+
+    [Fact]
+    public void Issues_ReturnsSnapshotNotLiveList()
+    {
+        var issues = new List<ValidationIssue> { new("Path", "Message") };
+        var exception = new ModelValidationException(issues);
+
+        issues.Add(new ValidationIssue("Other", "Changed"));
+
+        exception.Issues.Should().ContainSingle();
+    }
 }

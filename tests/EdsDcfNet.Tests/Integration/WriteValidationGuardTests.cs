@@ -121,6 +121,161 @@ public class WriteValidationGuardTests
     }
 
     [Fact]
+    public void EnsureValid_ValidEds_DoesNotThrow()
+    {
+        var eds = CreateValidEds();
+
+        var act = () => CanOpenFile.EnsureValid(eds);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void EnsureValid_ValidCpj_DoesNotThrow()
+    {
+        var cpj = CreateValidCpj();
+
+        var act = () => CanOpenFile.EnsureValid(cpj);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Validate_CpjFacade_ReturnsNoIssuesForValidModel()
+    {
+        var cpj = CreateValidCpj();
+
+        CanOpenFile.Validate(cpj).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void WriteEds_WithValidatedOptions_FilePath_Succeeds()
+    {
+        var eds = CreateValidEds();
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var act = () => CanOpenFile.WriteEds(eds, tempFile, CanOpenWriteOptions.Validated);
+
+            act.Should().NotThrow();
+            File.Exists(tempFile).Should().BeTrue();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void WriteEdsToString_WithValidatedOptions_ValidModel_ReturnsContent()
+    {
+        var eds = CreateValidEds();
+
+        var content = CanOpenFile.WriteEdsToString(eds, CanOpenWriteOptions.Validated);
+
+        content.Should().Contain("[FileInfo]");
+    }
+
+    [Fact]
+    public void WriteDcf_WithValidatedOptions_FilePath_Succeeds()
+    {
+        var dcf = CreateValidDcf();
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var act = () => CanOpenFile.WriteDcf(dcf, tempFile, CanOpenWriteOptions.Validated);
+
+            act.Should().NotThrow();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void WriteDcfToString_WithValidatedOptions_ValidModel_ReturnsContent()
+    {
+        var content = CanOpenFile.WriteDcfToString(CreateValidDcf(), CanOpenWriteOptions.Validated);
+
+        content.Should().Contain("[DeviceCommissioning]");
+    }
+
+    [Fact]
+    public void WriteCpj_WithValidatedOptions_Stream_Succeeds()
+    {
+        var cpj = CreateValidCpj();
+        using var stream = new MemoryStream();
+
+        var act = () => CanOpenFile.WriteCpj(cpj, stream, CanOpenWriteOptions.Validated);
+
+        act.Should().NotThrow();
+        stream.Length.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void WriteCpjToString_WithValidatedOptions_ValidModel_ReturnsContent()
+    {
+        var content = CanOpenFile.WriteCpjToString(CreateValidCpj(), CanOpenWriteOptions.Validated);
+
+        content.Should().Contain("[Topology]");
+    }
+
+    [Fact]
+    public void WriteXdd_WithValidatedOptions_FilePath_Succeeds()
+    {
+        var xdd = CreateValidEds();
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var act = () => CanOpenFile.WriteXdd(xdd, tempFile, CanOpenWriteOptions.Validated);
+
+            act.Should().NotThrow();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void WriteXddToString_WithValidatedOptions_ValidModel_ReturnsContent()
+    {
+        var content = CanOpenFile.WriteXddToString(CreateValidEds(), CanOpenWriteOptions.Validated);
+
+        content.Should().Contain("ISO15745ProfileContainer");
+    }
+
+    [Fact]
+    public void WriteXdc_WithValidatedOptions_FilePath_Succeeds()
+    {
+        var xdc = CreateValidDcf();
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var act = () => CanOpenFile.WriteXdc(xdc, tempFile, CanOpenWriteOptions.Validated);
+
+            act.Should().NotThrow();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void WriteXdcToString_WithValidatedOptions_ValidModel_ReturnsContent()
+    {
+        var content = CanOpenFile.WriteXdcToString(CreateValidDcf(), CanOpenWriteOptions.Validated);
+
+        content.Should().Contain("ISO15745ProfileContainer");
+    }
+
+    [Fact]
     public void WriteEds_WithValidatedOptions_AllowsValidModel()
     {
         var eds = new ElectronicDataSheet();
@@ -163,5 +318,30 @@ public class WriteValidationGuardTests
         };
 
         return dcf;
+    }
+
+    private static ElectronicDataSheet CreateValidEds()
+    {
+        var eds = new ElectronicDataSheet();
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device Type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly
+        };
+
+        return eds;
+    }
+
+    private static NodelistProject CreateValidCpj()
+    {
+        var cpj = new NodelistProject();
+        var network = new NetworkTopology { NetName = "Main Network" };
+        network.Nodes[2] = new NetworkNode { NodeId = 2, Present = true, Name = "Node-2" };
+        cpj.Networks.Add(network);
+        return cpj;
     }
 }

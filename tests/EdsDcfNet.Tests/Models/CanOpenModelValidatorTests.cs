@@ -670,6 +670,19 @@ public class CanOpenModelValidatorTests
     }
 
     [Fact]
+    public void Validate_ApplicationProcess_FunctionTypeWithoutNestedInstances_SkipsNestedValidation()
+    {
+        var eds = new ElectronicDataSheet { ApplicationProcess = new ApplicationProcess() };
+        var functionType = new ApFunctionType { UniqueId = "FT_1" };
+        functionType.VersionInfos.Add(new ApVersionInfo());
+        eds.ApplicationProcess.FunctionTypeList.Add(functionType);
+
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        issues.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Validate_Cpj_FacadeAndModelValidate_ReturnSameIssues()
     {
         // Arrange
