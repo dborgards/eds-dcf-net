@@ -579,6 +579,97 @@ public class CanOpenModelValidatorTests
     }
 
     [Fact]
+    public void Validate_DcfWithApplicationProcess_ValidatesApplicationProcessGraph()
+    {
+        var dcf = CreateValidDcf();
+        dcf.ApplicationProcess = new ApplicationProcess();
+        dcf.ApplicationProcess.FunctionTypeList.Add(new ApFunctionType { UniqueId = "FT_1" });
+
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.FunctionTypeList[0].VersionInfos");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_EmptyUniqueIdAndTypeIdRef_ReturnIssues()
+    {
+        var eds = new ElectronicDataSheet { ApplicationProcess = new ApplicationProcess() };
+        eds.ApplicationProcess.FunctionTypeList.Add(new ApFunctionType());
+        eds.ApplicationProcess.FunctionInstanceList = new ApFunctionInstanceList();
+        eds.ApplicationProcess.FunctionInstanceList.FunctionInstances.Add(new ApFunctionInstance());
+
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.FunctionTypeList[0].UniqueId");
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.FunctionTypeList[0].VersionInfos");
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.FunctionInstanceList.FunctionInstances[0].UniqueId");
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.FunctionInstanceList.FunctionInstances[0].TypeIdRef");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_EmptyParameterRef_ReturnIssue()
+    {
+        var eds = new ElectronicDataSheet { ApplicationProcess = new ApplicationProcess() };
+        eds.ApplicationProcess.ParameterGroupList.Add(new ApParameterGroup
+        {
+            UniqueId = "PG_1",
+            ParameterRefs = { string.Empty }
+        });
+
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.ParameterGroupList[0].ParameterRefs");
+    }
+
+    [Fact]
+    public void Validate_ApplicationProcess_ParameterGroupSubGroupMissingRef_ReturnIssue()
+    {
+        var eds = new ElectronicDataSheet { ApplicationProcess = new ApplicationProcess() };
+        eds.ApplicationProcess.ParameterList.Add(new ApParameter { UniqueId = "P_1" });
+        var group = new ApParameterGroup { UniqueId = "PG_1", ParameterRefs = { "P_1" } };
+        group.SubGroups.Add(new ApParameterGroup
+        {
+            UniqueId = "PG_SUB",
+            ParameterRefs = { "MissingParam" }
+        });
+        eds.ApplicationProcess.ParameterGroupList.Add(group);
+
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        issues.Should().Contain(i => i.Path == "ApplicationProcess.ParameterGroupList[0].SubGroups[0].ParameterRefs");
+    }
+
+    [Fact]
+    public void Validate_Cpj_NetworkAndNodeFieldLengths_ReturnIssues()
+    {
+        var cpj = CreateValidCpj();
+        cpj.Networks[0].NetName = new string('N', 244);
+        cpj.Networks[0].NetRefd = new string('R', 250);
+        cpj.Networks[0].Nodes[2].Name = new string('X', 247);
+        cpj.Networks[0].Nodes[2].Refd = new string('Y', 250);
+
+        var issues = CanOpenModelValidator.Validate(cpj);
+
+        issues.Should().Contain(i => i.Path == "Networks[0].NetName");
+        issues.Should().Contain(i => i.Path == "Networks[0].NetRefd");
+        issues.Should().Contain(i => i.Path == "Networks[0].Nodes[2].Name");
+        issues.Should().Contain(i => i.Path == "Networks[0].Nodes[2].Refd");
+    }
+
+    [Fact]
+    public void Validate_ManufacturerObjectList_IsValidated()
+    {
+        var dcf = CreateValidDcf();
+        dcf.ObjectDictionary.ManufacturerObjects.Add(0x2000);
+
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        issues.Should().Contain(i =>
+            i.Path == "ObjectDictionary.ManufacturerObjects" &&
+            i.Message.Contains("missing object 0x2000", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Validate_Cpj_FacadeAndModelValidate_ReturnSameIssues()
     {
         // Arrange

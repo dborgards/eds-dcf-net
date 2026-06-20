@@ -30,4 +30,13 @@ public class ModelValidationExceptionTests
         exception.Message.Should().Contain("2 issue(s)");
         exception.Issues.Should().HaveCount(2);
     }
+
+    [Fact]
+    public void Constructor_WithNoIssues_UsesDefaultMessage()
+    {
+        var exception = new ModelValidationException(Array.Empty<ValidationIssue>());
+
+        exception.Message.Should().Be("Model validation failed.");
+        exception.Issues.Should().BeEmpty();
+    }
 }
