@@ -210,7 +210,7 @@ public sealed class EdsCanOpenOperations
             {
                 FileName = Path.ChangeExtension(eds.FileInfo.FileName, ".dcf"),
                 FileVersion = eds.FileInfo.FileVersion,
-                FileRevision = (byte)(eds.FileInfo.FileRevision + 1),
+                FileRevision = (byte)Math.Min(eds.FileInfo.FileRevision + 1, byte.MaxValue),
                 EdsVersion = eds.FileInfo.EdsVersion,
                 Description = $"DCF generated from {eds.FileInfo.FileName}",
                 CreationDate = timestamp.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),

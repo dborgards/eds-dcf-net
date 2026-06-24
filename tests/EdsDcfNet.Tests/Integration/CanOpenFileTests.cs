@@ -666,6 +666,26 @@ PDOMapping=0
     }
 
     [Fact]
+    public void EdsToDcf_AtMaxFileRevision_ClampsInsteadOfWrapping()
+    {
+        var eds = new ElectronicDataSheet
+        {
+            FileInfo = new EdsFileInfo
+            {
+                FileName = "test.eds",
+                FileVersion = 1,
+                FileRevision = byte.MaxValue
+            },
+            DeviceInfo = new DeviceInfo { ProductName = "Test" },
+            ObjectDictionary = new ObjectDictionary()
+        };
+
+        var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 5);
+
+        dcf.FileInfo.FileRevision.Should().Be(byte.MaxValue);
+    }
+
+    [Fact]
     public void EdsToDcf_WithExplicitTimestamp_UsesProvidedFileInfoTimeFields()
     {
         // Arrange
