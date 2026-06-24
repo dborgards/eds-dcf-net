@@ -74,10 +74,16 @@ public sealed class EdsCanOpenOperations
     /// <summary>
     /// Writes an EDS to disk.
     /// </summary>
+    public void WriteFile(ElectronicDataSheet eds, string filePath)
+        => WriteFile(eds, filePath, options: null);
+
+    /// <summary>
+    /// Writes an EDS to disk.
+    /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public void WriteFile(ElectronicDataSheet eds, string filePath, CanOpenWriteOptions? options = null)
+    public void WriteFile(ElectronicDataSheet eds, string filePath, CanOpenWriteOptions? options)
     {
         CanOpenWriteGuard.EnsureValidEdsForWrite(eds, options);
         var writer = new EdsWriter();
@@ -87,15 +93,30 @@ public sealed class EdsCanOpenOperations
     /// <summary>
     /// Writes an EDS to a stream. The stream is not disposed.
     /// </summary>
+    public void WriteStream(ElectronicDataSheet eds, Stream stream)
+        => WriteStream(eds, stream, options: null);
+
+    /// <summary>
+    /// Writes an EDS to a stream. The stream is not disposed.
+    /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public void WriteStream(ElectronicDataSheet eds, Stream stream, CanOpenWriteOptions? options = null)
+    public void WriteStream(ElectronicDataSheet eds, Stream stream, CanOpenWriteOptions? options)
     {
         CanOpenWriteGuard.EnsureValidEdsForWrite(eds, options);
         var writer = new EdsWriter();
         writer.WriteStream(eds, stream);
     }
+
+    /// <summary>
+    /// Writes an EDS to disk asynchronously.
+    /// </summary>
+    public Task WriteFileAsync(
+        ElectronicDataSheet eds,
+        string filePath,
+        CancellationToken cancellationToken = default)
+        => WriteFileAsync(eds, filePath, options: null, cancellationToken);
 
     /// <summary>
     /// Writes an EDS to disk asynchronously.
@@ -106,7 +127,7 @@ public sealed class EdsCanOpenOperations
     public Task WriteFileAsync(
         ElectronicDataSheet eds,
         string filePath,
-        CanOpenWriteOptions? options = null,
+        CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
         CanOpenWriteGuard.EnsureValidEdsForWrite(eds, options);
@@ -117,13 +138,22 @@ public sealed class EdsCanOpenOperations
     /// <summary>
     /// Writes an EDS to a stream asynchronously. The stream is not disposed.
     /// </summary>
+    public Task WriteStreamAsync(
+        ElectronicDataSheet eds,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+        => WriteStreamAsync(eds, stream, options: null, cancellationToken);
+
+    /// <summary>
+    /// Writes an EDS to a stream asynchronously. The stream is not disposed.
+    /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
     public Task WriteStreamAsync(
         ElectronicDataSheet eds,
         Stream stream,
-        CanOpenWriteOptions? options = null,
+        CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
         CanOpenWriteGuard.EnsureValidEdsForWrite(eds, options);
@@ -134,10 +164,16 @@ public sealed class EdsCanOpenOperations
     /// <summary>
     /// Serializes an EDS to a string.
     /// </summary>
+    public string WriteToString(ElectronicDataSheet eds)
+        => WriteToString(eds, options: null);
+
+    /// <summary>
+    /// Serializes an EDS to a string.
+    /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public string WriteToString(ElectronicDataSheet eds, CanOpenWriteOptions? options = null)
+    public string WriteToString(ElectronicDataSheet eds, CanOpenWriteOptions? options)
     {
         CanOpenWriteGuard.EnsureValidEdsForWrite(eds, options);
         var writer = new EdsWriter();

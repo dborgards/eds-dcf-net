@@ -72,10 +72,16 @@ public sealed class XdcCanOpenOperations
     /// <summary>
     /// Writes an XDC to disk.
     /// </summary>
+    public void WriteFile(DeviceConfigurationFile xdc, string filePath)
+        => WriteFile(xdc, filePath, options: null);
+
+    /// <summary>
+    /// Writes an XDC to disk.
+    /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public void WriteFile(DeviceConfigurationFile xdc, string filePath, CanOpenWriteOptions? options = null)
+    public void WriteFile(DeviceConfigurationFile xdc, string filePath, CanOpenWriteOptions? options)
     {
         CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();
@@ -85,15 +91,30 @@ public sealed class XdcCanOpenOperations
     /// <summary>
     /// Writes an XDC to a stream. The stream is not disposed.
     /// </summary>
+    public void WriteStream(DeviceConfigurationFile xdc, Stream stream)
+        => WriteStream(xdc, stream, options: null);
+
+    /// <summary>
+    /// Writes an XDC to a stream. The stream is not disposed.
+    /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public void WriteStream(DeviceConfigurationFile xdc, Stream stream, CanOpenWriteOptions? options = null)
+    public void WriteStream(DeviceConfigurationFile xdc, Stream stream, CanOpenWriteOptions? options)
     {
         CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();
         writer.WriteStream(xdc, stream);
     }
+
+    /// <summary>
+    /// Writes an XDC to disk asynchronously.
+    /// </summary>
+    public Task WriteFileAsync(
+        DeviceConfigurationFile xdc,
+        string filePath,
+        CancellationToken cancellationToken = default)
+        => WriteFileAsync(xdc, filePath, options: null, cancellationToken);
 
     /// <summary>
     /// Writes an XDC to disk asynchronously.
@@ -104,7 +125,7 @@ public sealed class XdcCanOpenOperations
     public Task WriteFileAsync(
         DeviceConfigurationFile xdc,
         string filePath,
-        CanOpenWriteOptions? options = null,
+        CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
         CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
@@ -115,13 +136,22 @@ public sealed class XdcCanOpenOperations
     /// <summary>
     /// Writes an XDC to a stream asynchronously. The stream is not disposed.
     /// </summary>
+    public Task WriteStreamAsync(
+        DeviceConfigurationFile xdc,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+        => WriteStreamAsync(xdc, stream, options: null, cancellationToken);
+
+    /// <summary>
+    /// Writes an XDC to a stream asynchronously. The stream is not disposed.
+    /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
     public Task WriteStreamAsync(
         DeviceConfigurationFile xdc,
         Stream stream,
-        CanOpenWriteOptions? options = null,
+        CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
         CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
@@ -132,10 +162,16 @@ public sealed class XdcCanOpenOperations
     /// <summary>
     /// Serializes an XDC to a string.
     /// </summary>
+    public string WriteToString(DeviceConfigurationFile xdc)
+        => WriteToString(xdc, options: null);
+
+    /// <summary>
+    /// Serializes an XDC to a string.
+    /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public string WriteToString(DeviceConfigurationFile xdc, CanOpenWriteOptions? options = null)
+    public string WriteToString(DeviceConfigurationFile xdc, CanOpenWriteOptions? options)
     {
         CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();

@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Tests.Integration;
 
 using System.Globalization;
+using System.Reflection;
 using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
@@ -468,6 +469,111 @@ public class WriteValidationGuardTests
         using var stream = new MemoryStream();
 
         var act = () => CanOpenFile.WriteEds(eds, stream, CanOpenWriteOptions.Validated);
+
+        act.Should().NotThrow();
+    }
+
+    [Theory]
+    [InlineData("Eds")]
+    [InlineData("Dcf")]
+    [InlineData("Cpj")]
+    [InlineData("Xdd")]
+    [InlineData("Xdc")]
+    public void FormatEntryPoint_WriteToString_LegacySignature_ReturnsContent(string format)
+    {
+        var content = format switch
+        {
+            "Eds" => CanOpenFile.Eds.WriteToString(CreateValidEds()),
+            "Dcf" => CanOpenFile.Dcf.WriteToString(CreateValidDcf()),
+            "Cpj" => CanOpenFile.Cpj.WriteToString(CreateValidCpj()),
+            "Xdd" => CanOpenFile.Xdd.WriteToString(CreateValidEds()),
+            "Xdc" => CanOpenFile.Xdc.WriteToString(CreateValidDcf()),
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
+        };
+
+        content.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Theory]
+    [InlineData(typeof(EdsCanOpenOperations), typeof(ElectronicDataSheet), nameof(EdsCanOpenOperations.WriteFile), typeof(string))]
+    [InlineData(typeof(EdsCanOpenOperations), typeof(ElectronicDataSheet), nameof(EdsCanOpenOperations.WriteStream), typeof(Stream))]
+    [InlineData(typeof(EdsCanOpenOperations), typeof(ElectronicDataSheet), nameof(EdsCanOpenOperations.WriteToString))]
+    [InlineData(typeof(DcfCanOpenOperations), typeof(DeviceConfigurationFile), nameof(DcfCanOpenOperations.WriteFile), typeof(string))]
+    [InlineData(typeof(DcfCanOpenOperations), typeof(DeviceConfigurationFile), nameof(DcfCanOpenOperations.WriteStream), typeof(Stream))]
+    [InlineData(typeof(DcfCanOpenOperations), typeof(DeviceConfigurationFile), nameof(DcfCanOpenOperations.WriteToString))]
+    [InlineData(typeof(CpjCanOpenOperations), typeof(NodelistProject), nameof(CpjCanOpenOperations.WriteFile), typeof(string))]
+    [InlineData(typeof(CpjCanOpenOperations), typeof(NodelistProject), nameof(CpjCanOpenOperations.WriteStream), typeof(Stream))]
+    [InlineData(typeof(CpjCanOpenOperations), typeof(NodelistProject), nameof(CpjCanOpenOperations.WriteToString))]
+    [InlineData(typeof(XddCanOpenOperations), typeof(ElectronicDataSheet), nameof(XddCanOpenOperations.WriteFile), typeof(string))]
+    [InlineData(typeof(XddCanOpenOperations), typeof(ElectronicDataSheet), nameof(XddCanOpenOperations.WriteStream), typeof(Stream))]
+    [InlineData(typeof(XddCanOpenOperations), typeof(ElectronicDataSheet), nameof(XddCanOpenOperations.WriteToString))]
+    [InlineData(typeof(XdcCanOpenOperations), typeof(DeviceConfigurationFile), nameof(XdcCanOpenOperations.WriteFile), typeof(string))]
+    [InlineData(typeof(XdcCanOpenOperations), typeof(DeviceConfigurationFile), nameof(XdcCanOpenOperations.WriteStream), typeof(Stream))]
+    [InlineData(typeof(XdcCanOpenOperations), typeof(DeviceConfigurationFile), nameof(XdcCanOpenOperations.WriteToString))]
+    public void FormatEntryPoint_PreservesLegacyWriteMemberSignatures(
+        Type operationsType,
+        Type modelType,
+        string methodName,
+        params Type[] additionalParameterTypes)
+    {
+        var parameterTypes = new[] { modelType }.Concat(additionalParameterTypes).ToArray();
+
+        var legacyMethod = operationsType.GetMethod(
+            methodName,
+            BindingFlags.Public | BindingFlags.Instance,
+            binder: null,
+            types: parameterTypes,
+            modifiers: null);
+
+        legacyMethod.Should().NotBeNull(
+            because: "{0}.{1}({2}) must remain in the assembly for binary compatibility",
+            operationsType.Name,
+            methodName,
+            string.Join(", ", parameterTypes.Select(t => t.Name)));
+    }
+
+    [Fact]
+    public void EdsEntryPoint_WriteFile_LegacySignature_Succeeds()
+    {
+        var eds = CreateValidEds();
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var act = () => CanOpenFile.Eds.WriteFile(eds, tempFile);
+
+            act.Should().NotThrow();
+            File.Exists(tempFile).Should().BeTrue();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task EdsEntryPoint_WriteStreamAsync_LegacySignature_Succeeds()
+    {
+        var eds = CreateValidEds();
+        using var stream = new MemoryStream();
+
+        await CanOpenFile.Eds.WriteStreamAsync(eds, stream);
+
+        stream.Length.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void EdsEntryPoint_WriteToString_LegacySignature_SkipsValidationForInvalidModel()
+    {
+        var eds = new ElectronicDataSheet();
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Unclassified",
+            ObjectType = 0x7
+        };
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds);
 
         act.Should().NotThrow();
     }
