@@ -199,11 +199,11 @@ public class XdcWriter : XddWriter
 
     private static XElement BuildDeviceCommissioning(DeviceCommissioning dc)
     {
-        if (dc.NodeId < 1 || dc.NodeId > 127)
+        if (!CanOpenNodeId.IsInRange(dc.NodeId))
         {
             throw new XdcWriteException(
                 string.Format(CultureInfo.InvariantCulture,
-                    "Cannot write XDC: NodeId {0} is outside the valid CANopen range 1..127.",
+                    "Cannot write XDC: NodeId {0} is outside the valid CANopen range " + CanOpenNodeId.RangeDescription + ".",
                     dc.NodeId),
                 "deviceCommissioning");
         }

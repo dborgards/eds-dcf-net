@@ -81,13 +81,15 @@ public static class CanOpenModelValidator
         List<ValidationIssue> issues)
     {
         var commissioningOmitted = DeviceCommissioningSemantics.IsOmitted(commissioning);
-        if ((!commissioningOmitted && commissioning.NodeId < 1) || commissioning.NodeId > 127)
+        if (commissioningOmitted
+                ? commissioning.NodeId > CanOpenNodeId.MaxValue
+                : !CanOpenNodeId.IsInRange(commissioning.NodeId))
         {
             issues.Add(new ValidationIssue(
                 "DeviceCommissioning.NodeId",
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "Node-ID {0} is outside the CANopen range 1..127 (or 0 when commissioning is omitted).",
+                    "Node-ID {0} is outside the CANopen range " + CanOpenNodeId.RangeDescription + " (or 0 when commissioning is omitted).",
                     commissioning.NodeId)));
         }
 
@@ -290,13 +292,13 @@ public static class CanOpenModelValidator
                 path,
                 kvp.Key);
 
-            if (kvp.Key < 1 || kvp.Key > 127)
+            if (!CanOpenNodeId.IsInRange(kvp.Key))
             {
                 issues.Add(new ValidationIssue(
                     nodePath,
                     string.Format(
                         CultureInfo.InvariantCulture,
-                        "Node dictionary key {0} is outside the CANopen range 1..127.",
+                        "Node dictionary key {0} is outside the CANopen range " + CanOpenNodeId.RangeDescription + ".",
                         kvp.Key)));
             }
 
@@ -311,13 +313,13 @@ public static class CanOpenModelValidator
                         kvp.Key)));
             }
 
-            if (kvp.Value.NodeId < 1 || kvp.Value.NodeId > 127)
+            if (!CanOpenNodeId.IsInRange(kvp.Value.NodeId))
             {
                 issues.Add(new ValidationIssue(
                     nodePath + ".NodeId",
                     string.Format(
                         CultureInfo.InvariantCulture,
-                        "Node-ID {0} is outside the CANopen range 1..127.",
+                        "Node-ID {0} is outside the CANopen range " + CanOpenNodeId.RangeDescription + ".",
                         kvp.Value.NodeId)));
             }
 
