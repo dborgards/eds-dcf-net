@@ -533,6 +533,25 @@ public class WriteValidationGuardTests
     }
 
     [Fact]
+    public void EdsEntryPoint_WriteFile_LegacySignature_Succeeds()
+    {
+        var eds = CreateValidEds();
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var act = () => CanOpenFile.Eds.WriteFile(eds, tempFile);
+
+            act.Should().NotThrow();
+            File.Exists(tempFile).Should().BeTrue();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public async Task EdsEntryPoint_WriteStreamAsync_LegacySignature_Succeeds()
     {
         var eds = CreateValidEds();
