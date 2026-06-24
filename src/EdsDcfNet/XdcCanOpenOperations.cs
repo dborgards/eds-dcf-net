@@ -1,5 +1,6 @@
 namespace EdsDcfNet;
 
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Writers;
@@ -71,8 +72,12 @@ public sealed class XdcCanOpenOperations
     /// <summary>
     /// Writes an XDC to disk.
     /// </summary>
-    public void WriteFile(DeviceConfigurationFile xdc, string filePath)
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public void WriteFile(DeviceConfigurationFile xdc, string filePath, CanOpenWriteOptions? options = null)
     {
+        CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();
         writer.WriteFile(xdc, filePath);
     }
@@ -80,8 +85,12 @@ public sealed class XdcCanOpenOperations
     /// <summary>
     /// Writes an XDC to a stream. The stream is not disposed.
     /// </summary>
-    public void WriteStream(DeviceConfigurationFile xdc, Stream stream)
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public void WriteStream(DeviceConfigurationFile xdc, Stream stream, CanOpenWriteOptions? options = null)
     {
+        CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();
         writer.WriteStream(xdc, stream);
     }
@@ -89,11 +98,16 @@ public sealed class XdcCanOpenOperations
     /// <summary>
     /// Writes an XDC to disk asynchronously.
     /// </summary>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
     public Task WriteFileAsync(
         DeviceConfigurationFile xdc,
         string filePath,
+        CanOpenWriteOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();
         return writer.WriteFileAsync(xdc, filePath, cancellationToken);
     }
@@ -101,11 +115,16 @@ public sealed class XdcCanOpenOperations
     /// <summary>
     /// Writes an XDC to a stream asynchronously. The stream is not disposed.
     /// </summary>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
     public Task WriteStreamAsync(
         DeviceConfigurationFile xdc,
         Stream stream,
+        CanOpenWriteOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();
         return writer.WriteStreamAsync(xdc, stream, cancellationToken);
     }
@@ -113,8 +132,12 @@ public sealed class XdcCanOpenOperations
     /// <summary>
     /// Serializes an XDC to a string.
     /// </summary>
-    public string WriteToString(DeviceConfigurationFile xdc)
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public string WriteToString(DeviceConfigurationFile xdc, CanOpenWriteOptions? options = null)
     {
+        CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
         var writer = new XdcWriter();
         return writer.GenerateString(xdc);
     }

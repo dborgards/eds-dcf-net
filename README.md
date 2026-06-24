@@ -223,6 +223,21 @@ Current checks include:
 - object dictionary consistency (list membership, duplicates, missing entries)
 - object-level constraints (object type validity, parameter-name length, SubNumber mismatch)
 
+To validate automatically before writing, pass `CanOpenWriteOptions.Validated` to the
+format-specific entry points:
+
+```csharp
+using EdsDcfNet;
+
+var dcf = CanOpenFile.ReadDcf("configured_device.dcf");
+
+// Throws ModelValidationException when the model has validation issues.
+CanOpenFile.Dcf.WriteFile(dcf, "updated.dcf", CanOpenWriteOptions.Validated);
+```
+
+The same option works on `CanOpenFile.Eds`, `.Cpj`, `.Xdd`, and `.Xdc` write methods.
+Legacy `CanOpenFile.WriteDcf(...)` overloads delegate to these entry points.
+
 ### Working with Nodelist Projects (CPJ)
 
 ```csharp

@@ -472,6 +472,97 @@ public class WriteValidationGuardTests
         act.Should().NotThrow();
     }
 
+    [Theory]
+    [InlineData("Eds")]
+    [InlineData("Dcf")]
+    [InlineData("Cpj")]
+    [InlineData("Xdd")]
+    [InlineData("Xdc")]
+    public void FormatEntryPoint_WriteToString_WithValidatedOptions_ValidModel_ReturnsContent(string format)
+    {
+        var content = format switch
+        {
+            "Eds" => CanOpenFile.Eds.WriteToString(CreateValidEds(), CanOpenWriteOptions.Validated),
+            "Dcf" => CanOpenFile.Dcf.WriteToString(CreateValidDcf(), CanOpenWriteOptions.Validated),
+            "Cpj" => CanOpenFile.Cpj.WriteToString(CreateValidCpj(), CanOpenWriteOptions.Validated),
+            "Xdd" => CanOpenFile.Xdd.WriteToString(CreateValidEds(), CanOpenWriteOptions.Validated),
+            "Xdc" => CanOpenFile.Xdc.WriteToString(CreateValidDcf(), CanOpenWriteOptions.Validated),
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
+        };
+
+        content.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public void EdsEntryPoint_WriteToString_WithValidatedOptions_ThrowsForInvalidModel()
+    {
+        var eds = new ElectronicDataSheet();
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Unclassified",
+            ObjectType = 0x7
+        };
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>();
+    }
+
+    [Fact]
+    public void DcfEntryPoint_WriteToString_WithValidatedOptions_ThrowsForInvalidModel()
+    {
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+
+        var act = () => CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>();
+    }
+
+    [Fact]
+    public void CpjEntryPoint_WriteToString_WithValidatedOptions_ThrowsForInvalidModel()
+    {
+        var cpj = new NodelistProject();
+        cpj.Networks.Add(new NetworkTopology());
+        cpj.Networks[0].Nodes[0] = new NetworkNode { NodeId = 0, Present = true };
+
+        var act = () => CanOpenFile.Cpj.WriteToString(cpj, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>();
+    }
+
+    [Fact]
+    public void XddEntryPoint_WriteToString_WithValidatedOptions_ThrowsForInvalidModel()
+    {
+        var xdd = new ElectronicDataSheet();
+        xdd.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Unclassified",
+            ObjectType = 0x7
+        };
+
+        var act = () => CanOpenFile.Xdd.WriteToString(xdd, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>();
+    }
+
+    [Fact]
+    public void XdcEntryPoint_WriteToString_WithValidatedOptions_ThrowsForInvalidModel()
+    {
+        var xdc = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+
+        var act = () => CanOpenFile.Xdc.WriteToString(xdc, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>();
+    }
+
     private static DeviceConfigurationFile CreateValidDcf()
     {
         var dcf = new DeviceConfigurationFile

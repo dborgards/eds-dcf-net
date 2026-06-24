@@ -1,5 +1,6 @@
 namespace EdsDcfNet;
 
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Writers;
@@ -71,8 +72,12 @@ public sealed class CpjCanOpenOperations
     /// <summary>
     /// Writes a CPJ to disk.
     /// </summary>
-    public void WriteFile(NodelistProject cpj, string filePath)
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public void WriteFile(NodelistProject cpj, string filePath, CanOpenWriteOptions? options = null)
     {
+        CanOpenWriteGuard.EnsureValidCpjForWrite(cpj, options);
         var writer = new CpjWriter();
         writer.WriteFile(cpj, filePath);
     }
@@ -80,8 +85,12 @@ public sealed class CpjCanOpenOperations
     /// <summary>
     /// Writes a CPJ to a stream. The stream is not disposed.
     /// </summary>
-    public void WriteStream(NodelistProject cpj, Stream stream)
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public void WriteStream(NodelistProject cpj, Stream stream, CanOpenWriteOptions? options = null)
     {
+        CanOpenWriteGuard.EnsureValidCpjForWrite(cpj, options);
         var writer = new CpjWriter();
         writer.WriteStream(cpj, stream);
     }
@@ -89,11 +98,16 @@ public sealed class CpjCanOpenOperations
     /// <summary>
     /// Writes a CPJ to disk asynchronously.
     /// </summary>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
     public Task WriteFileAsync(
         NodelistProject cpj,
         string filePath,
+        CanOpenWriteOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        CanOpenWriteGuard.EnsureValidCpjForWrite(cpj, options);
         var writer = new CpjWriter();
         return writer.WriteFileAsync(cpj, filePath, cancellationToken);
     }
@@ -101,11 +115,16 @@ public sealed class CpjCanOpenOperations
     /// <summary>
     /// Writes a CPJ to a stream asynchronously. The stream is not disposed.
     /// </summary>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
     public Task WriteStreamAsync(
         NodelistProject cpj,
         Stream stream,
+        CanOpenWriteOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        CanOpenWriteGuard.EnsureValidCpjForWrite(cpj, options);
         var writer = new CpjWriter();
         return writer.WriteStreamAsync(cpj, stream, cancellationToken);
     }
@@ -113,8 +132,12 @@ public sealed class CpjCanOpenOperations
     /// <summary>
     /// Serializes a CPJ to a string.
     /// </summary>
-    public string WriteToString(NodelistProject cpj)
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public string WriteToString(NodelistProject cpj, CanOpenWriteOptions? options = null)
     {
+        CanOpenWriteGuard.EnsureValidCpjForWrite(cpj, options);
         var writer = new CpjWriter();
         return writer.GenerateString(cpj);
     }

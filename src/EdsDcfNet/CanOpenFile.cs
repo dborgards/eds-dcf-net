@@ -5,7 +5,6 @@ using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Utilities;
 using EdsDcfNet.Validation;
-using EdsDcfNet.Writers;
 using System.Globalization;
 
 /// <summary>
@@ -26,7 +25,8 @@ public static class CanOpenFile
 {
     /// <summary>
     /// EDS read/write operations. Prefer this entry point for new code that needs
-    /// <see cref="CanOpenFileOptions"/> instead of additional <see cref="CanOpenFile"/> overloads.
+    /// <see cref="CanOpenFileOptions"/> and <see cref="CanOpenWriteOptions"/> instead of additional
+    /// <see cref="CanOpenFile"/> overloads.
     /// </summary>
     public static EdsCanOpenOperations Eds { get; } = EdsCanOpenOperations.Instance;
     /// <summary>
@@ -241,10 +241,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static void WriteEds(ElectronicDataSheet eds, string filePath, CanOpenWriteOptions? options)
-    {
-        EnsureValidEdsForWrite(eds, options);
-        Eds.WriteFile(eds, filePath);
-    }
+        => Eds.WriteFile(eds, filePath, options);
 
     /// <summary>
     /// Writes an Electronic Data Sheet (EDS) to a stream.
@@ -267,10 +264,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static void WriteEds(ElectronicDataSheet eds, Stream stream, CanOpenWriteOptions? options)
-    {
-        EnsureValidEdsForWrite(eds, options);
-        Eds.WriteStream(eds, stream);
-    }
+        => Eds.WriteStream(eds, stream, options);
 
     /// <summary>
     /// Writes an Electronic Data Sheet (EDS) to disk asynchronously.
@@ -300,10 +294,7 @@ public static class CanOpenFile
         string filePath,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
-    {
-        EnsureValidEdsForWrite(eds, options);
-        return Eds.WriteFileAsync(eds, filePath, cancellationToken);
-    }
+        => Eds.WriteFileAsync(eds, filePath, options, cancellationToken);
 
     /// <summary>
     /// Writes an Electronic Data Sheet (EDS) to a stream asynchronously.
@@ -335,10 +326,7 @@ public static class CanOpenFile
         Stream stream,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
-    {
-        EnsureValidEdsForWrite(eds, options);
-        return Eds.WriteStreamAsync(eds, stream, cancellationToken);
-    }
+        => Eds.WriteStreamAsync(eds, stream, options, cancellationToken);
 
     /// <summary>
     /// Generates an EDS file content as string.
@@ -359,10 +347,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static string WriteEdsToString(ElectronicDataSheet eds, CanOpenWriteOptions? options)
-    {
-        EnsureValidEdsForWrite(eds, options);
-        return Eds.WriteToString(eds);
-    }
+        => Eds.WriteToString(eds, options);
 
     #endregion
 
@@ -546,11 +531,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static void WriteDcf(DeviceConfigurationFile dcf, string filePath, CanOpenWriteOptions? options)
-    {
-        EnsureValidDcfForWrite(dcf, options);
-        var writer = new DcfWriter();
-        writer.WriteFile(dcf, filePath);
-    }
+        => Dcf.WriteFile(dcf, filePath, options);
 
     /// <summary>
     /// Writes a Device Configuration File (DCF) to a stream.
@@ -573,11 +554,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream, CanOpenWriteOptions? options)
-    {
-        EnsureValidDcfForWrite(dcf, options);
-        var writer = new DcfWriter();
-        writer.WriteStream(dcf, stream);
-    }
+        => Dcf.WriteStream(dcf, stream, options);
 
     /// <summary>
     /// Writes a Device Configuration File (DCF) to disk asynchronously.
@@ -607,11 +584,7 @@ public static class CanOpenFile
         string filePath,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
-    {
-        EnsureValidDcfForWrite(dcf, options);
-        var writer = new DcfWriter();
-        return writer.WriteFileAsync(dcf, filePath, cancellationToken);
-    }
+        => Dcf.WriteFileAsync(dcf, filePath, options, cancellationToken);
 
     /// <summary>
     /// Writes a Device Configuration File (DCF) to a stream asynchronously.
@@ -643,11 +616,7 @@ public static class CanOpenFile
         Stream stream,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
-    {
-        EnsureValidDcfForWrite(dcf, options);
-        var writer = new DcfWriter();
-        return writer.WriteStreamAsync(dcf, stream, cancellationToken);
-    }
+        => Dcf.WriteStreamAsync(dcf, stream, options, cancellationToken);
 
     /// <summary>
     /// Generates a DCF file content as string.
@@ -668,11 +637,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static string WriteDcfToString(DeviceConfigurationFile dcf, CanOpenWriteOptions? options)
-    {
-        EnsureValidDcfForWrite(dcf, options);
-        var writer = new DcfWriter();
-        return writer.GenerateString(dcf);
-    }
+        => Dcf.WriteToString(dcf, options);
 
     #endregion
 
@@ -841,11 +806,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static void WriteCpj(NodelistProject cpj, string filePath, CanOpenWriteOptions? options)
-    {
-        EnsureValidCpjForWrite(cpj, options);
-        var writer = new CpjWriter();
-        writer.WriteFile(cpj, filePath);
-    }
+        => Cpj.WriteFile(cpj, filePath, options);
 
     /// <summary>
     /// Writes a CiA 306-3 nodelist project (.cpj) to a stream.
@@ -868,11 +829,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static void WriteCpj(NodelistProject cpj, Stream stream, CanOpenWriteOptions? options)
-    {
-        EnsureValidCpjForWrite(cpj, options);
-        var writer = new CpjWriter();
-        writer.WriteStream(cpj, stream);
-    }
+        => Cpj.WriteStream(cpj, stream, options);
 
     /// <summary>
     /// Writes a CiA 306-3 nodelist project (.cpj) to disk asynchronously.
@@ -902,11 +859,7 @@ public static class CanOpenFile
         string filePath,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
-    {
-        EnsureValidCpjForWrite(cpj, options);
-        var writer = new CpjWriter();
-        return writer.WriteFileAsync(cpj, filePath, cancellationToken);
-    }
+        => Cpj.WriteFileAsync(cpj, filePath, options, cancellationToken);
 
     /// <summary>
     /// Writes a CiA 306-3 nodelist project (.cpj) to a stream asynchronously.
@@ -938,11 +891,7 @@ public static class CanOpenFile
         Stream stream,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
-    {
-        EnsureValidCpjForWrite(cpj, options);
-        var writer = new CpjWriter();
-        return writer.WriteStreamAsync(cpj, stream, cancellationToken);
-    }
+        => Cpj.WriteStreamAsync(cpj, stream, options, cancellationToken);
 
     /// <summary>
     /// Generates CPJ file content as string.
@@ -963,11 +912,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static string WriteCpjToString(NodelistProject cpj, CanOpenWriteOptions? options)
-    {
-        EnsureValidCpjForWrite(cpj, options);
-        var writer = new CpjWriter();
-        return writer.GenerateString(cpj);
-    }
+        => Cpj.WriteToString(cpj, options);
 
     #endregion
 
@@ -1136,11 +1081,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static void WriteXdd(ElectronicDataSheet xdd, string filePath, CanOpenWriteOptions? options)
-    {
-        EnsureValidEdsForWrite(xdd, options);
-        var writer = new XddWriter();
-        writer.WriteFile(xdd, filePath);
-    }
+        => Xdd.WriteFile(xdd, filePath, options);
 
     /// <summary>
     /// Writes an ElectronicDataSheet as a CiA 311 XDD stream.
@@ -1163,11 +1104,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static void WriteXdd(ElectronicDataSheet xdd, Stream stream, CanOpenWriteOptions? options)
-    {
-        EnsureValidEdsForWrite(xdd, options);
-        var writer = new XddWriter();
-        writer.WriteStream(xdd, stream);
-    }
+        => Xdd.WriteStream(xdd, stream, options);
 
     /// <summary>
     /// Writes an ElectronicDataSheet as a CiA 311 XDD file asynchronously.
@@ -1197,11 +1134,7 @@ public static class CanOpenFile
         string filePath,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
-    {
-        EnsureValidEdsForWrite(xdd, options);
-        var writer = new XddWriter();
-        return writer.WriteFileAsync(xdd, filePath, cancellationToken);
-    }
+        => Xdd.WriteFileAsync(xdd, filePath, options, cancellationToken);
 
     /// <summary>
     /// Writes an ElectronicDataSheet as a CiA 311 XDD stream asynchronously.
@@ -1233,11 +1166,7 @@ public static class CanOpenFile
         Stream stream,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
-    {
-        EnsureValidEdsForWrite(xdd, options);
-        var writer = new XddWriter();
-        return writer.WriteStreamAsync(xdd, stream, cancellationToken);
-    }
+        => Xdd.WriteStreamAsync(xdd, stream, options, cancellationToken);
 
     /// <summary>
     /// Generates XDD file content as string.
@@ -1258,11 +1187,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static string WriteXddToString(ElectronicDataSheet xdd, CanOpenWriteOptions? options)
-    {
-        EnsureValidEdsForWrite(xdd, options);
-        var writer = new XddWriter();
-        return writer.GenerateString(xdd);
-    }
+        => Xdd.WriteToString(xdd, options);
 
     #endregion
 
@@ -1431,11 +1356,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static void WriteXdc(DeviceConfigurationFile xdc, string filePath, CanOpenWriteOptions? options)
-    {
-        EnsureValidDcfForWrite(xdc, options);
-        var writer = new XdcWriter();
-        writer.WriteFile(xdc, filePath);
-    }
+        => Xdc.WriteFile(xdc, filePath, options);
 
     /// <summary>
     /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream.
@@ -1458,11 +1379,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static void WriteXdc(DeviceConfigurationFile xdc, Stream stream, CanOpenWriteOptions? options)
-    {
-        EnsureValidDcfForWrite(xdc, options);
-        var writer = new XdcWriter();
-        writer.WriteStream(xdc, stream);
-    }
+        => Xdc.WriteStream(xdc, stream, options);
 
     /// <summary>
     /// Writes a DeviceConfigurationFile as a CiA 311 XDC file asynchronously.
@@ -1492,11 +1409,7 @@ public static class CanOpenFile
         string filePath,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
-    {
-        EnsureValidDcfForWrite(xdc, options);
-        var writer = new XdcWriter();
-        return writer.WriteFileAsync(xdc, filePath, cancellationToken);
-    }
+        => Xdc.WriteFileAsync(xdc, filePath, options, cancellationToken);
 
     /// <summary>
     /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream asynchronously.
@@ -1528,11 +1441,7 @@ public static class CanOpenFile
         Stream stream,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
-    {
-        EnsureValidDcfForWrite(xdc, options);
-        var writer = new XdcWriter();
-        return writer.WriteStreamAsync(xdc, stream, cancellationToken);
-    }
+        => Xdc.WriteStreamAsync(xdc, stream, options, cancellationToken);
 
     /// <summary>
     /// Generates XDC file content as string.
@@ -1553,11 +1462,7 @@ public static class CanOpenFile
     /// <see langword="true"/> and the model has validation issues.
     /// </exception>
     public static string WriteXdcToString(DeviceConfigurationFile xdc, CanOpenWriteOptions? options)
-    {
-        EnsureValidDcfForWrite(xdc, options);
-        var writer = new XdcWriter();
-        return writer.GenerateString(xdc);
-    }
+        => Xdc.WriteToString(xdc, options);
 
     #endregion
 
@@ -1651,28 +1556,6 @@ public static class CanOpenFile
             dcf.AdditionalSections[kvp.Key] = kvp.Value;
 
         return dcf;
-    }
-
-    #endregion
-
-    #region Write validation helpers
-
-    private static void EnsureValidEdsForWrite(ElectronicDataSheet eds, CanOpenWriteOptions? options)
-    {
-        if (options?.ValidateBeforeWrite == true)
-            EnsureValid(eds);
-    }
-
-    private static void EnsureValidDcfForWrite(DeviceConfigurationFile dcf, CanOpenWriteOptions? options)
-    {
-        if (options?.ValidateBeforeWrite == true)
-            EnsureValid(dcf);
-    }
-
-    private static void EnsureValidCpjForWrite(NodelistProject cpj, CanOpenWriteOptions? options)
-    {
-        if (options?.ValidateBeforeWrite == true)
-            EnsureValid(cpj);
     }
 
     private static void ThrowIfInvalid(IReadOnlyList<ValidationIssue> issues)

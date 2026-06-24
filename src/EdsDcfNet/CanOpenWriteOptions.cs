@@ -1,7 +1,9 @@
 namespace EdsDcfNet;
 
 /// <summary>
-/// Optional behavior for <see cref="CanOpenFile"/> write operations.
+/// Optional behavior for <see cref="CanOpenFile"/> and format-specific operations
+/// (<see cref="CanOpenFile.Eds"/>, <see cref="CanOpenFile.Dcf"/>, <see cref="CanOpenFile.Cpj"/>,
+/// <see cref="CanOpenFile.Xdd"/>, <see cref="CanOpenFile.Xdc"/>) write methods.
 /// </summary>
 public sealed class CanOpenWriteOptions
 {
