@@ -38,7 +38,8 @@ All numeric and date formatting/parsing **must** use `CultureInfo.InvariantCultu
 EDS/DCF file → IniParser → EdsReader/DcfReader → Models → DcfWriter → DCF file
 ```
 
-- **`CanOpenFile`** — static facade, the public API entry point (`ReadEds`, `ReadDcf`, `WriteDcf`, `EdsToDcf`)
+- **`CanOpenFile`** — static facade with legacy `ReadEds`/`WriteDcf`-style overloads (backward compatible) and **canonical format entry points** `CanOpenFile.Eds`, `.Dcf`, `.Cpj`, `.Xdd`, `.Xdc` for read/write/options. Prefer the entry points for new code; legacy write overloads that only cover defaults are marked `[Obsolete]` (advisory).
+- **`EdsCanOpenOperations`** et al. — format-specific operations accessed via the entry points above
 - **`IniParser`** — low-level INI section/key-value parsing (case-insensitive)
 - **`EdsReader`** / **`DcfReader`** — domain-specific parsers producing `ElectronicDataSheet` / `DeviceConfigurationFile`
 - **`DcfWriter`** — serializes `DeviceConfigurationFile` back to DCF format
