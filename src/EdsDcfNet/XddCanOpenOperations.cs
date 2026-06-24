@@ -1,5 +1,6 @@
 namespace EdsDcfNet;
 
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Writers;
@@ -71,8 +72,12 @@ public sealed class XddCanOpenOperations
     /// <summary>
     /// Writes an XDD to disk.
     /// </summary>
-    public void WriteFile(ElectronicDataSheet xdd, string filePath)
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public void WriteFile(ElectronicDataSheet xdd, string filePath, CanOpenWriteOptions? options = null)
     {
+        CanOpenWriteGuard.EnsureValidEdsForWrite(xdd, options);
         var writer = new XddWriter();
         writer.WriteFile(xdd, filePath);
     }
@@ -80,8 +85,12 @@ public sealed class XddCanOpenOperations
     /// <summary>
     /// Writes an XDD to a stream. The stream is not disposed.
     /// </summary>
-    public void WriteStream(ElectronicDataSheet xdd, Stream stream)
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public void WriteStream(ElectronicDataSheet xdd, Stream stream, CanOpenWriteOptions? options = null)
     {
+        CanOpenWriteGuard.EnsureValidEdsForWrite(xdd, options);
         var writer = new XddWriter();
         writer.WriteStream(xdd, stream);
     }
@@ -89,11 +98,16 @@ public sealed class XddCanOpenOperations
     /// <summary>
     /// Writes an XDD to disk asynchronously.
     /// </summary>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
     public Task WriteFileAsync(
         ElectronicDataSheet xdd,
         string filePath,
+        CanOpenWriteOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        CanOpenWriteGuard.EnsureValidEdsForWrite(xdd, options);
         var writer = new XddWriter();
         return writer.WriteFileAsync(xdd, filePath, cancellationToken);
     }
@@ -101,11 +115,16 @@ public sealed class XddCanOpenOperations
     /// <summary>
     /// Writes an XDD to a stream asynchronously. The stream is not disposed.
     /// </summary>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
     public Task WriteStreamAsync(
         ElectronicDataSheet xdd,
         Stream stream,
+        CanOpenWriteOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        CanOpenWriteGuard.EnsureValidEdsForWrite(xdd, options);
         var writer = new XddWriter();
         return writer.WriteStreamAsync(xdd, stream, cancellationToken);
     }
@@ -113,8 +132,12 @@ public sealed class XddCanOpenOperations
     /// <summary>
     /// Serializes an XDD to a string.
     /// </summary>
-    public string WriteToString(ElectronicDataSheet xdd)
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public string WriteToString(ElectronicDataSheet xdd, CanOpenWriteOptions? options = null)
     {
+        CanOpenWriteGuard.EnsureValidEdsForWrite(xdd, options);
         var writer = new XddWriter();
         return writer.GenerateString(xdd);
     }
