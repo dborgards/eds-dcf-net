@@ -10,6 +10,11 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'EdsDcfNet.Tests'">
+    <!-- Integration tests call legacy CanOpenFile overloads marked [Obsolete] to verify delegation. -->
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'EdsDcfNet'">
     <AnalysisMode>Recommended</AnalysisMode>
   </PropertyGroup>
