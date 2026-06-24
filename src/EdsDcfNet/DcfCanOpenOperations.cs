@@ -83,7 +83,7 @@ public sealed class DcfCanOpenOperations
     /// </exception>
     public void WriteFile(DeviceConfigurationFile dcf, string filePath, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(dcf, options);
+        CanOpenWriteGuard.EnsureValidForWrite(dcf, options);
         var writer = new DcfWriter();
         writer.WriteFile(dcf, filePath);
     }
@@ -102,7 +102,7 @@ public sealed class DcfCanOpenOperations
     /// </exception>
     public void WriteStream(DeviceConfigurationFile dcf, Stream stream, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(dcf, options);
+        CanOpenWriteGuard.EnsureValidForWrite(dcf, options);
         var writer = new DcfWriter();
         writer.WriteStream(dcf, stream);
     }
@@ -128,7 +128,7 @@ public sealed class DcfCanOpenOperations
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(dcf, options);
+        CanOpenWriteGuard.EnsureValidForWrite(dcf, options);
         var writer = new DcfWriter();
         return writer.WriteFileAsync(dcf, filePath, cancellationToken);
     }
@@ -154,7 +154,7 @@ public sealed class DcfCanOpenOperations
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(dcf, options);
+        CanOpenWriteGuard.EnsureValidForWrite(dcf, options);
         var writer = new DcfWriter();
         return writer.WriteStreamAsync(dcf, stream, cancellationToken);
     }
@@ -173,7 +173,7 @@ public sealed class DcfCanOpenOperations
     /// </exception>
     public string WriteToString(DeviceConfigurationFile dcf, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(dcf, options);
+        CanOpenWriteGuard.EnsureValidForWrite(dcf, options);
         var writer = new DcfWriter();
         return writer.GenerateString(dcf);
     }

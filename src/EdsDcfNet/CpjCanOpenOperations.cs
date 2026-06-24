@@ -83,7 +83,7 @@ public sealed class CpjCanOpenOperations
     /// </exception>
     public void WriteFile(NodelistProject cpj, string filePath, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidCpjForWrite(cpj, options);
+        CanOpenWriteGuard.EnsureValidForWrite(cpj, options);
         var writer = new CpjWriter();
         writer.WriteFile(cpj, filePath);
     }
@@ -102,7 +102,7 @@ public sealed class CpjCanOpenOperations
     /// </exception>
     public void WriteStream(NodelistProject cpj, Stream stream, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidCpjForWrite(cpj, options);
+        CanOpenWriteGuard.EnsureValidForWrite(cpj, options);
         var writer = new CpjWriter();
         writer.WriteStream(cpj, stream);
     }
@@ -128,7 +128,7 @@ public sealed class CpjCanOpenOperations
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        CanOpenWriteGuard.EnsureValidCpjForWrite(cpj, options);
+        CanOpenWriteGuard.EnsureValidForWrite(cpj, options);
         var writer = new CpjWriter();
         return writer.WriteFileAsync(cpj, filePath, cancellationToken);
     }
@@ -154,7 +154,7 @@ public sealed class CpjCanOpenOperations
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        CanOpenWriteGuard.EnsureValidCpjForWrite(cpj, options);
+        CanOpenWriteGuard.EnsureValidForWrite(cpj, options);
         var writer = new CpjWriter();
         return writer.WriteStreamAsync(cpj, stream, cancellationToken);
     }
@@ -173,7 +173,7 @@ public sealed class CpjCanOpenOperations
     /// </exception>
     public string WriteToString(NodelistProject cpj, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidCpjForWrite(cpj, options);
+        CanOpenWriteGuard.EnsureValidForWrite(cpj, options);
         var writer = new CpjWriter();
         return writer.GenerateString(cpj);
     }

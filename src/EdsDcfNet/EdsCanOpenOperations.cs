@@ -85,7 +85,7 @@ public sealed class EdsCanOpenOperations
     /// </exception>
     public void WriteFile(ElectronicDataSheet eds, string filePath, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidEdsForWrite(eds, options);
+        CanOpenWriteGuard.EnsureValidForWrite(eds, options);
         var writer = new EdsWriter();
         writer.WriteFile(eds, filePath);
     }
@@ -104,7 +104,7 @@ public sealed class EdsCanOpenOperations
     /// </exception>
     public void WriteStream(ElectronicDataSheet eds, Stream stream, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidEdsForWrite(eds, options);
+        CanOpenWriteGuard.EnsureValidForWrite(eds, options);
         var writer = new EdsWriter();
         writer.WriteStream(eds, stream);
     }
@@ -130,7 +130,7 @@ public sealed class EdsCanOpenOperations
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        CanOpenWriteGuard.EnsureValidEdsForWrite(eds, options);
+        CanOpenWriteGuard.EnsureValidForWrite(eds, options);
         var writer = new EdsWriter();
         return writer.WriteFileAsync(eds, filePath, cancellationToken);
     }
@@ -156,7 +156,7 @@ public sealed class EdsCanOpenOperations
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        CanOpenWriteGuard.EnsureValidEdsForWrite(eds, options);
+        CanOpenWriteGuard.EnsureValidForWrite(eds, options);
         var writer = new EdsWriter();
         return writer.WriteStreamAsync(eds, stream, cancellationToken);
     }
@@ -175,7 +175,7 @@ public sealed class EdsCanOpenOperations
     /// </exception>
     public string WriteToString(ElectronicDataSheet eds, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidEdsForWrite(eds, options);
+        CanOpenWriteGuard.EnsureValidForWrite(eds, options);
         var writer = new EdsWriter();
         return writer.GenerateString(eds);
     }

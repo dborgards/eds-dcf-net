@@ -83,7 +83,7 @@ public sealed class XddCanOpenOperations
     /// </exception>
     public void WriteFile(ElectronicDataSheet xdd, string filePath, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidEdsForWrite(xdd, options);
+        CanOpenWriteGuard.EnsureValidForWrite(xdd, options);
         var writer = new XddWriter();
         writer.WriteFile(xdd, filePath);
     }
@@ -102,7 +102,7 @@ public sealed class XddCanOpenOperations
     /// </exception>
     public void WriteStream(ElectronicDataSheet xdd, Stream stream, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidEdsForWrite(xdd, options);
+        CanOpenWriteGuard.EnsureValidForWrite(xdd, options);
         var writer = new XddWriter();
         writer.WriteStream(xdd, stream);
     }
@@ -128,7 +128,7 @@ public sealed class XddCanOpenOperations
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        CanOpenWriteGuard.EnsureValidEdsForWrite(xdd, options);
+        CanOpenWriteGuard.EnsureValidForWrite(xdd, options);
         var writer = new XddWriter();
         return writer.WriteFileAsync(xdd, filePath, cancellationToken);
     }
@@ -154,7 +154,7 @@ public sealed class XddCanOpenOperations
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        CanOpenWriteGuard.EnsureValidEdsForWrite(xdd, options);
+        CanOpenWriteGuard.EnsureValidForWrite(xdd, options);
         var writer = new XddWriter();
         return writer.WriteStreamAsync(xdd, stream, cancellationToken);
     }
@@ -173,7 +173,7 @@ public sealed class XddCanOpenOperations
     /// </exception>
     public string WriteToString(ElectronicDataSheet xdd, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidEdsForWrite(xdd, options);
+        CanOpenWriteGuard.EnsureValidForWrite(xdd, options);
         var writer = new XddWriter();
         return writer.GenerateString(xdd);
     }

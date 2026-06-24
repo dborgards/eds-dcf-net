@@ -83,7 +83,7 @@ public sealed class XdcCanOpenOperations
     /// </exception>
     public void WriteFile(DeviceConfigurationFile xdc, string filePath, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
+        CanOpenWriteGuard.EnsureValidForWrite(xdc, options);
         var writer = new XdcWriter();
         writer.WriteFile(xdc, filePath);
     }
@@ -102,7 +102,7 @@ public sealed class XdcCanOpenOperations
     /// </exception>
     public void WriteStream(DeviceConfigurationFile xdc, Stream stream, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
+        CanOpenWriteGuard.EnsureValidForWrite(xdc, options);
         var writer = new XdcWriter();
         writer.WriteStream(xdc, stream);
     }
@@ -128,7 +128,7 @@ public sealed class XdcCanOpenOperations
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
+        CanOpenWriteGuard.EnsureValidForWrite(xdc, options);
         var writer = new XdcWriter();
         return writer.WriteFileAsync(xdc, filePath, cancellationToken);
     }
@@ -154,7 +154,7 @@ public sealed class XdcCanOpenOperations
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
+        CanOpenWriteGuard.EnsureValidForWrite(xdc, options);
         var writer = new XdcWriter();
         return writer.WriteStreamAsync(xdc, stream, cancellationToken);
     }
@@ -173,7 +173,7 @@ public sealed class XdcCanOpenOperations
     /// </exception>
     public string WriteToString(DeviceConfigurationFile xdc, CanOpenWriteOptions? options)
     {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(xdc, options);
+        CanOpenWriteGuard.EnsureValidForWrite(xdc, options);
         var writer = new XdcWriter();
         return writer.GenerateString(xdc);
     }
