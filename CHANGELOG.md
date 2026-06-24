@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 `CanOpenWriteOptions.Validated` now also validates `ApplicationProcess` graphs on EDS, XDD, and XDC models (CiA 311). Models with invalid ApplicationProcess references — duplicate or empty `uniqueID`, dangling `dataType`/`template`/`functionType` references, function types without `versionInfo` — throw `ModelValidationException` on write where they previously serialized fine. Default write options (`null`) are unchanged.
 
+## [1.9.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.9.0-beta.3...v1.9.0-beta.4) (2026-06-24)
+
+### ✨ Features
+
+* **api:** add CanOpenFileOptions overloads for EDS read methods ([#312](https://github.com/dborgards/eds-dcf-net/issues/312)) ([b22f37c](https://github.com/dborgards/eds-dcf-net/commit/b22f37c055937aeab4747169fdd8a04d0cfd5412)), closes [#304](https://github.com/dborgards/eds-dcf-net/issues/304)
+
 ## [1.9.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.9.0-beta.2...v1.9.0-beta.3) (2026-06-24)
 
 ### 🐛 Bug Fixes
