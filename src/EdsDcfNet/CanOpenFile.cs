@@ -3,9 +3,7 @@ namespace EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
-using EdsDcfNet.Utilities;
 using EdsDcfNet.Validation;
-using System.Globalization;
 
 /// <summary>
 /// Main entry point for working with EDS and DCF files.
@@ -18,8 +16,10 @@ using System.Globalization;
 /// preserve non-ASCII content while remaining ASCII-compatible for 7-bit data.
 /// The corresponding <c>Write*ToString</c> overloads return a .NET <see cref="string"/>,
 /// so BOM and byte-level encoding do not apply.
-/// For format-specific operations with shared options, prefer <see cref="Eds"/>,
-/// <see cref="Dcf"/>, <see cref="Cpj"/>, <see cref="Xdd"/>, and <see cref="Xdc"/>.
+/// For format-specific operations with shared options, use the canonical entry points
+/// <see cref="Eds"/>, <see cref="Dcf"/>, <see cref="Cpj"/>, <see cref="Xdd"/>, and <see cref="Xdc"/>.
+/// Legacy <c>Read*</c>/<c>Write*</c> static overloads remain for backward compatibility; they delegate
+/// to these entry points and default-parameter-only write overloads are marked obsolete (advisory).
 /// </remarks>
 public static class CanOpenFile
 {
@@ -30,22 +30,26 @@ public static class CanOpenFile
     /// </summary>
     public static EdsCanOpenOperations Eds { get; } = EdsCanOpenOperations.Instance;
     /// <summary>
-    /// DCF read/write operations.
+    /// DCF read/write operations. Prefer this entry point for new code that needs
+    /// <see cref="CanOpenFileOptions"/> and <see cref="CanOpenWriteOptions"/>.
     /// </summary>
     public static DcfCanOpenOperations Dcf { get; } = DcfCanOpenOperations.Instance;
 
     /// <summary>
-    /// CPJ read/write operations.
+    /// CPJ read/write operations. Prefer this entry point for new code that needs
+    /// <see cref="CanOpenFileOptions"/> and <see cref="CanOpenWriteOptions"/>.
     /// </summary>
     public static CpjCanOpenOperations Cpj { get; } = CpjCanOpenOperations.Instance;
 
     /// <summary>
-    /// XDD read/write operations.
+    /// XDD read/write operations. Prefer this entry point for new code that needs
+    /// <see cref="CanOpenFileOptions"/> and <see cref="CanOpenWriteOptions"/>.
     /// </summary>
     public static XddCanOpenOperations Xdd { get; } = XddCanOpenOperations.Instance;
 
     /// <summary>
-    /// XDC read/write operations.
+    /// XDC read/write operations. Prefer this entry point for new code that needs
+    /// <see cref="CanOpenFileOptions"/> and <see cref="CanOpenWriteOptions"/>.
     /// </summary>
     public static XdcCanOpenOperations Xdc { get; } = XdcCanOpenOperations.Instance;
 
@@ -121,90 +125,44 @@ public static class CanOpenFile
 
     #region EDS Read
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) file.
-    /// </summary>
-    /// <param name="filePath">Path to the EDS file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
-    /// <example>
-    /// <code>
-    /// var eds = CanOpenFile.ReadEds("device.eds");
-    /// Console.WriteLine($"Device: {eds.DeviceInfo.ProductName}");
-    /// </code>
-    /// </example>
+    /// <inheritdoc cref="EdsCanOpenOperations.ReadFile"/>
     public static ElectronicDataSheet ReadEds(
         string filePath,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Eds.ReadFile(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the EDS file</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="EdsCanOpenOperations.ReadFileAsync"/>
     public static Task<ElectronicDataSheet> ReadEdsAsync(
         string filePath,
         CancellationToken cancellationToken = default)
         => Eds.ReadFileAsync(filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the EDS file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="EdsCanOpenOperations.ReadFileAsync"/>
     public static Task<ElectronicDataSheet> ReadEdsAsync(
         string filePath,
         long maxInputSize,
         CancellationToken cancellationToken = default)
         => Eds.ReadFileAsync(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) from a string.
-    /// </summary>
-    /// <param name="content">EDS file content as string</param>
-    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="EdsCanOpenOperations.ReadString"/>
     public static ElectronicDataSheet ReadEdsFromString(
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Eds.ReadString(content, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing EDS content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="EdsCanOpenOperations.ReadStream"/>
     public static ElectronicDataSheet ReadEds(
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Eds.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing EDS content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="EdsCanOpenOperations.ReadStreamAsync"/>
     public static Task<ElectronicDataSheet> ReadEdsAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
         => Eds.ReadStreamAsync(stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing EDS content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="EdsCanOpenOperations.ReadStreamAsync"/>
     public static Task<ElectronicDataSheet> ReadEdsAsync(
         Stream stream,
         long maxInputSize,
@@ -215,80 +173,39 @@ public static class CanOpenFile
 
     #region EDS Write
 
-    /// <summary>
-    /// Writes an Electronic Data Sheet (EDS) to disk.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to write</param>
-    /// <param name="filePath">Path where the EDS file should be written</param>
-    /// <example>
-    /// <code>
-    /// var eds = CanOpenFile.ReadEds("template.eds");
-    /// eds.FileInfo.FileRevision++;
-    /// CanOpenFile.WriteEds(eds, "updated.eds");
-    /// </code>
-    /// </example>
-    public static void WriteEds(ElectronicDataSheet eds, string filePath)
-        => WriteEds(eds, filePath, options: null);
+        /// <inheritdoc cref="EdsCanOpenOperations.WriteFile"/>
 
-    /// <summary>
-    /// Writes an Electronic Data Sheet (EDS) to disk.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to write</param>
-    /// <param name="filePath">Path where the EDS file should be written</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Eds.WriteFile instead.")]
+    public static void WriteEds(ElectronicDataSheet eds, string filePath)
+        => Eds.WriteFile(eds, filePath, options: null);
+
+    /// <inheritdoc cref="EdsCanOpenOperations.WriteFile"/>
     public static void WriteEds(ElectronicDataSheet eds, string filePath, CanOpenWriteOptions? options)
         => Eds.WriteFile(eds, filePath, options);
 
-    /// <summary>
-    /// Writes an Electronic Data Sheet (EDS) to a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    public static void WriteEds(ElectronicDataSheet eds, Stream stream)
-        => WriteEds(eds, stream, options: null);
+        /// <inheritdoc cref="EdsCanOpenOperations.WriteStream"/>
 
-    /// <summary>
-    /// Writes an Electronic Data Sheet (EDS) to a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Eds.WriteStream instead.")]
+    public static void WriteEds(ElectronicDataSheet eds, Stream stream)
+        => Eds.WriteStream(eds, stream);
+
+    /// <inheritdoc cref="EdsCanOpenOperations.WriteStream"/>
     public static void WriteEds(ElectronicDataSheet eds, Stream stream, CanOpenWriteOptions? options)
         => Eds.WriteStream(eds, stream, options);
 
-    /// <summary>
-    /// Writes an Electronic Data Sheet (EDS) to disk asynchronously.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to write</param>
-    /// <param name="filePath">Path where the EDS file should be written</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+        /// <inheritdoc cref="EdsCanOpenOperations.WriteFileAsync"/>
+
+
+    [Obsolete("Use CanOpenFile.Eds.WriteFileAsync instead.")]
     public static Task WriteEdsAsync(
         ElectronicDataSheet eds,
         string filePath,
         CancellationToken cancellationToken = default)
-        => WriteEdsAsync(eds, filePath, options: null, cancellationToken);
+        => Eds.WriteFileAsync(eds, filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes an Electronic Data Sheet (EDS) to disk asynchronously.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to write</param>
-    /// <param name="filePath">Path where the EDS file should be written</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+    /// <inheritdoc cref="EdsCanOpenOperations.WriteFileAsync"/>
     public static Task WriteEdsAsync(
         ElectronicDataSheet eds,
         string filePath,
@@ -296,31 +213,17 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Eds.WriteFileAsync(eds, filePath, options, cancellationToken);
 
-    /// <summary>
-    /// Writes an Electronic Data Sheet (EDS) to a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+        /// <inheritdoc cref="EdsCanOpenOperations.WriteStreamAsync"/>
+
+
+    [Obsolete("Use CanOpenFile.Eds.WriteStreamAsync instead.")]
     public static Task WriteEdsAsync(
         ElectronicDataSheet eds,
         Stream stream,
         CancellationToken cancellationToken = default)
-        => WriteEdsAsync(eds, stream, options: null, cancellationToken);
+        => Eds.WriteStreamAsync(eds, stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes an Electronic Data Sheet (EDS) to a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+    /// <inheritdoc cref="EdsCanOpenOperations.WriteStreamAsync"/>
     public static Task WriteEdsAsync(
         ElectronicDataSheet eds,
         Stream stream,
@@ -328,24 +231,14 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Eds.WriteStreamAsync(eds, stream, options, cancellationToken);
 
-    /// <summary>
-    /// Generates an EDS file content as string.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to convert</param>
-    /// <returns>EDS content as string</returns>
-    public static string WriteEdsToString(ElectronicDataSheet eds)
-        => WriteEdsToString(eds, options: null);
+        /// <inheritdoc cref="EdsCanOpenOperations.WriteToString"/>
 
-    /// <summary>
-    /// Generates an EDS file content as string.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to convert</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <returns>EDS content as string</returns>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Eds.WriteToString instead.")]
+    public static string WriteEdsToString(ElectronicDataSheet eds)
+        => Eds.WriteToString(eds, options: null);
+
+    /// <inheritdoc cref="EdsCanOpenOperations.WriteToString"/>
     public static string WriteEdsToString(ElectronicDataSheet eds, CanOpenWriteOptions? options)
         => Eds.WriteToString(eds, options);
 
@@ -353,146 +246,70 @@ public static class CanOpenFile
 
     #region DCF Read
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF).
-    /// </summary>
-    /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    /// <example>
-    /// <code>
-    /// var dcf = CanOpenFile.ReadDcf("device_node2.dcf");
-    /// Console.WriteLine($"Node ID: {dcf.DeviceCommissioning.NodeId}");
-    /// Console.WriteLine($"Baudrate: {dcf.DeviceCommissioning.Baudrate} kbit/s");
-    /// </code>
-    /// </example>
+    /// <inheritdoc cref="DcfCanOpenOperations.ReadFile"/>
     public static DeviceConfigurationFile ReadDcf(
         string filePath,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Dcf.ReadFile(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF).
-    /// </summary>
-    /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="DcfCanOpenOperations.ReadFile"/>
     public static DeviceConfigurationFile ReadDcf(string filePath, CanOpenFileOptions options)
         => Dcf.ReadFile(filePath, options);
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="DcfCanOpenOperations.ReadFileAsync"/>
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
         string filePath,
         CancellationToken cancellationToken = default)
         => Dcf.ReadFileAsync(filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="DcfCanOpenOperations.ReadFileAsync"/>
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
         string filePath,
         long maxInputSize,
         CancellationToken cancellationToken = default)
         => Dcf.ReadFileAsync(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="DcfCanOpenOperations.ReadFileAsync"/>
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
         string filePath,
         CanOpenFileOptions options,
         CancellationToken cancellationToken = default)
         => Dcf.ReadFileAsync(filePath, options, cancellationToken);
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a string.
-    /// </summary>
-    /// <param name="content">DCF file content as string</param>
-    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="DcfCanOpenOperations.ReadString"/>
     public static DeviceConfigurationFile ReadDcfFromString(
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Dcf.ReadString(content, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a string.
-    /// </summary>
-    /// <param name="content">DCF file content as string</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="DcfCanOpenOperations.ReadString"/>
     public static DeviceConfigurationFile ReadDcfFromString(string content, CanOpenFileOptions options)
         => Dcf.ReadString(content, options);
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="DcfCanOpenOperations.ReadStream"/>
     public static DeviceConfigurationFile ReadDcf(
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Dcf.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="DcfCanOpenOperations.ReadStream"/>
     public static DeviceConfigurationFile ReadDcf(Stream stream, CanOpenFileOptions options)
         => Dcf.ReadStream(stream, options);
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="DcfCanOpenOperations.ReadStreamAsync"/>
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
         => Dcf.ReadStreamAsync(stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="DcfCanOpenOperations.ReadStreamAsync"/>
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
         Stream stream,
         long maxInputSize,
         CancellationToken cancellationToken = default)
         => Dcf.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="DcfCanOpenOperations.ReadStreamAsync"/>
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
         Stream stream,
         CanOpenFileOptions options,
@@ -504,81 +321,39 @@ public static class CanOpenFile
 
     #region DCF Write
 
-    /// <summary>
-    /// Writes a Device Configuration File (DCF) to disk.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to write</param>
-    /// <param name="filePath">Path where the DCF file should be written</param>
-    /// <example>
-    /// <code>
-    /// var dcf = CanOpenFile.ReadDcf("template.dcf");
-    /// dcf.DeviceCommissioning.NodeId = 5;
-    /// dcf.DeviceCommissioning.Baudrate = 500;
-    /// CanOpenFile.WriteDcf(dcf, "configured_device.dcf");
-    /// </code>
-    /// </example>
-    public static void WriteDcf(DeviceConfigurationFile dcf, string filePath)
-        => WriteDcf(dcf, filePath, options: null);
+        /// <inheritdoc cref="DcfCanOpenOperations.WriteFile"/>
 
-    /// <summary>
-    /// Writes a Device Configuration File (DCF) to disk.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to write</param>
-    /// <param name="filePath">Path where the DCF file should be written</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Dcf.WriteFile instead.")]
+    public static void WriteDcf(DeviceConfigurationFile dcf, string filePath)
+        => Dcf.WriteFile(dcf, filePath, options: null);
+
+    /// <inheritdoc cref="DcfCanOpenOperations.WriteFile"/>
     public static void WriteDcf(DeviceConfigurationFile dcf, string filePath, CanOpenWriteOptions? options)
         => Dcf.WriteFile(dcf, filePath, options);
 
-    /// <summary>
-    /// Writes a Device Configuration File (DCF) to a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream)
-        => WriteDcf(dcf, stream, options: null);
+        /// <inheritdoc cref="DcfCanOpenOperations.WriteStream"/>
 
-    /// <summary>
-    /// Writes a Device Configuration File (DCF) to a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Dcf.WriteStream instead.")]
+    public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream)
+        => Dcf.WriteStream(dcf, stream);
+
+    /// <inheritdoc cref="DcfCanOpenOperations.WriteStream"/>
     public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream, CanOpenWriteOptions? options)
         => Dcf.WriteStream(dcf, stream, options);
 
-    /// <summary>
-    /// Writes a Device Configuration File (DCF) to disk asynchronously.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to write</param>
-    /// <param name="filePath">Path where the DCF file should be written</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+        /// <inheritdoc cref="DcfCanOpenOperations.WriteFileAsync"/>
+
+
+    [Obsolete("Use CanOpenFile.Dcf.WriteFileAsync instead.")]
     public static Task WriteDcfAsync(
         DeviceConfigurationFile dcf,
         string filePath,
         CancellationToken cancellationToken = default)
-        => WriteDcfAsync(dcf, filePath, options: null, cancellationToken);
+        => Dcf.WriteFileAsync(dcf, filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes a Device Configuration File (DCF) to disk asynchronously.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to write</param>
-    /// <param name="filePath">Path where the DCF file should be written</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+    /// <inheritdoc cref="DcfCanOpenOperations.WriteFileAsync"/>
     public static Task WriteDcfAsync(
         DeviceConfigurationFile dcf,
         string filePath,
@@ -586,31 +361,17 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Dcf.WriteFileAsync(dcf, filePath, options, cancellationToken);
 
-    /// <summary>
-    /// Writes a Device Configuration File (DCF) to a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+        /// <inheritdoc cref="DcfCanOpenOperations.WriteStreamAsync"/>
+
+
+    [Obsolete("Use CanOpenFile.Dcf.WriteStreamAsync instead.")]
     public static Task WriteDcfAsync(
         DeviceConfigurationFile dcf,
         Stream stream,
         CancellationToken cancellationToken = default)
-        => WriteDcfAsync(dcf, stream, options: null, cancellationToken);
+        => Dcf.WriteStreamAsync(dcf, stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes a Device Configuration File (DCF) to a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+    /// <inheritdoc cref="DcfCanOpenOperations.WriteStreamAsync"/>
     public static Task WriteDcfAsync(
         DeviceConfigurationFile dcf,
         Stream stream,
@@ -618,24 +379,14 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Dcf.WriteStreamAsync(dcf, stream, options, cancellationToken);
 
-    /// <summary>
-    /// Generates a DCF file content as string.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to convert</param>
-    /// <returns>DCF content as string</returns>
-    public static string WriteDcfToString(DeviceConfigurationFile dcf)
-        => WriteDcfToString(dcf, options: null);
+        /// <inheritdoc cref="DcfCanOpenOperations.WriteToString"/>
 
-    /// <summary>
-    /// Generates a DCF file content as string.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to convert</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <returns>DCF content as string</returns>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Dcf.WriteToString instead.")]
+    public static string WriteDcfToString(DeviceConfigurationFile dcf)
+        => Dcf.WriteToString(dcf, options: null);
+
+    /// <inheritdoc cref="DcfCanOpenOperations.WriteToString"/>
     public static string WriteDcfToString(DeviceConfigurationFile dcf, CanOpenWriteOptions? options)
         => Dcf.WriteToString(dcf, options);
 
@@ -643,139 +394,70 @@ public static class CanOpenFile
 
     #region CPJ Read
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) file.
-    /// </summary>
-    /// <param name="filePath">Path to the CPJ file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="CpjCanOpenOperations.ReadFile"/>
     public static NodelistProject ReadCpj(
         string filePath,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Cpj.ReadFile(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) file.
-    /// </summary>
-    /// <param name="filePath">Path to the CPJ file</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="CpjCanOpenOperations.ReadFile"/>
     public static NodelistProject ReadCpj(string filePath, CanOpenFileOptions options)
         => Cpj.ReadFile(filePath, options);
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the CPJ file</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="CpjCanOpenOperations.ReadFileAsync"/>
     public static Task<NodelistProject> ReadCpjAsync(
         string filePath,
         CancellationToken cancellationToken = default)
         => Cpj.ReadFileAsync(filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the CPJ file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="CpjCanOpenOperations.ReadFileAsync"/>
     public static Task<NodelistProject> ReadCpjAsync(
         string filePath,
         long maxInputSize,
         CancellationToken cancellationToken = default)
         => Cpj.ReadFileAsync(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the CPJ file</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="CpjCanOpenOperations.ReadFileAsync"/>
     public static Task<NodelistProject> ReadCpjAsync(
         string filePath,
         CanOpenFileOptions options,
         CancellationToken cancellationToken = default)
         => Cpj.ReadFileAsync(filePath, options, cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a string.
-    /// </summary>
-    /// <param name="content">CPJ file content as string</param>
-    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="CpjCanOpenOperations.ReadString"/>
     public static NodelistProject ReadCpjFromString(
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Cpj.ReadString(content, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a string.
-    /// </summary>
-    /// <param name="content">CPJ file content as string</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="CpjCanOpenOperations.ReadString"/>
     public static NodelistProject ReadCpjFromString(string content, CanOpenFileOptions options)
         => Cpj.ReadString(content, options);
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing CPJ content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="CpjCanOpenOperations.ReadStream"/>
     public static NodelistProject ReadCpj(
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Cpj.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing CPJ content.</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="CpjCanOpenOperations.ReadStream"/>
     public static NodelistProject ReadCpj(Stream stream, CanOpenFileOptions options)
         => Cpj.ReadStream(stream, options);
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing CPJ content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="CpjCanOpenOperations.ReadStreamAsync"/>
     public static Task<NodelistProject> ReadCpjAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
         => Cpj.ReadStreamAsync(stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing CPJ content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="CpjCanOpenOperations.ReadStreamAsync"/>
     public static Task<NodelistProject> ReadCpjAsync(
         Stream stream,
         long maxInputSize,
         CancellationToken cancellationToken = default)
         => Cpj.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing CPJ content.</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="CpjCanOpenOperations.ReadStreamAsync"/>
     public static Task<NodelistProject> ReadCpjAsync(
         Stream stream,
         CanOpenFileOptions options,
@@ -787,73 +469,39 @@ public static class CanOpenFile
 
     #region CPJ Write
 
-    /// <summary>
-    /// Writes a CiA 306-3 nodelist project (.cpj) to disk.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to write</param>
-    /// <param name="filePath">Path where the CPJ file should be written</param>
-    public static void WriteCpj(NodelistProject cpj, string filePath)
-        => WriteCpj(cpj, filePath, options: null);
+        /// <inheritdoc cref="CpjCanOpenOperations.WriteFile"/>
 
-    /// <summary>
-    /// Writes a CiA 306-3 nodelist project (.cpj) to disk.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to write</param>
-    /// <param name="filePath">Path where the CPJ file should be written</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Cpj.WriteFile instead.")]
+    public static void WriteCpj(NodelistProject cpj, string filePath)
+        => Cpj.WriteFile(cpj, filePath, options: null);
+
+    /// <inheritdoc cref="CpjCanOpenOperations.WriteFile"/>
     public static void WriteCpj(NodelistProject cpj, string filePath, CanOpenWriteOptions? options)
         => Cpj.WriteFile(cpj, filePath, options);
 
-    /// <summary>
-    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    public static void WriteCpj(NodelistProject cpj, Stream stream)
-        => WriteCpj(cpj, stream, options: null);
+        /// <inheritdoc cref="CpjCanOpenOperations.WriteStream"/>
 
-    /// <summary>
-    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Cpj.WriteStream instead.")]
+    public static void WriteCpj(NodelistProject cpj, Stream stream)
+        => Cpj.WriteStream(cpj, stream);
+
+    /// <inheritdoc cref="CpjCanOpenOperations.WriteStream"/>
     public static void WriteCpj(NodelistProject cpj, Stream stream, CanOpenWriteOptions? options)
         => Cpj.WriteStream(cpj, stream, options);
 
-    /// <summary>
-    /// Writes a CiA 306-3 nodelist project (.cpj) to disk asynchronously.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to write</param>
-    /// <param name="filePath">Path where the CPJ file should be written</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+        /// <inheritdoc cref="CpjCanOpenOperations.WriteFileAsync"/>
+
+
+    [Obsolete("Use CanOpenFile.Cpj.WriteFileAsync instead.")]
     public static Task WriteCpjAsync(
         NodelistProject cpj,
         string filePath,
         CancellationToken cancellationToken = default)
-        => WriteCpjAsync(cpj, filePath, options: null, cancellationToken);
+        => Cpj.WriteFileAsync(cpj, filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes a CiA 306-3 nodelist project (.cpj) to disk asynchronously.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to write</param>
-    /// <param name="filePath">Path where the CPJ file should be written</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+    /// <inheritdoc cref="CpjCanOpenOperations.WriteFileAsync"/>
     public static Task WriteCpjAsync(
         NodelistProject cpj,
         string filePath,
@@ -861,31 +509,17 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Cpj.WriteFileAsync(cpj, filePath, options, cancellationToken);
 
-    /// <summary>
-    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+        /// <inheritdoc cref="CpjCanOpenOperations.WriteStreamAsync"/>
+
+
+    [Obsolete("Use CanOpenFile.Cpj.WriteStreamAsync instead.")]
     public static Task WriteCpjAsync(
         NodelistProject cpj,
         Stream stream,
         CancellationToken cancellationToken = default)
-        => WriteCpjAsync(cpj, stream, options: null, cancellationToken);
+        => Cpj.WriteStreamAsync(cpj, stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+    /// <inheritdoc cref="CpjCanOpenOperations.WriteStreamAsync"/>
     public static Task WriteCpjAsync(
         NodelistProject cpj,
         Stream stream,
@@ -893,24 +527,14 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Cpj.WriteStreamAsync(cpj, stream, options, cancellationToken);
 
-    /// <summary>
-    /// Generates CPJ file content as string.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to convert</param>
-    /// <returns>CPJ content as string</returns>
-    public static string WriteCpjToString(NodelistProject cpj)
-        => WriteCpjToString(cpj, options: null);
+        /// <inheritdoc cref="CpjCanOpenOperations.WriteToString"/>
 
-    /// <summary>
-    /// Generates a CPJ file content as string.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to convert</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <returns>CPJ content as string</returns>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Cpj.WriteToString instead.")]
+    public static string WriteCpjToString(NodelistProject cpj)
+        => Cpj.WriteToString(cpj, options: null);
+
+    /// <inheritdoc cref="CpjCanOpenOperations.WriteToString"/>
     public static string WriteCpjToString(NodelistProject cpj, CanOpenWriteOptions? options)
         => Cpj.WriteToString(cpj, options);
 
@@ -918,139 +542,70 @@ public static class CanOpenFile
 
     #region XDD Read
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) file.
-    /// </summary>
-    /// <param name="filePath">Path to the XDD file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="XddCanOpenOperations.ReadFile"/>
     public static ElectronicDataSheet ReadXdd(
         string filePath,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Xdd.ReadFile(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) file.
-    /// </summary>
-    /// <param name="filePath">Path to the XDD file</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="XddCanOpenOperations.ReadFile"/>
     public static ElectronicDataSheet ReadXdd(string filePath, CanOpenFileOptions options)
         => Xdd.ReadFile(filePath, options);
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the XDD file</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="XddCanOpenOperations.ReadFileAsync"/>
     public static Task<ElectronicDataSheet> ReadXddAsync(
         string filePath,
         CancellationToken cancellationToken = default)
         => Xdd.ReadFileAsync(filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the XDD file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="XddCanOpenOperations.ReadFileAsync"/>
     public static Task<ElectronicDataSheet> ReadXddAsync(
         string filePath,
         long maxInputSize,
         CancellationToken cancellationToken = default)
         => Xdd.ReadFileAsync(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the XDD file</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="XddCanOpenOperations.ReadFileAsync"/>
     public static Task<ElectronicDataSheet> ReadXddAsync(
         string filePath,
         CanOpenFileOptions options,
         CancellationToken cancellationToken = default)
         => Xdd.ReadFileAsync(filePath, options, cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a string.
-    /// </summary>
-    /// <param name="content">XDD file content as string</param>
-    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="XddCanOpenOperations.ReadString"/>
     public static ElectronicDataSheet ReadXddFromString(
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Xdd.ReadString(content, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a string.
-    /// </summary>
-    /// <param name="content">XDD file content as string</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="XddCanOpenOperations.ReadString"/>
     public static ElectronicDataSheet ReadXddFromString(string content, CanOpenFileOptions options)
         => Xdd.ReadString(content, options);
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDD content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="XddCanOpenOperations.ReadStream"/>
     public static ElectronicDataSheet ReadXdd(
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Xdd.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDD content.</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="XddCanOpenOperations.ReadStream"/>
     public static ElectronicDataSheet ReadXdd(Stream stream, CanOpenFileOptions options)
         => Xdd.ReadStream(stream, options);
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDD content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="XddCanOpenOperations.ReadStreamAsync"/>
     public static Task<ElectronicDataSheet> ReadXddAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
         => Xdd.ReadStreamAsync(stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDD content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="XddCanOpenOperations.ReadStreamAsync"/>
     public static Task<ElectronicDataSheet> ReadXddAsync(
         Stream stream,
         long maxInputSize,
         CancellationToken cancellationToken = default)
         => Xdd.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDD content.</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="XddCanOpenOperations.ReadStreamAsync"/>
     public static Task<ElectronicDataSheet> ReadXddAsync(
         Stream stream,
         CanOpenFileOptions options,
@@ -1062,73 +617,39 @@ public static class CanOpenFile
 
     #region XDD Write
 
-    /// <summary>
-    /// Writes an ElectronicDataSheet as a CiA 311 XDD file.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to write</param>
-    /// <param name="filePath">Path where the XDD file should be written</param>
-    public static void WriteXdd(ElectronicDataSheet xdd, string filePath)
-        => WriteXdd(xdd, filePath, options: null);
+        /// <inheritdoc cref="XddCanOpenOperations.WriteFile"/>
 
-    /// <summary>
-    /// Writes an ElectronicDataSheet as a CiA 311 XDD file.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to write</param>
-    /// <param name="filePath">Path where the XDD file should be written</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Xdd.WriteFile instead.")]
+    public static void WriteXdd(ElectronicDataSheet xdd, string filePath)
+        => Xdd.WriteFile(xdd, filePath, options: null);
+
+    /// <inheritdoc cref="XddCanOpenOperations.WriteFile"/>
     public static void WriteXdd(ElectronicDataSheet xdd, string filePath, CanOpenWriteOptions? options)
         => Xdd.WriteFile(xdd, filePath, options);
 
-    /// <summary>
-    /// Writes an ElectronicDataSheet as a CiA 311 XDD stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    public static void WriteXdd(ElectronicDataSheet xdd, Stream stream)
-        => WriteXdd(xdd, stream, options: null);
+        /// <inheritdoc cref="XddCanOpenOperations.WriteStream"/>
 
-    /// <summary>
-    /// Writes an ElectronicDataSheet as a CiA 311 XDD stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Xdd.WriteStream instead.")]
+    public static void WriteXdd(ElectronicDataSheet xdd, Stream stream)
+        => Xdd.WriteStream(xdd, stream);
+
+    /// <inheritdoc cref="XddCanOpenOperations.WriteStream"/>
     public static void WriteXdd(ElectronicDataSheet xdd, Stream stream, CanOpenWriteOptions? options)
         => Xdd.WriteStream(xdd, stream, options);
 
-    /// <summary>
-    /// Writes an ElectronicDataSheet as a CiA 311 XDD file asynchronously.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to write</param>
-    /// <param name="filePath">Path where the XDD file should be written</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+        /// <inheritdoc cref="XddCanOpenOperations.WriteFileAsync"/>
+
+
+    [Obsolete("Use CanOpenFile.Xdd.WriteFileAsync instead.")]
     public static Task WriteXddAsync(
         ElectronicDataSheet xdd,
         string filePath,
         CancellationToken cancellationToken = default)
-        => WriteXddAsync(xdd, filePath, options: null, cancellationToken);
+        => Xdd.WriteFileAsync(xdd, filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes an ElectronicDataSheet as a CiA 311 XDD file asynchronously.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to write</param>
-    /// <param name="filePath">Path where the XDD file should be written</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+    /// <inheritdoc cref="XddCanOpenOperations.WriteFileAsync"/>
     public static Task WriteXddAsync(
         ElectronicDataSheet xdd,
         string filePath,
@@ -1136,31 +657,17 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Xdd.WriteFileAsync(xdd, filePath, options, cancellationToken);
 
-    /// <summary>
-    /// Writes an ElectronicDataSheet as a CiA 311 XDD stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+        /// <inheritdoc cref="XddCanOpenOperations.WriteStreamAsync"/>
+
+
+    [Obsolete("Use CanOpenFile.Xdd.WriteStreamAsync instead.")]
     public static Task WriteXddAsync(
         ElectronicDataSheet xdd,
         Stream stream,
         CancellationToken cancellationToken = default)
-        => WriteXddAsync(xdd, stream, options: null, cancellationToken);
+        => Xdd.WriteStreamAsync(xdd, stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes an ElectronicDataSheet as a CiA 311 XDD stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+    /// <inheritdoc cref="XddCanOpenOperations.WriteStreamAsync"/>
     public static Task WriteXddAsync(
         ElectronicDataSheet xdd,
         Stream stream,
@@ -1168,24 +675,14 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Xdd.WriteStreamAsync(xdd, stream, options, cancellationToken);
 
-    /// <summary>
-    /// Generates XDD file content as string.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to convert</param>
-    /// <returns>XDD content as string</returns>
-    public static string WriteXddToString(ElectronicDataSheet xdd)
-        => WriteXddToString(xdd, options: null);
+        /// <inheritdoc cref="XddCanOpenOperations.WriteToString"/>
 
-    /// <summary>
-    /// Generates a CiA 311 XDD file content as string.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to convert</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <returns>XDD content as string</returns>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Xdd.WriteToString instead.")]
+    public static string WriteXddToString(ElectronicDataSheet xdd)
+        => Xdd.WriteToString(xdd, options: null);
+
+    /// <inheritdoc cref="XddCanOpenOperations.WriteToString"/>
     public static string WriteXddToString(ElectronicDataSheet xdd, CanOpenWriteOptions? options)
         => Xdd.WriteToString(xdd, options);
 
@@ -1193,139 +690,70 @@ public static class CanOpenFile
 
     #region XDC Read
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file.
-    /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="XdcCanOpenOperations.ReadFile"/>
     public static DeviceConfigurationFile ReadXdc(
         string filePath,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Xdc.ReadFile(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file.
-    /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="XdcCanOpenOperations.ReadFile"/>
     public static DeviceConfigurationFile ReadXdc(string filePath, CanOpenFileOptions options)
         => Xdc.ReadFile(filePath, options);
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="XdcCanOpenOperations.ReadFileAsync"/>
     public static Task<DeviceConfigurationFile> ReadXdcAsync(
         string filePath,
         CancellationToken cancellationToken = default)
         => Xdc.ReadFileAsync(filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="XdcCanOpenOperations.ReadFileAsync"/>
     public static Task<DeviceConfigurationFile> ReadXdcAsync(
         string filePath,
         long maxInputSize,
         CancellationToken cancellationToken = default)
         => Xdc.ReadFileAsync(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="XdcCanOpenOperations.ReadFileAsync"/>
     public static Task<DeviceConfigurationFile> ReadXdcAsync(
         string filePath,
         CanOpenFileOptions options,
         CancellationToken cancellationToken = default)
         => Xdc.ReadFileAsync(filePath, options, cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
-    /// </summary>
-    /// <param name="content">XDC file content as string</param>
-    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="XdcCanOpenOperations.ReadString"/>
     public static DeviceConfigurationFile ReadXdcFromString(
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Xdc.ReadString(content, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
-    /// </summary>
-    /// <param name="content">XDC file content as string</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="XdcCanOpenOperations.ReadString"/>
     public static DeviceConfigurationFile ReadXdcFromString(string content, CanOpenFileOptions options)
         => Xdc.ReadString(content, options);
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="XdcCanOpenOperations.ReadStream"/>
     public static DeviceConfigurationFile ReadXdc(
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Xdc.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="XdcCanOpenOperations.ReadStream"/>
     public static DeviceConfigurationFile ReadXdc(Stream stream, CanOpenFileOptions options)
         => Xdc.ReadStream(stream, options);
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="XdcCanOpenOperations.ReadStreamAsync"/>
     public static Task<DeviceConfigurationFile> ReadXdcAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
         => Xdc.ReadStreamAsync(stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="XdcCanOpenOperations.ReadStreamAsync"/>
     public static Task<DeviceConfigurationFile> ReadXdcAsync(
         Stream stream,
         long maxInputSize,
         CancellationToken cancellationToken = default)
         => Xdc.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="options">Read options such as input size limits.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="XdcCanOpenOperations.ReadStreamAsync"/>
     public static Task<DeviceConfigurationFile> ReadXdcAsync(
         Stream stream,
         CanOpenFileOptions options,
@@ -1337,73 +765,39 @@ public static class CanOpenFile
 
     #region XDC Write
 
-    /// <summary>
-    /// Writes a DeviceConfigurationFile as a CiA 311 XDC file.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to write</param>
-    /// <param name="filePath">Path where the XDC file should be written</param>
-    public static void WriteXdc(DeviceConfigurationFile xdc, string filePath)
-        => WriteXdc(xdc, filePath, options: null);
+        /// <inheritdoc cref="XdcCanOpenOperations.WriteFile"/>
 
-    /// <summary>
-    /// Writes a DeviceConfigurationFile as a CiA 311 XDC file.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to write</param>
-    /// <param name="filePath">Path where the XDC file should be written</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Xdc.WriteFile instead.")]
+    public static void WriteXdc(DeviceConfigurationFile xdc, string filePath)
+        => Xdc.WriteFile(xdc, filePath, options: null);
+
+    /// <inheritdoc cref="XdcCanOpenOperations.WriteFile"/>
     public static void WriteXdc(DeviceConfigurationFile xdc, string filePath, CanOpenWriteOptions? options)
         => Xdc.WriteFile(xdc, filePath, options);
 
-    /// <summary>
-    /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    public static void WriteXdc(DeviceConfigurationFile xdc, Stream stream)
-        => WriteXdc(xdc, stream, options: null);
+        /// <inheritdoc cref="XdcCanOpenOperations.WriteStream"/>
 
-    /// <summary>
-    /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Xdc.WriteStream instead.")]
+    public static void WriteXdc(DeviceConfigurationFile xdc, Stream stream)
+        => Xdc.WriteStream(xdc, stream);
+
+    /// <inheritdoc cref="XdcCanOpenOperations.WriteStream"/>
     public static void WriteXdc(DeviceConfigurationFile xdc, Stream stream, CanOpenWriteOptions? options)
         => Xdc.WriteStream(xdc, stream, options);
 
-    /// <summary>
-    /// Writes a DeviceConfigurationFile as a CiA 311 XDC file asynchronously.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to write</param>
-    /// <param name="filePath">Path where the XDC file should be written</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+        /// <inheritdoc cref="XdcCanOpenOperations.WriteFileAsync"/>
+
+
+    [Obsolete("Use CanOpenFile.Xdc.WriteFileAsync instead.")]
     public static Task WriteXdcAsync(
         DeviceConfigurationFile xdc,
         string filePath,
         CancellationToken cancellationToken = default)
-        => WriteXdcAsync(xdc, filePath, options: null, cancellationToken);
+        => Xdc.WriteFileAsync(xdc, filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes a DeviceConfigurationFile as a CiA 311 XDC file asynchronously.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to write</param>
-    /// <param name="filePath">Path where the XDC file should be written</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+    /// <inheritdoc cref="XdcCanOpenOperations.WriteFileAsync"/>
     public static Task WriteXdcAsync(
         DeviceConfigurationFile xdc,
         string filePath,
@@ -1411,31 +805,17 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Xdc.WriteFileAsync(xdc, filePath, options, cancellationToken);
 
-    /// <summary>
-    /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+        /// <inheritdoc cref="XdcCanOpenOperations.WriteStreamAsync"/>
+
+
+    [Obsolete("Use CanOpenFile.Xdc.WriteStreamAsync instead.")]
     public static Task WriteXdcAsync(
         DeviceConfigurationFile xdc,
         Stream stream,
         CancellationToken cancellationToken = default)
-        => WriteXdcAsync(xdc, stream, options: null, cancellationToken);
+        => Xdc.WriteStreamAsync(xdc, stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+    /// <inheritdoc cref="XdcCanOpenOperations.WriteStreamAsync"/>
     public static Task WriteXdcAsync(
         DeviceConfigurationFile xdc,
         Stream stream,
@@ -1443,24 +823,14 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Xdc.WriteStreamAsync(xdc, stream, options, cancellationToken);
 
-    /// <summary>
-    /// Generates XDC file content as string.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to convert</param>
-    /// <returns>XDC content as string</returns>
-    public static string WriteXdcToString(DeviceConfigurationFile xdc)
-        => WriteXdcToString(xdc, options: null);
+        /// <inheritdoc cref="XdcCanOpenOperations.WriteToString"/>
 
-    /// <summary>
-    /// Generates a CiA 311 XDC file content as string.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to convert</param>
-    /// <param name="options">Optional write behavior such as pre-write validation.</param>
-    /// <returns>XDC content as string</returns>
-    /// <exception cref="ModelValidationException">
-    /// Thrown when <paramref name="options"/>.<see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is
-    /// <see langword="true"/> and the model has validation issues.
-    /// </exception>
+
+    [Obsolete("Use CanOpenFile.Xdc.WriteToString instead.")]
+    public static string WriteXdcToString(DeviceConfigurationFile xdc)
+        => Xdc.WriteToString(xdc, options: null);
+
+    /// <inheritdoc cref="XdcCanOpenOperations.WriteToString"/>
     public static string WriteXdcToString(DeviceConfigurationFile xdc, CanOpenWriteOptions? options)
         => Xdc.WriteToString(xdc, options);
 
@@ -1468,95 +838,23 @@ public static class CanOpenFile
 
     #region EDS to DCF Conversion
 
-    /// <summary>
-    /// Converts an EDS to a DCF with specified commissioning parameters.
-    /// </summary>
-    /// <param name="eds">The EDS to convert</param>
-    /// <param name="nodeId">Node ID for the device</param>
-    /// <param name="baudrate">Baudrate in kbit/s (default: 250)</param>
-    /// <param name="nodeName">Optional node name</param>
-    /// <remarks>
-    /// Uses <see cref="DateTime.UtcNow"/> for generated FileInfo date/time fields.
-    /// Use the overload with explicit timestamp for fully deterministic output.
-    /// </remarks>
-    /// <returns>A new DeviceConfigurationFile</returns>
-    /// <example>
-    /// <code>
-    /// var eds = CanOpenFile.ReadEds("device.eds");
-    /// var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 2, baudrate: 500, nodeName: "MyDevice");
-    /// CanOpenFile.WriteDcf(dcf, "device_node2.dcf");
-    /// </code>
-    /// </example>
+    /// <inheritdoc cref="EdsCanOpenOperations.ConvertToDcf(ElectronicDataSheet, byte, ushort, string?)"/>
+    [Obsolete("Use CanOpenFile.Eds.ConvertToDcf with an explicit timestamp for deterministic output.")]
     public static DeviceConfigurationFile EdsToDcf(
         ElectronicDataSheet eds,
         byte nodeId,
         ushort baudrate = 250,
         string? nodeName = null)
-    {
-        return EdsToDcf(eds, nodeId, DateTime.UtcNow, baudrate, nodeName);
-    }
+        => Eds.ConvertToDcf(eds, nodeId, baudrate, nodeName);
 
-    /// <summary>
-    /// Converts an EDS to a DCF with specified commissioning parameters and an explicit timestamp.
-    /// </summary>
-    /// <param name="eds">The EDS to convert</param>
-    /// <param name="nodeId">Node ID for the device</param>
-    /// <param name="timestamp">Timestamp used for generated FileInfo creation date/time fields.</param>
-    /// <param name="baudrate">Baudrate in kbit/s (default: 250)</param>
-    /// <param name="nodeName">Optional node name</param>
-    /// <remarks>
-    /// The timestamp is formatted with invariant culture as <c>MM-dd-yyyy</c> for
-    /// <c>CreationDate</c> and <c>hh:mmtt</c> for <c>CreationTime</c>; no timezone
-    /// conversion is applied.
-    /// </remarks>
-    /// <returns>A new DeviceConfigurationFile</returns>
+    /// <inheritdoc cref="EdsCanOpenOperations.ConvertToDcf(ElectronicDataSheet, byte, DateTime, ushort, string?)"/>
     public static DeviceConfigurationFile EdsToDcf(
         ElectronicDataSheet eds,
         byte nodeId,
         DateTime timestamp,
         ushort baudrate = 250,
         string? nodeName = null)
-    {
-        if (nodeId < 1 || nodeId > 127)
-            throw new ArgumentOutOfRangeException(nameof(nodeId), nodeId, "CANopen Node-ID must be in range 1..127.");
-
-        var dcf = new DeviceConfigurationFile
-        {
-            FileInfo = new Models.EdsFileInfo
-            {
-                FileName = Path.ChangeExtension(eds.FileInfo.FileName, ".dcf"),
-                FileVersion = eds.FileInfo.FileVersion,
-                FileRevision = (byte)(eds.FileInfo.FileRevision + 1),
-                EdsVersion = eds.FileInfo.EdsVersion,
-                Description = $"DCF generated from {eds.FileInfo.FileName}",
-                CreationDate = timestamp.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
-                CreationTime = timestamp.ToString("hh:mmtt", CultureInfo.InvariantCulture),
-                CreatedBy = "EdsDcfNet Library",
-                LastEds = eds.FileInfo.FileName
-            },
-            DeviceInfo = ModelCloner.CloneDeviceInfo(eds.DeviceInfo),
-            DeviceCommissioning = new DeviceCommissioning
-            {
-                NodeId = nodeId,
-                Baudrate = baudrate,
-                NodeName = nodeName ?? $"{eds.DeviceInfo.ProductName}_Node{nodeId}",
-                NetNumber = 1,
-                NetworkName = "CANopen Network",
-                CANopenManager = false
-            },
-            ObjectDictionary = ModelCloner.CloneObjectDictionary(eds.ObjectDictionary),
-            Comments = ModelCloner.CloneComments(eds.Comments),
-            DynamicChannels = ModelCloner.CloneDynamicChannels(eds.DynamicChannels),
-            ApplicationProcess = ModelCloner.CloneApplicationProcess(eds.ApplicationProcess)
-        };
-
-        dcf.SupportedModules.AddRange(ModelCloner.CloneSupportedModules(eds.SupportedModules));
-        dcf.Tools.AddRange(ModelCloner.CloneTools(eds.Tools));
-        foreach (var kvp in ModelCloner.CloneAdditionalSections(eds.AdditionalSections))
-            dcf.AdditionalSections[kvp.Key] = kvp.Value;
-
-        return dcf;
-    }
+        => Eds.ConvertToDcf(eds, nodeId, timestamp, baudrate, nodeName);
 
     private static void ThrowIfInvalid(IReadOnlyList<ValidationIssue> issues)
     {

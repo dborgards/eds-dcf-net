@@ -85,6 +85,35 @@ CanOpenFile.WriteEds(eds, outStream);
 > Stream ownership: stream overloads do **not** dispose input/output streams.  
 > The caller remains responsible for stream lifetime.
 
+## Canonical API (format entry points)
+
+For new code, use the format-specific entry points on `CanOpenFile` instead of the
+legacy static `Read*` / `Write*` overloads:
+
+| Format | Entry point | Example |
+|--------|-------------|---------|
+| EDS | `CanOpenFile.Eds` | `CanOpenFile.Eds.ReadFile("device.eds")` |
+| DCF | `CanOpenFile.Dcf` | `CanOpenFile.Dcf.WriteFile(dcf, "out.dcf")` |
+| CPJ | `CanOpenFile.Cpj` | `CanOpenFile.Cpj.ReadFile("network.cpj")` |
+| XDD | `CanOpenFile.Xdd` | `CanOpenFile.Xdd.ReadFile("device.xdd")` |
+| XDC | `CanOpenFile.Xdc` | `CanOpenFile.Xdc.ReadFile("device.xdc")` |
+
+These entry points accept `CanOpenFileOptions` (read limits) and `CanOpenWriteOptions`
+(pre-write validation) in one place. Legacy facade overloads remain for backward
+compatibility and delegate to the same operations; overloads that only supply default
+parameters are marked `[Obsolete]` (advisory) and will be removed in a future major release.
+
+EDS-to-DCF conversion lives on the EDS entry point: `CanOpenFile.Eds.ConvertToDcf(...)`.
+The legacy `CanOpenFile.EdsToDcf(...)` methods delegate there.
+
+```csharp
+using EdsDcfNet;
+
+var eds = CanOpenFile.Eds.ReadFile("device.eds");
+var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 2, baudrate: 500);
+CanOpenFile.Dcf.WriteFile(dcf, "device_node2.dcf", CanOpenWriteOptions.Validated);
+```
+
 ## Output Encoding Policy
 
 All writer APIs that persist text (`WriteEds*`, `WriteDcf*`, `WriteCpj*`, `WriteXdd*`, `WriteXdc*`)
