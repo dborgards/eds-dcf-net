@@ -15,7 +15,7 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
 
     private XdcCanOpenOperations()
         : base(
-            CanOpenWriteGuard.EnsureValidDcfForWrite,
+            CanOpenWriteGuard.EnsureValidForWrite,
             (filePath, maxInputSize) => new XdcReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new XdcReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),

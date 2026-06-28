@@ -15,7 +15,7 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
 
     private XddCanOpenOperations()
         : base(
-            CanOpenWriteGuard.EnsureValidEdsForWrite,
+            CanOpenWriteGuard.EnsureValidForWrite,
             (filePath, maxInputSize) => new XddReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new XddReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),

@@ -15,7 +15,7 @@ public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
 
     private DcfCanOpenOperations()
         : base(
-            CanOpenWriteGuard.EnsureValidDcfForWrite,
+            CanOpenWriteGuard.EnsureValidForWrite,
             (filePath, maxInputSize) => new DcfReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new DcfReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),

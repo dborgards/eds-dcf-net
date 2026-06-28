@@ -18,7 +18,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
 
     private EdsCanOpenOperations()
         : base(
-            CanOpenWriteGuard.EnsureValidEdsForWrite,
+            CanOpenWriteGuard.EnsureValidForWrite,
             (filePath, maxInputSize) => new EdsReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new EdsReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),

@@ -15,7 +15,7 @@ public sealed class CpjCanOpenOperations : FormatCanOpenOperations<NodelistProje
 
     private CpjCanOpenOperations()
         : base(
-            CanOpenWriteGuard.EnsureValidCpjForWrite,
+            CanOpenWriteGuard.EnsureValidForWrite,
             (filePath, maxInputSize) => new CpjReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new CpjReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),
