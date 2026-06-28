@@ -14,22 +14,22 @@ public class WriterBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _eds = CanOpenFile.ReadEds(GetFixturePath("sample_device.eds"));
-        _dcf = CanOpenFile.ReadDcf(GetFixturePath("minimal.dcf"));
-        _cpj = CanOpenFile.ReadCpj(GetFixturePath("minimal.cpj"));
+        _eds = CanOpenFile.Eds.ReadFile(GetFixturePath("sample_device.eds"));
+        _dcf = CanOpenFile.Dcf.ReadFile(GetFixturePath("minimal.dcf"));
+        _cpj = CanOpenFile.Cpj.ReadFile(GetFixturePath("minimal.cpj"));
     }
 
     [Benchmark(Baseline = true, Description = "EDS write (string)")]
-    public string EdsWriteToString() => CanOpenFile.WriteEdsToString(_eds);
+    public string EdsWriteToString() => CanOpenFile.Eds.WriteToString(_eds);
 
     [Benchmark(Description = "DCF write (string)")]
-    public string DcfWriteToString() => CanOpenFile.WriteDcfToString(_dcf);
+    public string DcfWriteToString() => CanOpenFile.Dcf.WriteToString(_dcf);
 
     [Benchmark(Description = "CPJ write (string)")]
-    public string CpjWriteToString() => CanOpenFile.WriteCpjToString(_cpj);
+    public string CpjWriteToString() => CanOpenFile.Cpj.WriteToString(_cpj);
 
     [Benchmark(Description = "XDD write (string)")]
-    public string XddWriteToString() => CanOpenFile.WriteXddToString(_eds);
+    public string XddWriteToString() => CanOpenFile.Xdd.WriteToString(_eds);
 
     private static string GetFixturePath(string fileName)
     {
