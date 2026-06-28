@@ -297,10 +297,10 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
             return dc;
 
         dc.NodeId = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "NodeID", "1"));
-        if (dc.NodeId < 1 || dc.NodeId > 127)
+        if (!CanOpenNodeId.IsInRange(dc.NodeId))
         {
             throw new EdsParseException(
-                $"Invalid NodeID '{dc.NodeId}' in [{sectionName}]. CANopen Node-ID must be in range 1..127.")
+                $"Invalid NodeID '{dc.NodeId}' in [{sectionName}]. CANopen Node-ID must be in range {CanOpenNodeId.RangeDescription}.")
             {
                 SectionName = sectionName
             };

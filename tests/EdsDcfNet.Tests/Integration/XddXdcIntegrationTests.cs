@@ -59,6 +59,24 @@ public class XddXdcIntegrationTests
         }
     }
 
+    [Fact]
+    public void CanOpenFile_ReadXdd_WriteXddWithValidated_ReadXdd_RoundTripPreservesSemantics()
+    {
+        var original = CanOpenFile.ReadXdd("Fixtures/sample_device.xdd");
+
+        original.ApplicationProcess.Should().NotBeNull(
+            "sample_device.xdd includes an ApplicationProcess graph to exercise Validated writes");
+
+        var written = CanOpenFile.WriteXddToString(original, CanOpenWriteOptions.Validated);
+        var roundTripped = CanOpenFile.ReadXddFromString(written);
+
+        roundTripped.DeviceInfo.ProductName.Should().Be(original.DeviceInfo.ProductName);
+        roundTripped.ApplicationProcess.Should().NotBeNull();
+        roundTripped.ApplicationProcess!.ParameterList.Count
+            .Should().Be(original.ApplicationProcess!.ParameterList.Count);
+        AssertObjectDictionaryKeysNamesAndTypesEqual(original.ObjectDictionary, roundTripped.ObjectDictionary);
+    }
+
     #endregion
 
     #region XDC Round-Trip Tests
@@ -94,6 +112,19 @@ public class XddXdcIntegrationTests
         roundTripped.DeviceCommissioning.NodeId.Should().Be(original.DeviceCommissioning.NodeId);
         roundTripped.DeviceCommissioning.Baudrate.Should().Be(original.DeviceCommissioning.Baudrate);
         roundTripped.DeviceCommissioning.NodeName.Should().Be(original.DeviceCommissioning.NodeName);
+        roundTripped.ObjectDictionary.Objects.Keys.Should().BeEquivalentTo(original.ObjectDictionary.Objects.Keys);
+    }
+
+    [Fact]
+    public void CanOpenFile_ReadXdc_WriteXdcWithValidated_ReadXdc_RoundTripPreservesSemantics()
+    {
+        var original = CanOpenFile.ReadXdc("Fixtures/minimal.xdc");
+
+        var written = CanOpenFile.WriteXdcToString(original, CanOpenWriteOptions.Validated);
+        var roundTripped = CanOpenFile.ReadXdcFromString(written);
+
+        roundTripped.DeviceCommissioning.NodeId.Should().Be(original.DeviceCommissioning.NodeId);
+        roundTripped.DeviceCommissioning.Baudrate.Should().Be(original.DeviceCommissioning.Baudrate);
         roundTripped.ObjectDictionary.Objects.Keys.Should().BeEquivalentTo(original.ObjectDictionary.Objects.Keys);
     }
 
