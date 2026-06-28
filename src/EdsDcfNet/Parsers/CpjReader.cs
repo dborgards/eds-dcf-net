@@ -159,7 +159,7 @@ public class CpjReader : IFileReader<NodelistProject>
         if (string.IsNullOrEmpty(topology.EdsBaseName)) topology.EdsBaseName = null;
 
         // Parse nodes: scan Node IDs 1-127
-        for (int nodeId = 1; nodeId <= 127; nodeId++)
+        for (int nodeId = CanOpenNodeId.MinValue; nodeId <= CanOpenNodeId.MaxValue; nodeId++)
         {
             var prefix = string.Format(CultureInfo.InvariantCulture, "Node{0}", nodeId);
             var presentValue = IniParser.GetValue(sections, sectionName, prefix + "Present");

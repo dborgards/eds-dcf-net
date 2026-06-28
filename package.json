@@ -15,6 +15,20 @@
   "engines": {
     "node": "^22.14.0 || >=24.10.0"
   },
+  "overrides": {
+    "@actions/http-client": {
+      "undici": "7.28.0"
+    },
+    "@semantic-release/github": {
+      "undici": "7.28.0"
+    },
+    "node-gyp": {
+      "undici": "7.28.0"
+    },
+    "npm": {
+      "undici": "7.28.0"
+    }
+  },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.1",

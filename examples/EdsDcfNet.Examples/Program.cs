@@ -40,8 +40,8 @@ class Program
                 FileRevision = 0,
                 EdsVersion = "4.0",
                 Description = "Example CANopen Device",
-                CreationDate = DateTime.Now.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
-                CreationTime = DateTime.Now.ToString("hh:mmtt", CultureInfo.InvariantCulture),
+                CreationDate = DateTime.UtcNow.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
+                CreationTime = DateTime.UtcNow.ToString("hh:mmtt", CultureInfo.InvariantCulture),
                 CreatedBy = "EdsDcfNet Example"
             },
             DeviceInfo = new DeviceInfo
@@ -152,7 +152,7 @@ PDOMapping=1
 
         try
         {
-            var eds = CanOpenFile.ReadEdsFromString(sampleEds);
+            var eds = CanOpenFile.Eds.ReadString(sampleEds);
 
             Console.WriteLine($"Device: {eds.DeviceInfo.ProductName}");
             Console.WriteLine($"Vendor: {eds.DeviceInfo.VendorName} (ID: 0x{eds.DeviceInfo.VendorNumber:X})");
@@ -221,10 +221,10 @@ PDOMapping=1
         try
         {
             // Read EDS
-            var eds = CanOpenFile.ReadEdsFromString(sampleEds);
+            var eds = CanOpenFile.Eds.ReadString(sampleEds);
 
             // Convert to DCF with Node ID 3 and 500 kbit/s
-            var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 3, baudrate: 500, nodeName: "IO_Module_Node3");
+            var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 3, baudrate: 500, nodeName: "IO_Module_Node3");
 
             Console.WriteLine($"Created DCF for Node {dcf.DeviceCommissioning.NodeId}");
             Console.WriteLine($"Node Name: {dcf.DeviceCommissioning.NodeName}");
@@ -232,7 +232,7 @@ PDOMapping=1
             Console.WriteLine($"Device: {dcf.DeviceInfo.ProductName}");
 
             // Generate DCF content
-            var dcfContent = CanOpenFile.WriteDcfToString(dcf);
+            var dcfContent = CanOpenFile.Dcf.WriteToString(dcf);
             Console.WriteLine($"\nDCF Content Length: {dcfContent.Length} bytes");
             Console.WriteLine("First 200 characters:");
             Console.WriteLine(dcfContent.Substring(0, Math.Min(200, dcfContent.Length)));

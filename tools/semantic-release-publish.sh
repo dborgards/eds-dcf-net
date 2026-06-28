@@ -27,6 +27,9 @@ best_effort() {
 }
 
 generate_cyclonedx_sbom() {
+  local cdx_json
+  local exit_code
+
   echo "Generating CycloneDX SBOM..."
 
   rm -f packages/bom.cdx.json packages/bom.json || return
@@ -34,63 +37,42 @@ generate_cyclonedx_sbom() {
   dotnet tool run dotnet-CycloneDX -- src/EdsDcfNet/EdsDcfNet.csproj \
     --output packages \
     --json \
+    --set-name EdsDcfNet \
     --set-version "${next_version}" \
     --set-type Library \
+    --set-nuget-purl \
+    --import-metadata-path sbom/bom-metadata.template.xml \
     --exclude-dev \
     --exclude-test-projects \
     --enable-github-licenses || return
-  mv packages/bom.json packages/bom.cdx.json || return
+  cdx_json="$(mktemp packages/bom.cdx.XXXXXX)" || return
+  jq -f sbom/prune-cyclonedx.jq packages/bom.json > "$cdx_json" || {
+    exit_code=$?
+    rm -f "$cdx_json"
+    return "$exit_code"
+  }
+  mv "$cdx_json" packages/bom.cdx.json || {
+    exit_code=$?
+    rm -f "$cdx_json"
+    return "$exit_code"
+  }
+  rm -f packages/bom.json "$cdx_json"
 
   echo "CycloneDX SBOM written to packages/bom.cdx.json with version ${next_version}"
 }
 
 generate_spdx_sbom() {
-  local raw_json
-  local spdx_json
-  local exit_code
-
   echo "Generating SPDX SBOM..."
 
-  if [[ -z "${GH_TOKEN:-}" || -z "${GITHUB_REPOSITORY:-}" ]]; then
-    warn "GH_TOKEN or GITHUB_REPOSITORY not set; SPDX SBOM skipped."
+  if [[ ! -f packages/bom.cdx.json ]]; then
+    warn "packages/bom.cdx.json not found; SPDX SBOM skipped."
     return 0
   fi
 
-  raw_json="$(mktemp "${TMPDIR:-/tmp}/spdx_raw.XXXXXX")" || return
-  spdx_json="$(mktemp "${TMPDIR:-/tmp}/sbom_spdx.XXXXXX")" || {
-    exit_code=$?
-    rm -f "$raw_json"
-    return "$exit_code"
-  }
+  rm -f packages/sbom.spdx.json || return
+  jq -f sbom/cyclonedx-to-spdx.jq packages/bom.cdx.json > packages/sbom.spdx.json || return
 
-  rm -f packages/sbom.spdx.json || {
-    exit_code=$?
-    rm -f "$raw_json" "$spdx_json"
-    return "$exit_code"
-  }
-  curl -sLf \
-    -H "Authorization: Bearer ${GH_TOKEN}" \
-    -H "Accept: application/vnd.github+json" \
-    -H "X-GitHub-Api-Version: 2022-11-28" \
-    --output "$raw_json" \
-    "https://api.github.com/repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" || {
-    exit_code=$?
-    rm -f "$raw_json" "$spdx_json"
-    return "$exit_code"
-  }
-  jq -e '.sbom' "$raw_json" > "$spdx_json" || {
-    exit_code=$?
-    rm -f "$raw_json" "$spdx_json"
-    return "$exit_code"
-  }
-  mv "$spdx_json" packages/sbom.spdx.json || {
-    exit_code=$?
-    rm -f "$raw_json" "$spdx_json"
-    return "$exit_code"
-  }
-  rm -f "$raw_json" "$spdx_json"
-
-  echo "SPDX SBOM written to packages/sbom.spdx.json"
+  echo "SPDX SBOM written to packages/sbom.spdx.json (derived from CycloneDX BOM)"
 }
 
 dotnet pack src/EdsDcfNet/EdsDcfNet.csproj \

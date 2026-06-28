@@ -103,7 +103,7 @@ semantic-release derives the next version number automatically from commit types
 ```
 feat: redesign public API
 
-BREAKING CHANGE: CanOpenFile.ReadEds now returns a Result type
+BREAKING CHANGE: CanOpenFile.Eds.ReadFile now returns a Result type
 ```
 
 ## Release process

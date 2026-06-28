@@ -1,11 +1,9 @@
 namespace EdsDcfNet;
 
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
-using EdsDcfNet.Utilities;
 using EdsDcfNet.Validation;
-using EdsDcfNet.Writers;
-using System.Globalization;
 
 /// <summary>
 /// Main entry point for working with EDS and DCF files.
@@ -18,9 +16,44 @@ using System.Globalization;
 /// preserve non-ASCII content while remaining ASCII-compatible for 7-bit data.
 /// The corresponding <c>Write*ToString</c> overloads return a .NET <see cref="string"/>,
 /// so BOM and byte-level encoding do not apply.
+/// For format-specific operations with shared options, use the canonical entry points
+/// <see cref="Eds"/>, <see cref="Dcf"/>, <see cref="Cpj"/>, <see cref="Xdd"/>, and <see cref="Xdc"/>.
+/// Legacy <c>Read*</c>/<c>Write*</c> static overloads remain for backward compatibility; they delegate
+/// to these entry points and default-parameter-only write overloads are marked obsolete (advisory).
 /// </remarks>
 public static class CanOpenFile
 {
+    /// <summary>
+    /// EDS read/write operations. Prefer this entry point for new code that needs
+    /// <see cref="CanOpenFileOptions"/> and <see cref="CanOpenWriteOptions"/> instead of additional
+    /// <see cref="CanOpenFile"/> overloads.
+    /// </summary>
+    public static EdsCanOpenOperations Eds { get; } = EdsCanOpenOperations.Instance;
+    /// <summary>
+    /// DCF read/write operations. Prefer this entry point for new code that needs
+    /// <see cref="CanOpenFileOptions"/> and <see cref="CanOpenWriteOptions"/>.
+    /// </summary>
+    public static DcfCanOpenOperations Dcf { get; } = DcfCanOpenOperations.Instance;
+
+    /// <summary>
+    /// CPJ read/write operations. Prefer this entry point for new code that needs
+    /// <see cref="CanOpenFileOptions"/> and <see cref="CanOpenWriteOptions"/>.
+    /// </summary>
+    public static CpjCanOpenOperations Cpj { get; } = CpjCanOpenOperations.Instance;
+
+    /// <summary>
+    /// XDD read/write operations. Prefer this entry point for new code that needs
+    /// <see cref="CanOpenFileOptions"/> and <see cref="CanOpenWriteOptions"/>.
+    /// </summary>
+    public static XddCanOpenOperations Xdd { get; } = XddCanOpenOperations.Instance;
+
+    /// <summary>
+    /// XDC read/write operations. Prefer this entry point for new code that needs
+    /// <see cref="CanOpenFileOptions"/> and <see cref="CanOpenWriteOptions"/>.
+    /// </summary>
+    public static XdcCanOpenOperations Xdc { get; } = XdcCanOpenOperations.Instance;
+
+
     /// <summary>
     /// Validates an Electronic Data Sheet (EDS) model using the full
     /// <see cref="CanOpenModelValidator"/> rule set.
@@ -49,1014 +82,945 @@ public static class CanOpenFile
         return CanOpenModelValidator.Validate(dcf);
     }
 
-    #region EDS Read
+    /// <summary>
+    /// Validates a nodelist project (CPJ) model using the full
+    /// <see cref="CanOpenModelValidator"/> rule set.
+    /// </summary>
+    /// <param name="cpj">Model instance to validate</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(NodelistProject cpj)
+    {
+        return CanOpenModelValidator.Validate(cpj);
+    }
 
     /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) file.
+    /// Validates an EDS model and throws <see cref="ModelValidationException"/> when issues are found.
     /// </summary>
-    /// <param name="filePath">Path to the EDS file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
-    /// <example>
-    /// <code>
-    /// var eds = CanOpenFile.ReadEds("device.eds");
-    /// Console.WriteLine($"Device: {eds.DeviceInfo.ProductName}");
-    /// </code>
-    /// </example>
+    /// <param name="eds">Model instance to validate</param>
+    /// <exception cref="ModelValidationException">Thrown when validation issues are found.</exception>
+    public static void EnsureValid(ElectronicDataSheet eds)
+    {
+        ThrowIfInvalid(Validate(eds));
+    }
+
+    /// <summary>
+    /// Validates a DCF model and throws <see cref="ModelValidationException"/> when issues are found.
+    /// </summary>
+    /// <param name="dcf">Model instance to validate</param>
+    /// <exception cref="ModelValidationException">Thrown when validation issues are found.</exception>
+    public static void EnsureValid(DeviceConfigurationFile dcf)
+    {
+        ThrowIfInvalid(Validate(dcf));
+    }
+
+    /// <summary>
+    /// Validates a CPJ model and throws <see cref="ModelValidationException"/> when issues are found.
+    /// </summary>
+    /// <param name="cpj">Model instance to validate</param>
+    /// <exception cref="ModelValidationException">Thrown when validation issues are found.</exception>
+    public static void EnsureValid(NodelistProject cpj)
+    {
+        ThrowIfInvalid(Validate(cpj));
+    }
+
+    #region EDS Read
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFile"/>
+    [Obsolete("Use CanOpenFile.Eds.ReadFile instead.")]
     public static ElectronicDataSheet ReadEds(
         string filePath,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new EdsReader();
-        return reader.ReadFile(filePath, maxInputSize);
-    }
+        => Eds.ReadFile(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the EDS file</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFile"/>
+    [Obsolete("Use CanOpenFile.Eds.ReadFile instead.")]
+    public static ElectronicDataSheet ReadEds(string filePath, CanOpenFileOptions options)
+        => Eds.ReadFile(filePath, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Eds.ReadFileAsync instead.")]
     public static Task<ElectronicDataSheet> ReadEdsAsync(
         string filePath,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new EdsReader();
-        return reader.ReadFileAsync(filePath, cancellationToken);
-    }
+        => Eds.ReadFileAsync(filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the EDS file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Eds.ReadFileAsync instead.")]
     public static Task<ElectronicDataSheet> ReadEdsAsync(
         string filePath,
         long maxInputSize,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new EdsReader();
-        return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
-    }
+        => Eds.ReadFileAsync(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) from a string.
-    /// </summary>
-    /// <param name="content">EDS file content as string</param>
-    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Eds.ReadFileAsync instead.")]
+    public static Task<ElectronicDataSheet> ReadEdsAsync(
+        string filePath,
+        CanOpenFileOptions options,
+        CancellationToken cancellationToken = default)
+        => Eds.ReadFileAsync(filePath, options, cancellationToken);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadString"/>
+    [Obsolete("Use CanOpenFile.Eds.ReadString instead.")]
     public static ElectronicDataSheet ReadEdsFromString(
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new EdsReader();
-        return reader.ReadString(content, maxInputSize);
-    }
+        => Eds.ReadString(content, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing EDS content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadString"/>
+    [Obsolete("Use CanOpenFile.Eds.ReadString instead.")]
+    public static ElectronicDataSheet ReadEdsFromString(string content, CanOpenFileOptions options)
+        => Eds.ReadString(content, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStream"/>
+    [Obsolete("Use CanOpenFile.Eds.ReadStream instead.")]
     public static ElectronicDataSheet ReadEds(
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new EdsReader();
-        return reader.ReadStream(stream, maxInputSize);
-    }
+        => Eds.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing EDS content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStream"/>
+    [Obsolete("Use CanOpenFile.Eds.ReadStream instead.")]
+    public static ElectronicDataSheet ReadEds(Stream stream, CanOpenFileOptions options)
+        => Eds.ReadStream(stream, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Eds.ReadStreamAsync instead.")]
     public static Task<ElectronicDataSheet> ReadEdsAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new EdsReader();
-        return reader.ReadStreamAsync(stream, cancellationToken);
-    }
+        => Eds.ReadStreamAsync(stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads an Electronic Data Sheet (EDS) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing EDS content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Eds.ReadStreamAsync instead.")]
     public static Task<ElectronicDataSheet> ReadEdsAsync(
         Stream stream,
         long maxInputSize,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new EdsReader();
-        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
-    }
+        => Eds.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Eds.ReadStreamAsync instead.")]
+    public static Task<ElectronicDataSheet> ReadEdsAsync(
+        Stream stream,
+        CanOpenFileOptions options,
+        CancellationToken cancellationToken = default)
+        => Eds.ReadStreamAsync(stream, options, cancellationToken);
 
     #endregion
 
     #region EDS Write
 
-    /// <summary>
-    /// Writes an Electronic Data Sheet (EDS) to disk.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to write</param>
-    /// <param name="filePath">Path where the EDS file should be written</param>
-    /// <example>
-    /// <code>
-    /// var eds = CanOpenFile.ReadEds("template.eds");
-    /// eds.FileInfo.FileRevision++;
-    /// CanOpenFile.WriteEds(eds, "updated.eds");
-    /// </code>
-    /// </example>
+        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFile(ElectronicDataSheet, string)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Eds.WriteFile instead.")]
     public static void WriteEds(ElectronicDataSheet eds, string filePath)
-    {
-        var writer = new EdsWriter();
-        writer.WriteFile(eds, filePath);
-    }
+        => Eds.WriteFile(eds, filePath, options: null);
 
-    /// <summary>
-    /// Writes an Electronic Data Sheet (EDS) to a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to write</param>
-    /// <param name="stream">Writable destination stream</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFile(ElectronicDataSheet, string, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Eds.WriteFile instead.")]
+    public static void WriteEds(ElectronicDataSheet eds, string filePath, CanOpenWriteOptions? options)
+        => Eds.WriteFile(eds, filePath, options);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStream(ElectronicDataSheet, Stream)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Eds.WriteStream instead.")]
     public static void WriteEds(ElectronicDataSheet eds, Stream stream)
-    {
-        var writer = new EdsWriter();
-        writer.WriteStream(eds, stream);
-    }
+        => Eds.WriteStream(eds, stream);
 
-    /// <summary>
-    /// Writes an Electronic Data Sheet (EDS) to disk asynchronously.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to write</param>
-    /// <param name="filePath">Path where the EDS file should be written</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStream(ElectronicDataSheet, Stream, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Eds.WriteStream instead.")]
+    public static void WriteEds(ElectronicDataSheet eds, Stream stream, CanOpenWriteOptions? options)
+        => Eds.WriteStream(eds, stream, options);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFileAsync(ElectronicDataSheet, string, CancellationToken)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Eds.WriteFileAsync instead.")]
     public static Task WriteEdsAsync(
         ElectronicDataSheet eds,
         string filePath,
         CancellationToken cancellationToken = default)
-    {
-        var writer = new EdsWriter();
-        return writer.WriteFileAsync(eds, filePath, cancellationToken);
-    }
+        => Eds.WriteFileAsync(eds, filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes an Electronic Data Sheet (EDS) to a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFileAsync(ElectronicDataSheet, string, CanOpenWriteOptions?, CancellationToken)"/>
+    [Obsolete("Use CanOpenFile.Eds.WriteFileAsync instead.")]
+    public static Task WriteEdsAsync(
+        ElectronicDataSheet eds,
+        string filePath,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+        => Eds.WriteFileAsync(eds, filePath, options, cancellationToken);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStreamAsync(ElectronicDataSheet, Stream, CancellationToken)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Eds.WriteStreamAsync instead.")]
     public static Task WriteEdsAsync(
         ElectronicDataSheet eds,
         Stream stream,
         CancellationToken cancellationToken = default)
-    {
-        var writer = new EdsWriter();
-        return writer.WriteStreamAsync(eds, stream, cancellationToken);
-    }
+        => Eds.WriteStreamAsync(eds, stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Generates an EDS file content as string.
-    /// </summary>
-    /// <param name="eds">The ElectronicDataSheet to convert</param>
-    /// <returns>EDS content as string</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStreamAsync(ElectronicDataSheet, Stream, CanOpenWriteOptions?, CancellationToken)"/>
+    [Obsolete("Use CanOpenFile.Eds.WriteStreamAsync instead.")]
+    public static Task WriteEdsAsync(
+        ElectronicDataSheet eds,
+        Stream stream,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+        => Eds.WriteStreamAsync(eds, stream, options, cancellationToken);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteToString(ElectronicDataSheet)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Eds.WriteToString instead.")]
     public static string WriteEdsToString(ElectronicDataSheet eds)
-    {
-        var writer = new EdsWriter();
-        return writer.GenerateString(eds);
-    }
+        => Eds.WriteToString(eds, options: null);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteToString(ElectronicDataSheet, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Eds.WriteToString instead.")]
+    public static string WriteEdsToString(ElectronicDataSheet eds, CanOpenWriteOptions? options)
+        => Eds.WriteToString(eds, options);
 
     #endregion
 
     #region DCF Read
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF).
-    /// </summary>
-    /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
-    /// <example>
-    /// <code>
-    /// var dcf = CanOpenFile.ReadDcf("device_node2.dcf");
-    /// Console.WriteLine($"Node ID: {dcf.DeviceCommissioning.NodeId}");
-    /// Console.WriteLine($"Baudrate: {dcf.DeviceCommissioning.Baudrate} kbit/s");
-    /// </code>
-    /// </example>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadFile"/>
+    [Obsolete("Use CanOpenFile.Dcf.ReadFile instead.")]
     public static DeviceConfigurationFile ReadDcf(
         string filePath,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new DcfReader();
-        return reader.ReadFile(filePath, maxInputSize);
-    }
+        => Dcf.ReadFile(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadFile"/>
+    [Obsolete("Use CanOpenFile.Dcf.ReadFile instead.")]
+    public static DeviceConfigurationFile ReadDcf(string filePath, CanOpenFileOptions options)
+        => Dcf.ReadFile(filePath, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Dcf.ReadFileAsync instead.")]
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
         string filePath,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new DcfReader();
-        return reader.ReadFileAsync(filePath, cancellationToken);
-    }
+        => Dcf.ReadFileAsync(filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the DCF file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Dcf.ReadFileAsync instead.")]
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
         string filePath,
         long maxInputSize,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new DcfReader();
-        return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
-    }
+        => Dcf.ReadFileAsync(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a string.
-    /// </summary>
-    /// <param name="content">DCF file content as string</param>
-    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Dcf.ReadFileAsync instead.")]
+    public static Task<DeviceConfigurationFile> ReadDcfAsync(
+        string filePath,
+        CanOpenFileOptions options,
+        CancellationToken cancellationToken = default)
+        => Dcf.ReadFileAsync(filePath, options, cancellationToken);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadString"/>
+    [Obsolete("Use CanOpenFile.Dcf.ReadString instead.")]
     public static DeviceConfigurationFile ReadDcfFromString(
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new DcfReader();
-        return reader.ReadString(content, maxInputSize);
-    }
+        => Dcf.ReadString(content, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadString"/>
+    [Obsolete("Use CanOpenFile.Dcf.ReadString instead.")]
+    public static DeviceConfigurationFile ReadDcfFromString(string content, CanOpenFileOptions options)
+        => Dcf.ReadString(content, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadStream"/>
+    [Obsolete("Use CanOpenFile.Dcf.ReadStream instead.")]
     public static DeviceConfigurationFile ReadDcf(
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new DcfReader();
-        return reader.ReadStream(stream, maxInputSize);
-    }
+        => Dcf.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadStream"/>
+    [Obsolete("Use CanOpenFile.Dcf.ReadStream instead.")]
+    public static DeviceConfigurationFile ReadDcf(Stream stream, CanOpenFileOptions options)
+        => Dcf.ReadStream(stream, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Dcf.ReadStreamAsync instead.")]
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new DcfReader();
-        return reader.ReadStreamAsync(stream, cancellationToken);
-    }
+        => Dcf.ReadStreamAsync(stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a Device Configuration File (DCF) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing DCF content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Dcf.ReadStreamAsync instead.")]
     public static Task<DeviceConfigurationFile> ReadDcfAsync(
         Stream stream,
         long maxInputSize,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new DcfReader();
-        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
-    }
+        => Dcf.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Dcf.ReadStreamAsync instead.")]
+    public static Task<DeviceConfigurationFile> ReadDcfAsync(
+        Stream stream,
+        CanOpenFileOptions options,
+        CancellationToken cancellationToken = default)
+        => Dcf.ReadStreamAsync(stream, options, cancellationToken);
 
     #endregion
 
+
     #region DCF Write
 
-    /// <summary>
-    /// Writes a Device Configuration File (DCF) to disk.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to write</param>
-    /// <param name="filePath">Path where the DCF file should be written</param>
-    /// <example>
-    /// <code>
-    /// var dcf = CanOpenFile.ReadDcf("template.dcf");
-    /// dcf.DeviceCommissioning.NodeId = 5;
-    /// dcf.DeviceCommissioning.Baudrate = 500;
-    /// CanOpenFile.WriteDcf(dcf, "configured_device.dcf");
-    /// </code>
-    /// </example>
+        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFile(DeviceConfigurationFile, string)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Dcf.WriteFile instead.")]
     public static void WriteDcf(DeviceConfigurationFile dcf, string filePath)
-    {
-        var writer = new DcfWriter();
-        writer.WriteFile(dcf, filePath);
-    }
+        => Dcf.WriteFile(dcf, filePath, options: null);
 
-    /// <summary>
-    /// Writes a Device Configuration File (DCF) to a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to write</param>
-    /// <param name="stream">Writable destination stream</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFile(DeviceConfigurationFile, string, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Dcf.WriteFile instead.")]
+    public static void WriteDcf(DeviceConfigurationFile dcf, string filePath, CanOpenWriteOptions? options)
+        => Dcf.WriteFile(dcf, filePath, options);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStream(DeviceConfigurationFile, Stream)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Dcf.WriteStream instead.")]
     public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream)
-    {
-        var writer = new DcfWriter();
-        writer.WriteStream(dcf, stream);
-    }
+        => Dcf.WriteStream(dcf, stream);
 
-    /// <summary>
-    /// Writes a Device Configuration File (DCF) to disk asynchronously.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to write</param>
-    /// <param name="filePath">Path where the DCF file should be written</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStream(DeviceConfigurationFile, Stream, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Dcf.WriteStream instead.")]
+    public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream, CanOpenWriteOptions? options)
+        => Dcf.WriteStream(dcf, stream, options);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFileAsync(DeviceConfigurationFile, string, CancellationToken)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Dcf.WriteFileAsync instead.")]
     public static Task WriteDcfAsync(
         DeviceConfigurationFile dcf,
         string filePath,
         CancellationToken cancellationToken = default)
-    {
-        var writer = new DcfWriter();
-        return writer.WriteFileAsync(dcf, filePath, cancellationToken);
-    }
+        => Dcf.WriteFileAsync(dcf, filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes a Device Configuration File (DCF) to a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFileAsync(DeviceConfigurationFile, string, CanOpenWriteOptions?, CancellationToken)"/>
+    [Obsolete("Use CanOpenFile.Dcf.WriteFileAsync instead.")]
+    public static Task WriteDcfAsync(
+        DeviceConfigurationFile dcf,
+        string filePath,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+        => Dcf.WriteFileAsync(dcf, filePath, options, cancellationToken);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStreamAsync(DeviceConfigurationFile, Stream, CancellationToken)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Dcf.WriteStreamAsync instead.")]
     public static Task WriteDcfAsync(
         DeviceConfigurationFile dcf,
         Stream stream,
         CancellationToken cancellationToken = default)
-    {
-        var writer = new DcfWriter();
-        return writer.WriteStreamAsync(dcf, stream, cancellationToken);
-    }
+        => Dcf.WriteStreamAsync(dcf, stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Generates a DCF file content as string.
-    /// </summary>
-    /// <param name="dcf">The DeviceConfigurationFile to convert</param>
-    /// <returns>DCF content as string</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStreamAsync(DeviceConfigurationFile, Stream, CanOpenWriteOptions?, CancellationToken)"/>
+    [Obsolete("Use CanOpenFile.Dcf.WriteStreamAsync instead.")]
+    public static Task WriteDcfAsync(
+        DeviceConfigurationFile dcf,
+        Stream stream,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+        => Dcf.WriteStreamAsync(dcf, stream, options, cancellationToken);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteToString(DeviceConfigurationFile)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Dcf.WriteToString instead.")]
     public static string WriteDcfToString(DeviceConfigurationFile dcf)
-    {
-        var writer = new DcfWriter();
-        return writer.GenerateString(dcf);
-    }
+        => Dcf.WriteToString(dcf, options: null);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteToString(DeviceConfigurationFile, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Dcf.WriteToString instead.")]
+    public static string WriteDcfToString(DeviceConfigurationFile dcf, CanOpenWriteOptions? options)
+        => Dcf.WriteToString(dcf, options);
 
     #endregion
 
     #region CPJ Read
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) file.
-    /// </summary>
-    /// <param name="filePath">Path to the CPJ file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.ReadFile"/>
+    [Obsolete("Use CanOpenFile.Cpj.ReadFile instead.")]
     public static NodelistProject ReadCpj(
         string filePath,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new CpjReader();
-        return reader.ReadFile(filePath, maxInputSize);
-    }
+        => Cpj.ReadFile(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the CPJ file</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.ReadFile"/>
+    [Obsolete("Use CanOpenFile.Cpj.ReadFile instead.")]
+    public static NodelistProject ReadCpj(string filePath, CanOpenFileOptions options)
+        => Cpj.ReadFile(filePath, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Cpj.ReadFileAsync instead.")]
     public static Task<NodelistProject> ReadCpjAsync(
         string filePath,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new CpjReader();
-        return reader.ReadFileAsync(filePath, cancellationToken);
-    }
+        => Cpj.ReadFileAsync(filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the CPJ file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Cpj.ReadFileAsync instead.")]
     public static Task<NodelistProject> ReadCpjAsync(
         string filePath,
         long maxInputSize,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new CpjReader();
-        return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
-    }
+        => Cpj.ReadFileAsync(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a string.
-    /// </summary>
-    /// <param name="content">CPJ file content as string</param>
-    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Cpj.ReadFileAsync instead.")]
+    public static Task<NodelistProject> ReadCpjAsync(
+        string filePath,
+        CanOpenFileOptions options,
+        CancellationToken cancellationToken = default)
+        => Cpj.ReadFileAsync(filePath, options, cancellationToken);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.ReadString"/>
+    [Obsolete("Use CanOpenFile.Cpj.ReadString instead.")]
     public static NodelistProject ReadCpjFromString(
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new CpjReader();
-        return reader.ReadString(content, maxInputSize);
-    }
+        => Cpj.ReadString(content, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing CPJ content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.ReadString"/>
+    [Obsolete("Use CanOpenFile.Cpj.ReadString instead.")]
+    public static NodelistProject ReadCpjFromString(string content, CanOpenFileOptions options)
+        => Cpj.ReadString(content, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.ReadStream"/>
+    [Obsolete("Use CanOpenFile.Cpj.ReadStream instead.")]
     public static NodelistProject ReadCpj(
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new CpjReader();
-        return reader.ReadStream(stream, maxInputSize);
-    }
+        => Cpj.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing CPJ content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.ReadStream"/>
+    [Obsolete("Use CanOpenFile.Cpj.ReadStream instead.")]
+    public static NodelistProject ReadCpj(Stream stream, CanOpenFileOptions options)
+        => Cpj.ReadStream(stream, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Cpj.ReadStreamAsync instead.")]
     public static Task<NodelistProject> ReadCpjAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new CpjReader();
-        return reader.ReadStreamAsync(stream, cancellationToken);
-    }
+        => Cpj.ReadStreamAsync(stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 306-3 nodelist project (.cpj) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing CPJ content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed NodelistProject object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Cpj.ReadStreamAsync instead.")]
     public static Task<NodelistProject> ReadCpjAsync(
         Stream stream,
         long maxInputSize,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new CpjReader();
-        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
-    }
+        => Cpj.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Cpj.ReadStreamAsync instead.")]
+    public static Task<NodelistProject> ReadCpjAsync(
+        Stream stream,
+        CanOpenFileOptions options,
+        CancellationToken cancellationToken = default)
+        => Cpj.ReadStreamAsync(stream, options, cancellationToken);
 
     #endregion
 
+
     #region CPJ Write
 
-    /// <summary>
-    /// Writes a CiA 306-3 nodelist project (.cpj) to disk.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to write</param>
-    /// <param name="filePath">Path where the CPJ file should be written</param>
+        /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteFile(NodelistProject, string)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Cpj.WriteFile instead.")]
     public static void WriteCpj(NodelistProject cpj, string filePath)
-    {
-        var writer = new CpjWriter();
-        writer.WriteFile(cpj, filePath);
-    }
+        => Cpj.WriteFile(cpj, filePath, options: null);
 
-    /// <summary>
-    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to write</param>
-    /// <param name="stream">Writable destination stream</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteFile(NodelistProject, string, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Cpj.WriteFile instead.")]
+    public static void WriteCpj(NodelistProject cpj, string filePath, CanOpenWriteOptions? options)
+        => Cpj.WriteFile(cpj, filePath, options);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteStream(NodelistProject, Stream)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Cpj.WriteStream instead.")]
     public static void WriteCpj(NodelistProject cpj, Stream stream)
-    {
-        var writer = new CpjWriter();
-        writer.WriteStream(cpj, stream);
-    }
+        => Cpj.WriteStream(cpj, stream);
 
-    /// <summary>
-    /// Writes a CiA 306-3 nodelist project (.cpj) to disk asynchronously.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to write</param>
-    /// <param name="filePath">Path where the CPJ file should be written</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteStream(NodelistProject, Stream, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Cpj.WriteStream instead.")]
+    public static void WriteCpj(NodelistProject cpj, Stream stream, CanOpenWriteOptions? options)
+        => Cpj.WriteStream(cpj, stream, options);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteFileAsync(NodelistProject, string, CancellationToken)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Cpj.WriteFileAsync instead.")]
     public static Task WriteCpjAsync(
         NodelistProject cpj,
         string filePath,
         CancellationToken cancellationToken = default)
-    {
-        var writer = new CpjWriter();
-        return writer.WriteFileAsync(cpj, filePath, cancellationToken);
-    }
+        => Cpj.WriteFileAsync(cpj, filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes a CiA 306-3 nodelist project (.cpj) to a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteFileAsync(NodelistProject, string, CanOpenWriteOptions?, CancellationToken)"/>
+    [Obsolete("Use CanOpenFile.Cpj.WriteFileAsync instead.")]
+    public static Task WriteCpjAsync(
+        NodelistProject cpj,
+        string filePath,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+        => Cpj.WriteFileAsync(cpj, filePath, options, cancellationToken);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteStreamAsync(NodelistProject, Stream, CancellationToken)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Cpj.WriteStreamAsync instead.")]
     public static Task WriteCpjAsync(
         NodelistProject cpj,
         Stream stream,
         CancellationToken cancellationToken = default)
-    {
-        var writer = new CpjWriter();
-        return writer.WriteStreamAsync(cpj, stream, cancellationToken);
-    }
+        => Cpj.WriteStreamAsync(cpj, stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Generates CPJ file content as string.
-    /// </summary>
-    /// <param name="cpj">The NodelistProject to convert</param>
-    /// <returns>CPJ content as string</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteStreamAsync(NodelistProject, Stream, CanOpenWriteOptions?, CancellationToken)"/>
+    [Obsolete("Use CanOpenFile.Cpj.WriteStreamAsync instead.")]
+    public static Task WriteCpjAsync(
+        NodelistProject cpj,
+        Stream stream,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+        => Cpj.WriteStreamAsync(cpj, stream, options, cancellationToken);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteToString(NodelistProject)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Cpj.WriteToString instead.")]
     public static string WriteCpjToString(NodelistProject cpj)
-    {
-        var writer = new CpjWriter();
-        return writer.GenerateString(cpj);
-    }
+        => Cpj.WriteToString(cpj, options: null);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteToString(NodelistProject, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Cpj.WriteToString instead.")]
+    public static string WriteCpjToString(NodelistProject cpj, CanOpenWriteOptions? options)
+        => Cpj.WriteToString(cpj, options);
 
     #endregion
 
     #region XDD Read
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) file.
-    /// </summary>
-    /// <param name="filePath">Path to the XDD file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFile"/>
+    [Obsolete("Use CanOpenFile.Xdd.ReadFile instead.")]
     public static ElectronicDataSheet ReadXdd(
         string filePath,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new XddReader();
-        return reader.ReadFile(filePath, maxInputSize);
-    }
+        => Xdd.ReadFile(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the XDD file</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFile"/>
+    [Obsolete("Use CanOpenFile.Xdd.ReadFile instead.")]
+    public static ElectronicDataSheet ReadXdd(string filePath, CanOpenFileOptions options)
+        => Xdd.ReadFile(filePath, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Xdd.ReadFileAsync instead.")]
     public static Task<ElectronicDataSheet> ReadXddAsync(
         string filePath,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new XddReader();
-        return reader.ReadFileAsync(filePath, cancellationToken);
-    }
+        => Xdd.ReadFileAsync(filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the XDD file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Xdd.ReadFileAsync instead.")]
     public static Task<ElectronicDataSheet> ReadXddAsync(
         string filePath,
         long maxInputSize,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new XddReader();
-        return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
-    }
+        => Xdd.ReadFileAsync(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a string.
-    /// </summary>
-    /// <param name="content">XDD file content as string</param>
-    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Xdd.ReadFileAsync instead.")]
+    public static Task<ElectronicDataSheet> ReadXddAsync(
+        string filePath,
+        CanOpenFileOptions options,
+        CancellationToken cancellationToken = default)
+        => Xdd.ReadFileAsync(filePath, options, cancellationToken);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadString"/>
+    [Obsolete("Use CanOpenFile.Xdd.ReadString instead.")]
     public static ElectronicDataSheet ReadXddFromString(
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new XddReader();
-        return reader.ReadString(content, maxInputSize);
-    }
+        => Xdd.ReadString(content, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDD content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadString"/>
+    [Obsolete("Use CanOpenFile.Xdd.ReadString instead.")]
+    public static ElectronicDataSheet ReadXddFromString(string content, CanOpenFileOptions options)
+        => Xdd.ReadString(content, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStream"/>
+    [Obsolete("Use CanOpenFile.Xdd.ReadStream instead.")]
     public static ElectronicDataSheet ReadXdd(
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new XddReader();
-        return reader.ReadStream(stream, maxInputSize);
-    }
+        => Xdd.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDD content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStream"/>
+    [Obsolete("Use CanOpenFile.Xdd.ReadStream instead.")]
+    public static ElectronicDataSheet ReadXdd(Stream stream, CanOpenFileOptions options)
+        => Xdd.ReadStream(stream, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Xdd.ReadStreamAsync instead.")]
     public static Task<ElectronicDataSheet> ReadXddAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new XddReader();
-        return reader.ReadStreamAsync(stream, cancellationToken);
-    }
+        => Xdd.ReadStreamAsync(stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDD (XML Device Description) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDD content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed ElectronicDataSheet object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Xdd.ReadStreamAsync instead.")]
     public static Task<ElectronicDataSheet> ReadXddAsync(
         Stream stream,
         long maxInputSize,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new XddReader();
-        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
-    }
+        => Xdd.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Xdd.ReadStreamAsync instead.")]
+    public static Task<ElectronicDataSheet> ReadXddAsync(
+        Stream stream,
+        CanOpenFileOptions options,
+        CancellationToken cancellationToken = default)
+        => Xdd.ReadStreamAsync(stream, options, cancellationToken);
 
     #endregion
 
+
     #region XDD Write
 
-    /// <summary>
-    /// Writes an ElectronicDataSheet as a CiA 311 XDD file.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to write</param>
-    /// <param name="filePath">Path where the XDD file should be written</param>
+        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFile(ElectronicDataSheet, string)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Xdd.WriteFile instead.")]
     public static void WriteXdd(ElectronicDataSheet xdd, string filePath)
-    {
-        var writer = new XddWriter();
-        writer.WriteFile(xdd, filePath);
-    }
+        => Xdd.WriteFile(xdd, filePath, options: null);
 
-    /// <summary>
-    /// Writes an ElectronicDataSheet as a CiA 311 XDD stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to write</param>
-    /// <param name="stream">Writable destination stream</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFile(ElectronicDataSheet, string, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Xdd.WriteFile instead.")]
+    public static void WriteXdd(ElectronicDataSheet xdd, string filePath, CanOpenWriteOptions? options)
+        => Xdd.WriteFile(xdd, filePath, options);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStream(ElectronicDataSheet, Stream)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Xdd.WriteStream instead.")]
     public static void WriteXdd(ElectronicDataSheet xdd, Stream stream)
-    {
-        var writer = new XddWriter();
-        writer.WriteStream(xdd, stream);
-    }
+        => Xdd.WriteStream(xdd, stream);
 
-    /// <summary>
-    /// Writes an ElectronicDataSheet as a CiA 311 XDD file asynchronously.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to write</param>
-    /// <param name="filePath">Path where the XDD file should be written</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStream(ElectronicDataSheet, Stream, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Xdd.WriteStream instead.")]
+    public static void WriteXdd(ElectronicDataSheet xdd, Stream stream, CanOpenWriteOptions? options)
+        => Xdd.WriteStream(xdd, stream, options);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFileAsync(ElectronicDataSheet, string, CancellationToken)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Xdd.WriteFileAsync instead.")]
     public static Task WriteXddAsync(
         ElectronicDataSheet xdd,
         string filePath,
         CancellationToken cancellationToken = default)
-    {
-        var writer = new XddWriter();
-        return writer.WriteFileAsync(xdd, filePath, cancellationToken);
-    }
+        => Xdd.WriteFileAsync(xdd, filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes an ElectronicDataSheet as a CiA 311 XDD stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFileAsync(ElectronicDataSheet, string, CanOpenWriteOptions?, CancellationToken)"/>
+    [Obsolete("Use CanOpenFile.Xdd.WriteFileAsync instead.")]
+    public static Task WriteXddAsync(
+        ElectronicDataSheet xdd,
+        string filePath,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+        => Xdd.WriteFileAsync(xdd, filePath, options, cancellationToken);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStreamAsync(ElectronicDataSheet, Stream, CancellationToken)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Xdd.WriteStreamAsync instead.")]
     public static Task WriteXddAsync(
         ElectronicDataSheet xdd,
         Stream stream,
         CancellationToken cancellationToken = default)
-    {
-        var writer = new XddWriter();
-        return writer.WriteStreamAsync(xdd, stream, cancellationToken);
-    }
+        => Xdd.WriteStreamAsync(xdd, stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Generates XDD file content as string.
-    /// </summary>
-    /// <param name="xdd">The ElectronicDataSheet to convert</param>
-    /// <returns>XDD content as string</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStreamAsync(ElectronicDataSheet, Stream, CanOpenWriteOptions?, CancellationToken)"/>
+    [Obsolete("Use CanOpenFile.Xdd.WriteStreamAsync instead.")]
+    public static Task WriteXddAsync(
+        ElectronicDataSheet xdd,
+        Stream stream,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+        => Xdd.WriteStreamAsync(xdd, stream, options, cancellationToken);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteToString(ElectronicDataSheet)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Xdd.WriteToString instead.")]
     public static string WriteXddToString(ElectronicDataSheet xdd)
-    {
-        var writer = new XddWriter();
-        return writer.GenerateString(xdd);
-    }
+        => Xdd.WriteToString(xdd, options: null);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteToString(ElectronicDataSheet, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Xdd.WriteToString instead.")]
+    public static string WriteXddToString(ElectronicDataSheet xdd, CanOpenWriteOptions? options)
+        => Xdd.WriteToString(xdd, options);
 
     #endregion
 
     #region XDC Read
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file.
-    /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadFile"/>
+    [Obsolete("Use CanOpenFile.Xdc.ReadFile instead.")]
     public static DeviceConfigurationFile ReadXdc(
         string filePath,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new XdcReader();
-        return reader.ReadFile(filePath, maxInputSize);
-    }
+        => Xdc.ReadFile(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadFile"/>
+    [Obsolete("Use CanOpenFile.Xdc.ReadFile instead.")]
+    public static DeviceConfigurationFile ReadXdc(string filePath, CanOpenFileOptions options)
+        => Xdc.ReadFile(filePath, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Xdc.ReadFileAsync instead.")]
     public static Task<DeviceConfigurationFile> ReadXdcAsync(
         string filePath,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new XdcReader();
-        return reader.ReadFileAsync(filePath, cancellationToken);
-    }
+        => Xdc.ReadFileAsync(filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) file asynchronously.
-    /// </summary>
-    /// <param name="filePath">Path to the XDC file</param>
-    /// <param name="maxInputSize">Maximum file size in bytes when reading from <paramref name="filePath"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Xdc.ReadFileAsync instead.")]
     public static Task<DeviceConfigurationFile> ReadXdcAsync(
         string filePath,
         long maxInputSize,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new XdcReader();
-        return reader.ReadFileAsync(filePath, maxInputSize, cancellationToken);
-    }
+        => Xdc.ReadFileAsync(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a string.
-    /// </summary>
-    /// <param name="content">XDC file content as string</param>
-    /// <param name="maxInputSize">Maximum content length in decoded characters.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadFileAsync"/>
+    [Obsolete("Use CanOpenFile.Xdc.ReadFileAsync instead.")]
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        string filePath,
+        CanOpenFileOptions options,
+        CancellationToken cancellationToken = default)
+        => Xdc.ReadFileAsync(filePath, options, cancellationToken);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadString"/>
+    [Obsolete("Use CanOpenFile.Xdc.ReadString instead.")]
     public static DeviceConfigurationFile ReadXdcFromString(
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new XdcReader();
-        return reader.ReadString(content, maxInputSize);
-    }
+        => Xdc.ReadString(content, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadString"/>
+    [Obsolete("Use CanOpenFile.Xdc.ReadString instead.")]
+    public static DeviceConfigurationFile ReadXdcFromString(string content, CanOpenFileOptions options)
+        => Xdc.ReadString(content, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadStream"/>
+    [Obsolete("Use CanOpenFile.Xdc.ReadStream instead.")]
     public static DeviceConfigurationFile ReadXdc(
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-    {
-        var reader = new XdcReader();
-        return reader.ReadStream(stream, maxInputSize);
-    }
+        => Xdc.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadStream"/>
+    [Obsolete("Use CanOpenFile.Xdc.ReadStream instead.")]
+    public static DeviceConfigurationFile ReadXdc(Stream stream, CanOpenFileOptions options)
+        => Xdc.ReadStream(stream, options);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Xdc.ReadStreamAsync instead.")]
     public static Task<DeviceConfigurationFile> ReadXdcAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new XdcReader();
-        return reader.ReadStreamAsync(stream, cancellationToken);
-    }
+        => Xdc.ReadStreamAsync(stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Reads a CiA 311 XDC (XML Device Configuration) from a stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="stream">Readable stream containing XDC content.</param>
-    /// <param name="maxInputSize">Maximum decoded content length in characters read from <paramref name="stream"/>.</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
-    /// <returns>Parsed DeviceConfigurationFile object</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Xdc.ReadStreamAsync instead.")]
     public static Task<DeviceConfigurationFile> ReadXdcAsync(
         Stream stream,
         long maxInputSize,
         CancellationToken cancellationToken = default)
-    {
-        var reader = new XdcReader();
-        return reader.ReadStreamAsync(stream, maxInputSize, cancellationToken);
-    }
+        => Xdc.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.ReadStreamAsync"/>
+    [Obsolete("Use CanOpenFile.Xdc.ReadStreamAsync instead.")]
+    public static Task<DeviceConfigurationFile> ReadXdcAsync(
+        Stream stream,
+        CanOpenFileOptions options,
+        CancellationToken cancellationToken = default)
+        => Xdc.ReadStreamAsync(stream, options, cancellationToken);
 
     #endregion
 
+
     #region XDC Write
 
-    /// <summary>
-    /// Writes a DeviceConfigurationFile as a CiA 311 XDC file.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to write</param>
-    /// <param name="filePath">Path where the XDC file should be written</param>
+        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFile(DeviceConfigurationFile, string)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Xdc.WriteFile instead.")]
     public static void WriteXdc(DeviceConfigurationFile xdc, string filePath)
-    {
-        var writer = new XdcWriter();
-        writer.WriteFile(xdc, filePath);
-    }
+        => Xdc.WriteFile(xdc, filePath, options: null);
 
-    /// <summary>
-    /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to write</param>
-    /// <param name="stream">Writable destination stream</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFile(DeviceConfigurationFile, string, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Xdc.WriteFile instead.")]
+    public static void WriteXdc(DeviceConfigurationFile xdc, string filePath, CanOpenWriteOptions? options)
+        => Xdc.WriteFile(xdc, filePath, options);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStream(DeviceConfigurationFile, Stream)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Xdc.WriteStream instead.")]
     public static void WriteXdc(DeviceConfigurationFile xdc, Stream stream)
-    {
-        var writer = new XdcWriter();
-        writer.WriteStream(xdc, stream);
-    }
+        => Xdc.WriteStream(xdc, stream);
 
-    /// <summary>
-    /// Writes a DeviceConfigurationFile as a CiA 311 XDC file asynchronously.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to write</param>
-    /// <param name="filePath">Path where the XDC file should be written</param>
-    /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStream(DeviceConfigurationFile, Stream, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Xdc.WriteStream instead.")]
+    public static void WriteXdc(DeviceConfigurationFile xdc, Stream stream, CanOpenWriteOptions? options)
+        => Xdc.WriteStream(xdc, stream, options);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFileAsync(DeviceConfigurationFile, string, CancellationToken)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Xdc.WriteFileAsync instead.")]
     public static Task WriteXdcAsync(
         DeviceConfigurationFile xdc,
         string filePath,
         CancellationToken cancellationToken = default)
-    {
-        var writer = new XdcWriter();
-        return writer.WriteFileAsync(xdc, filePath, cancellationToken);
-    }
+        => Xdc.WriteFileAsync(xdc, filePath, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Writes a DeviceConfigurationFile as a CiA 311 XDC stream asynchronously.
-    /// The stream is not disposed by this method.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to write</param>
-    /// <param name="stream">Writable destination stream</param>
-    /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFileAsync(DeviceConfigurationFile, string, CanOpenWriteOptions?, CancellationToken)"/>
+    [Obsolete("Use CanOpenFile.Xdc.WriteFileAsync instead.")]
+    public static Task WriteXdcAsync(
+        DeviceConfigurationFile xdc,
+        string filePath,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+        => Xdc.WriteFileAsync(xdc, filePath, options, cancellationToken);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStreamAsync(DeviceConfigurationFile, Stream, CancellationToken)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Xdc.WriteStreamAsync instead.")]
     public static Task WriteXdcAsync(
         DeviceConfigurationFile xdc,
         Stream stream,
         CancellationToken cancellationToken = default)
-    {
-        var writer = new XdcWriter();
-        return writer.WriteStreamAsync(xdc, stream, cancellationToken);
-    }
+        => Xdc.WriteStreamAsync(xdc, stream, cancellationToken: cancellationToken);
 
-    /// <summary>
-    /// Generates XDC file content as string.
-    /// </summary>
-    /// <param name="xdc">The DeviceConfigurationFile to convert</param>
-    /// <returns>XDC content as string</returns>
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStreamAsync(DeviceConfigurationFile, Stream, CanOpenWriteOptions?, CancellationToken)"/>
+    [Obsolete("Use CanOpenFile.Xdc.WriteStreamAsync instead.")]
+    public static Task WriteXdcAsync(
+        DeviceConfigurationFile xdc,
+        Stream stream,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+        => Xdc.WriteStreamAsync(xdc, stream, options, cancellationToken);
+
+        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteToString(DeviceConfigurationFile)"/>
+
+
+
+
+    [Obsolete("Use CanOpenFile.Xdc.WriteToString instead.")]
     public static string WriteXdcToString(DeviceConfigurationFile xdc)
-    {
-        var writer = new XdcWriter();
-        return writer.GenerateString(xdc);
-    }
+        => Xdc.WriteToString(xdc, options: null);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteToString(DeviceConfigurationFile, CanOpenWriteOptions?)"/>
+    [Obsolete("Use CanOpenFile.Xdc.WriteToString instead.")]
+    public static string WriteXdcToString(DeviceConfigurationFile xdc, CanOpenWriteOptions? options)
+        => Xdc.WriteToString(xdc, options);
 
     #endregion
 
     #region EDS to DCF Conversion
 
-    /// <summary>
-    /// Converts an EDS to a DCF with specified commissioning parameters.
-    /// </summary>
-    /// <param name="eds">The EDS to convert</param>
-    /// <param name="nodeId">Node ID for the device</param>
-    /// <param name="baudrate">Baudrate in kbit/s (default: 250)</param>
-    /// <param name="nodeName">Optional node name</param>
-    /// <remarks>
-    /// Uses <see cref="DateTime.UtcNow"/> for generated FileInfo date/time fields.
-    /// Use the overload with explicit timestamp for fully deterministic output.
-    /// </remarks>
-    /// <returns>A new DeviceConfigurationFile</returns>
-    /// <example>
-    /// <code>
-    /// var eds = CanOpenFile.ReadEds("device.eds");
-    /// var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 2, baudrate: 500, nodeName: "MyDevice");
-    /// CanOpenFile.WriteDcf(dcf, "device_node2.dcf");
-    /// </code>
-    /// </example>
+    /// <inheritdoc cref="EdsCanOpenOperations.ConvertToDcf(ElectronicDataSheet, byte, ushort, string?)"/>
+    [Obsolete("Use CanOpenFile.Eds.ConvertToDcf with an explicit timestamp for deterministic output.")]
     public static DeviceConfigurationFile EdsToDcf(
         ElectronicDataSheet eds,
         byte nodeId,
         ushort baudrate = 250,
         string? nodeName = null)
-    {
-        return EdsToDcf(eds, nodeId, DateTime.UtcNow, baudrate, nodeName);
-    }
+        => Eds.ConvertToDcf(eds, nodeId, baudrate, nodeName);
 
-    /// <summary>
-    /// Converts an EDS to a DCF with specified commissioning parameters and an explicit timestamp.
-    /// </summary>
-    /// <param name="eds">The EDS to convert</param>
-    /// <param name="nodeId">Node ID for the device</param>
-    /// <param name="timestamp">Timestamp used for generated FileInfo creation date/time fields.</param>
-    /// <param name="baudrate">Baudrate in kbit/s (default: 250)</param>
-    /// <param name="nodeName">Optional node name</param>
-    /// <remarks>
-    /// The timestamp is formatted with invariant culture as <c>MM-dd-yyyy</c> for
-    /// <c>CreationDate</c> and <c>hh:mmtt</c> for <c>CreationTime</c>; no timezone
-    /// conversion is applied.
-    /// </remarks>
-    /// <returns>A new DeviceConfigurationFile</returns>
+    /// <inheritdoc cref="EdsCanOpenOperations.ConvertToDcf(ElectronicDataSheet, byte, DateTime, ushort, string?)"/>
     public static DeviceConfigurationFile EdsToDcf(
         ElectronicDataSheet eds,
         byte nodeId,
         DateTime timestamp,
         ushort baudrate = 250,
         string? nodeName = null)
+        => Eds.ConvertToDcf(eds, nodeId, timestamp, baudrate, nodeName);
+
+    private static void ThrowIfInvalid(IReadOnlyList<ValidationIssue> issues)
     {
-        if (nodeId < 1 || nodeId > 127)
-            throw new ArgumentOutOfRangeException(nameof(nodeId), nodeId, "CANopen Node-ID must be in range 1..127.");
-
-        var dcf = new DeviceConfigurationFile
-        {
-            FileInfo = new Models.EdsFileInfo
-            {
-                FileName = Path.ChangeExtension(eds.FileInfo.FileName, ".dcf"),
-                FileVersion = eds.FileInfo.FileVersion,
-                FileRevision = (byte)(eds.FileInfo.FileRevision + 1),
-                EdsVersion = eds.FileInfo.EdsVersion,
-                Description = $"DCF generated from {eds.FileInfo.FileName}",
-                CreationDate = timestamp.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
-                CreationTime = timestamp.ToString("hh:mmtt", CultureInfo.InvariantCulture),
-                CreatedBy = "EdsDcfNet Library",
-                LastEds = eds.FileInfo.FileName
-            },
-            DeviceInfo = ModelCloner.CloneDeviceInfo(eds.DeviceInfo),
-            DeviceCommissioning = new DeviceCommissioning
-            {
-                NodeId = nodeId,
-                Baudrate = baudrate,
-                NodeName = nodeName ?? $"{eds.DeviceInfo.ProductName}_Node{nodeId}",
-                NetNumber = 1,
-                NetworkName = "CANopen Network",
-                CANopenManager = false
-            },
-            ObjectDictionary = ModelCloner.CloneObjectDictionary(eds.ObjectDictionary),
-            Comments = ModelCloner.CloneComments(eds.Comments),
-            DynamicChannels = ModelCloner.CloneDynamicChannels(eds.DynamicChannels),
-            ApplicationProcess = ModelCloner.CloneApplicationProcess(eds.ApplicationProcess)
-        };
-
-        dcf.SupportedModules.AddRange(ModelCloner.CloneSupportedModules(eds.SupportedModules));
-        dcf.Tools.AddRange(ModelCloner.CloneTools(eds.Tools));
-        foreach (var kvp in ModelCloner.CloneAdditionalSections(eds.AdditionalSections))
-            dcf.AdditionalSections[kvp.Key] = kvp.Value;
-
-        return dcf;
+        if (issues.Count > 0)
+            throw new ModelValidationException(issues);
     }
 
     #endregion

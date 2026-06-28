@@ -26,8 +26,8 @@ internal static class Program
         {
             var eds = mode switch
             {
-                "sync" => CanOpenFile.ReadEds(filePath),
-                "async" => await CanOpenFile.ReadEdsAsync(filePath).ConfigureAwait(false),
+                "sync" => CanOpenFile.Eds.ReadFile(filePath),
+                "async" => await CanOpenFile.Eds.ReadFileAsync(filePath).ConfigureAwait(false),
                 _ => throw new ArgumentException($"Unknown mode '{mode}'. Expected 'sync' or 'async'.", nameof(args))
             };
 
