@@ -131,6 +131,10 @@ public static class CanOpenFile
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Eds.ReadFile(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFile"/>
+    public static ElectronicDataSheet ReadEds(string filePath, CanOpenFileOptions options)
+        => Eds.ReadFile(filePath, options);
+
     /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFileAsync"/>
     public static Task<ElectronicDataSheet> ReadEdsAsync(
         string filePath,
@@ -144,17 +148,32 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Eds.ReadFileAsync(filePath, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
 
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadFileAsync"/>
+    public static Task<ElectronicDataSheet> ReadEdsAsync(
+        string filePath,
+        CanOpenFileOptions options,
+        CancellationToken cancellationToken = default)
+        => Eds.ReadFileAsync(filePath, options, cancellationToken);
+
     /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadString"/>
     public static ElectronicDataSheet ReadEdsFromString(
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Eds.ReadString(content, new CanOpenFileOptions { MaxInputSize = maxInputSize });
 
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadString"/>
+    public static ElectronicDataSheet ReadEdsFromString(string content, CanOpenFileOptions options)
+        => Eds.ReadString(content, options);
+
     /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStream"/>
     public static ElectronicDataSheet ReadEds(
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
         => Eds.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize });
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStream"/>
+    public static ElectronicDataSheet ReadEds(Stream stream, CanOpenFileOptions options)
+        => Eds.ReadStream(stream, options);
 
     /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStreamAsync"/>
     public static Task<ElectronicDataSheet> ReadEdsAsync(
@@ -168,6 +187,13 @@ public static class CanOpenFile
         long maxInputSize,
         CancellationToken cancellationToken = default)
         => Eds.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = maxInputSize }, cancellationToken);
+
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.ReadStreamAsync"/>
+    public static Task<ElectronicDataSheet> ReadEdsAsync(
+        Stream stream,
+        CanOpenFileOptions options,
+        CancellationToken cancellationToken = default)
+        => Eds.ReadStreamAsync(stream, options, cancellationToken);
 
     #endregion
 
