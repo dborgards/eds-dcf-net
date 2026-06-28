@@ -7,21 +7,26 @@ using EdsDcfNet.Models;
 /// </summary>
 internal static class CanOpenWriteGuard
 {
-    internal static void EnsureValidEdsForWrite(ElectronicDataSheet eds, CanOpenWriteOptions? options)
+    internal static void EnsureValidForWrite<T>(T model, CanOpenWriteOptions? options)
     {
-        if (options?.ValidateBeforeWrite == true)
-            CanOpenFile.EnsureValid(eds);
-    }
+        if (options?.ValidateBeforeWrite != true)
+            return;
 
-    internal static void EnsureValidDcfForWrite(DeviceConfigurationFile dcf, CanOpenWriteOptions? options)
-    {
-        if (options?.ValidateBeforeWrite == true)
-            CanOpenFile.EnsureValid(dcf);
-    }
-
-    internal static void EnsureValidCpjForWrite(NodelistProject cpj, CanOpenWriteOptions? options)
-    {
-        if (options?.ValidateBeforeWrite == true)
-            CanOpenFile.EnsureValid(cpj);
+        switch (model)
+        {
+            case ElectronicDataSheet eds:
+                CanOpenFile.EnsureValid(eds);
+                break;
+            case DeviceConfigurationFile dcf:
+                CanOpenFile.EnsureValid(dcf);
+                break;
+            case NodelistProject cpj:
+                CanOpenFile.EnsureValid(cpj);
+                break;
+            default:
+                throw new ArgumentException(
+                    "Unsupported model type: " + typeof(T).Name,
+                    nameof(model));
+        }
     }
 }
