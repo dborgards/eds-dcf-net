@@ -550,4 +550,119 @@ public class FormatCanOpenOperationsTests
                 File.Delete(asyncTempFile);
         }
     }
+
+    [Fact]
+    public async Task Eds_AsyncWritePathsWithOptions_ProduceReadableOutput()
+    {
+        var eds = CanOpenFile.ReadEds("Fixtures/sample_device.eds");
+        var asyncTempFile = Path.GetTempFileName();
+
+        try
+        {
+            await CanOpenFile.WriteEdsAsync(eds, asyncTempFile, CanOpenWriteOptions.Default);
+            CanOpenFile.ReadEds(asyncTempFile).DeviceInfo.ProductName.Should().Be(eds.DeviceInfo.ProductName);
+
+            using var asyncStream = new MemoryStream();
+            await CanOpenFile.WriteEdsAsync(eds, asyncStream, CanOpenWriteOptions.Default);
+            asyncStream.Position = 0;
+            CanOpenFile.ReadEds(asyncStream).DeviceInfo.ProductName.Should().Be(eds.DeviceInfo.ProductName);
+        }
+        finally
+        {
+            if (File.Exists(asyncTempFile))
+                File.Delete(asyncTempFile);
+        }
+    }
+
+    [Fact]
+    public async Task Dcf_AsyncWritePathsWithOptions_ProduceReadableOutput()
+    {
+        var dcf = CanOpenFile.ReadDcf("Fixtures/minimal.dcf");
+        var asyncTempFile = Path.GetTempFileName();
+
+        try
+        {
+            await CanOpenFile.WriteDcfAsync(dcf, asyncTempFile, CanOpenWriteOptions.Default);
+            CanOpenFile.ReadDcf(asyncTempFile).DeviceCommissioning.NodeId.Should().Be(dcf.DeviceCommissioning.NodeId);
+
+            using var asyncStream = new MemoryStream();
+            await CanOpenFile.WriteDcfAsync(dcf, asyncStream, CanOpenWriteOptions.Default);
+            asyncStream.Position = 0;
+            CanOpenFile.ReadDcf(asyncStream).DeviceCommissioning.NodeId.Should().Be(dcf.DeviceCommissioning.NodeId);
+        }
+        finally
+        {
+            if (File.Exists(asyncTempFile))
+                File.Delete(asyncTempFile);
+        }
+    }
+
+    [Fact]
+    public async Task Cpj_AsyncWritePathsWithOptions_ProduceReadableOutput()
+    {
+        var cpj = CanOpenFile.ReadCpjFromString(MinimalCpjContent);
+        var asyncTempFile = Path.GetTempFileName();
+
+        try
+        {
+            await CanOpenFile.WriteCpjAsync(cpj, asyncTempFile, CanOpenWriteOptions.Default);
+            CanOpenFile.ReadCpj(asyncTempFile).Networks[0].NetName.Should().Be(cpj.Networks[0].NetName);
+
+            using var asyncStream = new MemoryStream();
+            await CanOpenFile.WriteCpjAsync(cpj, asyncStream, CanOpenWriteOptions.Default);
+            asyncStream.Position = 0;
+            CanOpenFile.ReadCpj(asyncStream).Networks[0].NetName.Should().Be(cpj.Networks[0].NetName);
+        }
+        finally
+        {
+            if (File.Exists(asyncTempFile))
+                File.Delete(asyncTempFile);
+        }
+    }
+
+    [Fact]
+    public async Task Xdd_AsyncWritePathsWithOptions_ProduceReadableOutput()
+    {
+        var xdd = CanOpenFile.ReadXdd("Fixtures/sample_device.xdd");
+        var asyncTempFile = Path.GetTempFileName();
+
+        try
+        {
+            await CanOpenFile.WriteXddAsync(xdd, asyncTempFile, CanOpenWriteOptions.Default);
+            CanOpenFile.ReadXdd(asyncTempFile).DeviceInfo.ProductName.Should().Be(xdd.DeviceInfo.ProductName);
+
+            using var asyncStream = new MemoryStream();
+            await CanOpenFile.WriteXddAsync(xdd, asyncStream, CanOpenWriteOptions.Default);
+            asyncStream.Position = 0;
+            CanOpenFile.ReadXdd(asyncStream).DeviceInfo.ProductName.Should().Be(xdd.DeviceInfo.ProductName);
+        }
+        finally
+        {
+            if (File.Exists(asyncTempFile))
+                File.Delete(asyncTempFile);
+        }
+    }
+
+    [Fact]
+    public async Task Xdc_AsyncWritePathsWithOptions_ProduceReadableOutput()
+    {
+        var xdc = CanOpenFile.ReadXdc("Fixtures/minimal.xdc");
+        var asyncTempFile = Path.GetTempFileName();
+
+        try
+        {
+            await CanOpenFile.WriteXdcAsync(xdc, asyncTempFile, CanOpenWriteOptions.Default);
+            CanOpenFile.ReadXdc(asyncTempFile).DeviceCommissioning.NodeId.Should().Be(xdc.DeviceCommissioning.NodeId);
+
+            using var asyncStream = new MemoryStream();
+            await CanOpenFile.WriteXdcAsync(xdc, asyncStream, CanOpenWriteOptions.Default);
+            asyncStream.Position = 0;
+            CanOpenFile.ReadXdc(asyncStream).DeviceCommissioning.NodeId.Should().Be(xdc.DeviceCommissioning.NodeId);
+        }
+        finally
+        {
+            if (File.Exists(asyncTempFile))
+                File.Delete(asyncTempFile);
+        }
+    }
 }

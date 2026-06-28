@@ -360,11 +360,11 @@ internal static class XddCommNetProfileParser
 
             if (parsed)
             {
-                if (nodeIdValue < 1 || nodeIdValue > 127)
+                if (!CanOpenNodeId.IsInRange(nodeIdValue))
                     throw new EdsParseException(
                         string.Format(
                             CultureInfo.InvariantCulture,
-                            "Invalid nodeID '{0}' (parsed value {1}). CANopen Node-ID must be in range 1..127.",
+                            "Invalid nodeID '{0}' (parsed value {1}). CANopen Node-ID must be in range " + CanOpenNodeId.RangeDescription + ".",
                             nodeIdStr,
                             nodeIdValue));
                 dc.NodeId = nodeIdValue;
