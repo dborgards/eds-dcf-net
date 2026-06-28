@@ -1,5 +1,6 @@
 namespace EdsDcfNet;
 
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Utilities;
@@ -115,5 +116,94 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
         ushort baudrate = 250,
         string? nodeName = null)
         => ConvertToDcf(eds, nodeId, DateTime.UtcNow, baudrate, nodeName);
+
+    /// <summary>
+    /// Writes an EDS to disk.
+    /// </summary>
+    public new void WriteFile(ElectronicDataSheet eds, string filePath)
+        => base.WriteFile(eds, filePath);
+
+    /// <summary>
+    /// Writes an EDS to disk.
+    /// </summary>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public new void WriteFile(ElectronicDataSheet eds, string filePath, CanOpenWriteOptions? options)
+        => base.WriteFile(eds, filePath, options);
+
+    /// <summary>
+    /// Writes an EDS to a stream. The stream is not disposed.
+    /// </summary>
+    public new void WriteStream(ElectronicDataSheet eds, Stream stream)
+        => base.WriteStream(eds, stream);
+
+    /// <summary>
+    /// Writes an EDS to a stream. The stream is not disposed.
+    /// </summary>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public new void WriteStream(ElectronicDataSheet eds, Stream stream, CanOpenWriteOptions? options)
+        => base.WriteStream(eds, stream, options);
+
+    /// <summary>
+    /// Writes an EDS to disk asynchronously.
+    /// </summary>
+    public new Task WriteFileAsync(
+        ElectronicDataSheet eds,
+        string filePath,
+        CancellationToken cancellationToken = default)
+        => base.WriteFileAsync(eds, filePath, cancellationToken);
+
+    /// <summary>
+    /// Writes an EDS to disk asynchronously.
+    /// </summary>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public new Task WriteFileAsync(
+        ElectronicDataSheet eds,
+        string filePath,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+        => base.WriteFileAsync(eds, filePath, options, cancellationToken);
+
+    /// <summary>
+    /// Writes an EDS to a stream asynchronously. The stream is not disposed.
+    /// </summary>
+    public new Task WriteStreamAsync(
+        ElectronicDataSheet eds,
+        Stream stream,
+        CancellationToken cancellationToken = default)
+        => base.WriteStreamAsync(eds, stream, cancellationToken);
+
+    /// <summary>
+    /// Writes an EDS to a stream asynchronously. The stream is not disposed.
+    /// </summary>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public new Task WriteStreamAsync(
+        ElectronicDataSheet eds,
+        Stream stream,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+        => base.WriteStreamAsync(eds, stream, options, cancellationToken);
+
+    /// <summary>
+    /// Serializes an EDS to a string.
+    /// </summary>
+    public new string WriteToString(ElectronicDataSheet eds)
+        => base.WriteToString(eds);
+
+    /// <summary>
+    /// Serializes an EDS to a string.
+    /// </summary>
+    /// <exception cref="ModelValidationException">
+    /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
+    /// </exception>
+    public new string WriteToString(ElectronicDataSheet eds, CanOpenWriteOptions? options)
+        => base.WriteToString(eds, options);
 }
 #pragma warning restore CA1822
