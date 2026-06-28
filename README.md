@@ -114,6 +114,84 @@ var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 2, baudrate: 500);
 CanOpenFile.Dcf.WriteFile(dcf, "device_node2.dcf", CanOpenWriteOptions.Validated);
 ```
 
+## Migration Guide
+
+If your code still calls the legacy `CanOpenFile.Read*` / `Write*` / `EdsToDcf` static
+methods, move to the format entry points in the table above. Default-parameter facade
+overloads are marked `[Obsolete]` (advisory) and delegate to the same implementation;
+they remain available until a future major release.
+
+### Facade → format entry point
+
+Each format uses the same method names on its entry point (`Eds`, `Dcf`, `Cpj`, `Xdd`,
+`Xdc`). Replace the legacy facade prefix with the matching entry point:
+
+| Legacy facade method | Canonical replacement |
+|----------------------|------------------------|
+| `ReadEds(...)`, `ReadDcf(...)`, … | `Eds.ReadFile(...)`, `Dcf.ReadFile(...)`, … |
+| `ReadEdsFromString(...)`, … | `Eds.ReadString(...)`, `Dcf.ReadString(...)`, … |
+| `ReadEds(stream, ...)`, … | `Eds.ReadStream(stream, ...)`, `Dcf.ReadStream(stream, ...)`, … |
+| `ReadEdsAsync(path, ...)`, … | `Eds.ReadFileAsync(path, ...)`, `Dcf.ReadFileAsync(path, ...)`, … |
+| `ReadEdsAsync(stream, ...)`, … | `Eds.ReadStreamAsync(stream, ...)`, … |
+| `WriteEds(...)`, … | `Eds.WriteFile(...)`, `Dcf.WriteFile(...)`, … |
+| `WriteEds(model, stream)`, … | `Eds.WriteStream(model, stream)`, … |
+| `WriteEdsAsync(...)`, … | `Eds.WriteFileAsync(...)`, `Eds.WriteStreamAsync(...)`, … |
+| `WriteEdsToString(...)`, … | `Eds.WriteToString(...)`, `Dcf.WriteToString(...)`, … |
+| `EdsToDcf(...)` | `Eds.ConvertToDcf(...)` |
+
+`CanOpenFile.Validate(...)` is unchanged.
+
+### Input size limits
+
+Pass `CanOpenFileOptions` instead of a bare `maxInputSize` parameter:
+
+```csharp
+// Before
+var xdd = CanOpenFile.ReadXdd("device.xdd", maxInputSize: 50L * 1024 * 1024);
+
+// After
+var xdd = CanOpenFile.Xdd.ReadFile(
+    "device.xdd",
+    new CanOpenFileOptions { MaxInputSize = 50L * 1024 * 1024 });
+```
+
+### Pre-write validation
+
+Use `CanOpenWriteOptions.Validated` on the format entry point write methods (see
+[Validating models before write operations](#validating-models-before-write-operations)).
+
+### EDS-to-DCF conversion
+
+```csharp
+// Before
+var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 2, baudrate: 500);
+
+// After
+var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 2, baudrate: 500);
+```
+
+For deterministic generated timestamps (recommended in tests and reproducible builds),
+pass an explicit `DateTime` to `ConvertToDcf`:
+
+```csharp
+var dcf = CanOpenFile.Eds.ConvertToDcf(
+    eds, nodeId: 2, timestamp: DateTime.UtcNow, baudrate: 500);
+```
+
+### Example migration
+
+```csharp
+// Before
+var eds = CanOpenFile.ReadEds("device.eds");
+var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 2, baudrate: 500);
+CanOpenFile.WriteDcf(dcf, "device_node2.dcf");
+
+// After
+var eds = CanOpenFile.Eds.ReadFile("device.eds");
+var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 2, baudrate: 500);
+CanOpenFile.Dcf.WriteFile(dcf, "device_node2.dcf");
+```
+
 ## Output Encoding Policy
 
 All writer APIs that persist text (`CanOpenFile.Eds`, `.Dcf`, `.Cpj`, `.Xdd`, and `.Xdc`
