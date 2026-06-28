@@ -16,7 +16,7 @@ The library uses **exceptions** as its primary error mechanism:
 | `XdcWriteException`     | Errors during XDC writing (including commissioning validation) | `SectionName`             |
 | `ArgumentException`     | Invalid input parameters where validation is performed by the API | Standard .NET          |
 
-> **Note:** `CanOpenFile.EdsToDcf`, DCF parsing, and XDC writing enforce CANopen Node-ID constraints for explicit commissioning data. `EdsToDcf` and DCF parsing require `1..127`; XDC writing emits commissioning only when a configured NodeId is present and valid and throws `XdcWriteException` for out-of-range values.
+> **Note:** `CanOpenFile.Eds.ConvertToDcf` (and the obsolete `CanOpenFile.EdsToDcf` facade that delegates to it), DCF parsing, and XDC writing enforce CANopen Node-ID constraints for explicit commissioning data. EDS-to-DCF conversion and DCF parsing require `1..127`; XDC writing emits commissioning only when a configured NodeId is present and valid and throws `XdcWriteException` for out-of-range values.
 
 > **Compatibility note (AccessType):** Parsing of invalid or unknown `AccessType` values is intentionally tolerant and falls back to `ReadOnly` instead of failing. This is a deliberate trade-off to maximize interoperability with non-compliant manufacturer EDS/DCF files.
 
@@ -44,8 +44,9 @@ flowchart TD
 To mitigate memory-pressure and oversized-input scenarios, all read APIs enforce a default
 maximum input size of `IniParser.DefaultMaxInputSize` (10 MB).
 
-The limit is configurable per read operation (`Read*`, `Read*Async`, `Read*FromString`)
-for EDS/DCF/CPJ/XDD/XDC, including the `CanOpenFile` facade.
+The limit is configurable per read operation on each format entry point
+(`ReadFile`, `ReadFileAsync`, `ReadString`, `ReadStream`, `ReadStreamAsync`)
+for EDS/DCF/CPJ/XDD/XDC via `CanOpenFileOptions`.
 
 Guideline: keep the default for untrusted inputs and raise limits only as needed for
 trusted, known-large payloads.

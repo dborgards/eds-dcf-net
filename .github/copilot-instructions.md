@@ -90,7 +90,7 @@ For a **major** release, add `BREAKING CHANGE:` in the commit body or footer:
 ```
 feat: redesign public API
 
-BREAKING CHANGE: CanOpenFile.ReadEds now returns a Result type
+BREAKING CHANGE: CanOpenFile.Eds.ReadFile now returns a Result type
 ```
 
 ### Examples

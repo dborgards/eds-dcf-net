@@ -8,22 +8,22 @@ The library needs a clearly defined entry point for consumers.
 
 ### Decision
 
-`CanOpenFile` is a **static class** with static methods for all supported formats,
-including synchronous and asynchronous file-I/O variants
-(`ReadEds`/`ReadEdsAsync`, `ReadDcf`/`ReadDcfAsync`, `ReadCpj`/`ReadCpjAsync`,
-`ReadXdd`/`ReadXddAsync`, `ReadXdc`/`ReadXdcAsync`, corresponding write methods, and `EdsToDcf`).
+`CanOpenFile` is a **static class** with format-specific entry points (`Eds`, `Dcf`, `Cpj`,
+`Xdd`, `Xdc`) for read/write operations, including synchronous and asynchronous file-I/O
+variants, plus `Eds.ConvertToDcf` for EDS-to-DCF conversion. Legacy static `Read*` /
+`Write*` / `EdsToDcf` facade methods remain for backward compatibility.
 
 ### Rationale
 
 - The library holds **no state** between calls -- every call is self-contained.
 - Static methods are idiomatic in C# for stateless operations.
-- A simple call like `CanOpenFile.ReadEds("file.eds")` requires no instantiation and minimizes onboarding effort.
+- A simple call like `CanOpenFile.Eds.ReadFile("file.eds")` requires no instantiation and minimizes onboarding effort.
 
 ### Consequences
 
 - (+) Minimal API surface, easy to discover and use.
 - (+) No dependency injection setup needed for simple use cases.
-- (-) Harder to mock in consumer unit tests (workaround: use `Read*FromString`/`Write*ToString` methods).
+- (-) Harder to mock in consumer unit tests (workaround: use `ReadString`/`WriteToString` on the format entry points).
 
 ---
 
@@ -67,12 +67,12 @@ EDS and DCF share most sections, but DCF has additional fields (`DeviceCommissio
 
 - Clear semantic separation: EDS is a template, DCF is a configured instance.
 - Avoids confusion about optional vs. required fields.
-- The `EdsToDcf` conversion makes the transformation explicit.
+- The `CanOpenFile.Eds.ConvertToDcf` conversion makes the transformation explicit.
 
 ### Consequences
 
 - (+) Type safety: DCF always has `DeviceCommissioning`, EDS never does.
-- (+) Clear API semantics: `ReadEds` returns `ElectronicDataSheet`, `ReadDcf` returns `DeviceConfigurationFile`.
+- (+) Clear API semantics: `CanOpenFile.Eds.ReadFile` returns `ElectronicDataSheet`, `CanOpenFile.Dcf.ReadFile` returns `DeviceConfigurationFile`.
 - (-) Duplication of shared properties between the classes.
 
 ---
