@@ -669,6 +669,32 @@ public class WriteValidationGuardTests
         act.Should().Throw<ModelValidationException>();
     }
 
+    [Fact]
+    public void EnsureValidForWrite_WithUnsupportedModelType_ThrowsArgumentException()
+    {
+        var ensureValidForWrite = GetEnsureValidForWriteMethod(typeof(string));
+
+        var act = () => ensureValidForWrite.Invoke(null, new object?[] { "unsupported", CanOpenWriteOptions.Validated });
+
+        var exception = act.Should().Throw<TargetInvocationException>().Which.InnerException;
+        exception.Should().BeOfType<ArgumentException>()
+            .Which.Message.Should().Contain("Unsupported model type: String");
+        ((ArgumentException)exception!).ParamName.Should().Be("model");
+    }
+
+    private static MethodInfo GetEnsureValidForWriteMethod(Type modelType)
+    {
+        var guardType = typeof(CanOpenFile).Assembly.GetType("EdsDcfNet.CanOpenWriteGuard")
+            ?? throw new InvalidOperationException("CanOpenWriteGuard type not found.");
+
+        var method = guardType.GetMethod(
+            "EnsureValidForWrite",
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("EnsureValidForWrite method not found.");
+
+        return method.MakeGenericMethod(modelType);
+    }
+
     private static DeviceConfigurationFile CreateValidDcf()
     {
         var dcf = new DeviceConfigurationFile
