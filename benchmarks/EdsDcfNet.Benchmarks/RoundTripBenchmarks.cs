@@ -21,29 +21,29 @@ public class RoundTripBenchmarks
     [Benchmark(Baseline = true, Description = "EDS round-trip (parse + write)")]
     public string EdsRoundTrip()
     {
-        var eds = CanOpenFile.ReadEdsFromString(_edsContent);
-        return CanOpenFile.WriteEdsToString(eds);
+        var eds = CanOpenFile.Eds.ReadString(_edsContent);
+        return CanOpenFile.Eds.WriteToString(eds);
     }
 
     [Benchmark(Description = "DCF round-trip (parse + write)")]
     public string DcfRoundTrip()
     {
-        var dcf = CanOpenFile.ReadDcfFromString(_dcfContent);
-        return CanOpenFile.WriteDcfToString(dcf);
+        var dcf = CanOpenFile.Dcf.ReadString(_dcfContent);
+        return CanOpenFile.Dcf.WriteToString(dcf);
     }
 
     [Benchmark(Description = "CPJ round-trip (parse + write)")]
     public string CpjRoundTrip()
     {
-        var cpj = CanOpenFile.ReadCpjFromString(_cpjContent);
-        return CanOpenFile.WriteCpjToString(cpj);
+        var cpj = CanOpenFile.Cpj.ReadString(_cpjContent);
+        return CanOpenFile.Cpj.WriteToString(cpj);
     }
 
     [Benchmark(Description = "EDS → DCF conversion")]
     public object EdsToDcfConversion()
     {
-        var eds = CanOpenFile.ReadEdsFromString(_edsContent);
-        return CanOpenFile.EdsToDcf(eds, nodeId: 1, baudrate: 250);
+        var eds = CanOpenFile.Eds.ReadString(_edsContent);
+        return CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 1, baudrate: 250);
     }
 
     private static string GetFixturePath(string fileName)

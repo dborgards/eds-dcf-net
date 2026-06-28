@@ -21,16 +21,16 @@ public class ParserBenchmarks
     }
 
     [Benchmark(Baseline = true, Description = "EDS parse (string)")]
-    public object EdsParseFromString() => CanOpenFile.ReadEdsFromString(_edsContent);
+    public object EdsParseFromString() => CanOpenFile.Eds.ReadString(_edsContent);
 
     [Benchmark(Description = "DCF parse (string)")]
-    public object DcfParseFromString() => CanOpenFile.ReadDcfFromString(_dcfContent);
+    public object DcfParseFromString() => CanOpenFile.Dcf.ReadString(_dcfContent);
 
     [Benchmark(Description = "CPJ parse (string)")]
-    public object CpjParseFromString() => CanOpenFile.ReadCpjFromString(_cpjContent);
+    public object CpjParseFromString() => CanOpenFile.Cpj.ReadString(_cpjContent);
 
     [Benchmark(Description = "XDD parse (string)")]
-    public object XddParseFromString() => CanOpenFile.ReadXddFromString(_xddContent);
+    public object XddParseFromString() => CanOpenFile.Xdd.ReadString(_xddContent);
 
     private static string GetFixturePath(string fileName)
     {
