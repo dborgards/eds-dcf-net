@@ -9,71 +9,35 @@ using EdsDcfNet.Writers;
 /// DCF-focused read/write operations for CiA DS 306 Device Configuration Files.
 /// Access via <see cref="CanOpenFile.Dcf"/>.
 /// </summary>
-#pragma warning disable CA1822 // Instance API exposed via CanOpenFile.Dcf entry point.
-public sealed class DcfCanOpenOperations
+public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigurationFile>
 {
     internal static DcfCanOpenOperations Instance { get; } = new();
 
     private DcfCanOpenOperations()
+        : base(
+            CanOpenWriteGuard.EnsureValidDcfForWrite,
+            (filePath, maxInputSize) => new DcfReader().ReadFile(filePath, maxInputSize),
+            (filePath, maxInputSize, cancellationToken) =>
+                new DcfReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),
+            (content, maxInputSize) => new DcfReader().ReadString(content, maxInputSize),
+            (stream, maxInputSize) => new DcfReader().ReadStream(stream, maxInputSize),
+            (stream, maxInputSize, cancellationToken) =>
+                new DcfReader().ReadStreamAsync(stream, maxInputSize, cancellationToken),
+            (dcf, filePath) => new DcfWriter().WriteFile(dcf, filePath),
+            (dcf, stream) => new DcfWriter().WriteStream(dcf, stream),
+            (dcf, filePath, cancellationToken) =>
+                new DcfWriter().WriteFileAsync(dcf, filePath, cancellationToken),
+            (dcf, stream, cancellationToken) =>
+                new DcfWriter().WriteStreamAsync(dcf, stream, cancellationToken),
+            dcf => new DcfWriter().GenerateString(dcf))
     {
-    }
-
-    /// <summary>
-    /// Reads a DCF file from disk.
-    /// </summary>
-    public DeviceConfigurationFile ReadFile(string filePath, CanOpenFileOptions? options = null)
-    {
-        var reader = new DcfReader();
-        return reader.ReadFile(filePath, CanOpenFileOptions.ResolveMaxInputSize(options));
-    }
-
-    /// <summary>
-    /// Reads a DCF file from disk asynchronously.
-    /// </summary>
-    public Task<DeviceConfigurationFile> ReadFileAsync(
-        string filePath,
-        CanOpenFileOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        var reader = new DcfReader();
-        return reader.ReadFileAsync(filePath, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken);
-    }
-
-    /// <summary>
-    /// Reads a DCF from a string.
-    /// </summary>
-    public DeviceConfigurationFile ReadString(string content, CanOpenFileOptions? options = null)
-    {
-        var reader = new DcfReader();
-        return reader.ReadString(content, CanOpenFileOptions.ResolveMaxInputSize(options));
-    }
-
-    /// <summary>
-    /// Reads a DCF from a stream. The stream is not disposed.
-    /// </summary>
-    public DeviceConfigurationFile ReadStream(Stream stream, CanOpenFileOptions? options = null)
-    {
-        var reader = new DcfReader();
-        return reader.ReadStream(stream, CanOpenFileOptions.ResolveMaxInputSize(options));
-    }
-
-    /// <summary>
-    /// Reads a DCF from a stream asynchronously. The stream is not disposed.
-    /// </summary>
-    public Task<DeviceConfigurationFile> ReadStreamAsync(
-        Stream stream,
-        CanOpenFileOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        var reader = new DcfReader();
-        return reader.ReadStreamAsync(stream, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken);
     }
 
     /// <summary>
     /// Writes a DCF to disk.
     /// </summary>
-    public void WriteFile(DeviceConfigurationFile dcf, string filePath)
-        => WriteFile(dcf, filePath, options: null);
+    public new void WriteFile(DeviceConfigurationFile dcf, string filePath)
+        => base.WriteFile(dcf, filePath);
 
     /// <summary>
     /// Writes a DCF to disk.
@@ -81,18 +45,14 @@ public sealed class DcfCanOpenOperations
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public void WriteFile(DeviceConfigurationFile dcf, string filePath, CanOpenWriteOptions? options)
-    {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(dcf, options);
-        var writer = new DcfWriter();
-        writer.WriteFile(dcf, filePath);
-    }
+    public new void WriteFile(DeviceConfigurationFile dcf, string filePath, CanOpenWriteOptions? options)
+        => base.WriteFile(dcf, filePath, options);
 
     /// <summary>
     /// Writes a DCF to a stream. The stream is not disposed.
     /// </summary>
-    public void WriteStream(DeviceConfigurationFile dcf, Stream stream)
-        => WriteStream(dcf, stream, options: null);
+    public new void WriteStream(DeviceConfigurationFile dcf, Stream stream)
+        => base.WriteStream(dcf, stream);
 
     /// <summary>
     /// Writes a DCF to a stream. The stream is not disposed.
@@ -100,21 +60,17 @@ public sealed class DcfCanOpenOperations
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public void WriteStream(DeviceConfigurationFile dcf, Stream stream, CanOpenWriteOptions? options)
-    {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(dcf, options);
-        var writer = new DcfWriter();
-        writer.WriteStream(dcf, stream);
-    }
+    public new void WriteStream(DeviceConfigurationFile dcf, Stream stream, CanOpenWriteOptions? options)
+        => base.WriteStream(dcf, stream, options);
 
     /// <summary>
     /// Writes a DCF to disk asynchronously.
     /// </summary>
-    public Task WriteFileAsync(
+    public new Task WriteFileAsync(
         DeviceConfigurationFile dcf,
         string filePath,
         CancellationToken cancellationToken = default)
-        => WriteFileAsync(dcf, filePath, options: null, cancellationToken);
+        => base.WriteFileAsync(dcf, filePath, cancellationToken);
 
     /// <summary>
     /// Writes a DCF to disk asynchronously.
@@ -122,25 +78,21 @@ public sealed class DcfCanOpenOperations
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public Task WriteFileAsync(
+    public new Task WriteFileAsync(
         DeviceConfigurationFile dcf,
         string filePath,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
-    {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(dcf, options);
-        var writer = new DcfWriter();
-        return writer.WriteFileAsync(dcf, filePath, cancellationToken);
-    }
+        => base.WriteFileAsync(dcf, filePath, options, cancellationToken);
 
     /// <summary>
     /// Writes a DCF to a stream asynchronously. The stream is not disposed.
     /// </summary>
-    public Task WriteStreamAsync(
+    public new Task WriteStreamAsync(
         DeviceConfigurationFile dcf,
         Stream stream,
         CancellationToken cancellationToken = default)
-        => WriteStreamAsync(dcf, stream, options: null, cancellationToken);
+        => base.WriteStreamAsync(dcf, stream, cancellationToken);
 
     /// <summary>
     /// Writes a DCF to a stream asynchronously. The stream is not disposed.
@@ -148,22 +100,18 @@ public sealed class DcfCanOpenOperations
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public Task WriteStreamAsync(
+    public new Task WriteStreamAsync(
         DeviceConfigurationFile dcf,
         Stream stream,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
-    {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(dcf, options);
-        var writer = new DcfWriter();
-        return writer.WriteStreamAsync(dcf, stream, cancellationToken);
-    }
+        => base.WriteStreamAsync(dcf, stream, options, cancellationToken);
 
     /// <summary>
     /// Serializes a DCF to a string.
     /// </summary>
-    public string WriteToString(DeviceConfigurationFile dcf)
-        => WriteToString(dcf, options: null);
+    public new string WriteToString(DeviceConfigurationFile dcf)
+        => base.WriteToString(dcf);
 
     /// <summary>
     /// Serializes a DCF to a string.
@@ -171,11 +119,6 @@ public sealed class DcfCanOpenOperations
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public string WriteToString(DeviceConfigurationFile dcf, CanOpenWriteOptions? options)
-    {
-        CanOpenWriteGuard.EnsureValidDcfForWrite(dcf, options);
-        var writer = new DcfWriter();
-        return writer.GenerateString(dcf);
-    }
+    public new string WriteToString(DeviceConfigurationFile dcf, CanOpenWriteOptions? options)
+        => base.WriteToString(dcf, options);
 }
-#pragma warning restore CA1822
