@@ -14,6 +14,11 @@ public static class CanOpenModelValidator
         10, 20, 50, 125, 250, 500, 800, 1000
     };
 
+    private static readonly string AllowedBaudratesDescription = string.Join(
+        ", ",
+        new ushort[] { 10, 20, 50, 125, 250, 500, 800, 1000 }
+            .Select(v => v.ToString(CultureInfo.InvariantCulture)));
+
     private const int MaxParameterNameLength = 241;
     private const int MaxNodeNameLength = 246;
     private const int MaxNetworkNameLength = 243;
@@ -103,11 +108,7 @@ public static class CanOpenModelValidator
                     CultureInfo.InvariantCulture,
                     "Baudrate {0} is not supported. Allowed values: {1}.",
                     commissioning.Baudrate,
-                    string.Join(
-                        ", ",
-                        AllowedBaudrates
-                            .OrderBy(v => v)
-                            .Select(v => v.ToString(CultureInfo.InvariantCulture))))));
+                    AllowedBaudratesDescription)));
         }
 
         ValidateMaxLength(commissioning.NodeName, MaxNodeNameLength, "DeviceCommissioning.NodeName", issues);
@@ -161,12 +162,12 @@ public static class CanOpenModelValidator
             classifiedIndices,
             issues);
 
-        foreach (var kvp in objectDictionary.Objects.OrderBy(k => k.Key))
+        foreach (var kvp in objectDictionary.Objects)
         {
             ValidateObject(kvp.Key, kvp.Value, issues);
         }
 
-        foreach (var index in objectDictionary.Objects.Keys.OrderBy(i => i))
+        foreach (var index in objectDictionary.Objects.Keys)
         {
             if (!classifiedIndices.Contains(index))
             {
@@ -251,7 +252,7 @@ public static class CanOpenModelValidator
                     obj.SubNumber.Value)));
         }
 
-        foreach (var subObject in obj.SubObjects.OrderBy(s => s.Key))
+        foreach (var subObject in obj.SubObjects)
         {
             ValidateMaxLength(
                 subObject.Value.ParameterName,
@@ -284,7 +285,7 @@ public static class CanOpenModelValidator
         ValidateMaxLength(network.NetName, MaxNetworkNameLength, path + ".NetName", issues);
         ValidateMaxLength(network.NetRefd, MaxReferenceNameLength, path + ".NetRefd", issues);
 
-        foreach (var kvp in network.Nodes.OrderBy(n => n.Key))
+        foreach (var kvp in network.Nodes)
         {
             var nodePath = string.Format(
                 CultureInfo.InvariantCulture,
