@@ -39,7 +39,11 @@ refactor/xyz    ──┘      │           │
 
 5. **Open a PR targeting `develop`** (not `main`).
 
-6. Wait for CI (build + tests) to pass and for review.
+6. If your change touches public surface area on `EdsDcfNet`, complete the
+   [Public API compatibility checklist](#public-api-compatibility-checklist)
+   below and confirm it in the PR template.
+
+7. Wait for CI (build + tests) to pass and for review.
 
 ## Coding conventions
 
@@ -105,6 +109,55 @@ feat: redesign public API
 
 BREAKING CHANGE: CanOpenFile.Eds.ReadFile now returns a Result type
 ```
+
+## Public API compatibility checklist
+
+Use this checklist for any PR that adds, removes, renames, or reshapes public
+members in `EdsDcfNet` — especially `CanOpenFile`, format entry points
+(`.Eds`, `.Dcf`, `.Cpj`, `.Xdd`, `.Xdc`), and models consumed by library
+callers.
+
+Recent refactors surfaced gaps that were caught only after merge or by
+downstream consumers. Each item below maps to a real incident so reviewers
+know why it matters.
+
+- [ ] **Binary ABI** — Do not remove existing public methods or overloads
+  without a **major** release and an explicit `BREAKING CHANGE` note in the
+  commit body or PR description. Precompiled consumers may still call
+  signatures marked `[Obsolete]`; removing them causes
+  `MissingMethodException` at runtime. When in doubt, keep the signature and
+  mark it obsolete instead of deleting it.
+  *(Incident: [#302](https://github.com/dborgards/eds-dcf-net/pull/302) —
+  removed legacy `Write*` overloads broke precompiled consumers; binary-compatible
+  overloads were restored.)*
+
+- [ ] **Named arguments** — Parameter names on public methods are part of the
+  **source contract**. Shared generic bases must not silently rename parameters
+  that appear on derived or format-specific entry points; callers using named
+  arguments will fail to compile even when overload resolution still succeeds.
+  *(Incident: [#314](https://github.com/dborgards/eds-dcf-net/pull/314) /
+  [#321](https://github.com/dborgards/eds-dcf-net/pull/321) — a shared generic
+  base changed parameter names on format entry points; #321 restored
+  named-argument compatibility.)*
+
+- [ ] **Overload shape** — When slimming or redirecting facades, preserve or
+  explicitly obsolete **every sibling overload** in the same PR — both
+  default-argument and options-taking variants. Do not remove one overload
+  shape while leaving its sibling in place without an `[Obsolete]` migration
+  path.
+  *(Incident: [#302](https://github.com/dborgards/eds-dcf-net/pull/302) —
+  partial removal of `Write*` overload shapes; same facade refactor series as
+  [#314](https://github.com/dborgards/eds-dcf-net/pull/314).)*
+
+- [ ] **XML documentation / warnings-as-errors** — Public API changes must not
+  introduce new CS15xx (documentation) or CS16xx (analyzer) warnings. The
+  library builds with `TreatWarningsAsErrors=true`. Run
+  `dotnet build --configuration Release` locally and resolve any new warnings
+  on touched public members before opening the PR.
+  *(Enforced by existing build policy; easy to miss during large refactors.)*
+
+> **Optional follow-up (separate work):** evaluate automated enforcement such
+> as `Microsoft.CodeAnalysis.PublicApiAnalyzers` or a compat baseline file.
 
 ## Release process
 

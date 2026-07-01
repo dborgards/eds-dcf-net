@@ -141,6 +141,24 @@ This project uses a **develop → main** integration model:
 
 Direct commits to `main` or `develop` are not allowed; all changes go through PRs.
 
+## Public API compatibility
+
+When a change touches public surface area on `EdsDcfNet` (for example
+`CanOpenFile`, format entry points, or public models), follow the
+**[Public API compatibility checklist](../CONTRIBUTING.md#public-api-compatibility-checklist)**
+in `CONTRIBUTING.md` before opening a PR. It covers:
+
+- **Binary ABI** — no silent removal of public overloads (see #302)
+- **Named arguments** — parameter names are a source contract; shared generic
+  bases must not rename parameters visible on format entry points (see #314,
+  #321)
+- **Overload shape** — preserve or obsolete every sibling overload in the same
+  PR (see #302, #314)
+- **XML doc / warnings-as-errors** — no new CS15xx/CS16xx under
+  `TreatWarningsAsErrors`
+
+PRs that modify public API should confirm the checklist in the PR template.
+
 ## Code Style
 
 - XML doc comments on all public members
