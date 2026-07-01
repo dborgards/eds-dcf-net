@@ -19,7 +19,7 @@ format entry points, or models consumed by library callers)?
 
 - [ ] **No** public API changes
 - [ ] **Yes** — I completed the
-      [Public API compatibility checklist](../CONTRIBUTING.md#public-api-compatibility-checklist)
+      [Public API compatibility checklist](https://github.com/dborgards/eds-dcf-net/blob/develop/CONTRIBUTING.md#public-api-compatibility-checklist)
       in `CONTRIBUTING.md` (binary ABI, named arguments, overload shape, XML
       doc / warnings-as-errors)
 
