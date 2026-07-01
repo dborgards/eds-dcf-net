@@ -98,8 +98,14 @@ internal static class ModelCloneSampleBuilder
             }
 
             var value = CreatePropertyValue(property.PropertyType, ref seed, depth, property.Name);
-            if (value != ModelCloneSampleBuilderSkippedMarker.Value)
-                property.SetValue(instance, value);
+            if (value == ModelCloneSampleBuilderSkippedMarker.Value)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot populate settable property {instance.GetType().Name}.{property.Name} " +
+                    $"of type {property.PropertyType.FullName} for clone completeness testing.");
+            }
+
+            property.SetValue(instance, value);
         }
     }
 
@@ -125,7 +131,7 @@ internal static class ModelCloneSampleBuilder
             ? collectionType.GetGenericArguments()[0]
             : typeof(object);
 
-        if (elementType == typeof(ApParameterGroup) && depth >= MaxParameterGroupDepth)
+        if (elementType == typeof(ApParameterGroup) && depth > MaxParameterGroupDepth)
             return;
 
         list.Add(CreateCollectionElement(elementType, ref seed, depth));
@@ -142,7 +148,11 @@ internal static class ModelCloneSampleBuilder
             : CreatePropertyValue(valueType, ref seed, depth + 1, dictionaryType.Name);
 
         if (value == ModelCloneSampleBuilderSkippedMarker.Value)
-            return;
+        {
+            throw new InvalidOperationException(
+                $"Cannot populate dictionary value of type {valueType.FullName} " +
+                $"for clone completeness testing.");
+        }
 
         dictionary[key] = value;
     }
@@ -177,11 +187,18 @@ internal static class ModelCloneSampleBuilder
         if (underlying != null)
             return CreateSample(underlying, ref seed, depth + 1);
 
-        if (propertyType == typeof(ApParameterGroup) && depth >= MaxParameterGroupDepth)
+        if (propertyType == typeof(ApParameterGroup) && depth > MaxParameterGroupDepth)
             return ModelCloneSampleBuilderSkippedMarker.Value;
 
         if (IsModelType(propertyType))
             return CreateSample(propertyType, ref seed, depth + 1);
+
+        if (IsCollectionType(propertyType))
+        {
+            var collection = CreateCollectionInstance(propertyType);
+            PopulateCollection(collection, propertyType, ref seed, depth);
+            return collection;
+        }
 
         return ModelCloneSampleBuilderSkippedMarker.Value;
     }
@@ -316,6 +333,13 @@ internal static class ModelCloneDeepAssert
             var cloneValue = property.GetValue(clone);
             var propertyPath = $"{path}.{property.Name}";
 
+            if (property.CanWrite && IsUnsetValue(sourceValue, property.PropertyType))
+            {
+                sourceValue.Should().NotBeNull(
+                    $"{propertyPath} must be populated in completeness test source; " +
+                    "settable properties left at default/null cannot verify clone coverage");
+            }
+
             if (sourceValue is null)
             {
                 cloneValue.Should().BeNull($"{propertyPath} should remain null");
@@ -400,6 +424,27 @@ internal static class ModelCloneDeepAssert
 
             AssertEquivalent(sourceValue, cloneValue!, keyPath, assertDistinctInstances: true);
         }
+    }
+
+    private static bool IsUnsetValue(object? value, Type propertyType)
+    {
+        if (value is null)
+            return true;
+
+        if (propertyType == typeof(string))
+            return string.IsNullOrEmpty((string)value);
+
+        var underlying = Nullable.GetUnderlyingType(propertyType);
+        if (underlying != null)
+            return false;
+
+        if (propertyType.IsValueType)
+        {
+            var defaultValue = Activator.CreateInstance(propertyType)!;
+            return value.Equals(defaultValue);
+        }
+
+        return false;
     }
 }
 

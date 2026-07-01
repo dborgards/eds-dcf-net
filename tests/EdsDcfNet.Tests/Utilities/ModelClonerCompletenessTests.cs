@@ -49,4 +49,16 @@ public class ModelClonerCompletenessTests
 
         act.Should().Throw<Exception>();
     }
+
+    [Fact]
+    public void DeepAssert_FailsWhenSettablePropertyLeftAtDefaultInSource()
+    {
+        // Guard-rail: null/default on both sides must not count as a successful clone check.
+        var source = new CanOpenObject();
+        var clone = new CanOpenObject();
+
+        var act = () => ModelCloneDeepAssert.AssertDeepClone(source, clone, "CanOpenObject");
+
+        act.Should().Throw<Exception>();
+    }
 }
