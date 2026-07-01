@@ -89,6 +89,14 @@ internal static class ModelCloneSampleBuilder
             if (!property.CanWrite)
                 continue;
 
+            if (IsCollectionType(property.PropertyType))
+            {
+                var collection = CreateCollectionInstance(property.PropertyType);
+                PopulateCollection(collection, property.PropertyType, ref seed, depth);
+                property.SetValue(instance, collection);
+                continue;
+            }
+
             var value = CreatePropertyValue(property.PropertyType, ref seed, depth, property.Name);
             if (value != ModelCloneSampleBuilderSkippedMarker.Value)
                 property.SetValue(instance, value);
@@ -104,14 +112,14 @@ internal static class ModelCloneSampleBuilder
 
     private static void PopulateCollection(object? collection, Type collectionType, ref int seed, int depth)
     {
-        if (collection is not IList list)
-            return;
-
         if (collection is IDictionary dictionary)
         {
             PopulateDictionary(dictionary, collectionType, ref seed, depth);
             return;
         }
+
+        if (collection is not IList list)
+            return;
 
         var elementType = collectionType.IsGenericType
             ? collectionType.GetGenericArguments()[0]
@@ -178,11 +186,37 @@ internal static class ModelCloneSampleBuilder
         return ModelCloneSampleBuilderSkippedMarker.Value;
     }
 
+    private static bool IsCollectionType(Type type) =>
+        typeof(IEnumerable).IsAssignableFrom(type) && type != typeof(string);
+
     private static bool IsReadOnlyCollection(PropertyInfo property) =>
-        property.CanRead
-        && !property.CanWrite
-        && typeof(IEnumerable).IsAssignableFrom(property.PropertyType)
-        && property.PropertyType != typeof(string);
+        property.CanRead && !property.CanWrite && IsCollectionType(property.PropertyType);
+
+    private static object CreateCollectionInstance(Type collectionType)
+    {
+        if (collectionType.IsInterface && collectionType.IsGenericType)
+        {
+            var definition = collectionType.GetGenericTypeDefinition();
+            var typeArguments = collectionType.GetGenericArguments();
+
+            if (definition == typeof(IList<>)
+                || definition == typeof(ICollection<>)
+                || definition == typeof(IEnumerable<>)
+                || definition == typeof(IReadOnlyList<>)
+                || definition == typeof(IReadOnlyCollection<>))
+            {
+                return Activator.CreateInstance(typeof(List<>).MakeGenericType(typeArguments[0]))!;
+            }
+
+            if (definition == typeof(IDictionary<,>) || definition == typeof(IReadOnlyDictionary<,>))
+            {
+                return Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(typeArguments[0], typeArguments[1]))!;
+            }
+        }
+
+        return Activator.CreateInstance(collectionType)
+            ?? throw new InvalidOperationException($"Could not create a collection instance of {collectionType.FullName}.");
+    }
 
     private static object GetNonDefaultEnumValue(Type enumType, int seed)
     {
@@ -293,12 +327,6 @@ internal static class ModelCloneDeepAssert
             if (property.PropertyType == typeof(string) || property.PropertyType.IsValueType)
             {
                 cloneValue.Should().Be(sourceValue, $"{propertyPath} scalar values should match");
-                continue;
-            }
-
-            if (sourceValue is IEnumerable and not string)
-            {
-                AssertEquivalent(sourceValue, cloneValue!, propertyPath, assertDistinctInstances: true);
                 continue;
             }
 
