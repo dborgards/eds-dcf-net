@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EdsDcfNet — CANopen EDS/DCF/CPJ/XDD/XDC for .NET</title>
+<meta name="description" content="EdsDcfNet is an open-source, zero-dependency C# .NET library for reading and writing CiA DS 306 (EDS, DCF, CPJ) and CiA 311 (XDD, XDC) files for CANopen devices.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1220'/%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%2334d399' stroke-width='2.5'/%3E%3Cpath d='M3 16h7M22 16h7' stroke='%2334d399' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0b1220;
+    --bg-soft: #0f172a;
+    --panel: #111c33;
+    --panel-2: #16233f;
+    --border: rgba(148, 163, 184, 0.16);
+    --border-strong: rgba(148, 163, 184, 0.28);
+    --text: #e6edf7;
+    --muted: #9aa8bf;
+    --accent: #34d399;
+    --accent-dim: rgba(52, 211, 153, 0.14);
+    --accent-2: #60a5fa;
+    --code-bg: #0a101d;
+    --radius: 14px;
+    --font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: "Cascadia Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent-2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- Nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(11, 18, 32, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px; gap: 24px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 1.1rem; color: var(--text);
+  }
+  .brand:hover { text-decoration: none; }
+  .brand svg { flex: none; }
+  .nav-links { display: flex; align-items: center; gap: 22px; font-size: 0.92rem; }
+  .nav-links a { color: var(--muted); }
+  .nav-links a:hover { color: var(--text); text-decoration: none; }
+  .nav-cta {
+    color: var(--bg) !important; background: var(--accent);
+    padding: 7px 16px; border-radius: 8px; font-weight: 600;
+  }
+  .nav-cta:hover { filter: brightness(1.1); }
+  @media (max-width: 720px) { .nav-links a:not(.nav-cta) { display: none; } }
+
+  /* ---------- Hero ---------- */
+  header.hero {
+    position: relative;
+    padding: 88px 0 72px;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 70% 50% at 50% -10%, rgba(52, 211, 153, 0.12), transparent),
+      radial-gradient(ellipse 50% 40% at 85% 20%, rgba(96, 165, 250, 0.08), transparent);
+  }
+  header.hero::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(148,163,184,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,163,184,0.05) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 30%, transparent 75%);
+    pointer-events: none;
+  }
+  .hero-inner { position: relative; text-align: center; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 0.82rem; font-weight: 600; letter-spacing: 0.04em;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    padding: 5px 14px; border-radius: 999px;
+    margin-bottom: 26px;
+  }
+  h1 {
+    font-size: clamp(2.1rem, 5.5vw, 3.4rem);
+    line-height: 1.12; font-weight: 800; letter-spacing: -0.02em;
+    margin-bottom: 20px;
+  }
+  h1 .grad {
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub {
+    max-width: 680px; margin: 0 auto 34px;
+    font-size: 1.13rem; color: var(--muted);
+  }
+  .cta-row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-bottom: 34px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 12px 24px; border-radius: 10px;
+    font-weight: 600; font-size: 0.97rem;
+    border: 1px solid transparent; transition: all 0.15s ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: #06281c; }
+  .btn-primary:hover { filter: brightness(1.08); box-shadow: 0 6px 24px rgba(52,211,153,0.3); }
+  .btn-ghost { background: var(--panel); color: var(--text); border-color: var(--border-strong); }
+  .btn-ghost:hover { border-color: var(--accent); box-shadow: 0 6px 24px rgba(0,0,0,0.3); }
+  .btn svg { flex: none; }
+
+  .install {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 0.92rem;
+    background: var(--code-bg); border: 1px solid var(--border);
+    padding: 11px 20px; border-radius: 10px; color: var(--text);
+  }
+  .install .prompt { color: var(--accent); user-select: none; }
+  .install button {
+    background: none; border: none; cursor: pointer; color: var(--muted);
+    display: inline-flex; padding: 2px; border-radius: 5px;
+  }
+  .install button:hover { color: var(--accent); }
+
+  .badges {
+    display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;
+    margin-top: 36px; font-size: 0.82rem;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 7px;
+    color: var(--muted); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 5px 14px;
+  }
+  .badge b { color: var(--text); font-weight: 600; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+
+  /* ---------- Sections ---------- */
+  section { padding: 72px 0; }
+  section.alt { background: var(--bg-soft); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .sec-head { text-align: center; max-width: 640px; margin: 0 auto 48px; }
+  .sec-head h2 { font-size: 1.9rem; font-weight: 750; letter-spacing: -0.01em; margin-bottom: 12px; }
+  .sec-head p { color: var(--muted); }
+  .kicker {
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 10px;
+  }
+
+  /* ---------- Feature grid ---------- */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 880px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+  .card .icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: var(--accent-dim); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+  }
+  .card h3 { font-size: 1.02rem; font-weight: 650; margin-bottom: 8px; }
+  .card p { font-size: 0.9rem; color: var(--muted); }
+  .card code { font-family: var(--mono); font-size: 0.83em; color: var(--accent); background: var(--accent-dim); padding: 1px 5px; border-radius: 5px; }
+
+  /* ---------- Formats table ---------- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 640px; }
+  th, td { text-align: left; padding: 14px 20px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); background: var(--panel-2); font-weight: 650; }
+  td code { font-family: var(--mono); font-size: 0.86em; color: var(--accent); }
+  td .fmt { font-weight: 700; color: var(--text); }
+  td.desc { white-space: normal; color: var(--muted); min-width: 260px; }
+
+  /* ---------- Code window ---------- */
+  .code-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 880px) { .code-cols { grid-template-columns: 1fr; } }
+  .code-window {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+  }
+  .code-title {
+    display: flex; align-items: center; gap: 8px;
+    padding: 11px 16px; border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    font-family: var(--mono); font-size: 0.78rem; color: var(--muted);
+  }
+  .traffic { display: flex; gap: 6px; margin-right: 6px; }
+  .traffic i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+  .traffic i:nth-child(1) { background: #f87171; }
+  .traffic i:nth-child(2) { background: #fbbf24; }
+  .traffic i:nth-child(3) { background: #34d399; }
+  .code-window pre {
+    padding: 18px 20px; overflow-x: auto;
+    font-family: var(--mono); font-size: 0.84rem; line-height: 1.65;
+    color: #d3dcea;
+  }
+  .c-kw { color: #7dd3fc; }
+  .c-ty { color: #34d399; }
+  .c-st { color: #fbbf24; }
+  .c-cm { color: #64748b; font-style: italic; }
+  .c-nu { color: #f0abfc; }
+
+  .steps { list-style: none; display: flex; flex-direction: column; gap: 18px; }
+  .steps li { display: flex; gap: 16px; }
+  .step-n {
+    flex: none; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent-dim); border: 1px solid rgba(52,211,153,0.35);
+    color: var(--accent); font-weight: 700; font-size: 0.85rem;
+    display: flex; align-items: center; justify-content: center; margin-top: 2px;
+  }
+  .steps h3 { font-size: 1rem; font-weight: 650; margin-bottom: 4px; }
+  .steps p { font-size: 0.9rem; color: var(--muted); }
+  .steps code { font-family: var(--mono); font-size: 0.84em; color: var(--accent); background: var(--accent-dim); padding: 1px 6px; border-radius: 5px; }
+
+  /* ---------- Resource links ---------- */
+  .res-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 720px) { .res-grid { grid-template-columns: 1fr; } }
+  .res {
+    display: block; background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 26px; color: var(--text);
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .res:hover {
+    text-decoration: none; border-color: var(--accent);
+    transform: translateY(-3px); box-shadow: 0 14px 40px rgba(0,0,0,0.35);
+  }
+  .res .icon {
+    width: 44px; height: 44px; border-radius: 11px;
+    background: var(--accent-dim); color: var(--accent);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+  }
+  .res h3 { font-size: 1.05rem; font-weight: 650; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .res h3 .arrow { color: var(--accent); transition: transform 0.15s ease; }
+  .res:hover h3 .arrow { transform: translateX(3px); }
+  .res p { font-size: 0.9rem; color: var(--muted); }
+  .res .url { display: block; margin-top: 14px; font-family: var(--mono); font-size: 0.76rem; color: var(--accent-2); word-break: break-all; white-space: normal; }
+
+  /* ---------- Footer ---------- */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 40px 0; background: var(--bg-soft);
+    font-size: 0.88rem; color: var(--muted);
+  }
+  .foot-inner { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .foot-links { display: flex; gap: 20px; flex-wrap: wrap; }
+  .foot-links a { color: var(--muted); }
+  .foot-links a:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="EdsDcfNet home">
+      <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="#0f172a" stroke="rgba(148,163,184,0.3)"/>
+        <circle cx="16" cy="16" r="6" fill="none" stroke="#34d399" stroke-width="2.5"/>
+        <path d="M3 16h7M22 16h7" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      EdsDcfNet
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#formats">Formats</a>
+      <a href="#quickstart">Quick Start</a>
+      <a href="#resources">Resources</a>
+      <a class="nav-cta" href="https://www.nuget.org/packages/EdsDcfNet" target="_blank" rel="noopener">Get on NuGet</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap hero-inner">
+    <span class="eyebrow">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0l2.09 4.9L15.6 5.5l-4 3.6 1.2 5.3L8 11.6l-4.8 2.8 1.2-5.3-4-3.6 5.51-.6L8 0z"/></svg>
+      Open Source &middot; MIT License &middot; <span id="version" title="Latest stable release on NuGet">v1.9.1</span>
+    </span>
+    <h1>CANopen device files,<br><span class="grad">handled the .NET way.</span></h1>
+    <p class="sub">
+      EdsDcfNet is a comprehensive, zero-dependency C# library for reading and writing
+      CiA&nbsp;DS&nbsp;306 (EDS, DCF, CPJ) and CiA&nbsp;311 (XDD, XDC) files —
+      with a clean, type-safe API built for industrial automation.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://www.nuget.org/packages/EdsDcfNet" target="_blank" rel="noopener">
+        <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0a1 1 0 0 1 1 1v6.6l2.3-2.3a1 1 0 1 1 1.4 1.4l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 1.4-1.4L7 7.6V1a1 1 0 0 1 1-1zM2 13a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1z"/></svg>
+        Install from NuGet
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/dborgards/eds-dcf-net" target="_blank" rel="noopener">
+        <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        View Source on GitHub
+      </a>
+    </div>
+    <div class="install">
+      <span class="prompt">$</span>
+      <span id="install-cmd">dotnet add package EdsDcfNet</span>
+      <button type="button" onclick="copyInstall(this)" title="Copy to clipboard" aria-label="Copy install command">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5 2a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-1V5a3 3 0 0 0-3-3H5V2z"/><path d="M2 5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H2z"/></svg>
+      </button>
+    </div>
+    <div class="badges">
+      <span class="badge"><span class="dot"></span><b>Zero</b>&nbsp;runtime dependencies</span>
+      <span class="badge"><span class="dot"></span><b>netstandard2.0</b>&nbsp;+&nbsp;<b>net10.0</b></span>
+      <span class="badge"><span class="dot"></span>CiA&nbsp;DS&nbsp;306&nbsp;v1.4 / CiA&nbsp;311&nbsp;v1.1&nbsp;compliant</span>
+      <span class="badge"><span class="dot"></span>MIT&nbsp;licensed</span>
+    </div>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="kicker">Why EdsDcfNet</span>
+      <h2>Everything the specification demands. Nothing you don't need.</h2>
+      <p>Built strictly against the official CiA specifications, with an API designed for real-world engineering workflows.</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.7 11.3L2.4 9l2.3-2.3-1-1L.4 9l3.3 3.3 1-1zm6.6 0l2.3-2.3-2.3-2.3 1-1L15.6 9l-3.3 3.3-1-1zM9.6 3.1L7.5 13.4l-1.4-.3L8.2 2.8l1.4.3z"/></svg></div>
+        <h3>Simple, fluent API</h3>
+        <p>One entry point per format: <code>CanOpenFile.Eds</code>, <code>.Dcf</code>, <code>.Cpj</code>, <code>.Xdd</code>, <code>.Xdc</code> — read, write, and convert in a few lines.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1L2 3v4c0 3.7 2.6 6.7 6 8 3.4-1.3 6-4.3 6-8V3L8 1zm3 5.4l-3.6 3.6L5 7.6 6 6.5l1.4 1.4L9.9 5.3 11 6.4z"/></svg></div>
+        <h3>Type-safe models</h3>
+        <p>Fully typed object dictionary, device info, and commissioning models — no string-fiddling with INI sections.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M14 5.5A2.5 2.5 0 0 0 11.5 3h-7A2.5 2.5 0 0 0 2 5.5v5A2.5 2.5 0 0 0 4.5 13h7a2.5 2.5 0 0 0 2.5-2.5v-5zM5 6h6v1.3H5V6zm0 2.7h4V10H5V8.7z"/></svg></div>
+        <h3>Round-trip fidelity</h3>
+        <p>Unknown sections, comments, and vendor extensions are preserved so files survive a read-modify-write cycle intact.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 4.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4zM8 0a1 1 0 0 1 1 1v1.1a6 6 0 0 1 2.2.9l.8-.8a1 1 0 1 1 1.4 1.4l-.8.8c.4.7.8 1.4.9 2.2H15a1 1 0 1 1 0 2h-1.1a6 6 0 0 1-.9 2.2l.8.8a1 1 0 0 1-1.4 1.4l-.8-.8a6 6 0 0 1-2.2.9V15a1 1 0 1 1-2 0v-1.1a6 6 0 0 1-2.2-.9l-.8.8a1 1 0 0 1-1.4-1.4l.8-.8a6 6 0 0 1-.9-2.2H1a1 1 0 1 1 0-2h1.1c.1-.8.4-1.5.9-2.2l-.8-.8a1 1 0 0 1 1.4-1.4l.8.8c.7-.4 1.4-.8 2.2-.9V1a1 1 0 0 1 1-1z"/></svg></div>
+        <h3>EDS → DCF conversion</h3>
+        <p>Turn a device template into a commissioned configuration with node ID, baudrate, and node name — one method call.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z"/></svg></div>
+        <h3>Modular devices &amp; PDOs</h3>
+        <p>Bus couplers with plug-in modules, CompactPDO/CompactSubObj storage, object links, and <code>$NODEID</code> formula evaluation.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.9 10.2L4 8.1l1.1-1.1 2 2 3.8-3.9L12 6.2l-4.9 5z"/></svg></div>
+        <h3>Validation built in</h3>
+        <p>Detect invalid commissioning values and inconsistent object lists before writing — or enforce it with <code>CanOpenWriteOptions.Validated</code>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="formats">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="kicker">Supported formats</span>
+      <h2>Five formats, one consistent API</h2>
+      <p>Every format shares the same read/write surface: files, strings, and streams — synchronous and <code>async</code>.</p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Format</th><th>Specification</th><th>Entry point</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="fmt">EDS</span></td><td>CiA DS 306</td><td><code>CanOpenFile.Eds</code></td><td class="desc">Electronic Data Sheet — the device template describing the object dictionary</td></tr>
+          <tr><td><span class="fmt">DCF</span></td><td>CiA DS 306</td><td><code>CanOpenFile.Dcf</code></td><td class="desc">Device Configuration File — a commissioned device instance with node ID and baudrate</td></tr>
+          <tr><td><span class="fmt">CPJ</span></td><td>CiA 306-3</td><td><code>CanOpenFile.Cpj</code></td><td class="desc">Nodelist project files describing complete CANopen network topologies</td></tr>
+          <tr><td><span class="fmt">XDD</span></td><td>CiA 311</td><td><code>CanOpenFile.Xdd</code></td><td class="desc">XML device description, including the ApplicationProcess model (CiA 311 §6.4.5)</td></tr>
+          <tr><td><span class="fmt">XDC</span></td><td>CiA 311</td><td><code>CanOpenFile.Xdc</code></td><td class="desc">XML device configuration with device commissioning data</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="quickstart">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="kicker">Quick start</span>
+      <h2>From EDS to commissioned DCF in three lines</h2>
+    </div>
+    <div class="code-cols">
+      <div class="code-window">
+        <div class="code-title"><span class="traffic"><i></i><i></i><i></i></span>Program.cs</div>
+        <pre><span class="c-kw">using</span> <span class="c-ty">EdsDcfNet</span>;
+
+<span class="c-cm">// Read the device template</span>
+<span class="c-kw">var</span> eds = <span class="c-ty">CanOpenFile</span>.Eds.ReadFile(<span class="c-st">"device.eds"</span>);
+
+<span class="c-ty">Console</span>.WriteLine(<span class="c-st">$"Device: {eds.DeviceInfo.ProductName}"</span>);
+<span class="c-ty">Console</span>.WriteLine(<span class="c-st">$"Vendor: {eds.DeviceInfo.VendorName}"</span>);
+
+<span class="c-cm">// Commission it: node ID 2 @ 500 kbit/s</span>
+<span class="c-kw">var</span> dcf = <span class="c-ty">CanOpenFile</span>.Eds.ConvertToDcf(
+    eds, nodeId: <span class="c-nu">2</span>, baudrate: <span class="c-nu">500</span>);
+
+<span class="c-cm">// Validate and write the DCF</span>
+<span class="c-ty">CanOpenFile</span>.Dcf.WriteFile(
+    dcf, <span class="c-st">"device_node2.dcf"</span>,
+    <span class="c-ty">CanOpenWriteOptions</span>.Validated);</pre>
+      </div>
+      <ul class="steps">
+        <li>
+          <span class="step-n">1</span>
+          <div>
+            <h3>Install the package</h3>
+            <p>Add <code>EdsDcfNet</code> from NuGet. It runs anywhere .NET Standard 2.0 runs — .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5+, Unity, and Xamarin.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-n">2</span>
+          <div>
+            <h3>Read any device file</h3>
+            <p>Use the format entry points to parse EDS, DCF, CPJ, XDD, or XDC from files, strings, or streams — with safe input-size limits by default.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-n">3</span>
+          <div>
+            <h3>Modify, validate, write</h3>
+            <p>Work with typed models, run <code>CanOpenFile.Validate(...)</code>, and serialize back with full round-trip fidelity.</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="resources">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="kicker">Resources</span>
+      <h2>Source, documentation &amp; package</h2>
+      <p>EdsDcfNet is developed in the open — the code, the docs, and the releases are all one click away.</p>
+    </div>
+    <div class="res-grid">
+      <a class="res" href="https://github.com/dborgards/eds-dcf-net" target="_blank" rel="noopener">
+        <div class="icon"><svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></div>
+        <h3>Source Code <span class="arrow">→</span></h3>
+        <p>Browse the full source, report issues, and contribute. Built with CI, semantic-release, and full test coverage.</p>
+        <span class="url">github.com/dborgards/eds-dcf-net</span>
+      </a>
+      <a class="res" href="https://github.com/dborgards/eds-dcf-net/wiki" target="_blank" rel="noopener">
+        <div class="icon"><svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 2.5C6.5 1.5 4.5 1 2.5 1c-.6 0-1.1.05-1.5.13V13.4c.4-.08.9-.13 1.5-.13 2 0 4 .5 5.5 1.5 1.5-1 3.5-1.5 5.5-1.5.6 0 1.1.05 1.5.13V1.13C14.6 1.05 14.1 1 13.5 1c-2 0-4 .5-5.5 1.5zM7.3 13c-1.4-.6-3-.9-4.8-.9V2.6c1.8 0 3.4.3 4.8.9V13zm6.2-.9c-1.8 0-3.4.3-4.8.9V3.5c1.4-.6 3-.9 4.8-.9v9.5z"/></svg></div>
+        <h3>Wiki &amp; Docs <span class="arrow">→</span></h3>
+        <p>Guides, API documentation, migration notes, and background on the CiA DS 306 / CiA 311 specifications.</p>
+        <span class="url">github.com/dborgards/eds-dcf-net/wiki</span>
+      </a>
+      <a class="res" href="https://www.nuget.org/packages/EdsDcfNet" target="_blank" rel="noopener">
+        <div class="icon"><svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8.9 1.5h4.2c.8 0 1.4.6 1.4 1.4v4.2c0 3.5-2.9 6.4-6.4 6.4H3.9c-.8 0-1.4-.6-1.4-1.4V7.9c0-3.5 2.9-6.4 6.4-6.4zm1.7 8.3a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8zM4.6 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM1.6.7a1 1 0 1 1-1.5 1.4A1 1 0 0 1 1.6.7z"/></svg></div>
+        <h3>NuGet Package <span class="arrow">→</span></h3>
+        <p>Install the latest stable release with symbols and SourceLink. Deterministic, reproducible builds published automatically on every release.</p>
+        <span class="url">nuget.org/packages/EdsDcfNet</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-inner">
+    <div>
+      <strong style="color: var(--text);">EdsDcfNet</strong> &middot; MIT License &middot; &copy; Dietmar Borgards
+    </div>
+    <div class="foot-links">
+      <a href="https://github.com/dborgards/eds-dcf-net" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/dborgards/eds-dcf-net/wiki" target="_blank" rel="noopener">Wiki</a>
+      <a href="https://www.nuget.org/packages/EdsDcfNet" target="_blank" rel="noopener">NuGet</a>
+      <a href="https://github.com/dborgards/eds-dcf-net/issues" target="_blank" rel="noopener">Issues</a>
+      <a href="https://github.com/dborgards/eds-dcf-net/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  function copyInstall(btn) {
+    var cmd = document.getElementById('install-cmd').textContent;
+    function done() {
+      var original = btn.innerHTML;
+      btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 16 16" fill="#34d399" aria-hidden="true"><path d="M13.8 3.5L6.4 11 2.2 6.9l1.1-1.1 3.1 3 6.3-6.4 1.1 1.1z"/></svg>';
+      setTimeout(function () { btn.innerHTML = original; }, 1500);
+    }
+    function fallback() {
+      var ta = document.createElement('textarea');
+      var copied = false;
+      ta.value = cmd;
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        copied = document.execCommand('copy');
+      } catch (err) {
+        copied = false;
+      } finally {
+        document.body.removeChild(ta);
+      }
+      if (copied) {
+        done();
+      }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(cmd).then(done, fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  // Show the current version live from NuGet so it never goes stale when a new
+  // release is published. The hardcoded value stays as an offline fallback.
+  (function () {
+    var el = document.getElementById('version');
+    if (!el || typeof fetch !== 'function') return;
+    fetch('https://api.nuget.org/v3-flatcontainer/edsdcfnet/index.json', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data || !Array.isArray(data.versions)) return;
+        // The flatcontainer index lists versions in ascending SemVer order;
+        // take the newest non-prerelease entry.
+        var stable = data.versions.filter(function (v) { return v.indexOf('-') === -1; });
+        if (stable.length) el.textContent = 'v' + stable[stable.length - 1];
+      })
+      .catch(function () { /* keep the fallback version */ });
+  })();
+</script>
+
+</body>
+</html>
