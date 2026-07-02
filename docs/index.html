@@ -296,7 +296,7 @@
   <div class="wrap hero-inner">
     <span class="eyebrow">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0l2.09 4.9L15.6 5.5l-4 3.6 1.2 5.3L8 11.6l-4.8 2.8 1.2-5.3-4-3.6 5.51-.6L8 0z"/></svg>
-      Open Source &middot; MIT License &middot; v1.9.1
+      Open Source &middot; MIT License &middot; <span id="version" title="Latest stable release on NuGet">v1.9.1</span>
     </span>
     <h1>CANopen device files,<br><span class="grad">handled the .NET way.</span></h1>
     <p class="sub">
@@ -472,7 +472,7 @@
       <a class="res" href="https://www.nuget.org/packages/EdsDcfNet" target="_blank" rel="noopener">
         <div class="icon"><svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8.9 1.5h4.2c.8 0 1.4.6 1.4 1.4v4.2c0 3.5-2.9 6.4-6.4 6.4H3.9c-.8 0-1.4-.6-1.4-1.4V7.9c0-3.5 2.9-6.4 6.4-6.4zm1.7 8.3a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8zM4.6 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM1.6.7a1 1 0 1 1-1.5 1.4A1 1 0 0 1 1.6.7z"/></svg></div>
         <h3>NuGet Package <span class="arrow">→</span></h3>
-        <p>Install the latest stable release with symbols and SourceLink. Deterministic builds, signed by CI on every release.</p>
+        <p>Install the latest stable release with symbols and SourceLink. Deterministic, reproducible builds published automatically on every release.</p>
         <span class="url">nuget.org/packages/EdsDcfNet</span>
       </a>
     </div>
@@ -525,6 +525,23 @@
       fallback();
     }
   }
+
+  // Show the current version live from NuGet so it never goes stale when a new
+  // release is published. The hardcoded value stays as an offline fallback.
+  (function () {
+    var el = document.getElementById('version');
+    if (!el || typeof fetch !== 'function') return;
+    fetch('https://api.nuget.org/v3-flatcontainer/edsdcfnet/index.json', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data || !Array.isArray(data.versions)) return;
+        // The flatcontainer index lists versions in ascending SemVer order;
+        // take the newest non-prerelease entry.
+        var stable = data.versions.filter(function (v) { return v.indexOf('-') === -1; });
+        if (stable.length) el.textContent = 'v' + stable[stable.length - 1];
+      })
+      .catch(function () { /* keep the fallback version */ });
+  })();
 </script>
 
 </body>
