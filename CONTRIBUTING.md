@@ -168,6 +168,40 @@ Releases are fully automated via semantic-release:
 
 Maintainers decide when to promote `develop` → `main`.
 
+### Communicating changes through semantic-release
+
+Release notes and `CHANGELOG.md` are **generated** — commits are the only
+channel that reaches consumers. Whether a note appears in NuGet/GitHub release
+notes is decided entirely by [`.releaserc.json`](.releaserc.json) (commit
+analyzer + release-notes generator, both on the `conventionalcommits` preset)
+and [`tools/semantic-release-analyze-commits.sh`](tools/semantic-release-analyze-commits.sh).
+
+- **Do not hand-edit `CHANGELOG.md`.** `@semantic-release/changelog` prepends
+  generated notes directly after the fixed `changelogTitle`; a manually added
+  `[Unreleased]` section ends up *below* the next generated version entry and
+  never reaches the generated GitHub/NuGet release notes.
+  *(Incident: on [PR #313](https://github.com/dborgards/eds-dcf-net/pull/313)
+  a manual `[Unreleased]` breaking-change note was added to `CHANGELOG.md`;
+  review caught that it would silently miss the release notes. Encode such
+  notes in the commit instead.)*
+- **Breaking / behavior changes** must be encoded where semantic-release reads
+  them: a commit footer starting with `BREAKING CHANGE:` (also accepted:
+  `BREAKING CHANGES:` / `BREAKING:`, per `parserOpts.noteKeywords`). This
+  triggers a **major** bump and lands in the "💥 Breaking Changes" section of
+  the generated notes. The `breaking`/`major` commit types work too.
+- **Non-breaking behavior changes** (e.g. stricter validation behind an opt-in
+  flag) belong in the commit **body** of a `feat`/`fix`/`perf` commit — those
+  types surface in generated notes without a major bump. PR descriptions are
+  good for reviewers but do not reach release notes.
+- **Invisible types**: `docs`, `refactor`, `test`, `build`, `ci`, `chore`, and
+  `style` never trigger a release, and several of them are hidden from the
+  generated notes (see the `hidden` flags in `.releaserc.json`). Do not rely on
+  them to communicate anything to consumers.
+
+Quick check before merging: *"Will this note reach consumers?"* — it will only
+if it lives in a commit whose type is release-visible or in a
+`BREAKING CHANGE:` footer.
+
 ## Recommended branch protection settings
 
 | Branch | Require PR | Require status checks | Restrict direct push |
