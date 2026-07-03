@@ -9,7 +9,10 @@ using EdsDcfNet.Parsers;
 /// Prefer passing a single options instance instead of adding new overload parameters
 /// to the <see cref="CanOpenFile"/> facade. New formats should expose dedicated
 /// operation classes (for example <see cref="EdsCanOpenOperations"/>) that accept
-/// this type.
+/// this type. This type intentionally holds only cross-format read concerns;
+/// format-specific options are introduced as derived per-format option types
+/// (unsealing this type on demand) — see the "Options extension pattern" section
+/// in the README.
 /// </remarks>
 public sealed class CanOpenFileOptions
 {

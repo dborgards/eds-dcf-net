@@ -469,6 +469,42 @@ Guidance:
 - Increase limits only for trusted sources and known use cases.
 - Set the limit just high enough for your expected maximum file size.
 
+### Options extension pattern (format-specific options)
+
+`CanOpenFileOptions` (read) and `CanOpenWriteOptions` (write) are intentionally
+small, shared across all formats, and hold only cross-format concerns
+(input-size limit, pre-write validation).
+
+When a genuinely **format-specific** option becomes necessary (for example XDD
+XML formatting, INI section ordering, or CPJ network defaults), the agreed
+extension pattern is **derived per-format option types**, not new properties on
+the shared types:
+
+```csharp
+// Pattern (illustrative — implemented only when a concrete option exists):
+public class XddWriteOptions : CanOpenWriteOptions
+{
+    public bool IndentXml { get; init; } = true;
+}
+
+CanOpenFile.Xdd.WriteFile(xdd, "device.xdd", new XddWriteOptions { IndentXml = false });
+```
+
+Rules for adding such an option:
+
+- The shared base types stay limited to cross-format concerns; unrelated
+  format-specific properties must not accumulate on them (IntelliSense on
+  `CanOpenFile.Eds` should never show XDD-only options).
+- The base types are unsealed on demand in the same PR that introduces the
+  first derived type (unsealing is a non-breaking, additive change).
+- The derived type flows through the existing `CanOpenWriteOptions?` /
+  `CanOpenFileOptions?` parameters; the format-specific writer/reader checks
+  for its own derived type. Existing signatures, overload shapes, and
+  parameter names are untouched (see the Public API compatibility checklist
+  in CONTRIBUTING.md).
+- No format-specific option type is added before a concrete requirement
+  exists.
+
 ## Supported Features
 
 - ✅ Complete EDS parsing and writing

@@ -5,6 +5,12 @@ namespace EdsDcfNet;
 /// (<see cref="CanOpenFile.Eds"/>, <see cref="CanOpenFile.Dcf"/>, <see cref="CanOpenFile.Cpj"/>,
 /// <see cref="CanOpenFile.Xdd"/>, <see cref="CanOpenFile.Xdc"/>) write methods.
 /// </summary>
+/// <remarks>
+/// This type intentionally holds only cross-format write concerns. Format-specific
+/// options are introduced as derived per-format option types (unsealing this type
+/// on demand) rather than as additional properties here — see the
+/// "Options extension pattern" section in the README.
+/// </remarks>
 public sealed class CanOpenWriteOptions
 {
     /// <summary>
