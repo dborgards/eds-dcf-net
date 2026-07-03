@@ -36,7 +36,7 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <summary>
     /// Writes an XDC to disk.
     /// </summary>
-    public new void WriteFile(DeviceConfigurationFile xdc, string filePath)
+    public override void WriteFile(DeviceConfigurationFile xdc, string filePath)
         => base.WriteFile(xdc, filePath);
 
     /// <summary>
@@ -45,13 +45,13 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new void WriteFile(DeviceConfigurationFile xdc, string filePath, CanOpenWriteOptions? options)
+    public override void WriteFile(DeviceConfigurationFile xdc, string filePath, CanOpenWriteOptions? options)
         => base.WriteFile(xdc, filePath, options);
 
     /// <summary>
     /// Writes an XDC to a stream. The stream is not disposed.
     /// </summary>
-    public new void WriteStream(DeviceConfigurationFile xdc, Stream stream)
+    public override void WriteStream(DeviceConfigurationFile xdc, Stream stream)
         => base.WriteStream(xdc, stream);
 
     /// <summary>
@@ -60,13 +60,13 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new void WriteStream(DeviceConfigurationFile xdc, Stream stream, CanOpenWriteOptions? options)
+    public override void WriteStream(DeviceConfigurationFile xdc, Stream stream, CanOpenWriteOptions? options)
         => base.WriteStream(xdc, stream, options);
 
     /// <summary>
     /// Writes an XDC to disk asynchronously.
     /// </summary>
-    public new Task WriteFileAsync(
+    public override Task WriteFileAsync(
         DeviceConfigurationFile xdc,
         string filePath,
         CancellationToken cancellationToken = default)
@@ -78,7 +78,7 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new Task WriteFileAsync(
+    public override Task WriteFileAsync(
         DeviceConfigurationFile xdc,
         string filePath,
         CanOpenWriteOptions? options,
@@ -88,7 +88,7 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <summary>
     /// Writes an XDC to a stream asynchronously. The stream is not disposed.
     /// </summary>
-    public new Task WriteStreamAsync(
+    public override Task WriteStreamAsync(
         DeviceConfigurationFile xdc,
         Stream stream,
         CancellationToken cancellationToken = default)
@@ -100,7 +100,7 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new Task WriteStreamAsync(
+    public override Task WriteStreamAsync(
         DeviceConfigurationFile xdc,
         Stream stream,
         CanOpenWriteOptions? options,
@@ -110,7 +110,7 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <summary>
     /// Serializes an XDC to a string.
     /// </summary>
-    public new string WriteToString(DeviceConfigurationFile xdc)
+    public override string WriteToString(DeviceConfigurationFile xdc)
         => base.WriteToString(xdc);
 
     /// <summary>
@@ -119,6 +119,6 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new string WriteToString(DeviceConfigurationFile xdc, CanOpenWriteOptions? options)
+    public override string WriteToString(DeviceConfigurationFile xdc, CanOpenWriteOptions? options)
         => base.WriteToString(xdc, options);
 }

@@ -36,7 +36,7 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <summary>
     /// Writes an XDD to disk.
     /// </summary>
-    public new void WriteFile(ElectronicDataSheet xdd, string filePath)
+    public override void WriteFile(ElectronicDataSheet xdd, string filePath)
         => base.WriteFile(xdd, filePath);
 
     /// <summary>
@@ -45,13 +45,13 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new void WriteFile(ElectronicDataSheet xdd, string filePath, CanOpenWriteOptions? options)
+    public override void WriteFile(ElectronicDataSheet xdd, string filePath, CanOpenWriteOptions? options)
         => base.WriteFile(xdd, filePath, options);
 
     /// <summary>
     /// Writes an XDD to a stream. The stream is not disposed.
     /// </summary>
-    public new void WriteStream(ElectronicDataSheet xdd, Stream stream)
+    public override void WriteStream(ElectronicDataSheet xdd, Stream stream)
         => base.WriteStream(xdd, stream);
 
     /// <summary>
@@ -60,13 +60,13 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new void WriteStream(ElectronicDataSheet xdd, Stream stream, CanOpenWriteOptions? options)
+    public override void WriteStream(ElectronicDataSheet xdd, Stream stream, CanOpenWriteOptions? options)
         => base.WriteStream(xdd, stream, options);
 
     /// <summary>
     /// Writes an XDD to disk asynchronously.
     /// </summary>
-    public new Task WriteFileAsync(
+    public override Task WriteFileAsync(
         ElectronicDataSheet xdd,
         string filePath,
         CancellationToken cancellationToken = default)
@@ -78,7 +78,7 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new Task WriteFileAsync(
+    public override Task WriteFileAsync(
         ElectronicDataSheet xdd,
         string filePath,
         CanOpenWriteOptions? options,
@@ -88,7 +88,7 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <summary>
     /// Writes an XDD to a stream asynchronously. The stream is not disposed.
     /// </summary>
-    public new Task WriteStreamAsync(
+    public override Task WriteStreamAsync(
         ElectronicDataSheet xdd,
         Stream stream,
         CancellationToken cancellationToken = default)
@@ -100,7 +100,7 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new Task WriteStreamAsync(
+    public override Task WriteStreamAsync(
         ElectronicDataSheet xdd,
         Stream stream,
         CanOpenWriteOptions? options,
@@ -110,7 +110,7 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <summary>
     /// Serializes an XDD to a string.
     /// </summary>
-    public new string WriteToString(ElectronicDataSheet xdd)
+    public override string WriteToString(ElectronicDataSheet xdd)
         => base.WriteToString(xdd);
 
     /// <summary>
@@ -119,6 +119,6 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new string WriteToString(ElectronicDataSheet xdd, CanOpenWriteOptions? options)
+    public override string WriteToString(ElectronicDataSheet xdd, CanOpenWriteOptions? options)
         => base.WriteToString(xdd, options);
 }
