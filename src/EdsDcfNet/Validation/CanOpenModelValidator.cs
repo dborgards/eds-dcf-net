@@ -258,6 +258,7 @@ public static class CanOpenModelValidator
 
         foreach (var index in objectDictionary.Objects.Keys)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!classifiedIndices.Contains(index))
             {
                 issues.Add(new ValidationIssue(
