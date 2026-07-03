@@ -37,13 +37,24 @@ public static class CanOpenModelValidator
     {
         ThrowIfNull(eds, nameof(eds));
 
-        var issues = new List<ValidationIssue>();
-        ValidateDeviceInfo(eds.DeviceInfo, issues);
-        ValidateObjectDictionary(eds.ObjectDictionary, issues);
-        if (eds.ApplicationProcess != null)
-            ValidateApplicationProcess(eds.ApplicationProcess, "ApplicationProcess", issues);
+        return ValidateEdsCore(eds, CancellationToken.None);
+    }
 
-        return new ReadOnlyCollection<ValidationIssue>(issues);
+    /// <summary>
+    /// Validates an <see cref="ElectronicDataSheet"/> instance asynchronously on a
+    /// thread-pool thread with cooperative cancellation.
+    /// </summary>
+    /// <param name="eds">Model instance to validate.</param>
+    /// <param name="cancellationToken">Token observed at iteration boundaries during validation.</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
+        ElectronicDataSheet eds,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfNull(eds, nameof(eds));
+
+        return Task.Run<IReadOnlyList<ValidationIssue>>(() => ValidateEdsCore(eds, cancellationToken), cancellationToken);
     }
 
     /// <summary>
@@ -55,14 +66,24 @@ public static class CanOpenModelValidator
     {
         ThrowIfNull(dcf, nameof(dcf));
 
-        var issues = new List<ValidationIssue>();
-        ValidateDeviceInfo(dcf.DeviceInfo, issues);
-        ValidateObjectDictionary(dcf.ObjectDictionary, issues);
-        ValidateDeviceCommissioning(dcf.DeviceCommissioning, issues);
-        if (dcf.ApplicationProcess != null)
-            ValidateApplicationProcess(dcf.ApplicationProcess, "ApplicationProcess", issues);
+        return ValidateDcfCore(dcf, CancellationToken.None);
+    }
 
-        return new ReadOnlyCollection<ValidationIssue>(issues);
+    /// <summary>
+    /// Validates a <see cref="DeviceConfigurationFile"/> instance asynchronously on a
+    /// thread-pool thread with cooperative cancellation.
+    /// </summary>
+    /// <param name="dcf">Model instance to validate.</param>
+    /// <param name="cancellationToken">Token observed at iteration boundaries during validation.</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
+        DeviceConfigurationFile dcf,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfNull(dcf, nameof(dcf));
+
+        return Task.Run<IReadOnlyList<ValidationIssue>>(() => ValidateDcfCore(dcf, cancellationToken), cancellationToken);
     }
 
     /// <summary>
@@ -74,9 +95,75 @@ public static class CanOpenModelValidator
     {
         ThrowIfNull(cpj, nameof(cpj));
 
+        return ValidateCpjCore(cpj, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Validates a <see cref="NodelistProject"/> instance asynchronously on a
+    /// thread-pool thread with cooperative cancellation.
+    /// </summary>
+    /// <param name="cpj">Model instance to validate.</param>
+    /// <param name="cancellationToken">Token observed at iteration boundaries during validation.</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
+        NodelistProject cpj,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfNull(cpj, nameof(cpj));
+
+        return Task.Run<IReadOnlyList<ValidationIssue>>(() => ValidateCpjCore(cpj, cancellationToken), cancellationToken);
+    }
+
+    private static ReadOnlyCollection<ValidationIssue> ValidateEdsCore(
+        ElectronicDataSheet eds,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var issues = new List<ValidationIssue>();
+        ValidateDeviceInfo(eds.DeviceInfo, issues);
+        ValidateObjectDictionary(eds.ObjectDictionary, issues, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (eds.ApplicationProcess != null)
+            ValidateApplicationProcess(eds.ApplicationProcess, "ApplicationProcess", issues);
+
+        return new ReadOnlyCollection<ValidationIssue>(issues);
+    }
+
+    private static ReadOnlyCollection<ValidationIssue> ValidateDcfCore(
+        DeviceConfigurationFile dcf,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var issues = new List<ValidationIssue>();
+        ValidateDeviceInfo(dcf.DeviceInfo, issues);
+        ValidateObjectDictionary(dcf.ObjectDictionary, issues, cancellationToken);
+        ValidateDeviceCommissioning(dcf.DeviceCommissioning, issues);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (dcf.ApplicationProcess != null)
+            ValidateApplicationProcess(dcf.ApplicationProcess, "ApplicationProcess", issues);
+
+        return new ReadOnlyCollection<ValidationIssue>(issues);
+    }
+
+    private static ReadOnlyCollection<ValidationIssue> ValidateCpjCore(
+        NodelistProject cpj,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var issues = new List<ValidationIssue>();
         for (var networkIndex = 0; networkIndex < cpj.Networks.Count; networkIndex++)
-            ValidateNetworkTopology(cpj.Networks[networkIndex], "Networks[" + networkIndex.ToString(CultureInfo.InvariantCulture) + "]", issues);
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ValidateNetworkTopology(
+                cpj.Networks[networkIndex],
+                "Networks[" + networkIndex.ToString(CultureInfo.InvariantCulture) + "]",
+                issues,
+                cancellationToken);
+        }
 
         return new ReadOnlyCollection<ValidationIssue>(issues);
     }
@@ -139,7 +226,8 @@ public static class CanOpenModelValidator
 
     private static void ValidateObjectDictionary(
         ObjectDictionary objectDictionary,
-        List<ValidationIssue> issues)
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken = default)
     {
         var classifiedIndices = new HashSet<ushort>();
 
@@ -164,6 +252,7 @@ public static class CanOpenModelValidator
 
         foreach (var kvp in objectDictionary.Objects)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             ValidateObject(kvp.Key, kvp.Value, issues);
         }
 
@@ -280,13 +369,15 @@ public static class CanOpenModelValidator
     private static void ValidateNetworkTopology(
         NetworkTopology network,
         string path,
-        List<ValidationIssue> issues)
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken = default)
     {
         ValidateMaxLength(network.NetName, MaxNetworkNameLength, path + ".NetName", issues);
         ValidateMaxLength(network.NetRefd, MaxReferenceNameLength, path + ".NetRefd", issues);
 
         foreach (var kvp in network.Nodes)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var nodePath = string.Format(
                 CultureInfo.InvariantCulture,
                 "{0}.Nodes[{1}]",

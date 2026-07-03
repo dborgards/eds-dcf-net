@@ -132,19 +132,20 @@ public class FormatCanOpenOperations<TModel>
         => WriteFileAsync(model, filePath, options: null, cancellationToken);
 
     /// <summary>
-    /// Writes to disk asynchronously.
+    /// Writes to disk asynchronously. When <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/>
+    /// is enabled, validation also runs asynchronously and honors <paramref name="cancellationToken"/>.
     /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public Task WriteFileAsync(
+    public async Task WriteFileAsync(
         TModel model,
         string filePath,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        _ensureValidForWrite(model, options);
-        return _writeFileAsync(model, filePath, cancellationToken);
+        await CanOpenWriteGuard.EnsureValidForWriteAsync(model, options, cancellationToken).ConfigureAwait(false);
+        await _writeFileAsync(model, filePath, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -157,19 +158,21 @@ public class FormatCanOpenOperations<TModel>
         => WriteStreamAsync(model, stream, options: null, cancellationToken);
 
     /// <summary>
-    /// Writes to a stream asynchronously. The stream is not disposed.
+    /// Writes to a stream asynchronously. The stream is not disposed. When
+    /// <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled, validation also
+    /// runs asynchronously and honors <paramref name="cancellationToken"/>.
     /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public Task WriteStreamAsync(
+    public async Task WriteStreamAsync(
         TModel model,
         Stream stream,
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        _ensureValidForWrite(model, options);
-        return _writeStreamAsync(model, stream, cancellationToken);
+        await CanOpenWriteGuard.EnsureValidForWriteAsync(model, options, cancellationToken).ConfigureAwait(false);
+        await _writeStreamAsync(model, stream, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

@@ -345,6 +345,36 @@ CanOpenFile.Dcf.WriteFile(dcf, "updated.dcf", CanOpenWriteOptions.Validated);
 The same option works on `CanOpenFile.Eds`, `.Cpj`, `.Xdd`, and `.Xdc` write methods.
 Legacy `CanOpenFile.WriteDcf(...)` overloads delegate to these entry points.
 
+#### Async validation
+
+For very large models, use the async validation API so validation runs on a
+thread-pool thread with cooperative cancellation instead of blocking the caller:
+
+```csharp
+using EdsDcfNet;
+using EdsDcfNet.Validation;
+
+IReadOnlyList<ValidationIssue> issues = await CanOpenFile.ValidateAsync(dcf, cancellationToken);
+
+// Or throw ModelValidationException on issues:
+await CanOpenFile.EnsureValidAsync(dcf, cancellationToken);
+```
+
+`ValidateAsync` / `EnsureValidAsync` exist for EDS, DCF, and CPJ models. The
+cancellation token is observed at iteration boundaries (per object-dictionary
+entry, per network node), so validation of large models can be cancelled
+mid-run.
+
+Async write methods with `CanOpenWriteOptions.Validated` use this path
+automatically — validation is awaited and honors the write call's
+`CancellationToken`:
+
+```csharp
+await CanOpenFile.Dcf.WriteFileAsync(dcf, "updated.dcf", CanOpenWriteOptions.Validated, cancellationToken);
+```
+
+Synchronous write methods keep the existing synchronous validation behavior.
+
 ### Working with Nodelist Projects (CPJ)
 
 ```csharp

@@ -29,4 +29,23 @@ internal static class CanOpenWriteGuard
                     nameof(model));
         }
     }
+
+    internal static Task EnsureValidForWriteAsync<T>(
+        T model,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+    {
+        if (options?.ValidateBeforeWrite != true)
+            return Task.CompletedTask;
+
+        return model switch
+        {
+            ElectronicDataSheet eds => CanOpenFile.EnsureValidAsync(eds, cancellationToken),
+            DeviceConfigurationFile dcf => CanOpenFile.EnsureValidAsync(dcf, cancellationToken),
+            NodelistProject cpj => CanOpenFile.EnsureValidAsync(cpj, cancellationToken),
+            _ => throw new ArgumentException(
+                "Unsupported model type: " + typeof(T).Name,
+                nameof(model))
+        };
+    }
 }
