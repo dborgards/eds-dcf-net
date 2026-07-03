@@ -185,22 +185,28 @@ and [`tools/semantic-release-analyze-commits.sh`](tools/semantic-release-analyze
   review caught that it would silently miss the release notes. Encode such
   notes in the commit instead.)*
 - **Breaking / behavior changes** must be encoded where semantic-release reads
-  them: a commit footer starting with `BREAKING CHANGE:` (also accepted:
-  `BREAKING CHANGES:` / `BREAKING:`, per `parserOpts.noteKeywords`). This
-  triggers a **major** bump and lands in the "💥 Breaking Changes" section of
-  the generated notes. The `breaking`/`major` commit types work too.
+  them: a commit footer starting with **exactly `BREAKING CHANGE:`**. This
+  triggers a **major** bump and the footer text lands in the "💥 Breaking
+  Changes" section of the generated notes. The `breaking`/`major` commit types
+  work too. Avoid the `BREAKING CHANGES:` / `BREAKING:` aliases: the commit
+  analyzer accepts them for the version bump (`parserOpts.noteKeywords`), but
+  the release-notes generator has no matching configuration, so the note text
+  would be **silently dropped** from the generated notes.
 - **Non-breaking behavior changes** (e.g. stricter validation behind an opt-in
-  flag) belong in the commit **body** of a `feat`/`fix`/`perf` commit — those
-  types surface in generated notes without a major bump. PR descriptions are
-  good for reviewers but do not reach release notes.
+  flag) must be summarized in the commit **subject** of a `feat`/`fix`/`perf`
+  commit — the conventionalcommits notes writer emits the subject line only;
+  plain commit-body text does not reach generated notes (only recognized
+  footers like `BREAKING CHANGE:` do). Use the body for reviewer context, not
+  for consumer-facing notes. PR descriptions likewise do not reach release
+  notes.
 - **Invisible types**: `docs`, `refactor`, `test`, `build`, `ci`, `chore`, and
   `style` never trigger a release, and several of them are hidden from the
   generated notes (see the `hidden` flags in `.releaserc.json`). Do not rely on
   them to communicate anything to consumers.
 
 Quick check before merging: *"Will this note reach consumers?"* — it will only
-if it lives in a commit whose type is release-visible or in a
-`BREAKING CHANGE:` footer.
+if it is the **subject** of a commit whose type is release-visible, or the text
+of a `BREAKING CHANGE:` footer.
 
 ## Recommended branch protection settings
 
