@@ -535,10 +535,20 @@
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         if (!data || !Array.isArray(data.versions)) return;
-        // The flatcontainer index lists versions in ascending SemVer order;
-        // take the newest non-prerelease entry.
+        // Only stable "main" releases: SemVer prerelease identifiers (beta, rc, ...)
+        // always carry a hyphen (e.g. "1.10.0-beta.1"), so excluding any version
+        // with a "-" leaves just the stable X.Y.Z releases published from main.
         var stable = data.versions.filter(function (v) { return v.indexOf('-') === -1; });
-        if (stable.length) el.textContent = 'v' + stable[stable.length - 1];
+        if (!stable.length) return;
+        var latest = stable.reduce(function (best, v) {
+          var a = v.split('.').map(Number);
+          var b = best.split('.').map(Number);
+          for (var i = 0; i < 3; i++) {
+            if (a[i] !== b[i]) return a[i] > b[i] ? v : best;
+          }
+          return best;
+        });
+        el.textContent = 'v' + latest;
       })
       .catch(function () { /* keep the fallback version */ });
   })();
