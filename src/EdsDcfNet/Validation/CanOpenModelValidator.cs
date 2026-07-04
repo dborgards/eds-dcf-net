@@ -324,7 +324,7 @@ public static class CanOpenModelValidator
             objectPath + ".ParameterName",
             issues);
 
-        if (!IsValidObjectType(obj.ObjectType))
+        if (!CanOpenObjectType.IsValid(obj.ObjectType))
         {
             issues.Add(new ValidationIssue(
                 objectPath + ".ObjectType",
@@ -360,11 +360,6 @@ public static class CanOpenModelValidator
                     subObject.Key),
                 issues);
         }
-    }
-
-    private static bool IsValidObjectType(byte objectType)
-    {
-        return CanOpenObjectType.IsValid(objectType);
     }
 
     private static void ValidateNetworkTopology(
