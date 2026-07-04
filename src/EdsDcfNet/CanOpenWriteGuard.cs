@@ -12,6 +12,8 @@ internal static class CanOpenWriteGuard
         if (options?.ValidateBeforeWrite != true)
             return;
 
+        ThrowIfNull(model, nameof(model));
+
         switch (model)
         {
             case ElectronicDataSheet eds:
@@ -38,6 +40,8 @@ internal static class CanOpenWriteGuard
         if (options?.ValidateBeforeWrite != true)
             return Task.CompletedTask;
 
+        ThrowIfNull(model, nameof(model));
+
         return model switch
         {
             ElectronicDataSheet eds => CanOpenFile.EnsureValidAsync(eds, cancellationToken),
@@ -47,5 +51,11 @@ internal static class CanOpenWriteGuard
                 "Unsupported model type: " + typeof(T).Name,
                 nameof(model))
         };
+    }
+
+    private static void ThrowIfNull(object? value, string paramName)
+    {
+        if (value is null)
+            throw new ArgumentNullException(paramName);
     }
 }
