@@ -203,6 +203,59 @@ know why it matters.
 > **Optional follow-up (separate work):** evaluate automated enforcement such
 > as `Microsoft.CodeAnalysis.PublicApiAnalyzers` or a compat baseline file.
 
+## Staged deprecation playbook
+
+Deprecating public API is a **single coordinated migration**, not a series of
+independent PRs. The incident chain
+[#301](https://github.com/dborgards/eds-dcf-net/pull/301) →
+[#310](https://github.com/dborgards/eds-dcf-net/pull/310) →
+[#318](https://github.com/dborgards/eds-dcf-net/pull/318) →
+[#322](https://github.com/dborgards/eds-dcf-net/pull/322) →
+[#323](https://github.com/dborgards/eds-dcf-net/pull/323) /
+[#324](https://github.com/dborgards/eds-dcf-net/pull/324) shows what happens
+otherwise: #301 marked only the parameterless `Write*` overloads `[Obsolete]`
+while their options-taking siblings stayed non-obsolete, #310 flagged the
+facade as simultaneously deprecated and expanded, #318 had to extend
+`[Obsolete]` to the missed stream+options overloads, #322 fixed CS0618
+warnings breaking warnings-as-errors callers, and #323/#324 migrated docs and
+examples only after the API direction had settled.
+
+Before merging any PR that marks public API `[Obsolete]` (or redirects a
+facade), verify all five stages are covered — in the same PR or an explicitly
+linked, already-reviewed PR series:
+
+1. **Obsolete coverage** — enumerate *every* public entry point being
+   superseded: default, options-taking, stream, and async variants. Reviewers
+   should reject partial deprecation across sibling overloads
+   (the #301 → #318 gap).
+2. **Internal call-site migration** — migrate library, tests, and examples off
+   the obsolete APIs in the same PR series, or suppress with a justification
+   comment and a tracking issue. Otherwise CS0618 breaks
+   `TreatWarningsAsErrors` builds (the #322 incident).
+3. **Consumer impact** — obsolete warnings are **errors** for
+   warnings-as-errors consumers. Prefer advisory deprecation
+   (`[Obsolete(..., error: false)]`) until a major release, unless the break
+   is intentional and released as such.
+4. **Docs and examples** — README, `examples/`, and XML docs move to the
+   canonical replacement API in the same release cycle (avoid the trailing
+   #323/#324 cleanup pattern).
+5. **Release communication** — encode the deprecation where semantic-release
+   reads it (commit type/body, `BREAKING CHANGE:` footer when removal happens);
+   see the release process notes and #331.
+
+### Migration PR template snippet
+
+Paste into the PR description when deprecating public API:
+
+```markdown
+## Deprecation migration checklist
+- [ ] All superseded overloads enumerated (default / options / stream / async): <list>
+- [ ] Internal call sites migrated (src, tests, examples) or suppressed with tracking issue: <links>
+- [ ] Warnings-as-errors consumer impact assessed (advisory vs error): <decision>
+- [ ] README / examples / XML docs updated to replacement API
+- [ ] Release-notes path verified (commit type / BREAKING CHANGE footer)
+```
+
 ## Release process
 
 Releases are fully automated via semantic-release:
@@ -211,6 +264,49 @@ Releases are fully automated via semantic-release:
 - **Stable release**: merge `develop` into `main` (open a PR from `develop` → `main`) → semantic-release publishes `X.Y.Z` to NuGet and creates a GitHub release.
 
 Maintainers decide when to promote `develop` → `main`.
+
+### Communicating changes through semantic-release
+
+Release notes and `CHANGELOG.md` are **generated** — commits are the only
+channel that reaches consumers. Whether a note appears in GitHub release notes
+and `CHANGELOG.md` is decided entirely by [`.releaserc.json`](.releaserc.json)
+(commit analyzer + release-notes generator, both on the `conventionalcommits`
+preset) and
+[`tools/semantic-release-analyze-commits.sh`](tools/semantic-release-analyze-commits.sh).
+NuGet packages are published on release, but generated notes are **not** wired
+into package metadata (`PackageReleaseNotes` is unset during `dotnet pack`).
+
+- **Do not hand-edit `CHANGELOG.md`.** `@semantic-release/changelog` prepends
+  generated notes directly after the fixed `changelogTitle`; a manually added
+  `[Unreleased]` section ends up *below* the next generated version entry and
+  never reaches the generated GitHub release notes or `CHANGELOG.md`.
+  *(Incident: on [PR #313](https://github.com/dborgards/eds-dcf-net/pull/313)
+  a manual `[Unreleased]` breaking-change note was added to `CHANGELOG.md`;
+  review caught that it would silently miss the release notes. Encode such
+  notes in the commit instead.)*
+- **Breaking / behavior changes** must be encoded where semantic-release reads
+  them: a commit footer starting with **exactly `BREAKING CHANGE:`**. This
+  triggers a **major** bump and the footer text lands in the "💥 Breaking
+  Changes" section of the generated notes. The `breaking`/`major` commit types
+  work too. Avoid the `BREAKING CHANGES:` / `BREAKING:` aliases: the commit
+  analyzer accepts them for the version bump (`parserOpts.noteKeywords`), but
+  the release-notes generator has no matching configuration, so the note text
+  would be **silently dropped** from the generated notes.
+- **Non-breaking behavior changes** (e.g. stricter validation behind an opt-in
+  flag) must be summarized in the commit **subject** of a `feat`/`fix`/`perf`
+  commit — the conventionalcommits notes writer emits the subject line only;
+  plain commit-body text does not reach generated notes (only recognized
+  footers like `BREAKING CHANGE:` do). Use the body for reviewer context, not
+  for consumer-facing notes. PR descriptions likewise do not reach release
+  notes.
+- **Invisible types**: `docs`, `refactor`, `test`, `build`, `ci`, `chore`, and
+  `style` never trigger a release, and several of them are hidden from the
+  generated notes (see the `hidden` flags in `.releaserc.json`). Do not rely on
+  them to communicate anything to consumers.
+
+Quick check before merging: *"Will this note reach consumers?"* — it will only
+if it is the **subject** of a commit whose type is release-visible, or the text
+of a `BREAKING CHANGE:` footer.
 
 ## Recommended branch protection settings
 
