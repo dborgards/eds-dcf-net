@@ -5,6 +5,7 @@ using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Validation;
+using EdsDcfNet.Tests.Utilities;
 
 public class CanOpenModelValidatorAsyncTests
 {
@@ -95,15 +96,10 @@ public class CanOpenModelValidatorAsyncTests
         var eds = CreateLargeEds(objectCount: 50_000);
         using var cts = new CancellationTokenSource();
 
-        // Act — cancel immediately after starting; validation of 50k objects cannot
-        // complete before Cancel() executes, so the checkpoint (or task scheduling)
-        // must observe the cancellation.
-        var task = CanOpenModelValidator.ValidateAsync(eds, cts.Token);
-        cts.Cancel();
-        var act = () => task;
-
-        // Assert
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        // Act & Assert — wait until validation is running, then cancel deterministically
+        await AsyncCancellationTestSupport.AssertCanceledMidRunAsync(
+            cts,
+            token => CanOpenModelValidator.ValidateAsync(eds, token));
     }
 
     [Fact]
@@ -169,11 +165,9 @@ public class CanOpenModelValidatorAsyncTests
         }
 
         using var cts = new CancellationTokenSource();
-        var task = CanOpenModelValidator.ValidateAsync(eds, cts.Token);
-        cts.Cancel();
-
-        var act = () => task;
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        await AsyncCancellationTestSupport.AssertCanceledMidRunAsync(
+            cts,
+            token => CanOpenModelValidator.ValidateAsync(eds, token));
     }
 
     [Fact]
@@ -190,11 +184,9 @@ public class CanOpenModelValidatorAsyncTests
         }
 
         using var cts = new CancellationTokenSource();
-        var task = CanOpenModelValidator.ValidateAsync(eds, cts.Token);
-        cts.Cancel();
-
-        var act = () => task;
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        await AsyncCancellationTestSupport.AssertCanceledMidRunAsync(
+            cts,
+            token => CanOpenModelValidator.ValidateAsync(eds, token));
     }
 
     [Fact]
@@ -322,9 +314,7 @@ public class CanOpenModelValidatorAsyncTests
         var eds = new ElectronicDataSheet();
         for (var i = 0; i < objectCount; i++)
         {
-            var index = (ushort)(0x2000 + i % 0x9000);
-            if (eds.ObjectDictionary.Objects.ContainsKey(index))
-                continue;
+            var index = (ushort)(0x2000 + i);
 
             eds.ObjectDictionary.ManufacturerObjects.Add(index);
             eds.ObjectDictionary.Objects[index] = new CanOpenObject
