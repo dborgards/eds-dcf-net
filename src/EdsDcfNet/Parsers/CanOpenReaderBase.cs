@@ -1,16 +1,15 @@
 namespace EdsDcfNet.Parsers;
 
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
-using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Abstract base class for EDS and DCF readers.
-/// Contains all shared CANopen INI parsing logic; format-specific behaviour
-/// is handled via virtual methods that derived readers can override.
+/// Contains the polymorphic CANopen INI parsing extension points that vary
+/// per format; shared stateless section parsing lives in
+/// <see cref="CanOpenSectionParsers"/> and <see cref="IniParser"/>.
 /// </summary>
 public abstract class CanOpenReaderBase
 {
@@ -19,53 +18,6 @@ public abstract class CanOpenReaderBase
     /// Unknown sections are preserved in AdditionalSections for round-trip fidelity.
     /// </summary>
     protected abstract string[] KnownSectionNames { get; }
-
-    /// <summary>
-    /// Parses INI sections from a file path.
-    /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromFile().")]
-    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromFile(
-        string filePath,
-        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-        => IniParser.ParseFile(filePath, maxInputSize);
-
-    /// <summary>
-    /// Parses INI sections from a file path asynchronously.
-    /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromFileAsync().")]
-    protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromFileAsync(
-        string filePath,
-        long maxInputSize = ReaderDefaults.DefaultMaxInputSize,
-        CancellationToken cancellationToken = default)
-        => IniParser.ParseFileAsync(filePath, maxInputSize, cancellationToken);
-
-    /// <summary>
-    /// Parses INI sections from a string.
-    /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromString().")]
-    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromString(
-        string content,
-        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-        => IniParser.ParseString(content, maxInputSize);
-
-    /// <summary>
-    /// Parses INI sections from a stream.
-    /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromStream().")]
-    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromStream(
-        Stream stream,
-        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
-        => IniParser.ParseStream(stream, maxInputSize);
-
-    /// <summary>
-    /// Parses INI sections from a stream asynchronously.
-    /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSectionsFromStreamAsync().")]
-    protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromStreamAsync(
-        Stream stream,
-        long maxInputSize = ReaderDefaults.DefaultMaxInputSize,
-        CancellationToken cancellationToken = default)
-        => IniParser.ParseStreamAsync(stream, maxInputSize, cancellationToken);
 
     /// <summary>
     /// Parses the <c>[FileInfo]</c> section into an <see cref="EdsFileInfo"/> object.
@@ -98,56 +50,6 @@ public abstract class CanOpenReaderBase
         fileInfo.ModifiedBy = IniParser.GetValue(sections, "FileInfo", "ModifiedBy");
 
         return fileInfo;
-    }
-
-    /// <summary>
-    /// Parses the <c>[DeviceInfo]</c> section into a <see cref="DeviceInfo"/> object.
-    /// </summary>
-    /// <remarks>
-    /// <c>[DeviceInfo]</c> is <b>mandatory</b> per CiA 306-1 §5.2: every valid EDS and DCF
-    /// file must contain this section. Without it the library cannot determine basic device
-    /// identity (vendor, product, supported baud rates), so an <see cref="EdsParseException"/>
-    /// is thrown rather than silently returning an empty or misleading object.
-    /// </remarks>
-    /// <exception cref="EdsParseException">Thrown when the <c>[DeviceInfo]</c> section is absent.</exception>
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseDeviceInfo().")]
-    protected DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
-    {
-        var deviceInfo = new DeviceInfo();
-
-        // [DeviceInfo] is mandatory (CiA 306-1 §5.2) — reject the file when absent.
-        if (!IniParser.HasSection(sections, "DeviceInfo"))
-            throw new EdsParseException("Required section [DeviceInfo] not found");
-
-        deviceInfo.VendorName = IniParser.GetValue(sections, "DeviceInfo", "VendorName");
-        deviceInfo.VendorNumber = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DeviceInfo", "VendorNumber", "0"));
-        deviceInfo.ProductName = IniParser.GetValue(sections, "DeviceInfo", "ProductName");
-        deviceInfo.ProductNumber = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DeviceInfo", "ProductNumber", "0"));
-        deviceInfo.RevisionNumber = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DeviceInfo", "RevisionNumber", "0"));
-        deviceInfo.OrderCode = IniParser.GetValue(sections, "DeviceInfo", "OrderCode");
-
-        // Parse baud rates
-        deviceInfo.SupportedBaudRates.BaudRate10 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_10"));
-        deviceInfo.SupportedBaudRates.BaudRate20 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_20"));
-        deviceInfo.SupportedBaudRates.BaudRate50 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_50"));
-        deviceInfo.SupportedBaudRates.BaudRate125 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_125"));
-        deviceInfo.SupportedBaudRates.BaudRate250 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_250"));
-        deviceInfo.SupportedBaudRates.BaudRate500 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_500"));
-        deviceInfo.SupportedBaudRates.BaudRate800 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_800"));
-        deviceInfo.SupportedBaudRates.BaudRate1000 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_1000"));
-
-        deviceInfo.SimpleBootUpMaster = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "SimpleBootUpMaster"));
-        deviceInfo.SimpleBootUpSlave = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "SimpleBootUpSlave"));
-        deviceInfo.Granularity = ValueConverter.ParseByte(IniParser.GetValue(sections, "DeviceInfo", "Granularity", "8"));
-        deviceInfo.DynamicChannelsSupported = ValueConverter.ParseByte(IniParser.GetValue(sections, "DeviceInfo", "DynamicChannelsSupported", "0"));
-        deviceInfo.GroupMessaging = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "GroupMessaging"));
-        deviceInfo.NrOfRxPdo = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DeviceInfo", "NrOfRXPDO", "0"));
-        deviceInfo.NrOfTxPdo = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DeviceInfo", "NrOfTXPDO", "0"));
-        deviceInfo.LssSupported = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "LSS_Supported"));
-        deviceInfo.CompactPdo = ValueConverter.ParseByte(IniParser.GetValue(sections, "DeviceInfo", "CompactPDO", "0"));
-        deviceInfo.CANopenSafetySupported = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "CANopenSafetySupported"));
-
-        return deviceInfo;
     }
 
     /// <summary>
@@ -231,7 +133,7 @@ public abstract class CanOpenReaderBase
         {
             Index = index,
             ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", "0x7"))
+            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral))
         };
 
         var dataTypeStr = IniParser.GetValue(sections, sectionName, "DataType");
@@ -267,7 +169,7 @@ public abstract class CanOpenReaderBase
         }
 
         // Parse sub-objects for composite types (DEFSTRUCT, ARRAY, RECORD)
-        if (obj.SubNumber > 0 || obj.ObjectType == 0x6 || obj.ObjectType == 0x8 || obj.ObjectType == 0x9)
+        if (obj.SubNumber > 0 || CanOpenObjectType.HasSubObjects(obj.ObjectType))
         {
             ParseSubObjects(sections, index, obj);
         }
@@ -331,7 +233,7 @@ public abstract class CanOpenReaderBase
         {
             SubIndex = subIndex,
             ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", "0x7")),
+            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral)),
             DataType = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "DataType", "0")),
             AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
@@ -343,149 +245,6 @@ public abstract class CanOpenReaderBase
         };
 
         return subObj;
-    }
-
-    /// <summary>
-    /// Parses the <c>[Comments]</c> section into a <see cref="Comments"/> object,
-    /// or returns <see langword="null"/> if the section is absent.
-    /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseComments().")]
-    protected Comments? ParseComments(Dictionary<string, Dictionary<string, string>> sections)
-    {
-        if (!IniParser.HasSection(sections, "Comments"))
-            return null;
-
-        var comments = new Comments
-        {
-            Lines = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "Comments", "Lines", "0"))
-        };
-
-        for (int i = 1; i <= comments.Lines; i++)
-        {
-            var line = IniParser.GetValue(sections, "Comments", string.Format(CultureInfo.InvariantCulture, "Line{0}", i));
-            if (!string.IsNullOrEmpty(line))
-            {
-                comments.CommentLines[i] = line;
-            }
-        }
-
-        return comments;
-    }
-
-    /// <summary>
-    /// Parses the <c>[SupportedModules]</c> section and each module's <c>ModuleInfo</c>
-    /// section into a list of <see cref="ModuleInfo"/> objects.
-    /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseSupportedModules().")]
-    protected List<ModuleInfo> ParseSupportedModules(Dictionary<string, Dictionary<string, string>> sections)
-    {
-        var modules = new List<ModuleInfo>();
-        var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "SupportedModules", "NrOfEntries", "0"));
-
-        for (int i = 1; i <= count; i++)
-        {
-            var moduleInfo = ParseModuleInfo(sections, i);
-            if (moduleInfo != null)
-            {
-                modules.Add(moduleInfo);
-            }
-        }
-
-        return modules;
-    }
-
-    /// <summary>
-    /// Parses the <c>[M{moduleNumber}ModuleInfo]</c> section for the given module number.
-    /// Returns <see langword="null"/> if the section does not exist.
-    /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseModuleInfo().")]
-    protected ModuleInfo? ParseModuleInfo(Dictionary<string, Dictionary<string, string>> sections, int moduleNumber)
-    {
-        var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}ModuleInfo", moduleNumber);
-        if (!IniParser.HasSection(sections, sectionName))
-            return null;
-
-        var moduleInfo = new ModuleInfo
-        {
-            ModuleNumber = moduleNumber,
-            ProductName = IniParser.GetValue(sections, sectionName, "ProductName"),
-            ProductVersion = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ProductVersion", "1")),
-            ProductRevision = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ProductRevision", "0")),
-            OrderCode = IniParser.GetValue(sections, sectionName, "OrderCode")
-        };
-
-        // Parse fixed objects
-        var fixedObjSection = string.Format(CultureInfo.InvariantCulture, "M{0}FixedObjects", moduleNumber);
-        if (IniParser.HasSection(sections, fixedObjSection))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, fixedObjSection, "NrOfEntries", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var indexStr = IniParser.GetValue(sections, fixedObjSection, i.ToString(CultureInfo.InvariantCulture));
-                if (!string.IsNullOrEmpty(indexStr))
-                {
-                    moduleInfo.FixedObjects.Add(ValueConverter.ParseUInt16(indexStr));
-                }
-            }
-        }
-
-        return moduleInfo;
-    }
-
-    /// <summary>
-    /// Parses the <c>[DynamicChannels]</c> section into a <see cref="DynamicChannels"/> object,
-    /// or returns <see langword="null"/> if the section has no segments.
-    /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseDynamicChannels().")]
-    protected DynamicChannels? ParseDynamicChannels(Dictionary<string, Dictionary<string, string>> sections)
-    {
-        var nrOfSeg = ValueConverter.ParseByte(IniParser.GetValue(sections, "DynamicChannels", "NrOfSeg", "0"));
-        if (nrOfSeg == 0)
-            return null;
-
-        var dynamicChannels = new DynamicChannels();
-
-        for (int i = 1; i <= nrOfSeg; i++)
-        {
-            var segment = new DynamicChannelSegment
-            {
-                Type = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Type{0}", i), "0")),
-                Dir = ValueConverter.ParseAccessType(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Dir{0}", i))),
-                Range = IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Range{0}", i)),
-                PPOffset = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "PPOffset{0}", i), "0"))
-            };
-            dynamicChannels.Segments.Add(segment);
-        }
-
-        return dynamicChannels;
-    }
-
-    /// <summary>
-    /// Parses the <c>[Tools]</c> section and each individual <c>[Tool{n}]</c> section
-    /// into a list of <see cref="ToolInfo"/> objects.
-    /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Protected API — making static prevents derived classes from calling base.ParseTools().")]
-    protected List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
-    {
-        var tools = new List<ToolInfo>();
-
-        var items = ValueConverter.ParseByte(IniParser.GetValue(sections, "Tools", "Items", "0"));
-
-        for (int i = 1; i <= items; i++)
-        {
-            var toolSection = "Tool" + i.ToString(CultureInfo.InvariantCulture);
-            if (!IniParser.HasSection(sections, toolSection))
-                continue;
-
-            var tool = new ToolInfo
-            {
-                Name = IniParser.GetValue(sections, toolSection, "Name"),
-                Command = IniParser.GetValue(sections, toolSection, "Command")
-            };
-            tools.Add(tool);
-        }
-
-        return tools;
     }
 
     /// <summary>
@@ -594,4 +353,111 @@ public abstract class CanOpenReaderBase
                suffix.StartsWith("SubExt", StringComparison.OrdinalIgnoreCase) ||
                suffix.Equals("Comments", StringComparison.OrdinalIgnoreCase);
     }
+
+    #region Obsolete compatibility shims (kept for external subclasses; removal requires a major release)
+
+    // These forwarding shims preserve the previous protected surface of this public
+    // base class. They are instance methods for binary compatibility, hence the
+    // CA1822 pragma; the real implementations live in IniParser and
+    // CanOpenSectionParsers and carry no suppressions.
+#pragma warning disable CA1822 // Mark members as static — obsolete compat shims must stay instance members.
+
+    /// <summary>
+    /// Parses INI sections from a file path.
+    /// </summary>
+    [Obsolete("Use IniParser.ParseFile instead.")]
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromFile(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+        => IniParser.ParseFile(filePath, maxInputSize);
+
+    /// <summary>
+    /// Parses INI sections from a file path asynchronously.
+    /// </summary>
+    [Obsolete("Use IniParser.ParseFileAsync instead.")]
+    protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromFileAsync(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize,
+        CancellationToken cancellationToken = default)
+        => IniParser.ParseFileAsync(filePath, maxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Parses INI sections from a string.
+    /// </summary>
+    [Obsolete("Use IniParser.ParseString instead.")]
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromString(
+        string content,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+        => IniParser.ParseString(content, maxInputSize);
+
+    /// <summary>
+    /// Parses INI sections from a stream.
+    /// </summary>
+    [Obsolete("Use IniParser.ParseStream instead.")]
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromStream(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+        => IniParser.ParseStream(stream, maxInputSize);
+
+    /// <summary>
+    /// Parses INI sections from a stream asynchronously.
+    /// </summary>
+    [Obsolete("Use IniParser.ParseStreamAsync instead.")]
+    protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromStreamAsync(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize,
+        CancellationToken cancellationToken = default)
+        => IniParser.ParseStreamAsync(stream, maxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Parses the <c>[DeviceInfo]</c> section into a <see cref="DeviceInfo"/> object.
+    /// </summary>
+    /// <exception cref="EdsDcfNet.Exceptions.EdsParseException">Thrown when the <c>[DeviceInfo]</c> section is absent.</exception>
+    [Obsolete("This helper moved to an internal type. Parse the [DeviceInfo] section via IniParser, or open an issue if you need a public entry point.")]
+    protected DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
+        => CanOpenSectionParsers.ParseDeviceInfo(sections);
+
+    /// <summary>
+    /// Parses the <c>[Comments]</c> section into a <see cref="Comments"/> object,
+    /// or returns <see langword="null"/> if the section is absent.
+    /// </summary>
+    [Obsolete("This helper moved to an internal type. Parse the [Comments] section via IniParser, or open an issue if you need a public entry point.")]
+    protected Comments? ParseComments(Dictionary<string, Dictionary<string, string>> sections)
+        => CanOpenSectionParsers.ParseComments(sections);
+
+    /// <summary>
+    /// Parses the <c>[SupportedModules]</c> section and each module's <c>ModuleInfo</c>
+    /// section into a list of <see cref="ModuleInfo"/> objects.
+    /// </summary>
+    [Obsolete("This helper moved to an internal type. Parse the [SupportedModules] section via IniParser, or open an issue if you need a public entry point.")]
+    protected List<ModuleInfo> ParseSupportedModules(Dictionary<string, Dictionary<string, string>> sections)
+        => CanOpenSectionParsers.ParseSupportedModules(sections);
+
+    /// <summary>
+    /// Parses the <c>[M{moduleNumber}ModuleInfo]</c> section for the given module number.
+    /// Returns <see langword="null"/> if the section does not exist.
+    /// </summary>
+    [Obsolete("This helper moved to an internal type. Parse the module sections via IniParser, or open an issue if you need a public entry point.")]
+    protected ModuleInfo? ParseModuleInfo(Dictionary<string, Dictionary<string, string>> sections, int moduleNumber)
+        => CanOpenSectionParsers.ParseModuleInfo(sections, moduleNumber);
+
+    /// <summary>
+    /// Parses the <c>[DynamicChannels]</c> section into a <see cref="DynamicChannels"/> object,
+    /// or returns <see langword="null"/> if the section has no segments.
+    /// </summary>
+    [Obsolete("This helper moved to an internal type. Parse the [DynamicChannels] section via IniParser, or open an issue if you need a public entry point.")]
+    protected DynamicChannels? ParseDynamicChannels(Dictionary<string, Dictionary<string, string>> sections)
+        => CanOpenSectionParsers.ParseDynamicChannels(sections);
+
+    /// <summary>
+    /// Parses the <c>[Tools]</c> section and each individual <c>[Tool{n}]</c> section
+    /// into a list of <see cref="ToolInfo"/> objects.
+    /// </summary>
+    [Obsolete("This helper moved to an internal type. Parse the [Tools] section via IniParser, or open an issue if you need a public entry point.")]
+    protected List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
+        => CanOpenSectionParsers.ParseTools(sections);
+
+#pragma warning restore CA1822
+
+    #endregion
 }
