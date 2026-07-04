@@ -36,8 +36,39 @@ public class FormatCanOpenOperations<TModel>
         Action<TModel, Stream> writeStream,
         Func<TModel, string, CancellationToken, Task> writeFileAsync,
         Func<TModel, Stream, CancellationToken, Task> writeStreamAsync,
+        Func<TModel, string> writeToString)
+        : this(
+            ensureValidForWrite,
+            readFile,
+            readFileAsync,
+            readString,
+            readStream,
+            readStreamAsync,
+            writeFile,
+            writeStream,
+            writeFileAsync,
+            writeStreamAsync,
+            writeToString,
+            ensureValidForWriteAsync: null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes format-specific read/write delegates, including an optional async validation delegate.
+    /// </summary>
+    protected FormatCanOpenOperations(
+        Action<TModel, CanOpenWriteOptions?> ensureValidForWrite,
+        Func<string, long, TModel> readFile,
+        Func<string, long, CancellationToken, Task<TModel>> readFileAsync,
+        Func<string, long, TModel> readString,
+        Func<Stream, long, TModel> readStream,
+        Func<Stream, long, CancellationToken, Task<TModel>> readStreamAsync,
+        Action<TModel, string> writeFile,
+        Action<TModel, Stream> writeStream,
+        Func<TModel, string, CancellationToken, Task> writeFileAsync,
+        Func<TModel, Stream, CancellationToken, Task> writeStreamAsync,
         Func<TModel, string> writeToString,
-        Func<TModel, CanOpenWriteOptions?, CancellationToken, Task>? ensureValidForWriteAsync = null)
+        Func<TModel, CanOpenWriteOptions?, CancellationToken, Task>? ensureValidForWriteAsync)
     {
         _ensureValidForWrite = ensureValidForWrite;
         _ensureValidForWriteAsync = ensureValidForWriteAsync;

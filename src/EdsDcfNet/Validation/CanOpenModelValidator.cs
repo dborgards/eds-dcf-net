@@ -236,19 +236,22 @@ public static class CanOpenModelValidator
             "ObjectDictionary.MandatoryObjects",
             objectDictionary.Objects,
             classifiedIndices,
-            issues);
+            issues,
+            cancellationToken);
         ValidateObjectList(
             objectDictionary.OptionalObjects,
             "ObjectDictionary.OptionalObjects",
             objectDictionary.Objects,
             classifiedIndices,
-            issues);
+            issues,
+            cancellationToken);
         ValidateObjectList(
             objectDictionary.ManufacturerObjects,
             "ObjectDictionary.ManufacturerObjects",
             objectDictionary.Objects,
             classifiedIndices,
-            issues);
+            issues,
+            cancellationToken);
 
         foreach (var kvp in objectDictionary.Objects)
         {
@@ -275,11 +278,13 @@ public static class CanOpenModelValidator
         string listPath,
         Dictionary<ushort, CanOpenObject> objects,
         HashSet<ushort> classifiedIndices,
-        List<ValidationIssue> issues)
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken = default)
     {
         var seenInCurrentList = new HashSet<ushort>();
         foreach (var index in indexes)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var hexIndex = string.Format(CultureInfo.InvariantCulture, "0x{0:X4}", index);
             if (!seenInCurrentList.Add(index))
             {

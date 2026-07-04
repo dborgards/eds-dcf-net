@@ -683,6 +683,24 @@ public class WriteValidationGuardTests
     }
 
     [Fact]
+    public async Task EnsureValidForWriteAsync_WithValidationDisabled_ReturnsCompletedTask()
+    {
+        var ensureValidForWriteAsync = GetEnsureValidForWriteAsyncMethod(typeof(ElectronicDataSheet));
+
+        var nullOptionsTask = (Task)ensureValidForWriteAsync.Invoke(
+            null,
+            new object?[] { CreateValidEds(), null, CancellationToken.None })!;
+        nullOptionsTask.IsCompletedSuccessfully.Should().BeTrue();
+        await nullOptionsTask;
+
+        var defaultOptionsTask = (Task)ensureValidForWriteAsync.Invoke(
+            null,
+            new object?[] { CreateValidEds(), CanOpenWriteOptions.Default, CancellationToken.None })!;
+        defaultOptionsTask.IsCompletedSuccessfully.Should().BeTrue();
+        await defaultOptionsTask;
+    }
+
+    [Fact]
     public async Task EnsureValidForWriteAsync_WithUnsupportedModelType_ThrowsArgumentException()
     {
         var ensureValidForWriteAsync = GetEnsureValidForWriteAsyncMethod(typeof(string));

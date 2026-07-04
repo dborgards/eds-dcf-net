@@ -151,6 +151,32 @@ public class CanOpenModelValidatorAsyncTests
     }
 
     [Fact]
+    public async Task ValidateAsync_LargeObjectListCanceledMidRun_ThrowsOperationCanceled()
+    {
+        var eds = new ElectronicDataSheet();
+        for (var i = 0; i < 50_000; i++)
+        {
+            var index = (ushort)(0x2000 + i);
+            eds.ObjectDictionary.MandatoryObjects.Add(index);
+            eds.ObjectDictionary.Objects[index] = new CanOpenObject
+            {
+                Index = index,
+                ParameterName = "Mandatory Object " + i,
+                ObjectType = 0x7,
+                DataType = 0x0007,
+                AccessType = AccessType.ReadOnly
+            };
+        }
+
+        using var cts = new CancellationTokenSource();
+        var task = CanOpenModelValidator.ValidateAsync(eds, cts.Token);
+        cts.Cancel();
+
+        var act = () => task;
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
     public async Task ValidateAsync_LargeApplicationProcessCanceledMidRun_ThrowsOperationCanceled()
     {
         var eds = CreateValidEds();
