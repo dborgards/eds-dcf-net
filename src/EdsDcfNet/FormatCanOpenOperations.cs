@@ -315,7 +315,7 @@ public class FormatCanOpenOperations<TModel>
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken)
     {
-        if (options?.ValidateBeforeWrite != true)
+        if (!CanOpenWriteGuard.ShouldValidateBeforeWrite(options))
             return Task.CompletedTask;
 
         if (_ensureValidForWriteAsync != null)
