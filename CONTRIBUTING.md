@@ -171,15 +171,18 @@ Maintainers decide when to promote `develop` → `main`.
 ### Communicating changes through semantic-release
 
 Release notes and `CHANGELOG.md` are **generated** — commits are the only
-channel that reaches consumers. Whether a note appears in NuGet/GitHub release
-notes is decided entirely by [`.releaserc.json`](.releaserc.json) (commit
-analyzer + release-notes generator, both on the `conventionalcommits` preset)
-and [`tools/semantic-release-analyze-commits.sh`](tools/semantic-release-analyze-commits.sh).
+channel that reaches consumers. Whether a note appears in GitHub release notes
+and `CHANGELOG.md` is decided entirely by [`.releaserc.json`](.releaserc.json)
+(commit analyzer + release-notes generator, both on the `conventionalcommits`
+preset) and
+[`tools/semantic-release-analyze-commits.sh`](tools/semantic-release-analyze-commits.sh).
+NuGet packages are published on release, but generated notes are **not** wired
+into package metadata (`PackageReleaseNotes` is unset during `dotnet pack`).
 
 - **Do not hand-edit `CHANGELOG.md`.** `@semantic-release/changelog` prepends
   generated notes directly after the fixed `changelogTitle`; a manually added
   `[Unreleased]` section ends up *below* the next generated version entry and
-  never reaches the generated GitHub/NuGet release notes.
+  never reaches the generated GitHub release notes or `CHANGELOG.md`.
   *(Incident: on [PR #313](https://github.com/dborgards/eds-dcf-net/pull/313)
   a manual `[Unreleased]` breaking-change note was added to `CHANGELOG.md`;
   review caught that it would silently miss the release notes. Encode such
