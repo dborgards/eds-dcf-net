@@ -363,6 +363,45 @@ public static class CanOpenModelValidator
             }
         }
 
+        // Two passes over FunctionTypeList: function-instance lists may forward-reference
+        // function-type IDs, so all IDs must be registered before instances are validated.
+        var functionTypeIds = RegisterFunctionTypeIds(applicationProcess, path, allUniqueIds, dataTypeIds, issues);
+        ValidateFunctionTypeInstances(applicationProcess, path, functionTypeIds, allUniqueIds, issues);
+
+        var parameterIds = ValidateParameters(
+            applicationProcess,
+            path,
+            allUniqueIds,
+            dataTypeIds,
+            parameterTemplateIds,
+            allowedValuesTemplateIds,
+            issues);
+
+        ValidateParameterGroups(applicationProcess, path, allUniqueIds, parameterIds, issues);
+
+        if (applicationProcess.FunctionInstanceList != null)
+        {
+            ValidateFunctionInstanceList(
+                applicationProcess.FunctionInstanceList,
+                path + ".FunctionInstanceList",
+                functionTypeIds,
+                allUniqueIds,
+                issues);
+        }
+    }
+
+    /// <summary>
+    /// First pass over <see cref="ApplicationProcess.FunctionTypeList"/>: registers all
+    /// function-type unique IDs (returned for the second pass and top-level instance
+    /// validation) and validates version infos and interface lists.
+    /// </summary>
+    private static HashSet<string> RegisterFunctionTypeIds(
+        ApplicationProcess applicationProcess,
+        string path,
+        HashSet<string> allUniqueIds,
+        HashSet<string> dataTypeIds,
+        List<ValidationIssue> issues)
+    {
         var functionTypeIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < applicationProcess.FunctionTypeList.Count; index++)
         {
@@ -390,6 +429,21 @@ public static class CanOpenModelValidator
             }
         }
 
+        return functionTypeIds;
+    }
+
+    /// <summary>
+    /// Second pass over <see cref="ApplicationProcess.FunctionTypeList"/>: validates each
+    /// function type's instance list once <paramref name="functionTypeIds"/> contains all
+    /// registered IDs (instances may forward-reference later function types).
+    /// </summary>
+    private static void ValidateFunctionTypeInstances(
+        ApplicationProcess applicationProcess,
+        string path,
+        HashSet<string> functionTypeIds,
+        HashSet<string> allUniqueIds,
+        List<ValidationIssue> issues)
+    {
         for (var index = 0; index < applicationProcess.FunctionTypeList.Count; index++)
         {
             var functionType = applicationProcess.FunctionTypeList[index];
@@ -404,7 +458,22 @@ public static class CanOpenModelValidator
                     issues);
             }
         }
+    }
 
+    /// <summary>
+    /// Validates <see cref="ApplicationProcess.ParameterList"/> (unique IDs, typeRef,
+    /// templateIdRef, allowedValues refs) and returns the registered parameter IDs
+    /// for parameter-group validation.
+    /// </summary>
+    private static HashSet<string> ValidateParameters(
+        ApplicationProcess applicationProcess,
+        string path,
+        HashSet<string> allUniqueIds,
+        HashSet<string> dataTypeIds,
+        HashSet<string> parameterTemplateIds,
+        HashSet<string> allowedValuesTemplateIds,
+        List<ValidationIssue> issues)
+    {
         var parameterIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < applicationProcess.ParameterList.Count; index++)
         {
@@ -434,6 +503,20 @@ public static class CanOpenModelValidator
             }
         }
 
+        return parameterIds;
+    }
+
+    /// <summary>
+    /// Validates <see cref="ApplicationProcess.ParameterGroupList"/> against the
+    /// registered <paramref name="parameterIds"/>.
+    /// </summary>
+    private static void ValidateParameterGroups(
+        ApplicationProcess applicationProcess,
+        string path,
+        HashSet<string> allUniqueIds,
+        HashSet<string> parameterIds,
+        List<ValidationIssue> issues)
+    {
         for (var index = 0; index < applicationProcess.ParameterGroupList.Count; index++)
         {
             ValidateParameterGroup(
@@ -441,16 +524,6 @@ public static class CanOpenModelValidator
                 IndexedPath(path + ".ParameterGroupList", index),
                 allUniqueIds,
                 parameterIds,
-                issues);
-        }
-
-        if (applicationProcess.FunctionInstanceList != null)
-        {
-            ValidateFunctionInstanceList(
-                applicationProcess.FunctionInstanceList,
-                path + ".FunctionInstanceList",
-                functionTypeIds,
-                allUniqueIds,
                 issues);
         }
     }
