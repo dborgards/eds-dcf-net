@@ -81,6 +81,50 @@ while the core library project additionally pins the analyzer package version vi
 - To update the SDK baseline, submit one PR that updates `global.json` and
   briefly notes the change in the PR description.
 
+## Boundary & regression test guide
+
+Edge-case regressions in conversion/validation code have historically been
+caught only *after* behavior changed:
+
+- [#305](https://github.com/dborgards/eds-dcf-net/issues/305) /
+  [PR #313](https://github.com/dborgards/eds-dcf-net/pull/313) — the
+  `CanOpenWriteOptions.Validated` round-trip for XDD/XDC with an
+  `ApplicationProcess` was not covered before validation tightened; integration
+  tests were added reactively.
+- [#311](https://github.com/dborgards/eds-dcf-net/issues/311) /
+  [PR #320](https://github.com/dborgards/eds-dcf-net/pull/320) — the
+  `ConvertToDcf` FileRevision increment wrapped `255 → 0`; the boundary
+  regression test arrived with the fix instead of before it.
+
+For any PR touching **parsers, writers, validators, or converters**, fill in
+the matrix below in the PR description and add tests for every cell that
+applies. Skipped dimensions should be marked `n/a` with a short reason.
+
+### Matrix template
+
+| Dimension | What to cover | This PR |
+|---|---|---|
+| Numeric boundaries | min, max, and wrap/clamp semantics of every touched numeric field (e.g. `FileRevision == 255`, Node-ID `1..127`) | |
+| Round-trip fidelity | read → write → read for each affected format (EDS, DCF, CPJ, XDD, XDC) | |
+| Validation modes | default write **and** `CanOpenWriteOptions.Validated` where validation differs | |
+| Representative fixtures | minimal + realistic samples (e.g. `sample_device.*`, ApplicationProcess graphs) | |
+| API contract assertions | reflection or source-compat tests where refactors can silently change public overload shapes or parameter names | |
+
+Naming convention for boundary cases: suffix the scenario, e.g.
+`ConvertToDcf_FileRevisionAtMaxValue_ClampsAt255` (`*_AtMaxValue`) and
+`WriteFile_ValidatedRoundTrip_PreservesApplicationProcess`
+(`*_ValidatedRoundTrip`).
+
+### Example matrix (filled for the #311 `ConvertToDcf` fix)
+
+| Dimension | What to cover | PR #320 |
+|---|---|---|
+| Numeric boundaries | `FileRevision` increment at max | `255` stays `255` (clamp, no wrap) — regression test at max value |
+| Round-trip fidelity | EDS → DCF conversion output | conversion tests re-run on `sample_device.eds` |
+| Validation modes | n/a | conversion path does not depend on write validation |
+| Representative fixtures | minimal EDS with `FileRevision = 255` | added |
+| API contract assertions | n/a | no public signature change |
+
 ## Commit convention
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/).
