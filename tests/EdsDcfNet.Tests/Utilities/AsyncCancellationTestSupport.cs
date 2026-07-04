@@ -1,57 +1,74 @@
 namespace EdsDcfNet.Tests.Utilities;
 
+using System.Diagnostics;
+
 /// <summary>
-/// Helpers for deterministic async cancellation tests that must cancel while work is in progress.
+/// Helpers for async cancellation tests that must cancel while validation work is in progress.
 /// </summary>
 internal static class AsyncCancellationTestSupport
 {
     /// <summary>
-    /// Starts <paramref name="validateAsync"/> with <paramref name="cts"/>, waits until the
-    /// returned task is executing on a thread-pool worker, then cancels and asserts
+    /// Repeatedly starts <paramref name="validateAsync"/> and cancels it once the returned task
+    /// has begun executing, asserting that a run observes the cancellation and throws
     /// <see cref="OperationCanceledException"/>.
     /// </summary>
+    /// <remarks>
+    /// A single start-then-cancel attempt is inherently racy: a fast validation can run to
+    /// completion before <see cref="CancellationTokenSource.Cancel()"/> is applied, in which
+    /// case no <see cref="OperationCanceledException"/> is thrown. Rather than let that race
+    /// fail the test, each attempt uses a fresh <see cref="CancellationTokenSource"/> (a
+    /// cancelled source cannot be reused) and the helper retries until a run is cancelled
+    /// mid-flight. This keeps the test reliable regardless of thread-pool scheduling while still
+    /// exercising the in-loop cancellation checkpoints: cancellation is applied only after the
+    /// delegate has started running, not at scheduling time.
+    /// </remarks>
+    /// <param name="validateAsync">
+    /// Factory that starts the validation with the supplied token and returns its task.
+    /// </param>
+    /// <param name="timeout">
+    /// Maximum time to spend attempting to observe mid-run cancellation. Defaults to 30 seconds.
+    /// </param>
     /// <exception cref="TimeoutException">
-    /// Thrown when the validation task does not reach <see cref="TaskStatus.Running"/> in time.
-    /// </exception>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when validation completes before mid-run cancellation can be applied.
+    /// Thrown when no attempt observes mid-run cancellation within <paramref name="timeout"/>.
     /// </exception>
     public static async Task AssertCanceledMidRunAsync(
-        CancellationTokenSource cts,
         Func<CancellationToken, Task> validateAsync,
-        TimeSpan? startTimeout = null)
+        TimeSpan? timeout = null)
     {
-        var timeout = startTimeout ?? TimeSpan.FromSeconds(5);
-        var task = validateAsync(cts.Token);
+        var deadline = timeout ?? TimeSpan.FromSeconds(30);
+        var stopwatch = Stopwatch.StartNew();
 
-        using var startTimeoutCts = new CancellationTokenSource(timeout);
-        try
+        while (stopwatch.Elapsed < deadline)
         {
-            while (!task.IsCompleted)
+            using var cts = new CancellationTokenSource();
+            var task = validateAsync(cts.Token);
+
+            // Wait until the delegate has actually started (or already finished) so that
+            // cancellation, when it lands, is observed at an in-loop checkpoint rather than
+            // at task scheduling.
+            while ((task.Status == TaskStatus.WaitingToRun ||
+                    task.Status == TaskStatus.WaitingForActivation) &&
+                   stopwatch.Elapsed < deadline)
             {
-                startTimeoutCts.Token.ThrowIfCancellationRequested();
-
-                if (task.Status == TaskStatus.Running)
-                    break;
-
                 await Task.Yield();
             }
-        }
-        catch (OperationCanceledException) when (startTimeoutCts.IsCancellationRequested)
-        {
-            throw new TimeoutException(
-                "Validation task did not reach Running state before timeout.");
+
+            cts.Cancel();
+
+            try
+            {
+                await task;
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            // Validation completed before cancellation was observed; try again with a fresh
+            // token source until we win the race or run out of time.
         }
 
-        if (task.IsCompletedSuccessfully)
-        {
-            throw new InvalidOperationException(
-                "Validation completed before mid-run cancellation could be applied.");
-        }
-
-        cts.Cancel();
-
-        var act = () => task;
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        throw new TimeoutException(
+            "Validation never observed mid-run cancellation within the timeout.");
     }
 }

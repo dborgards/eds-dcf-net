@@ -94,11 +94,9 @@ public class CanOpenModelValidatorAsyncTests
     {
         // Arrange — model large enough to hit many per-object cancellation checkpoints
         var eds = CreateLargeEds(objectCount: 50_000);
-        using var cts = new CancellationTokenSource();
 
-        // Act & Assert — wait until validation is running, then cancel deterministically
+        // Act & Assert — start validation, cancel once it is running, retry until observed
         await AsyncCancellationTestSupport.AssertCanceledMidRunAsync(
-            cts,
             token => CanOpenModelValidator.ValidateAsync(eds, token));
     }
 
@@ -164,9 +162,7 @@ public class CanOpenModelValidatorAsyncTests
             };
         }
 
-        using var cts = new CancellationTokenSource();
         await AsyncCancellationTestSupport.AssertCanceledMidRunAsync(
-            cts,
             token => CanOpenModelValidator.ValidateAsync(eds, token));
     }
 
@@ -183,9 +179,7 @@ public class CanOpenModelValidatorAsyncTests
             });
         }
 
-        using var cts = new CancellationTokenSource();
         await AsyncCancellationTestSupport.AssertCanceledMidRunAsync(
-            cts,
             token => CanOpenModelValidator.ValidateAsync(eds, token));
     }
 
