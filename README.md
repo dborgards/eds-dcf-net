@@ -330,6 +330,19 @@ Current checks include:
 - object dictionary consistency (list membership, duplicates, missing entries)
 - object-level constraints (object type validity, parameter-name length, SubNumber mismatch)
 
+The CiA 306 Node-ID range used by these checks is exposed publicly via
+`CanOpenNodeId`, so consumers can validate or document node IDs without
+duplicating the `1..127` literals:
+
+```csharp
+using EdsDcfNet;
+
+bool valid = CanOpenNodeId.IsInRange(nodeId);          // true for 1..127
+byte min = CanOpenNodeId.MinValue;                     // 1
+byte max = CanOpenNodeId.MaxValue;                     // 127
+string range = CanOpenNodeId.RangeDescription;         // "1..127"
+```
+
 To validate automatically before writing, pass `CanOpenWriteOptions.Validated` to the
 format-specific entry points:
 

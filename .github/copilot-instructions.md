@@ -59,6 +59,16 @@ EDS/DCF file → IniParser → EdsReader/DcfReader → Models → DcfWriter → 
 - **Pattern:** Arrange-Act-Assert (AAA)
 - **Fixture data:** `tests/EdsDcfNet.Tests/Fixtures/sample_device.eds`
 
+### Boundary & regression matrix
+
+Changes to **parsers, writers, validators, or converters** must fill in the
+**[Boundary & regression test guide](../CONTRIBUTING.md#boundary--regression-test-guide)**
+matrix from `CONTRIBUTING.md` in the PR description (numeric boundaries,
+round-trip fidelity per format, validation modes, representative fixtures,
+API contract assertions). Boundary tests use the `*_AtMaxValue` /
+`*_ValidatedRoundTrip` naming convention. This is upfront work — do not add
+edge-case tests only reactively (see incidents #305/#313 and #311/#320).
+
 ## Commit Convention
 
 This project uses **Conventional Commits** and **semantic-release** for automated versioning and NuGet publishing. All commit messages **must** follow this format:
