@@ -126,6 +126,7 @@ public static class CanOpenModelValidator
         if (eds.ApplicationProcess != null)
             ValidateApplicationProcess(eds.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
 
+        cancellationToken.ThrowIfCancellationRequested();
         return new ReadOnlyCollection<ValidationIssue>(issues);
     }
 
@@ -143,6 +144,7 @@ public static class CanOpenModelValidator
         if (dcf.ApplicationProcess != null)
             ValidateApplicationProcess(dcf.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
 
+        cancellationToken.ThrowIfCancellationRequested();
         return new ReadOnlyCollection<ValidationIssue>(issues);
     }
 
@@ -163,6 +165,7 @@ public static class CanOpenModelValidator
                 cancellationToken);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         return new ReadOnlyCollection<ValidationIssue>(issues);
     }
 
