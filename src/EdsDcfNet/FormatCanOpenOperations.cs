@@ -321,7 +321,9 @@ public class FormatCanOpenOperations<TModel>
         if (_ensureValidForWriteAsync != null)
             return _ensureValidForWriteAsync(model, options, cancellationToken);
 
-        return Task.Run(() => _ensureValidForWrite(model, options), cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        _ensureValidForWrite(model, options);
+        return Task.CompletedTask;
     }
 
     /// <summary>
