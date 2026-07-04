@@ -155,7 +155,7 @@ public class CanOpenModelValidatorAsyncTests
             eds.ObjectDictionary.Objects[index] = new CanOpenObject
             {
                 Index = index,
-                ParameterName = "Mandatory Object " + i,
+                ParameterName = "Mandatory Object " + i.ToString(CultureInfo.InvariantCulture),
                 ObjectType = 0x7,
                 DataType = 0x0007,
                 AccessType = AccessType.ReadOnly
@@ -314,7 +314,7 @@ public class CanOpenModelValidatorAsyncTests
             eds.ObjectDictionary.Objects[index] = new CanOpenObject
             {
                 Index = index,
-                ParameterName = "Manufacturer Object " + i,
+                ParameterName = "Manufacturer Object " + i.ToString(CultureInfo.InvariantCulture),
                 ObjectType = 0x7,
                 DataType = 0x0007,
                 AccessType = AccessType.ReadWrite

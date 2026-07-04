@@ -670,6 +670,20 @@ public class WriteValidationGuardTests
     }
 
     [Fact]
+    public void EnsureValidForWrite_WithNullModelAndValidatedOptions_ThrowsArgumentNullException()
+    {
+        var ensureValidForWrite = GetEnsureValidForWriteMethod(typeof(ElectronicDataSheet));
+
+        var act = () => ensureValidForWrite.Invoke(
+            null,
+            new object?[] { null, CanOpenWriteOptions.Validated });
+
+        var exception = act.Should().Throw<TargetInvocationException>().Which.InnerException;
+        exception.Should().BeOfType<ArgumentNullException>()
+            .Which.ParamName.Should().Be("model");
+    }
+
+    [Fact]
     public void EnsureValidForWrite_WithUnsupportedModelType_ThrowsArgumentException()
     {
         var ensureValidForWrite = GetEnsureValidForWriteMethod(typeof(string));
@@ -698,6 +712,20 @@ public class WriteValidationGuardTests
             new object?[] { CreateValidEds(), CanOpenWriteOptions.Default, CancellationToken.None })!;
         defaultOptionsTask.IsCompletedSuccessfully.Should().BeTrue();
         await defaultOptionsTask;
+    }
+
+    [Fact]
+    public async Task EnsureValidForWriteAsync_WithNullModelAndValidatedOptions_ThrowsArgumentNullException()
+    {
+        var ensureValidForWriteAsync = GetEnsureValidForWriteAsyncMethod(typeof(ElectronicDataSheet));
+
+        var act = async () => await (Task)ensureValidForWriteAsync.Invoke(
+            null,
+            new object?[] { null, CanOpenWriteOptions.Validated, CancellationToken.None })!;
+
+        var exception = (await act.Should().ThrowAsync<TargetInvocationException>()).Which.InnerException;
+        exception.Should().BeOfType<ArgumentNullException>()
+            .Which.ParamName.Should().Be("model");
     }
 
     [Fact]
