@@ -231,7 +231,7 @@ public abstract class CanOpenReaderBase
         {
             Index = index,
             ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", "0x7"))
+            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral))
         };
 
         var dataTypeStr = IniParser.GetValue(sections, sectionName, "DataType");
@@ -267,7 +267,7 @@ public abstract class CanOpenReaderBase
         }
 
         // Parse sub-objects for composite types (DEFSTRUCT, ARRAY, RECORD)
-        if (obj.SubNumber > 0 || obj.ObjectType == 0x6 || obj.ObjectType == 0x8 || obj.ObjectType == 0x9)
+        if (obj.SubNumber > 0 || CanOpenObjectType.HasSubObjects(obj.ObjectType))
         {
             ParseSubObjects(sections, index, obj);
         }
@@ -331,7 +331,7 @@ public abstract class CanOpenReaderBase
         {
             SubIndex = subIndex,
             ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", "0x7")),
+            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral)),
             DataType = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "DataType", "0")),
             AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),

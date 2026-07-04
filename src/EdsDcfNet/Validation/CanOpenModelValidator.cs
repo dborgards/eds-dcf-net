@@ -9,15 +9,13 @@ using EdsDcfNet.Models;
 /// </summary>
 public static class CanOpenModelValidator
 {
-    private static readonly HashSet<ushort> AllowedBaudrates = new()
-    {
-        10, 20, 50, 125, 250, 500, 800, 1000
-    };
+    private static readonly ushort[] AllowedBaudrateValues = { 10, 20, 50, 125, 250, 500, 800, 1000 };
+
+    private static readonly HashSet<ushort> AllowedBaudrates = new(AllowedBaudrateValues);
 
     private static readonly string AllowedBaudratesDescription = string.Join(
         ", ",
-        new ushort[] { 10, 20, 50, 125, 250, 500, 800, 1000 }
-            .Select(v => v.ToString(CultureInfo.InvariantCulture)));
+        AllowedBaudrateValues.Select(v => v.ToString(CultureInfo.InvariantCulture)));
 
     private const int MaxParameterNameLength = 241;
     private const int MaxNodeNameLength = 246;
@@ -268,13 +266,7 @@ public static class CanOpenModelValidator
 
     private static bool IsValidObjectType(byte objectType)
     {
-        return objectType == 0x0 ||
-               objectType == 0x2 ||
-               objectType == 0x5 ||
-               objectType == 0x6 ||
-               objectType == 0x7 ||
-               objectType == 0x8 ||
-               objectType == 0x9;
+        return CanOpenObjectType.IsValid(objectType);
     }
 
     private static void ValidateNetworkTopology(
