@@ -353,4 +353,111 @@ public abstract class CanOpenReaderBase
                suffix.StartsWith("SubExt", StringComparison.OrdinalIgnoreCase) ||
                suffix.Equals("Comments", StringComparison.OrdinalIgnoreCase);
     }
+
+    #region Obsolete compatibility shims (kept for external subclasses; removal requires a major release)
+
+    // These forwarding shims preserve the previous protected surface of this public
+    // base class. They are instance methods for binary compatibility, hence the
+    // CA1822 pragma; the real implementations live in IniParser and
+    // CanOpenSectionParsers and carry no suppressions.
+#pragma warning disable CA1822 // Mark members as static — obsolete compat shims must stay instance members.
+
+    /// <summary>
+    /// Parses INI sections from a file path.
+    /// </summary>
+    [Obsolete("Use IniParser.ParseFile instead.")]
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromFile(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+        => IniParser.ParseFile(filePath, maxInputSize);
+
+    /// <summary>
+    /// Parses INI sections from a file path asynchronously.
+    /// </summary>
+    [Obsolete("Use IniParser.ParseFileAsync instead.")]
+    protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromFileAsync(
+        string filePath,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize,
+        CancellationToken cancellationToken = default)
+        => IniParser.ParseFileAsync(filePath, maxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Parses INI sections from a string.
+    /// </summary>
+    [Obsolete("Use IniParser.ParseString instead.")]
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromString(
+        string content,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+        => IniParser.ParseString(content, maxInputSize);
+
+    /// <summary>
+    /// Parses INI sections from a stream.
+    /// </summary>
+    [Obsolete("Use IniParser.ParseStream instead.")]
+    protected Dictionary<string, Dictionary<string, string>> ParseSectionsFromStream(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
+        => IniParser.ParseStream(stream, maxInputSize);
+
+    /// <summary>
+    /// Parses INI sections from a stream asynchronously.
+    /// </summary>
+    [Obsolete("Use IniParser.ParseStreamAsync instead.")]
+    protected Task<Dictionary<string, Dictionary<string, string>>> ParseSectionsFromStreamAsync(
+        Stream stream,
+        long maxInputSize = ReaderDefaults.DefaultMaxInputSize,
+        CancellationToken cancellationToken = default)
+        => IniParser.ParseStreamAsync(stream, maxInputSize, cancellationToken);
+
+    /// <summary>
+    /// Parses the <c>[DeviceInfo]</c> section into a <see cref="DeviceInfo"/> object.
+    /// </summary>
+    /// <exception cref="EdsDcfNet.Exceptions.EdsParseException">Thrown when the <c>[DeviceInfo]</c> section is absent.</exception>
+    [Obsolete("This helper moved to an internal type. Parse the [DeviceInfo] section via IniParser, or open an issue if you need a public entry point.")]
+    protected DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
+        => CanOpenSectionParsers.ParseDeviceInfo(sections);
+
+    /// <summary>
+    /// Parses the <c>[Comments]</c> section into a <see cref="Comments"/> object,
+    /// or returns <see langword="null"/> if the section is absent.
+    /// </summary>
+    [Obsolete("This helper moved to an internal type. Parse the [Comments] section via IniParser, or open an issue if you need a public entry point.")]
+    protected Comments? ParseComments(Dictionary<string, Dictionary<string, string>> sections)
+        => CanOpenSectionParsers.ParseComments(sections);
+
+    /// <summary>
+    /// Parses the <c>[SupportedModules]</c> section and each module's <c>ModuleInfo</c>
+    /// section into a list of <see cref="ModuleInfo"/> objects.
+    /// </summary>
+    [Obsolete("This helper moved to an internal type. Parse the [SupportedModules] section via IniParser, or open an issue if you need a public entry point.")]
+    protected List<ModuleInfo> ParseSupportedModules(Dictionary<string, Dictionary<string, string>> sections)
+        => CanOpenSectionParsers.ParseSupportedModules(sections);
+
+    /// <summary>
+    /// Parses the <c>[M{moduleNumber}ModuleInfo]</c> section for the given module number.
+    /// Returns <see langword="null"/> if the section does not exist.
+    /// </summary>
+    [Obsolete("This helper moved to an internal type. Parse the module sections via IniParser, or open an issue if you need a public entry point.")]
+    protected ModuleInfo? ParseModuleInfo(Dictionary<string, Dictionary<string, string>> sections, int moduleNumber)
+        => CanOpenSectionParsers.ParseModuleInfo(sections, moduleNumber);
+
+    /// <summary>
+    /// Parses the <c>[DynamicChannels]</c> section into a <see cref="DynamicChannels"/> object,
+    /// or returns <see langword="null"/> if the section has no segments.
+    /// </summary>
+    [Obsolete("This helper moved to an internal type. Parse the [DynamicChannels] section via IniParser, or open an issue if you need a public entry point.")]
+    protected DynamicChannels? ParseDynamicChannels(Dictionary<string, Dictionary<string, string>> sections)
+        => CanOpenSectionParsers.ParseDynamicChannels(sections);
+
+    /// <summary>
+    /// Parses the <c>[Tools]</c> section and each individual <c>[Tool{n}]</c> section
+    /// into a list of <see cref="ToolInfo"/> objects.
+    /// </summary>
+    [Obsolete("This helper moved to an internal type. Parse the [Tools] section via IniParser, or open an issue if you need a public entry point.")]
+    protected List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
+        => CanOpenSectionParsers.ParseTools(sections);
+
+#pragma warning restore CA1822
+
+    #endregion
 }
