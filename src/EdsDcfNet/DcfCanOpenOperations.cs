@@ -37,7 +37,7 @@ public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <summary>
     /// Writes a DCF to disk.
     /// </summary>
-    public new void WriteFile(DeviceConfigurationFile dcf, string filePath)
+    public override void WriteFile(DeviceConfigurationFile dcf, string filePath)
         => base.WriteFile(dcf, filePath);
 
     /// <summary>
@@ -46,13 +46,13 @@ public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new void WriteFile(DeviceConfigurationFile dcf, string filePath, CanOpenWriteOptions? options)
+    public override void WriteFile(DeviceConfigurationFile dcf, string filePath, CanOpenWriteOptions? options)
         => base.WriteFile(dcf, filePath, options);
 
     /// <summary>
     /// Writes a DCF to a stream. The stream is not disposed.
     /// </summary>
-    public new void WriteStream(DeviceConfigurationFile dcf, Stream stream)
+    public override void WriteStream(DeviceConfigurationFile dcf, Stream stream)
         => base.WriteStream(dcf, stream);
 
     /// <summary>
@@ -61,13 +61,13 @@ public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new void WriteStream(DeviceConfigurationFile dcf, Stream stream, CanOpenWriteOptions? options)
+    public override void WriteStream(DeviceConfigurationFile dcf, Stream stream, CanOpenWriteOptions? options)
         => base.WriteStream(dcf, stream, options);
 
     /// <summary>
     /// Writes a DCF to disk asynchronously.
     /// </summary>
-    public new Task WriteFileAsync(
+    public override Task WriteFileAsync(
         DeviceConfigurationFile dcf,
         string filePath,
         CancellationToken cancellationToken = default)
@@ -79,7 +79,7 @@ public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new Task WriteFileAsync(
+    public override Task WriteFileAsync(
         DeviceConfigurationFile dcf,
         string filePath,
         CanOpenWriteOptions? options,
@@ -89,7 +89,7 @@ public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <summary>
     /// Writes a DCF to a stream asynchronously. The stream is not disposed.
     /// </summary>
-    public new Task WriteStreamAsync(
+    public override Task WriteStreamAsync(
         DeviceConfigurationFile dcf,
         Stream stream,
         CancellationToken cancellationToken = default)
@@ -101,7 +101,7 @@ public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new Task WriteStreamAsync(
+    public override Task WriteStreamAsync(
         DeviceConfigurationFile dcf,
         Stream stream,
         CanOpenWriteOptions? options,
@@ -111,7 +111,7 @@ public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <summary>
     /// Serializes a DCF to a string.
     /// </summary>
-    public new string WriteToString(DeviceConfigurationFile dcf)
+    public override string WriteToString(DeviceConfigurationFile dcf)
         => base.WriteToString(dcf);
 
     /// <summary>
@@ -120,6 +120,6 @@ public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new string WriteToString(DeviceConfigurationFile dcf, CanOpenWriteOptions? options)
+    public override string WriteToString(DeviceConfigurationFile dcf, CanOpenWriteOptions? options)
         => base.WriteToString(dcf, options);
 }
