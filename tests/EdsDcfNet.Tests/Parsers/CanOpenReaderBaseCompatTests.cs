@@ -140,6 +140,25 @@ public class CanOpenReaderBaseCompatTests
     }
 
     [Fact]
+    public void ObsoleteParseComments_SkipsEmptyCommentLines()
+    {
+        var sections = _reader.InvokeParseSectionsFromString(
+            """
+            [Comments]
+            Lines=2
+            Line1=First note
+            Line2=
+            """);
+
+        var comments = _reader.InvokeParseComments(sections);
+
+        comments.Should().NotBeNull();
+        comments!.Lines.Should().Be(2);
+        comments.CommentLines.Should().ContainKey(1);
+        comments.CommentLines.Should().NotContainKey(2);
+    }
+
+    [Fact]
     public void ObsoleteParseSupportedModules_DelegatesToCanOpenSectionParsers()
     {
         var sections = _reader.InvokeParseSectionsFromString(
@@ -176,6 +195,29 @@ public class CanOpenReaderBaseCompatTests
 
         module.Should().NotBeNull();
         module!.ProductName.Should().Be("Input Module");
+    }
+
+    [Fact]
+    public void ObsoleteParseModuleInfo_SkipsEmptyFixedObjectIndex()
+    {
+        var sections = _reader.InvokeParseSectionsFromString(
+            """
+            [M1ModuleInfo]
+            ProductName=Input Module
+            ProductVersion=1
+            ProductRevision=0
+            OrderCode=MOD-IN-8
+
+            [M1FixedObjects]
+            NrOfEntries=2
+            1=0x6000
+            2=
+            """);
+
+        var module = _reader.InvokeParseModuleInfo(sections, 1);
+
+        module.Should().NotBeNull();
+        module!.FixedObjects.Should().ContainSingle().Which.Should().Be(0x6000);
     }
 
     [Fact]
