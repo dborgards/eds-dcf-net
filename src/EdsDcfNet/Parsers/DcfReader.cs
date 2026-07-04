@@ -33,7 +33,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         string filePath,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromFile(filePath, maxInputSize);
+        var sections = IniParser.ParseFile(filePath, maxInputSize);
         return ParseDcf(sections);
     }
 
@@ -47,7 +47,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromStream(stream, maxInputSize);
+        var sections = IniParser.ParseStream(stream, maxInputSize);
         return ParseDcf(sections);
     }
 
@@ -74,7 +74,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         long maxInputSize,
         CancellationToken cancellationToken = default)
     {
-        var sections = await ParseSectionsFromFileAsync(filePath, maxInputSize, cancellationToken).ConfigureAwait(false);
+        var sections = await IniParser.ParseFileAsync(filePath, maxInputSize, cancellationToken).ConfigureAwait(false);
         return ParseDcf(sections);
     }
 
@@ -101,7 +101,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         long maxInputSize,
         CancellationToken cancellationToken = default)
     {
-        var sections = await ParseSectionsFromStreamAsync(stream, maxInputSize, cancellationToken).ConfigureAwait(false);
+        var sections = await IniParser.ParseStreamAsync(stream, maxInputSize, cancellationToken).ConfigureAwait(false);
         return ParseDcf(sections);
     }
 
@@ -115,7 +115,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromString(content, maxInputSize);
+        var sections = IniParser.ParseString(content, maxInputSize);
         return ParseDcf(sections);
     }
 
@@ -124,10 +124,10 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         var dcf = new DeviceConfigurationFile
         {
             FileInfo = ParseFileInfo(sections),
-            DeviceInfo = ParseDeviceInfo(sections),
+            DeviceInfo = CanOpenSectionParsers.ParseDeviceInfo(sections),
             DeviceCommissioning = ParseDeviceCommissioning(sections),
             ObjectDictionary = ParseObjectDictionary(sections),
-            Comments = ParseComments(sections)
+            Comments = CanOpenSectionParsers.ParseComments(sections)
         };
 
         // Parse connected modules if present
@@ -139,19 +139,19 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         // Parse supported modules if present
         if (IniParser.HasSection(sections, "SupportedModules"))
         {
-            dcf.SupportedModules.AddRange(ParseSupportedModules(sections));
+            dcf.SupportedModules.AddRange(CanOpenSectionParsers.ParseSupportedModules(sections));
         }
 
         // Parse dynamic channels if present
         if (IniParser.HasSection(sections, "DynamicChannels"))
         {
-            dcf.DynamicChannels = ParseDynamicChannels(sections);
+            dcf.DynamicChannels = CanOpenSectionParsers.ParseDynamicChannels(sections);
         }
 
         // Parse tools if present
         if (IniParser.HasSection(sections, "Tools"))
         {
-            dcf.Tools.AddRange(ParseTools(sections));
+            dcf.Tools.AddRange(CanOpenSectionParsers.ParseTools(sections));
         }
 
         // Parse any additional unknown sections

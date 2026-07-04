@@ -58,6 +58,19 @@ public static class ValueConverter
     /// <summary>
     /// Parses a boolean value from string.
     /// </summary>
+    /// <remarks>
+    /// This parser is intentionally lenient to tolerate real-world EDS/DCF files:
+    /// only <c>"1"</c>, <c>"true"</c>, and <c>"yes"</c> (case-insensitive) are treated as
+    /// <see langword="true"/>. Any other value — including typos, <c>"0"</c>, <c>"false"</c>,
+    /// <c>"no"</c>, and empty strings — silently maps to <see langword="false"/> without
+    /// raising an error. Unlike the numeric parsers in this class, malformed input is not
+    /// reported via <see cref="EdsParseException"/>.
+    /// </remarks>
+    /// <param name="value">String value to parse.</param>
+    /// <returns>
+    /// <see langword="true"/> if <paramref name="value"/> is a recognized true token;
+    /// otherwise <see langword="false"/>.
+    /// </returns>
     public static bool ParseBoolean(string value)
     {
         value = value.Trim();
@@ -119,6 +132,21 @@ public static class ValueConverter
     /// <summary>
     /// Parses an AccessType from string.
     /// </summary>
+    /// <remarks>
+    /// This parser is intentionally lenient to tolerate real-world EDS/DCF files:
+    /// recognized tokens are <c>"ro"</c>, <c>"wo"</c>, <c>"rw"</c>, <c>"rwr"</c>,
+    /// <c>"rww"</c>, and <c>"const"</c> (case-insensitive, surrounding whitespace ignored).
+    /// Any unrecognized value — including typos and <see langword="null"/> — silently maps to
+    /// <see cref="AccessType.ReadOnly"/> without raising an error. Unlike the numeric parsers
+    /// in this class, malformed input is not reported via <see cref="EdsParseException"/>.
+    /// Note that this can change round-trip output: an unknown access type in the source file
+    /// is written back as <c>"ro"</c>.
+    /// </remarks>
+    /// <param name="value">String value to parse.</param>
+    /// <returns>
+    /// The parsed <see cref="AccessType"/>, or <see cref="AccessType.ReadOnly"/> if
+    /// <paramref name="value"/> is not a recognized access type token.
+    /// </returns>
     public static AccessType ParseAccessType(string value)
     {
         return value?.Trim().ToLowerInvariant() switch

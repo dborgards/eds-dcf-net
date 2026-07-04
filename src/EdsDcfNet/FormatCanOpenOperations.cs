@@ -9,21 +9,108 @@ using EdsDcfNet.Exceptions;
 #pragma warning disable CA1822 // Instance API exposed via CanOpenFile format entry points.
 public class FormatCanOpenOperations<TModel>
 {
-    private readonly Action<TModel, CanOpenWriteOptions?> _ensureValidForWrite;
-    private readonly Func<string, long, TModel> _readFile;
-    private readonly Func<string, long, CancellationToken, Task<TModel>> _readFileAsync;
-    private readonly Func<string, long, TModel> _readString;
-    private readonly Func<Stream, long, TModel> _readStream;
-    private readonly Func<Stream, long, CancellationToken, Task<TModel>> _readStreamAsync;
-    private readonly Action<TModel, string> _writeFile;
-    private readonly Action<TModel, Stream> _writeStream;
-    private readonly Func<TModel, string, CancellationToken, Task> _writeFileAsync;
-    private readonly Func<TModel, Stream, CancellationToken, Task> _writeStreamAsync;
-    private readonly Func<TModel, string> _writeToString;
+    /// <summary>
+    /// Validates <paramref name="model"/> before a write operation when
+    /// <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled.
+    /// </summary>
+    /// <param name="model">Model about to be written.</param>
+    /// <param name="options">Write options; <see langword="null"/> means default (no validation).</param>
+    protected delegate void EnsureValidForWriteCallback(TModel model, CanOpenWriteOptions? options);
+
+    /// <summary>
+    /// Reads a model from a file on disk.
+    /// </summary>
+    /// <param name="filePath">Path to the input file.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters.</param>
+    protected delegate TModel ReadFileCallback(string filePath, long maxInputSize);
+
+    /// <summary>
+    /// Reads a model from a file on disk asynchronously.
+    /// </summary>
+    /// <param name="filePath">Path to the input file.</param>
+    /// <param name="maxInputSize">Maximum input size in bytes/characters.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O.</param>
+    protected delegate Task<TModel> ReadFileAsyncCallback(string filePath, long maxInputSize, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads a model from a string.
+    /// </summary>
+    /// <param name="content">File content as string.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    protected delegate TModel ReadStringCallback(string content, long maxInputSize);
+
+    /// <summary>
+    /// Reads a model from a stream. The stream is not disposed.
+    /// </summary>
+    /// <param name="stream">Readable input stream.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    protected delegate TModel ReadStreamCallback(Stream stream, long maxInputSize);
+
+    /// <summary>
+    /// Reads a model from a stream asynchronously. The stream is not disposed.
+    /// </summary>
+    /// <param name="stream">Readable input stream.</param>
+    /// <param name="maxInputSize">Maximum decoded content length in characters.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O.</param>
+    protected delegate Task<TModel> ReadStreamAsyncCallback(Stream stream, long maxInputSize, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Writes a model to a file on disk.
+    /// </summary>
+    /// <param name="model">Model to write.</param>
+    /// <param name="filePath">Path to the output file.</param>
+    protected delegate void WriteFileCallback(TModel model, string filePath);
+
+    /// <summary>
+    /// Writes a model to a stream. The stream is not disposed.
+    /// </summary>
+    /// <param name="model">Model to write.</param>
+    /// <param name="stream">Writable output stream.</param>
+    protected delegate void WriteStreamCallback(TModel model, Stream stream);
+
+    /// <summary>
+    /// Writes a model to a file on disk asynchronously.
+    /// </summary>
+    /// <param name="model">Model to write.</param>
+    /// <param name="filePath">Path to the output file.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting file I/O.</param>
+    protected delegate Task WriteFileAsyncCallback(TModel model, string filePath, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Writes a model to a stream asynchronously. The stream is not disposed.
+    /// </summary>
+    /// <param name="model">Model to write.</param>
+    /// <param name="stream">Writable output stream.</param>
+    /// <param name="cancellationToken">Cancellation token for aborting stream I/O.</param>
+    protected delegate Task WriteStreamAsyncCallback(TModel model, Stream stream, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Serializes a model to a string.
+    /// </summary>
+    /// <param name="model">Model to serialize.</param>
+    protected delegate string WriteToStringCallback(TModel model);
+
+    private readonly EnsureValidForWriteCallback _ensureValidForWrite;
+    private readonly ReadFileCallback _readFile;
+    private readonly ReadFileAsyncCallback _readFileAsync;
+    private readonly ReadStringCallback _readString;
+    private readonly ReadStreamCallback _readStream;
+    private readonly ReadStreamAsyncCallback _readStreamAsync;
+    private readonly WriteFileCallback _writeFile;
+    private readonly WriteStreamCallback _writeStream;
+    private readonly WriteFileAsyncCallback _writeFileAsync;
+    private readonly WriteStreamAsyncCallback _writeStreamAsync;
+    private readonly WriteToStringCallback _writeToString;
 
     /// <summary>
     /// Initializes format-specific read/write delegates.
     /// </summary>
+    /// <remarks>
+    /// Parameter types remain <see cref="Action{T}"/>/<see cref="Func{TResult}"/> for
+    /// binary compatibility with external subclasses. Named delegate types
+    /// (<see cref="ReadFileCallback"/>, etc.) document the wiring contract on the
+    /// private fields.
+    /// </remarks>
     protected FormatCanOpenOperations(
         Action<TModel, CanOpenWriteOptions?> ensureValidForWrite,
         Func<string, long, TModel> readFile,
@@ -37,17 +124,17 @@ public class FormatCanOpenOperations<TModel>
         Func<TModel, Stream, CancellationToken, Task> writeStreamAsync,
         Func<TModel, string> writeToString)
     {
-        _ensureValidForWrite = ensureValidForWrite;
-        _readFile = readFile;
-        _readFileAsync = readFileAsync;
-        _readString = readString;
-        _readStream = readStream;
-        _readStreamAsync = readStreamAsync;
-        _writeFile = writeFile;
-        _writeStream = writeStream;
-        _writeFileAsync = writeFileAsync;
-        _writeStreamAsync = writeStreamAsync;
-        _writeToString = writeToString;
+        _ensureValidForWrite = new EnsureValidForWriteCallback(ensureValidForWrite);
+        _readFile = new ReadFileCallback(readFile);
+        _readFileAsync = new ReadFileAsyncCallback(readFileAsync);
+        _readString = new ReadStringCallback(readString);
+        _readStream = new ReadStreamCallback(readStream);
+        _readStreamAsync = new ReadStreamAsyncCallback(readStreamAsync);
+        _writeFile = new WriteFileCallback(writeFile);
+        _writeStream = new WriteStreamCallback(writeStream);
+        _writeFileAsync = new WriteFileAsyncCallback(writeFileAsync);
+        _writeStreamAsync = new WriteStreamAsyncCallback(writeStreamAsync);
+        _writeToString = new WriteToStringCallback(writeToString);
     }
 
     /// <summary>
