@@ -105,30 +105,36 @@ public class FormatCanOpenOperations<TModel>
     /// <summary>
     /// Initializes format-specific read/write delegates.
     /// </summary>
+    /// <remarks>
+    /// Parameter types remain <see cref="Action{T}"/>/<see cref="Func{TResult}"/> for
+    /// binary compatibility with external subclasses. Named delegate types
+    /// (<see cref="ReadFileCallback"/>, etc.) document the wiring contract on the
+    /// private fields.
+    /// </remarks>
     protected FormatCanOpenOperations(
-        EnsureValidForWriteCallback ensureValidForWrite,
-        ReadFileCallback readFile,
-        ReadFileAsyncCallback readFileAsync,
-        ReadStringCallback readString,
-        ReadStreamCallback readStream,
-        ReadStreamAsyncCallback readStreamAsync,
-        WriteFileCallback writeFile,
-        WriteStreamCallback writeStream,
-        WriteFileAsyncCallback writeFileAsync,
-        WriteStreamAsyncCallback writeStreamAsync,
-        WriteToStringCallback writeToString)
+        Action<TModel, CanOpenWriteOptions?> ensureValidForWrite,
+        Func<string, long, TModel> readFile,
+        Func<string, long, CancellationToken, Task<TModel>> readFileAsync,
+        Func<string, long, TModel> readString,
+        Func<Stream, long, TModel> readStream,
+        Func<Stream, long, CancellationToken, Task<TModel>> readStreamAsync,
+        Action<TModel, string> writeFile,
+        Action<TModel, Stream> writeStream,
+        Func<TModel, string, CancellationToken, Task> writeFileAsync,
+        Func<TModel, Stream, CancellationToken, Task> writeStreamAsync,
+        Func<TModel, string> writeToString)
     {
-        _ensureValidForWrite = ensureValidForWrite;
-        _readFile = readFile;
-        _readFileAsync = readFileAsync;
-        _readString = readString;
-        _readStream = readStream;
-        _readStreamAsync = readStreamAsync;
-        _writeFile = writeFile;
-        _writeStream = writeStream;
-        _writeFileAsync = writeFileAsync;
-        _writeStreamAsync = writeStreamAsync;
-        _writeToString = writeToString;
+        _ensureValidForWrite = new EnsureValidForWriteCallback(ensureValidForWrite);
+        _readFile = new ReadFileCallback(readFile);
+        _readFileAsync = new ReadFileAsyncCallback(readFileAsync);
+        _readString = new ReadStringCallback(readString);
+        _readStream = new ReadStreamCallback(readStream);
+        _readStreamAsync = new ReadStreamAsyncCallback(readStreamAsync);
+        _writeFile = new WriteFileCallback(writeFile);
+        _writeStream = new WriteStreamCallback(writeStream);
+        _writeFileAsync = new WriteFileAsyncCallback(writeFileAsync);
+        _writeStreamAsync = new WriteStreamAsyncCallback(writeStreamAsync);
+        _writeToString = new WriteToStringCallback(writeToString);
     }
 
     /// <summary>
