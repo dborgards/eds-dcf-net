@@ -53,6 +53,15 @@ internal static class AsyncCancellationTestSupport
                 await Task.Yield();
             }
 
+            if (task.Status != TaskStatus.Running)
+            {
+                // Validation finished first, is still queued, or we ran out of time waiting
+                // for a worker. Do not Cancel()+await here: Task.Run(..., token) reports
+                // scheduling-time cancellation as OperationCanceledException even though the
+                // delegate never ran.
+                continue;
+            }
+
             cts.Cancel();
 
             try
