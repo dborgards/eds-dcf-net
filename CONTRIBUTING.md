@@ -221,6 +221,49 @@ Releases are fully automated via semantic-release:
 
 Maintainers decide when to promote `develop` → `main`.
 
+### Communicating changes through semantic-release
+
+Release notes and `CHANGELOG.md` are **generated** — commits are the only
+channel that reaches consumers. Whether a note appears in GitHub release notes
+and `CHANGELOG.md` is decided entirely by [`.releaserc.json`](.releaserc.json)
+(commit analyzer + release-notes generator, both on the `conventionalcommits`
+preset) and
+[`tools/semantic-release-analyze-commits.sh`](tools/semantic-release-analyze-commits.sh).
+NuGet packages are published on release, but generated notes are **not** wired
+into package metadata (`PackageReleaseNotes` is unset during `dotnet pack`).
+
+- **Do not hand-edit `CHANGELOG.md`.** `@semantic-release/changelog` prepends
+  generated notes directly after the fixed `changelogTitle`; a manually added
+  `[Unreleased]` section ends up *below* the next generated version entry and
+  never reaches the generated GitHub release notes or `CHANGELOG.md`.
+  *(Incident: on [PR #313](https://github.com/dborgards/eds-dcf-net/pull/313)
+  a manual `[Unreleased]` breaking-change note was added to `CHANGELOG.md`;
+  review caught that it would silently miss the release notes. Encode such
+  notes in the commit instead.)*
+- **Breaking / behavior changes** must be encoded where semantic-release reads
+  them: a commit footer starting with **exactly `BREAKING CHANGE:`**. This
+  triggers a **major** bump and the footer text lands in the "💥 Breaking
+  Changes" section of the generated notes. The `breaking`/`major` commit types
+  work too. Avoid the `BREAKING CHANGES:` / `BREAKING:` aliases: the commit
+  analyzer accepts them for the version bump (`parserOpts.noteKeywords`), but
+  the release-notes generator has no matching configuration, so the note text
+  would be **silently dropped** from the generated notes.
+- **Non-breaking behavior changes** (e.g. stricter validation behind an opt-in
+  flag) must be summarized in the commit **subject** of a `feat`/`fix`/`perf`
+  commit — the conventionalcommits notes writer emits the subject line only;
+  plain commit-body text does not reach generated notes (only recognized
+  footers like `BREAKING CHANGE:` do). Use the body for reviewer context, not
+  for consumer-facing notes. PR descriptions likewise do not reach release
+  notes.
+- **Invisible types**: `docs`, `refactor`, `test`, `build`, `ci`, `chore`, and
+  `style` never trigger a release, and several of them are hidden from the
+  generated notes (see the `hidden` flags in `.releaserc.json`). Do not rely on
+  them to communicate anything to consumers.
+
+Quick check before merging: *"Will this note reach consumers?"* — it will only
+if it is the **subject** of a commit whose type is release-visible, or the text
+of a `BREAKING CHANGE:` footer.
+
 ## Recommended branch protection settings
 
 | Branch | Require PR | Require status checks | Restrict direct push |
