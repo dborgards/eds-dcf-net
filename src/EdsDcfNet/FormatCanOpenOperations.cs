@@ -176,7 +176,7 @@ public class FormatCanOpenOperations<TModel>
     /// <summary>
     /// Writes to disk.
     /// </summary>
-    public void WriteFile(TModel model, string filePath)
+    public virtual void WriteFile(TModel model, string filePath)
         => WriteFile(model, filePath, options: null);
 
     /// <summary>
@@ -185,7 +185,7 @@ public class FormatCanOpenOperations<TModel>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public void WriteFile(TModel model, string filePath, CanOpenWriteOptions? options)
+    public virtual void WriteFile(TModel model, string filePath, CanOpenWriteOptions? options)
     {
         _ensureValidForWrite(model, options);
         _writeFile(model, filePath);
@@ -194,7 +194,7 @@ public class FormatCanOpenOperations<TModel>
     /// <summary>
     /// Writes to a stream. The stream is not disposed.
     /// </summary>
-    public void WriteStream(TModel model, Stream stream)
+    public virtual void WriteStream(TModel model, Stream stream)
         => WriteStream(model, stream, options: null);
 
     /// <summary>
@@ -203,7 +203,7 @@ public class FormatCanOpenOperations<TModel>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public void WriteStream(TModel model, Stream stream, CanOpenWriteOptions? options)
+    public virtual void WriteStream(TModel model, Stream stream, CanOpenWriteOptions? options)
     {
         _ensureValidForWrite(model, options);
         _writeStream(model, stream);
@@ -212,7 +212,7 @@ public class FormatCanOpenOperations<TModel>
     /// <summary>
     /// Writes to disk asynchronously.
     /// </summary>
-    public Task WriteFileAsync(
+    public virtual Task WriteFileAsync(
         TModel model,
         string filePath,
         CancellationToken cancellationToken = default)
@@ -224,7 +224,7 @@ public class FormatCanOpenOperations<TModel>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public Task WriteFileAsync(
+    public virtual Task WriteFileAsync(
         TModel model,
         string filePath,
         CanOpenWriteOptions? options,
@@ -237,7 +237,7 @@ public class FormatCanOpenOperations<TModel>
     /// <summary>
     /// Writes to a stream asynchronously. The stream is not disposed.
     /// </summary>
-    public Task WriteStreamAsync(
+    public virtual Task WriteStreamAsync(
         TModel model,
         Stream stream,
         CancellationToken cancellationToken = default)
@@ -249,7 +249,7 @@ public class FormatCanOpenOperations<TModel>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public Task WriteStreamAsync(
+    public virtual Task WriteStreamAsync(
         TModel model,
         Stream stream,
         CanOpenWriteOptions? options,
@@ -262,7 +262,7 @@ public class FormatCanOpenOperations<TModel>
     /// <summary>
     /// Serializes to a string.
     /// </summary>
-    public string WriteToString(TModel model)
+    public virtual string WriteToString(TModel model)
         => WriteToString(model, options: null);
 
     /// <summary>
@@ -271,7 +271,7 @@ public class FormatCanOpenOperations<TModel>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public string WriteToString(TModel model, CanOpenWriteOptions? options)
+    public virtual string WriteToString(TModel model, CanOpenWriteOptions? options)
     {
         _ensureValidForWrite(model, options);
         return _writeToString(model);

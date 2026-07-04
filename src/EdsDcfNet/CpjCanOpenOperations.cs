@@ -36,7 +36,7 @@ public sealed class CpjCanOpenOperations : FormatCanOpenOperations<NodelistProje
     /// <summary>
     /// Writes a CPJ to disk.
     /// </summary>
-    public new void WriteFile(NodelistProject cpj, string filePath)
+    public override void WriteFile(NodelistProject cpj, string filePath)
         => base.WriteFile(cpj, filePath);
 
     /// <summary>
@@ -45,13 +45,13 @@ public sealed class CpjCanOpenOperations : FormatCanOpenOperations<NodelistProje
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new void WriteFile(NodelistProject cpj, string filePath, CanOpenWriteOptions? options)
+    public override void WriteFile(NodelistProject cpj, string filePath, CanOpenWriteOptions? options)
         => base.WriteFile(cpj, filePath, options);
 
     /// <summary>
     /// Writes a CPJ to a stream. The stream is not disposed.
     /// </summary>
-    public new void WriteStream(NodelistProject cpj, Stream stream)
+    public override void WriteStream(NodelistProject cpj, Stream stream)
         => base.WriteStream(cpj, stream);
 
     /// <summary>
@@ -60,13 +60,13 @@ public sealed class CpjCanOpenOperations : FormatCanOpenOperations<NodelistProje
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new void WriteStream(NodelistProject cpj, Stream stream, CanOpenWriteOptions? options)
+    public override void WriteStream(NodelistProject cpj, Stream stream, CanOpenWriteOptions? options)
         => base.WriteStream(cpj, stream, options);
 
     /// <summary>
     /// Writes a CPJ to disk asynchronously.
     /// </summary>
-    public new Task WriteFileAsync(
+    public override Task WriteFileAsync(
         NodelistProject cpj,
         string filePath,
         CancellationToken cancellationToken = default)
@@ -78,7 +78,7 @@ public sealed class CpjCanOpenOperations : FormatCanOpenOperations<NodelistProje
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new Task WriteFileAsync(
+    public override Task WriteFileAsync(
         NodelistProject cpj,
         string filePath,
         CanOpenWriteOptions? options,
@@ -88,7 +88,7 @@ public sealed class CpjCanOpenOperations : FormatCanOpenOperations<NodelistProje
     /// <summary>
     /// Writes a CPJ to a stream asynchronously. The stream is not disposed.
     /// </summary>
-    public new Task WriteStreamAsync(
+    public override Task WriteStreamAsync(
         NodelistProject cpj,
         Stream stream,
         CancellationToken cancellationToken = default)
@@ -100,7 +100,7 @@ public sealed class CpjCanOpenOperations : FormatCanOpenOperations<NodelistProje
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new Task WriteStreamAsync(
+    public override Task WriteStreamAsync(
         NodelistProject cpj,
         Stream stream,
         CanOpenWriteOptions? options,
@@ -110,7 +110,7 @@ public sealed class CpjCanOpenOperations : FormatCanOpenOperations<NodelistProje
     /// <summary>
     /// Serializes a CPJ to a string.
     /// </summary>
-    public new string WriteToString(NodelistProject cpj)
+    public override string WriteToString(NodelistProject cpj)
         => base.WriteToString(cpj);
 
     /// <summary>
@@ -119,6 +119,6 @@ public sealed class CpjCanOpenOperations : FormatCanOpenOperations<NodelistProje
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new string WriteToString(NodelistProject cpj, CanOpenWriteOptions? options)
+    public override string WriteToString(NodelistProject cpj, CanOpenWriteOptions? options)
         => base.WriteToString(cpj, options);
 }
