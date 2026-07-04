@@ -29,7 +29,8 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
                 new XdcWriter().WriteFileAsync(xdc, filePath, cancellationToken),
             (xdc, stream, cancellationToken) =>
                 new XdcWriter().WriteStreamAsync(xdc, stream, cancellationToken),
-            xdc => new XdcWriter().GenerateString(xdc))
+            xdc => new XdcWriter().GenerateString(xdc),
+            CanOpenWriteGuard.EnsureValidForWriteAsync)
     {
     }
 

@@ -29,7 +29,8 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
                 new XddWriter().WriteFileAsync(xdd, filePath, cancellationToken),
             (xdd, stream, cancellationToken) =>
                 new XddWriter().WriteStreamAsync(xdd, stream, cancellationToken),
-            xdd => new XddWriter().GenerateString(xdd))
+            xdd => new XddWriter().GenerateString(xdd),
+            CanOpenWriteGuard.EnsureValidForWriteAsync)
     {
     }
 

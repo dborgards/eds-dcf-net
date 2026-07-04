@@ -682,6 +682,50 @@ public class WriteValidationGuardTests
         ((ArgumentException)exception!).ParamName.Should().Be("model");
     }
 
+    [Fact]
+    public async Task EnsureValidForWriteAsync_WithUnsupportedModelType_ThrowsArgumentException()
+    {
+        var ensureValidForWriteAsync = GetEnsureValidForWriteAsyncMethod(typeof(string));
+
+        var act = async () => await (Task)ensureValidForWriteAsync.Invoke(
+            null,
+            new object?[] { "unsupported", CanOpenWriteOptions.Validated, CancellationToken.None })!;
+
+        var exception = (await act.Should().ThrowAsync<TargetInvocationException>()).Which.InnerException;
+        exception.Should().BeOfType<ArgumentException>()
+            .Which.Message.Should().Contain("Unsupported model type: String");
+        ((ArgumentException)exception!).ParamName.Should().Be("model");
+    }
+
+    [Fact]
+    public async Task EnsureValidForWriteAsync_ValidEdsDcfCpj_DoesNotThrow()
+    {
+        await InvokeEnsureValidForWriteAsync(CreateValidEds());
+        await InvokeEnsureValidForWriteAsync(CreateValidDcf());
+        await InvokeEnsureValidForWriteAsync(CreateValidCpj());
+    }
+
+    private static async Task InvokeEnsureValidForWriteAsync<T>(T model)
+    {
+        var ensureValidForWriteAsync = GetEnsureValidForWriteAsyncMethod(typeof(T));
+        await (Task)ensureValidForWriteAsync.Invoke(
+            null,
+            new object?[] { model, CanOpenWriteOptions.Validated, CancellationToken.None })!;
+    }
+
+    private static MethodInfo GetEnsureValidForWriteAsyncMethod(Type modelType)
+    {
+        var guardType = typeof(CanOpenFile).Assembly.GetType("EdsDcfNet.CanOpenWriteGuard")
+            ?? throw new InvalidOperationException("CanOpenWriteGuard type not found.");
+
+        var method = guardType.GetMethod(
+            "EnsureValidForWriteAsync",
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("EnsureValidForWriteAsync method not found.");
+
+        return method.MakeGenericMethod(modelType);
+    }
+
     private static MethodInfo GetEnsureValidForWriteMethod(Type modelType)
     {
         var guardType = typeof(CanOpenFile).Assembly.GetType("EdsDcfNet.CanOpenWriteGuard")

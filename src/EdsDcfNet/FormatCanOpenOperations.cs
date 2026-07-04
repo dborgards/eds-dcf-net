@@ -10,6 +10,7 @@ using EdsDcfNet.Exceptions;
 public class FormatCanOpenOperations<TModel>
 {
     private readonly Action<TModel, CanOpenWriteOptions?> _ensureValidForWrite;
+    private readonly Func<TModel, CanOpenWriteOptions?, CancellationToken, Task>? _ensureValidForWriteAsync;
     private readonly Func<string, long, TModel> _readFile;
     private readonly Func<string, long, CancellationToken, Task<TModel>> _readFileAsync;
     private readonly Func<string, long, TModel> _readString;
@@ -35,9 +36,11 @@ public class FormatCanOpenOperations<TModel>
         Action<TModel, Stream> writeStream,
         Func<TModel, string, CancellationToken, Task> writeFileAsync,
         Func<TModel, Stream, CancellationToken, Task> writeStreamAsync,
-        Func<TModel, string> writeToString)
+        Func<TModel, string> writeToString,
+        Func<TModel, CanOpenWriteOptions?, CancellationToken, Task>? ensureValidForWriteAsync = null)
     {
         _ensureValidForWrite = ensureValidForWrite;
+        _ensureValidForWriteAsync = ensureValidForWriteAsync;
         _readFile = readFile;
         _readFileAsync = readFileAsync;
         _readString = readString;
@@ -144,7 +147,7 @@ public class FormatCanOpenOperations<TModel>
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        await CanOpenWriteGuard.EnsureValidForWriteAsync(model, options, cancellationToken).ConfigureAwait(false);
+        await EnsureValidForWriteAsync(model, options, cancellationToken).ConfigureAwait(false);
         await _writeFileAsync(model, filePath, cancellationToken).ConfigureAwait(false);
     }
 
@@ -171,8 +174,22 @@ public class FormatCanOpenOperations<TModel>
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken = default)
     {
-        await CanOpenWriteGuard.EnsureValidForWriteAsync(model, options, cancellationToken).ConfigureAwait(false);
+        await EnsureValidForWriteAsync(model, options, cancellationToken).ConfigureAwait(false);
         await _writeStreamAsync(model, stream, cancellationToken).ConfigureAwait(false);
+    }
+
+    private Task EnsureValidForWriteAsync(
+        TModel model,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken)
+    {
+        if (options?.ValidateBeforeWrite != true)
+            return Task.CompletedTask;
+
+        if (_ensureValidForWriteAsync != null)
+            return _ensureValidForWriteAsync(model, options, cancellationToken);
+
+        return Task.Run(() => _ensureValidForWrite(model, options), cancellationToken);
     }
 
     /// <summary>

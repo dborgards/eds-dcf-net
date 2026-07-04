@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Models;
 
+using System.Globalization;
 using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
@@ -150,6 +151,27 @@ public class CanOpenModelValidatorAsyncTests
     }
 
     [Fact]
+    public async Task ValidateAsync_LargeApplicationProcessCanceledMidRun_ThrowsOperationCanceled()
+    {
+        var eds = CreateValidEds();
+        eds.ApplicationProcess = new ApplicationProcess();
+        for (var i = 0; i < 50_000; i++)
+        {
+            eds.ApplicationProcess.ParameterList.Add(new ApParameter
+            {
+                UniqueId = "P_" + i.ToString(CultureInfo.InvariantCulture)
+            });
+        }
+
+        using var cts = new CancellationTokenSource();
+        var task = CanOpenModelValidator.ValidateAsync(eds, cts.Token);
+        cts.Cancel();
+
+        var act = () => task;
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
     public async Task WriteStreamAsync_ValidatedOptions_InvalidModel_ThrowsModelValidationException()
     {
         // Arrange
@@ -162,6 +184,35 @@ public class CanOpenModelValidatorAsyncTests
 
         // Assert
         await act.Should().ThrowAsync<ModelValidationException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_ValidatedOptions_ValidCpj_WritesContent()
+    {
+        var cpj = CreateValidCpj();
+        using var stream = new MemoryStream();
+
+        await CanOpenFile.Cpj.WriteStreamAsync(cpj, stream, CanOpenWriteOptions.Validated);
+
+        stream.Length.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_ValidatedOptions_ValidDcf_WritesContent()
+    {
+        var dcf = CreateValidDcf();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+
+        try
+        {
+            await CanOpenFile.Dcf.WriteFileAsync(dcf, tempFile, CanOpenWriteOptions.Validated);
+            File.Exists(tempFile).Should().BeTrue();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
     }
 
     [Fact]

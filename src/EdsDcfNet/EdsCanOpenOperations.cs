@@ -32,7 +32,8 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
                 new EdsWriter().WriteFileAsync(eds, filePath, cancellationToken),
             (eds, stream, cancellationToken) =>
                 new EdsWriter().WriteStreamAsync(eds, stream, cancellationToken),
-            eds => new EdsWriter().GenerateString(eds))
+            eds => new EdsWriter().GenerateString(eds),
+            CanOpenWriteGuard.EnsureValidForWriteAsync)
     {
     }
 

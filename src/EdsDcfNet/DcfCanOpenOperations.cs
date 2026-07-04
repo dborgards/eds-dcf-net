@@ -29,7 +29,8 @@ public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
                 new DcfWriter().WriteFileAsync(dcf, filePath, cancellationToken),
             (dcf, stream, cancellationToken) =>
                 new DcfWriter().WriteStreamAsync(dcf, stream, cancellationToken),
-            dcf => new DcfWriter().GenerateString(dcf))
+            dcf => new DcfWriter().GenerateString(dcf),
+            CanOpenWriteGuard.EnsureValidForWriteAsync)
     {
     }
 

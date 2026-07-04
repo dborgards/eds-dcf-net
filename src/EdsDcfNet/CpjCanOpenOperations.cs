@@ -29,7 +29,8 @@ public sealed class CpjCanOpenOperations : FormatCanOpenOperations<NodelistProje
                 new CpjWriter().WriteFileAsync(cpj, filePath, cancellationToken),
             (cpj, stream, cancellationToken) =>
                 new CpjWriter().WriteStreamAsync(cpj, stream, cancellationToken),
-            cpj => new CpjWriter().GenerateString(cpj))
+            cpj => new CpjWriter().GenerateString(cpj),
+            CanOpenWriteGuard.EnsureValidForWriteAsync)
     {
     }
 
