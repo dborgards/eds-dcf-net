@@ -65,7 +65,7 @@ public class CanOpenModelValidatorAsyncTests
     public async Task ValidateAsync_ValidModel_ReturnsNoIssues()
     {
         // Arrange
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
 
         // Act
         var issues = await CanOpenFile.ValidateAsync(eds);
@@ -78,7 +78,7 @@ public class CanOpenModelValidatorAsyncTests
     public async Task ValidateAsync_PreCanceledToken_ThrowsOperationCanceled()
     {
         // Arrange
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
@@ -119,9 +119,9 @@ public class CanOpenModelValidatorAsyncTests
     [Fact]
     public async Task EnsureValidAsync_ValidEdsDcfCpj_DoesNotThrow()
     {
-        await CanOpenFile.EnsureValidAsync(CreateValidEds());
-        await CanOpenFile.EnsureValidAsync(CreateValidDcf());
-        await CanOpenFile.EnsureValidAsync(CreateValidCpj());
+        await CanOpenFile.EnsureValidAsync(ValidCanOpenModelBuilder.CreateValidEds());
+        await CanOpenFile.EnsureValidAsync(ValidCanOpenModelBuilder.CreateValidDcf());
+        await CanOpenFile.EnsureValidAsync(ValidCanOpenModelBuilder.CreateValidCpj());
     }
 
     [Fact]
@@ -169,7 +169,7 @@ public class CanOpenModelValidatorAsyncTests
     [Fact]
     public async Task ValidateAsync_LargeApplicationProcessCanceledMidRun_ThrowsOperationCanceled()
     {
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
         eds.ApplicationProcess = new ApplicationProcess();
         for (var i = 0; i < 50_000; i++)
         {
@@ -201,7 +201,7 @@ public class CanOpenModelValidatorAsyncTests
     [Fact]
     public async Task WriteStreamAsync_ValidatedOptions_ValidCpj_WritesContent()
     {
-        var cpj = CreateValidCpj();
+        var cpj = ValidCanOpenModelBuilder.CreateValidCpj();
         using var stream = new MemoryStream();
 
         await CanOpenFile.Cpj.WriteStreamAsync(cpj, stream, CanOpenWriteOptions.Validated);
@@ -212,7 +212,7 @@ public class CanOpenModelValidatorAsyncTests
     [Fact]
     public async Task WriteFileAsync_ValidatedOptions_ValidDcf_WritesContent()
     {
-        var dcf = CreateValidDcf();
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
         var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
         try
@@ -231,7 +231,7 @@ public class CanOpenModelValidatorAsyncTests
     public async Task WriteStreamAsync_ValidatedOptions_ValidModel_WritesContent()
     {
         // Arrange
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
         using var stream = new MemoryStream();
 
         // Act
@@ -259,48 +259,6 @@ public class CanOpenModelValidatorAsyncTests
 
         // Assert
         await act.Should().NotThrowAsync();
-    }
-
-    private static ElectronicDataSheet CreateValidEds()
-    {
-        var eds = new ElectronicDataSheet();
-        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
-        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
-        {
-            Index = 0x1000,
-            ParameterName = "Device Type",
-            ObjectType = 0x7,
-            DataType = 0x0007,
-            AccessType = AccessType.ReadOnly
-        };
-        return eds;
-    }
-
-    private static DeviceConfigurationFile CreateValidDcf()
-    {
-        var dcf = new DeviceConfigurationFile
-        {
-            DeviceCommissioning = new DeviceCommissioning { NodeId = 5, Baudrate = 500 }
-        };
-        dcf.ObjectDictionary.MandatoryObjects.Add(0x1000);
-        dcf.ObjectDictionary.Objects[0x1000] = new CanOpenObject
-        {
-            Index = 0x1000,
-            ParameterName = "Device Type",
-            ObjectType = 0x7,
-            DataType = 0x0007,
-            AccessType = AccessType.ReadOnly
-        };
-        return dcf;
-    }
-
-    private static NodelistProject CreateValidCpj()
-    {
-        var cpj = new NodelistProject();
-        var network = new NetworkTopology { NetName = "Main Network" };
-        network.Nodes[2] = new NetworkNode { NodeId = 2, Present = true, Name = "Node-2" };
-        cpj.Networks.Add(network);
-        return cpj;
     }
 
     private static ElectronicDataSheet CreateLargeEds(int objectCount)

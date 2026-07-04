@@ -23,7 +23,7 @@ public static class CanOpenNodeId
     /// Human-readable description of the valid Node-ID range ("1..127"),
     /// as used in validation error messages.
     /// </summary>
-    public const string RangeDescription = "1..127";
+    public static readonly string RangeDescription = "1..127";
 
     /// <summary>
     /// Returns whether <paramref name="nodeId"/> is a valid CANopen Node-ID (1..127).
