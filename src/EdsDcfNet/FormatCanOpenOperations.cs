@@ -314,12 +314,12 @@ public class FormatCanOpenOperations<TModel>
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken)
     {
-        if (!CanOpenWriteGuard.ShouldValidateBeforeWrite(options))
-            return Task.CompletedTask;
-
+        // Immer den Delegate aufrufen (wie in 1.9.x) – dieser entscheidet selbst,
+        // ob validiert wird (z. B. via CanOpenWriteGuard.ShouldValidateBeforeWrite).
         if (_ensureValidForWriteAsync != null)
             return _ensureValidForWriteAsync(model, options, cancellationToken);
 
+        // Fallback: synchronen Delegate asynchron ausführen
         cancellationToken.ThrowIfCancellationRequested();
         _ensureValidForWrite(model, options);
         return Task.CompletedTask;
