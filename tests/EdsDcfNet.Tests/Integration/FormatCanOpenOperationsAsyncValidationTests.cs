@@ -101,7 +101,7 @@ public class FormatCanOpenOperationsAsyncValidationTests
     }
 
     [Fact]
-    public async Task AsyncDelegateSubclass_WriteFileAsync_WithValidatedOptions_UsesSyncValidationDespiteAsyncDelegate()
+    public async Task AsyncDelegateSubclass_WriteFileAsync_WithValidatedOptions_UsesInjectedAsyncValidation()
     {
         var tracker = new AsyncValidationTracker();
         var operations = new AsyncDelegateFormatOperations(tracker);
@@ -112,9 +112,8 @@ public class FormatCanOpenOperationsAsyncValidationTests
         {
             await operations.WriteFileAsync(eds, tempFile, CanOpenWriteOptions.Validated);
 
-            tracker.SyncCalled.Should().BeTrue();
-            tracker.AsyncCalled.Should().BeFalse(
-                "async write paths validate synchronously so ModelValidationException is thrown at the call site");
+            tracker.AsyncCalled.Should().BeTrue();
+            tracker.SyncCalled.Should().BeFalse();
         }
         finally
         {
@@ -124,7 +123,7 @@ public class FormatCanOpenOperationsAsyncValidationTests
     }
 
     [Fact]
-    public async Task AsyncDelegateSubclass_WriteStreamAsync_WithValidatedOptions_UsesSyncValidationDespiteAsyncDelegate()
+    public async Task AsyncDelegateSubclass_WriteStreamAsync_WithValidatedOptions_UsesInjectedAsyncValidation()
     {
         var tracker = new AsyncValidationTracker();
         var operations = new AsyncDelegateFormatOperations(tracker);
@@ -133,9 +132,8 @@ public class FormatCanOpenOperationsAsyncValidationTests
 
         await operations.WriteStreamAsync(eds, stream, CanOpenWriteOptions.Validated);
 
-        tracker.SyncCalled.Should().BeTrue();
-        tracker.AsyncCalled.Should().BeFalse(
-            "async write paths validate synchronously so ModelValidationException is thrown at the call site");
+        tracker.AsyncCalled.Should().BeTrue();
+        tracker.SyncCalled.Should().BeFalse();
         stream.Length.Should().BeGreaterThan(0);
     }
 
