@@ -78,7 +78,7 @@ public class FormatCanOpenOperations<TModel>
     /// </summary>
     /// <param name="model">Model to write.</param>
     /// <param name="stream">Writable output stream.</param>
-    protected delegate void WriteStreamCallback(TModel model, Stream stream);
+    protected delegate WriteStreamCallback(TModel model, Stream stream);
 
     /// <summary>
     /// Writes a model to a file on disk asynchronously.
@@ -280,11 +280,9 @@ public class FormatCanOpenOperations<TModel>
     {
         // Validierung synchron ausführen (wie in 1.9.x) – Exceptions werden
         // sofort am Aufrufpunkt geworfen, nicht auf dem Task.
-        if (options?.ValidateBeforeWrite == true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            _ensureValidForWrite(model, options);
-        }
+        // Delegates werden immer aufgerufen (PR #380 Kompatibilität)
+        cancellationToken.ThrowIfCancellationRequested();
+        _ensureValidForWrite(model, options);
 
         await _writeFileAsync(model, filePath, cancellationToken).ConfigureAwait(false);
     }
@@ -313,11 +311,9 @@ public class FormatCanOpenOperations<TModel>
         CancellationToken cancellationToken = default)
     {
         // Validierung synchron ausführen (wie in 1.9.x)
-        if (options?.ValidateBeforeWrite == true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            _ensureValidForWrite(model, options);
-        }
+        // Delegates werden immer aufgerufen (PR #380 Kompatibilität)
+        cancellationToken.ThrowIfCancellationRequested();
+        _ensureValidForWrite(model, options);
 
         await _writeStreamAsync(model, stream, cancellationToken).ConfigureAwait(false);
     }
