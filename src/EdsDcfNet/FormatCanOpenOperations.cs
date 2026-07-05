@@ -102,18 +102,19 @@ public class FormatCanOpenOperations<TModel>
     /// <param name="model">Model to serialize.</param>
     protected delegate string WriteToStringCallback(TModel model);
 
-    private readonly EnsureValidForWriteCallback _ensureValidForWrite;
-    private readonly EnsureValidForWriteAsyncCallback? _ensureValidForWriteAsync;
-    private readonly ReadFileCallback _readFile;
-    private readonly ReadFileAsyncCallback _readFileAsync;
-    private readonly ReadStringCallback _readString;
-    private readonly ReadStreamCallback _readStream;
-    private readonly ReadStreamAsyncCallback _readStreamAsync;
-    private readonly WriteFileCallback _writeFile;
-    private readonly WriteStreamCallback _writeStream;
-    private readonly WriteFileAsyncCallback _writeFileAsync;
-    private readonly WriteStreamAsyncCallback _writeStreamAsync;
-    private readonly WriteToStringCallback _writeToString;
+    // Felder als Action/Func (nicht delegate-Typen) - vermeidet Typkonflikte
+    private readonly Action<TModel, CanOpenWriteOptions?> _ensureValidForWrite;
+    private readonly Func<TModel, CanOpenWriteOptions?, CancellationToken, Task>? _ensureValidForWriteAsync;
+    private readonly Func<string, long, TModel> _readFile;
+    private readonly Func<string, long, CancellationToken, Task<TModel>> _readFileAsync;
+    private readonly Func<string, long, TModel> _readString;
+    private readonly Func<Stream, long, TModel> _readStream;
+    private readonly Func<Stream, long, CancellationToken, Task<TModel>> _readStreamAsync;
+    private readonly Action<TModel, string> _writeFile;
+    private readonly Action<TModel, Stream> _writeStream;
+    private readonly Func<TModel, string, CancellationToken, Task> _writeFileAsync;
+    private readonly Func<TModel, Stream, CancellationToken, Task> _writeStreamAsync;
+    private readonly Func<TModel, string> _writeToString;
 
     /// <summary>
     /// Initializes format-specific read/write delegates.
@@ -121,8 +122,7 @@ public class FormatCanOpenOperations<TModel>
     /// <remarks>
     /// Parameter types remain <see cref="Action{T}"/>/<see cref="Func{TResult}"/> for
     /// binary compatibility with external subclasses. Named delegate types
-    /// (<see cref="ReadFileCallback"/>, etc.) document the wiring contract on the
-    /// private fields.
+    /// (<see cref="ReadFileCallback"/>, etc.) document the wiring contract.
     /// </remarks>
     protected FormatCanOpenOperations(
         Action<TModel, CanOpenWriteOptions?> ensureValidForWrite,
@@ -169,19 +169,19 @@ public class FormatCanOpenOperations<TModel>
         Func<TModel, string> writeToString,
         Func<TModel, CanOpenWriteOptions?, CancellationToken, Task>? ensureValidForWriteAsync)
     {
-        // Null-Check vor dem Wrapping - vermeidet NullReferenceException bei Konstruktion
-        _ensureValidForWrite = ensureValidForWrite != null ? new EnsureValidForWriteCallback(ensureValidForWrite) : null!;
-        _ensureValidForWriteAsync = ensureValidForWriteAsync != null ? new EnsureValidForWriteAsyncCallback(ensureValidForWriteAsync) : null;
-        _readFile = readFile != null ? new ReadFileCallback(readFile) : null!;
-        _readFileAsync = readFileAsync != null ? new ReadFileAsyncCallback(readFileAsync) : null!;
-        _readString = readString != null ? new ReadStringCallback(readString) : null!;
-        _readStream = readStream != null ? new ReadStreamCallback(readStream) : null!;
-        _readStreamAsync = readStreamAsync != null ? new ReadStreamAsyncCallback(readStreamAsync) : null!;
-        _writeFile = writeFile != null ? new WriteFileCallback(writeFile) : null!;
-        _writeStream = writeStream != null ? new WriteStreamCallback(writeStream) : null!;
-        _writeFileAsync = writeFileAsync != null ? new WriteFileAsyncCallback(writeFileAsync) : null!;
-        _writeStreamAsync = writeStreamAsync != null ? new WriteStreamAsyncCallback(writeStreamAsync) : null!;
-        _writeToString = writeToString != null ? new WriteToStringCallback(writeToString) : null!;
+        // Direkte Zuweisung - kein Wrapping, keine NullReferenceException
+        _ensureValidForWrite = ensureValidForWrite;
+        _ensureValidForWriteAsync = ensureValidForWriteAsync;
+        _readFile = readFile;
+        _readFileAsync = readFileAsync;
+        _readString = readString;
+        _readStream = readStream;
+        _readStreamAsync = readStreamAsync;
+        _writeFile = writeFile;
+        _writeStream = writeStream;
+        _writeFileAsync = writeFileAsync;
+        _writeStreamAsync = writeStreamAsync;
+        _writeToString = writeToString;
     }
 
     /// <summary>
