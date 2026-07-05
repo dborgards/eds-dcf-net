@@ -78,7 +78,7 @@ public class FormatCanOpenOperations<TModel>
     /// </summary>
     /// <param name="model">Model to write.</param>
     /// <param name="stream">Writable output stream.</param>
-    protected delegate WriteStreamCallback(TModel model, Stream stream);
+    protected delegate void WriteStreamCallback(TModel model, Stream stream);
 
     /// <summary>
     /// Writes a model to a file on disk asynchronously.
