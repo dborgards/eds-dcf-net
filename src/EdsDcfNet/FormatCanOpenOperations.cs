@@ -102,18 +102,18 @@ public class FormatCanOpenOperations<TModel>
     /// <param name="model">Model to serialize.</param>
     protected delegate string WriteToStringCallback(TModel model);
 
-    private readonly EnsureValidForWriteCallback _ensureValidForWrite;
+    private readonly EnsureValidForWriteCallback? _ensureValidForWrite;
     private readonly EnsureValidForWriteAsyncCallback? _ensureValidForWriteAsync;
-    private readonly ReadFileCallback _readFile;
-    private readonly ReadFileAsyncCallback _readFileAsync;
-    private readonly ReadStringCallback _readString;
-    private readonly ReadStreamCallback _readStream;
-    private readonly ReadStreamAsyncCallback _readStreamAsync;
-    private readonly WriteFileCallback _writeFile;
-    private readonly WriteStreamCallback _writeStream;
-    private readonly WriteFileAsyncCallback _writeFileAsync;
-    private readonly WriteStreamAsyncCallback _writeStreamAsync;
-    private readonly WriteToStringCallback _writeToString;
+    private readonly ReadFileCallback? _readFile;
+    private readonly ReadFileAsyncCallback? _readFileAsync;
+    private readonly ReadStringCallback? _readString;
+    private readonly ReadStreamCallback? _readStream;
+    private readonly ReadStreamAsyncCallback? _readStreamAsync;
+    private readonly WriteFileCallback? _writeFile;
+    private readonly WriteStreamCallback? _writeStream;
+    private readonly WriteFileAsyncCallback? _writeFileAsync;
+    private readonly WriteStreamAsyncCallback? _writeStreamAsync;
+    private readonly WriteToStringCallback? _writeToString;
 
     /// <summary>
     /// Initializes format-specific read/write delegates.
@@ -170,18 +170,18 @@ public class FormatCanOpenOperations<TModel>
         Func<TModel, CanOpenWriteOptions?, CancellationToken, Task>? ensureValidForWriteAsync)
     {
         // Null-Check vor dem Wrapping - vermeidet NullReferenceException bei Konstruktion
-        _ensureValidForWrite = ensureValidForWrite != null ? new EnsureValidForWriteCallback(ensureValidForWrite) : null!;
+        _ensureValidForWrite = ensureValidForWrite != null ? new EnsureValidForWriteCallback(ensureValidForWrite) : null;
         _ensureValidForWriteAsync = ensureValidForWriteAsync != null ? new EnsureValidForWriteAsyncCallback(ensureValidForWriteAsync) : null;
-        _readFile = readFile != null ? new ReadFileCallback(readFile) : null!;
-        _readFileAsync = readFileAsync != null ? new ReadFileAsyncCallback(readFileAsync) : null!;
-        _readString = readString != null ? new ReadStringCallback(readString) : null!;
-        _readStream = readStream != null ? new ReadStreamCallback(readStream) : null!;
-        _readStreamAsync = readStreamAsync != null ? new ReadStreamAsyncCallback(readStreamAsync) : null!;
-        _writeFile = writeFile != null ? new WriteFileCallback(writeFile) : null!;
-        _writeStream = writeStream != null ? new WriteStreamCallback(writeStream) : null!;
-        _writeFileAsync = writeFileAsync != null ? new WriteFileAsyncCallback(writeFileAsync) : null!;
-        _writeStreamAsync = writeStreamAsync != null ? new WriteStreamAsyncCallback(writeStreamAsync) : null!;
-        _writeToString = writeToString != null ? new WriteToStringCallback(writeToString) : null!;
+        _readFile = readFile != null ? new ReadFileCallback(readFile) : null;
+        _readFileAsync = readFileAsync != null ? new ReadFileAsyncCallback(readFileAsync) : null;
+        _readString = readString != null ? new ReadStringCallback(readString) : null;
+        _readStream = readStream != null ? new ReadStreamCallback(readStream) : null;
+        _readStreamAsync = readStreamAsync != null ? new ReadStreamAsyncCallback(readStreamAsync) : null;
+        _writeFile = writeFile != null ? new WriteFileCallback(writeFile) : null;
+        _writeStream = writeStream != null ? new WriteStreamCallback(writeStream) : null;
+        _writeFileAsync = writeFileAsync != null ? new WriteFileAsyncCallback(writeFileAsync) : null;
+        _writeStreamAsync = writeStreamAsync != null ? new WriteStreamAsyncCallback(writeStreamAsync) : null;
+        _writeToString = writeToString != null ? new WriteToStringCallback(writeToString) : null;
     }
 
     /// <summary>
@@ -234,8 +234,8 @@ public class FormatCanOpenOperations<TModel>
     /// </exception>
     public virtual void WriteFile(TModel model, string filePath, CanOpenWriteOptions? options)
     {
-        _ensureValidForWrite(model, options);
-        _writeFile(model, filePath);
+        _ensureValidForWrite?.Invoke(model, options);
+        _writeFile?.Invoke(model, filePath);
     }
 
     /// <summary>
@@ -252,8 +252,8 @@ public class FormatCanOpenOperations<TModel>
     /// </exception>
     public virtual void WriteStream(TModel model, Stream stream, CanOpenWriteOptions? options)
     {
-        _ensureValidForWrite(model, options);
-        _writeStream(model, stream);
+        _ensureValidForWrite?.Invoke(model, options);
+        _writeStream?.Invoke(model, stream);
     }
 
     /// <summary>
@@ -279,7 +279,7 @@ public class FormatCanOpenOperations<TModel>
         CancellationToken cancellationToken = default)
     {
         await EnsureValidForWriteAsync(model, options, cancellationToken).ConfigureAwait(false);
-        await _writeFileAsync(model, filePath, cancellationToken).ConfigureAwait(false);
+        await _writeFileAsync?.Invoke(model, filePath, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -306,7 +306,7 @@ public class FormatCanOpenOperations<TModel>
         CancellationToken cancellationToken = default)
     {
         await EnsureValidForWriteAsync(model, options, cancellationToken).ConfigureAwait(false);
-        await _writeStreamAsync(model, stream, cancellationToken).ConfigureAwait(false);
+        await _writeStreamAsync?.Invoke(model, stream, cancellationToken).ConfigureAwait(false);
     }
 
     private Task EnsureValidForWriteAsync(
@@ -314,14 +314,14 @@ public class FormatCanOpenOperations<TModel>
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken)
     {
-        // Immer den Delegate aufrufen (wie in 1.9.x) – dieser entscheidet selbst,
-        // ob validiert wird (z. B. via CanOpenWriteGuard.ShouldValidateBeforeWrite).
+        if (!CanOpenWriteGuard.ShouldValidateBeforeWrite(options))
+            return Task.CompletedTask;
+
         if (_ensureValidForWriteAsync != null)
             return _ensureValidForWriteAsync(model, options, cancellationToken);
 
-        // Fallback: synchronen Delegate asynchron ausführen
         cancellationToken.ThrowIfCancellationRequested();
-        _ensureValidForWrite(model, options);
+        _ensureValidForWrite?.Invoke(model, options);
         return Task.CompletedTask;
     }
 
@@ -339,8 +339,8 @@ public class FormatCanOpenOperations<TModel>
     /// </exception>
     public virtual string WriteToString(TModel model, CanOpenWriteOptions? options)
     {
-        _ensureValidForWrite(model, options);
-        return _writeToString(model);
+        _ensureValidForWrite?.Invoke(model, options);
+        return _writeToString?.Invoke(model);
     }
 }
 #pragma warning restore CA1822
