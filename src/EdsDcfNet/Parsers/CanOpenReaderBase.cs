@@ -413,7 +413,6 @@ public abstract class CanOpenReaderBase
     /// Parses the <c>[DeviceInfo]</c> section into a <see cref="DeviceInfo"/> object.
     /// </summary>
     /// <exception cref="EdsDcfNet.Exceptions.EdsParseException">Thrown when the <c>[DeviceInfo]</c> section is absent.</exception>
-    [Obsolete("This helper moved to an internal type. Parse the [DeviceInfo] section via IniParser, or open an issue if you need a public entry point.")]
     protected DeviceInfo ParseDeviceInfo(Dictionary<string, Dictionary<string, string>> sections)
         => CanOpenSectionParsers.ParseDeviceInfo(sections);
 
@@ -421,7 +420,6 @@ public abstract class CanOpenReaderBase
     /// Parses the <c>[Comments]</c> section into a <see cref="Comments"/> object,
     /// or returns <see langword="null"/> if the section is absent.
     /// </summary>
-    [Obsolete("This helper moved to an internal type. Parse the [Comments] section via IniParser, or open an issue if you need a public entry point.")]
     protected Comments? ParseComments(Dictionary<string, Dictionary<string, string>> sections)
         => CanOpenSectionParsers.ParseComments(sections);
 
@@ -429,7 +427,6 @@ public abstract class CanOpenReaderBase
     /// Parses the <c>[SupportedModules]</c> section and each module's <c>ModuleInfo</c>
     /// section into a list of <see cref="ModuleInfo"/> objects.
     /// </summary>
-    [Obsolete("This helper moved to an internal type. Parse the [SupportedModules] section via IniParser, or open an issue if you need a public entry point.")]
     protected List<ModuleInfo> ParseSupportedModules(Dictionary<string, Dictionary<string, string>> sections)
         => CanOpenSectionParsers.ParseSupportedModules(sections);
 
@@ -437,7 +434,6 @@ public abstract class CanOpenReaderBase
     /// Parses the <c>[M{moduleNumber}ModuleInfo]</c> section for the given module number.
     /// Returns <see langword="null"/> if the section does not exist.
     /// </summary>
-    [Obsolete("This helper moved to an internal type. Parse the module sections via IniParser, or open an issue if you need a public entry point.")]
     protected ModuleInfo? ParseModuleInfo(Dictionary<string, Dictionary<string, string>> sections, int moduleNumber)
         => CanOpenSectionParsers.ParseModuleInfo(sections, moduleNumber);
 
@@ -445,7 +441,6 @@ public abstract class CanOpenReaderBase
     /// Parses the <c>[DynamicChannels]</c> section into a <see cref="DynamicChannels"/> object,
     /// or returns <see langword="null"/> if the section has no segments.
     /// </summary>
-    [Obsolete("This helper moved to an internal type. Parse the [DynamicChannels] section via IniParser, or open an issue if you need a public entry point.")]
     protected DynamicChannels? ParseDynamicChannels(Dictionary<string, Dictionary<string, string>> sections)
         => CanOpenSectionParsers.ParseDynamicChannels(sections);
 
@@ -453,7 +448,6 @@ public abstract class CanOpenReaderBase
     /// Parses the <c>[Tools]</c> section and each individual <c>[Tool{n}]</c> section
     /// into a list of <see cref="ToolInfo"/> objects.
     /// </summary>
-    [Obsolete("This helper moved to an internal type. Parse the [Tools] section via IniParser, or open an issue if you need a public entry point.")]
     protected List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
         => CanOpenSectionParsers.ParseTools(sections);
 
