@@ -283,11 +283,8 @@ public class FormatCanOpenOperations<TModel>
         // sofort am Aufrufpunkt geworfen, nicht auf dem Task.
         if (options?.ValidateBeforeWrite == true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _ensureValidForWrite(model, options);
-        }
-        else if (_ensureValidForWriteAsync != null && CanOpenWriteGuard.ShouldValidateBeforeWrite(options))
-        {
-            await _ensureValidForWriteAsync(model, options, cancellationToken).ConfigureAwait(false);
         }
 
         await _writeFileAsync(model, filePath, cancellationToken).ConfigureAwait(false);
@@ -319,11 +316,8 @@ public class FormatCanOpenOperations<TModel>
         // Validierung synchron ausführen (wie in 1.9.x)
         if (options?.ValidateBeforeWrite == true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _ensureValidForWrite(model, options);
-        }
-        else if (_ensureValidForWriteAsync != null && CanOpenWriteGuard.ShouldValidateBeforeWrite(options))
-        {
-            await _ensureValidForWriteAsync(model, options, cancellationToken).ConfigureAwait(false);
         }
 
         await _writeStreamAsync(model, stream, cancellationToken).ConfigureAwait(false);
