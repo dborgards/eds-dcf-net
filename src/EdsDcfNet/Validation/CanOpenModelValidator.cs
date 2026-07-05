@@ -49,7 +49,7 @@ public static class CanOpenModelValidator
     public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
         ElectronicDataSheet eds,
         CancellationToken cancellationToken = default)
-        => RunValidationAsync(eds, ValidateEdsCore, cancellationToken);
+        => RunValidationAsync(eds, nameof(eds), ValidateEdsCore, cancellationToken);
 
     /// <summary>
     /// Validates a <see cref="DeviceConfigurationFile"/> instance.
@@ -74,7 +74,7 @@ public static class CanOpenModelValidator
     public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
         DeviceConfigurationFile dcf,
         CancellationToken cancellationToken = default)
-        => RunValidationAsync(dcf, ValidateDcfCore, cancellationToken);
+        => RunValidationAsync(dcf, nameof(dcf), ValidateDcfCore, cancellationToken);
 
     /// <summary>
     /// Validates a <see cref="NodelistProject"/> instance.
@@ -99,14 +99,15 @@ public static class CanOpenModelValidator
     public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
         NodelistProject cpj,
         CancellationToken cancellationToken = default)
-        => RunValidationAsync(cpj, ValidateCpjCore, cancellationToken);
+        => RunValidationAsync(cpj, nameof(cpj), ValidateCpjCore, cancellationToken);
 
     private static Task<IReadOnlyList<ValidationIssue>> RunValidationAsync<T>(
         T model,
+        string paramName,
         Func<T, CancellationToken, ReadOnlyCollection<ValidationIssue>> core,
         CancellationToken cancellationToken)
     {
-        ThrowIfNull(model, nameof(model));
+        ThrowIfNull(model, paramName);
 
         return Task.Run<IReadOnlyList<ValidationIssue>>(() => core(model, cancellationToken), cancellationToken);
     }
