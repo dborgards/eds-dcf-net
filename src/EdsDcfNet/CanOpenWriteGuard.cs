@@ -9,12 +9,31 @@ internal static class CanOpenWriteGuard
 {
     internal static void EnsureValidForWrite<T>(T model, CanOpenWriteOptions? options)
     {
-        if (options?.ValidateBeforeWrite != true)
+        if (!ShouldValidateBeforeWrite(options))
             return;
 
+        ValidateKnownModel(model);
+    }
+
+    internal static Task EnsureValidForWriteAsync<T>(
+        T model,
+        CanOpenWriteOptions? options,
+        CancellationToken cancellationToken = default)
+    {
+        if (!ShouldValidateBeforeWrite(options))
+            return Task.CompletedTask;
+
+        return ValidateKnownModelAsync(model, cancellationToken);
+    }
+
+    internal static bool ShouldValidateBeforeWrite(CanOpenWriteOptions? options) =>
+        options?.ValidateBeforeWrite == true;
+
+    private static void ValidateKnownModel(object? model)
+    {
         ThrowIfNull(model, nameof(model));
 
-        switch (model)
+        switch (model!)
         {
             case ElectronicDataSheet eds:
                 CanOpenFile.EnsureValid(eds);
@@ -27,28 +46,22 @@ internal static class CanOpenWriteGuard
                 break;
             default:
                 throw new ArgumentException(
-                    "Unsupported model type: " + typeof(T).Name,
+                    "Unsupported model type: " + model!.GetType().Name,
                     nameof(model));
         }
     }
 
-    internal static Task EnsureValidForWriteAsync<T>(
-        T model,
-        CanOpenWriteOptions? options,
-        CancellationToken cancellationToken = default)
+    private static Task ValidateKnownModelAsync(object? model, CancellationToken cancellationToken)
     {
-        if (options?.ValidateBeforeWrite != true)
-            return Task.CompletedTask;
-
         ThrowIfNull(model, nameof(model));
 
-        return model switch
+        return model! switch
         {
             ElectronicDataSheet eds => CanOpenFile.EnsureValidAsync(eds, cancellationToken),
             DeviceConfigurationFile dcf => CanOpenFile.EnsureValidAsync(dcf, cancellationToken),
             NodelistProject cpj => CanOpenFile.EnsureValidAsync(cpj, cancellationToken),
             _ => throw new ArgumentException(
-                "Unsupported model type: " + typeof(T).Name,
+                "Unsupported model type: " + model!.GetType().Name,
                 nameof(model))
         };
     }
