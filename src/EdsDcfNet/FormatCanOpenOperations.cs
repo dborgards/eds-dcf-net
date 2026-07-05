@@ -102,18 +102,19 @@ public class FormatCanOpenOperations<TModel>
     /// <param name="model">Model to serialize.</param>
     protected delegate string WriteToStringCallback(TModel model);
 
-    private readonly EnsureValidForWriteCallback _ensureValidForWrite;
-    private readonly EnsureValidForWriteAsyncCallback? _ensureValidForWriteAsync;
-    private readonly ReadFileCallback _readFile;
-    private readonly ReadFileAsyncCallback _readFileAsync;
-    private readonly ReadStringCallback _readString;
-    private readonly ReadStreamCallback _readStream;
-    private readonly ReadStreamAsyncCallback _readStreamAsync;
-    private readonly WriteFileCallback _writeFile;
-    private readonly WriteStreamCallback _writeStream;
-    private readonly WriteFileAsyncCallback _writeFileAsync;
-    private readonly WriteStreamAsyncCallback _writeStreamAsync;
-    private readonly WriteToStringCallback _writeToString;
+    // Felder als Action/Func (nicht delegate-Typen) - vermeidet Typkonflikte
+    private readonly Action<TModel, CanOpenWriteOptions?> _ensureValidForWrite;
+    private readonly Func<TModel, CanOpenWriteOptions?, CancellationToken, Task>? _ensureValidForWriteAsync;
+    private readonly Func<string, long, TModel> _readFile;
+    private readonly Func<string, long, CancellationToken, Task<TModel>> _readFileAsync;
+    private readonly Func<string, long, TModel> _readString;
+    private readonly Func<Stream, long, TModel> _readStream;
+    private readonly Func<Stream, long, CancellationToken, Task<TModel>> _readStreamAsync;
+    private readonly Action<TModel, string> _writeFile;
+    private readonly Action<TModel, Stream> _writeStream;
+    private readonly Func<TModel, string, CancellationToken, Task> _writeFileAsync;
+    private readonly Func<TModel, Stream, CancellationToken, Task> _writeStreamAsync;
+    private readonly Func<TModel, string> _writeToString;
 
     /// <summary>
     /// Initializes format-specific read/write delegates.
@@ -121,8 +122,7 @@ public class FormatCanOpenOperations<TModel>
     /// <remarks>
     /// Parameter types remain <see cref="Action{T}"/>/<see cref="Func{TResult}"/> for
     /// binary compatibility with external subclasses. Named delegate types
-    /// (<see cref="ReadFileCallback"/>, etc.) document the wiring contract on the
-    /// private fields.
+    /// (<see cref="ReadFileCallback"/>, etc.) document the wiring contract.
     /// </remarks>
     protected FormatCanOpenOperations(
         Action<TModel, CanOpenWriteOptions?> ensureValidForWrite,
@@ -169,20 +169,19 @@ public class FormatCanOpenOperations<TModel>
         Func<TModel, string> writeToString,
         Func<TModel, CanOpenWriteOptions?, CancellationToken, Task>? ensureValidForWriteAsync)
     {
-        _ensureValidForWrite = new EnsureValidForWriteCallback(ensureValidForWrite);
-        _ensureValidForWriteAsync = ensureValidForWriteAsync != null
-            ? new EnsureValidForWriteAsyncCallback(ensureValidForWriteAsync)
-            : null;
-        _readFile = new ReadFileCallback(readFile);
-        _readFileAsync = new ReadFileAsyncCallback(readFileAsync);
-        _readString = new ReadStringCallback(readString);
-        _readStream = new ReadStreamCallback(readStream);
-        _readStreamAsync = new ReadStreamAsyncCallback(readStreamAsync);
-        _writeFile = new WriteFileCallback(writeFile);
-        _writeStream = new WriteStreamCallback(writeStream);
-        _writeFileAsync = new WriteFileAsyncCallback(writeFileAsync);
-        _writeStreamAsync = new WriteStreamAsyncCallback(writeStreamAsync);
-        _writeToString = new WriteToStringCallback(writeToString);
+        // Direkte Zuweisung - kein Wrapping, keine NullReferenceException
+        _ensureValidForWrite = ensureValidForWrite;
+        _ensureValidForWriteAsync = ensureValidForWriteAsync;
+        _readFile = readFile;
+        _readFileAsync = readFileAsync;
+        _readString = readString;
+        _readStream = readStream;
+        _readStreamAsync = readStreamAsync;
+        _writeFile = writeFile;
+        _writeStream = writeStream;
+        _writeFileAsync = writeFileAsync;
+        _writeStreamAsync = writeStreamAsync;
+        _writeToString = writeToString;
     }
 
     /// <summary>
@@ -268,7 +267,7 @@ public class FormatCanOpenOperations<TModel>
 
     /// <summary>
     /// Writes to disk asynchronously. When <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/>
-    /// is enabled, validation also runs asynchronously and honors <paramref name="cancellationToken"/>.
+    /// is enabled, validation also runs asynchronously and honors <paramref name="cancellationToken"/>. 
     /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
@@ -302,7 +301,7 @@ public class FormatCanOpenOperations<TModel>
     /// <summary>
     /// Writes to a stream asynchronously. The stream is not disposed. When
     /// <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled, validation also
-    /// runs asynchronously and honors <paramref name="cancellationToken"/>.
+    /// runs asynchronously and honors <paramref name="cancellationToken"/>. 
     /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
