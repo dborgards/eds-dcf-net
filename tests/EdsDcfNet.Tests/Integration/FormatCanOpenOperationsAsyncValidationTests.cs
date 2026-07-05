@@ -4,6 +4,8 @@ using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 
+using EdsDcfNet.Tests.Utilities;
+
 public class FormatCanOpenOperationsAsyncValidationTests
 {
     [Fact]
@@ -11,7 +13,7 @@ public class FormatCanOpenOperationsAsyncValidationTests
     {
         var tracker = new SyncValidationTracker();
         var operations = new SyncOnlyFormatOperations(tracker);
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
         var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
         try
@@ -32,7 +34,7 @@ public class FormatCanOpenOperationsAsyncValidationTests
     {
         var tracker = new SyncValidationTracker();
         var operations = new SyncOnlyFormatOperations(tracker);
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
         using var stream = new MemoryStream();
 
         await operations.WriteStreamAsync(eds, stream, CanOpenWriteOptions.Validated);
@@ -103,7 +105,7 @@ public class FormatCanOpenOperationsAsyncValidationTests
     {
         var tracker = new AsyncValidationTracker();
         var operations = new AsyncDelegateFormatOperations(tracker);
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
         var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
         try
@@ -125,7 +127,7 @@ public class FormatCanOpenOperationsAsyncValidationTests
     {
         var tracker = new AsyncValidationTracker();
         var operations = new AsyncDelegateFormatOperations(tracker);
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
         using var stream = new MemoryStream();
 
         await operations.WriteStreamAsync(eds, stream, CanOpenWriteOptions.Validated);
@@ -133,22 +135,6 @@ public class FormatCanOpenOperationsAsyncValidationTests
         tracker.AsyncCalled.Should().BeTrue();
         tracker.SyncCalled.Should().BeFalse();
         stream.Length.Should().BeGreaterThan(0);
-    }
-
-    private static ElectronicDataSheet CreateValidEds()
-    {
-        var eds = new ElectronicDataSheet();
-        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
-        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
-        {
-            Index = 0x1000,
-            ParameterName = "Device Type",
-            ObjectType = 0x7,
-            DataType = 0x0007,
-            AccessType = AccessType.ReadOnly
-        };
-
-        return eds;
     }
 
     private static ElectronicDataSheet CreateInvalidEds()

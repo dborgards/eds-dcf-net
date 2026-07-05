@@ -6,12 +6,14 @@ using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 
+using EdsDcfNet.Tests.Utilities;
+
 public class WriteValidationGuardTests
 {
     [Fact]
     public void EnsureValid_ValidDcf_DoesNotThrow()
     {
-        var dcf = CreateValidDcf();
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
 
         var act = () => CanOpenFile.EnsureValid(dcf);
 
@@ -192,7 +194,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void EnsureValid_ValidEds_DoesNotThrow()
     {
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
 
         var act = () => CanOpenFile.EnsureValid(eds);
 
@@ -202,7 +204,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void EnsureValid_ValidCpj_DoesNotThrow()
     {
-        var cpj = CreateValidCpj();
+        var cpj = ValidCanOpenModelBuilder.CreateValidCpj();
 
         var act = () => CanOpenFile.EnsureValid(cpj);
 
@@ -212,7 +214,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void Validate_CpjFacade_ReturnsNoIssuesForValidModel()
     {
-        var cpj = CreateValidCpj();
+        var cpj = ValidCanOpenModelBuilder.CreateValidCpj();
 
         CanOpenFile.Validate(cpj).Should().BeEmpty();
     }
@@ -220,7 +222,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteEds_WithValidatedOptions_FilePath_Succeeds()
     {
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
         var tempFile = Path.GetTempFileName();
         try
         {
@@ -239,7 +241,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteEdsToString_WithValidatedOptions_ValidModel_ReturnsContent()
     {
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
 
         var content = CanOpenFile.WriteEdsToString(eds, CanOpenWriteOptions.Validated);
 
@@ -249,7 +251,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteDcf_WithValidatedOptions_FilePath_Succeeds()
     {
-        var dcf = CreateValidDcf();
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
         var tempFile = Path.GetTempFileName();
         try
         {
@@ -267,7 +269,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteDcfToString_WithValidatedOptions_ValidModel_ReturnsContent()
     {
-        var content = CanOpenFile.WriteDcfToString(CreateValidDcf(), CanOpenWriteOptions.Validated);
+        var content = CanOpenFile.WriteDcfToString(ValidCanOpenModelBuilder.CreateValidDcf(), CanOpenWriteOptions.Validated);
 
         content.Should().Contain("[DeviceCommissioning]");
     }
@@ -275,7 +277,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteCpj_WithValidatedOptions_Stream_Succeeds()
     {
-        var cpj = CreateValidCpj();
+        var cpj = ValidCanOpenModelBuilder.CreateValidCpj();
         using var stream = new MemoryStream();
 
         var act = () => CanOpenFile.WriteCpj(cpj, stream, CanOpenWriteOptions.Validated);
@@ -287,7 +289,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteCpjToString_WithValidatedOptions_ValidModel_ReturnsContent()
     {
-        var content = CanOpenFile.WriteCpjToString(CreateValidCpj(), CanOpenWriteOptions.Validated);
+        var content = CanOpenFile.WriteCpjToString(ValidCanOpenModelBuilder.CreateValidCpj(), CanOpenWriteOptions.Validated);
 
         content.Should().Contain("[Topology]");
     }
@@ -295,7 +297,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteXdd_WithValidatedOptions_FilePath_Succeeds()
     {
-        var xdd = CreateValidEds();
+        var xdd = ValidCanOpenModelBuilder.CreateValidEds();
         var tempFile = Path.GetTempFileName();
         try
         {
@@ -313,7 +315,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteXddToString_WithValidatedOptions_ValidModel_ReturnsContent()
     {
-        var content = CanOpenFile.WriteXddToString(CreateValidEds(), CanOpenWriteOptions.Validated);
+        var content = CanOpenFile.WriteXddToString(ValidCanOpenModelBuilder.CreateValidEds(), CanOpenWriteOptions.Validated);
 
         content.Should().Contain("ISO15745ProfileContainer");
     }
@@ -321,7 +323,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteXdc_WithValidatedOptions_FilePath_Succeeds()
     {
-        var xdc = CreateValidDcf();
+        var xdc = ValidCanOpenModelBuilder.CreateValidDcf();
         var tempFile = Path.GetTempFileName();
         try
         {
@@ -339,7 +341,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteXdcToString_WithValidatedOptions_ValidModel_ReturnsContent()
     {
-        var content = CanOpenFile.WriteXdcToString(CreateValidDcf(), CanOpenWriteOptions.Validated);
+        var content = CanOpenFile.WriteXdcToString(ValidCanOpenModelBuilder.CreateValidDcf(), CanOpenWriteOptions.Validated);
 
         content.Should().Contain("ISO15745ProfileContainer");
     }
@@ -388,7 +390,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteXdd_WithValidatedOptions_Stream_Succeeds()
     {
-        var xdd = CreateValidEds();
+        var xdd = ValidCanOpenModelBuilder.CreateValidEds();
         using var stream = new MemoryStream();
 
         var act = () => CanOpenFile.WriteXdd(xdd, stream, CanOpenWriteOptions.Validated);
@@ -417,7 +419,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteXdc_WithValidatedOptions_Stream_Succeeds()
     {
-        var xdc = CreateValidDcf();
+        var xdc = ValidCanOpenModelBuilder.CreateValidDcf();
         using var stream = new MemoryStream();
 
         var act = () => CanOpenFile.WriteXdc(xdc, stream, CanOpenWriteOptions.Validated);
@@ -443,7 +445,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteDcf_WithValidatedOptions_Stream_Succeeds()
     {
-        var dcf = CreateValidDcf();
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
         using var stream = new MemoryStream();
 
         var act = () => CanOpenFile.WriteDcf(dcf, stream, CanOpenWriteOptions.Validated);
@@ -483,11 +485,11 @@ public class WriteValidationGuardTests
     {
         var content = format switch
         {
-            "Eds" => CanOpenFile.Eds.WriteToString(CreateValidEds()),
-            "Dcf" => CanOpenFile.Dcf.WriteToString(CreateValidDcf()),
-            "Cpj" => CanOpenFile.Cpj.WriteToString(CreateValidCpj()),
-            "Xdd" => CanOpenFile.Xdd.WriteToString(CreateValidEds()),
-            "Xdc" => CanOpenFile.Xdc.WriteToString(CreateValidDcf()),
+            "Eds" => CanOpenFile.Eds.WriteToString(ValidCanOpenModelBuilder.CreateValidEds()),
+            "Dcf" => CanOpenFile.Dcf.WriteToString(ValidCanOpenModelBuilder.CreateValidDcf()),
+            "Cpj" => CanOpenFile.Cpj.WriteToString(ValidCanOpenModelBuilder.CreateValidCpj()),
+            "Xdd" => CanOpenFile.Xdd.WriteToString(ValidCanOpenModelBuilder.CreateValidEds()),
+            "Xdc" => CanOpenFile.Xdc.WriteToString(ValidCanOpenModelBuilder.CreateValidDcf()),
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
         };
 
@@ -535,7 +537,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void EdsEntryPoint_WriteFile_LegacySignature_Succeeds()
     {
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
         var tempFile = Path.GetTempFileName();
         try
         {
@@ -554,7 +556,7 @@ public class WriteValidationGuardTests
     [Fact]
     public async Task EdsEntryPoint_WriteStreamAsync_LegacySignature_Succeeds()
     {
-        var eds = CreateValidEds();
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
         using var stream = new MemoryStream();
 
         await CanOpenFile.Eds.WriteStreamAsync(eds, stream);
@@ -588,11 +590,11 @@ public class WriteValidationGuardTests
     {
         var content = format switch
         {
-            "Eds" => CanOpenFile.Eds.WriteToString(CreateValidEds(), CanOpenWriteOptions.Validated),
-            "Dcf" => CanOpenFile.Dcf.WriteToString(CreateValidDcf(), CanOpenWriteOptions.Validated),
-            "Cpj" => CanOpenFile.Cpj.WriteToString(CreateValidCpj(), CanOpenWriteOptions.Validated),
-            "Xdd" => CanOpenFile.Xdd.WriteToString(CreateValidEds(), CanOpenWriteOptions.Validated),
-            "Xdc" => CanOpenFile.Xdc.WriteToString(CreateValidDcf(), CanOpenWriteOptions.Validated),
+            "Eds" => CanOpenFile.Eds.WriteToString(ValidCanOpenModelBuilder.CreateValidEds(), CanOpenWriteOptions.Validated),
+            "Dcf" => CanOpenFile.Dcf.WriteToString(ValidCanOpenModelBuilder.CreateValidDcf(), CanOpenWriteOptions.Validated),
+            "Cpj" => CanOpenFile.Cpj.WriteToString(ValidCanOpenModelBuilder.CreateValidCpj(), CanOpenWriteOptions.Validated),
+            "Xdd" => CanOpenFile.Xdd.WriteToString(ValidCanOpenModelBuilder.CreateValidEds(), CanOpenWriteOptions.Validated),
+            "Xdc" => CanOpenFile.Xdc.WriteToString(ValidCanOpenModelBuilder.CreateValidDcf(), CanOpenWriteOptions.Validated),
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
         };
 
@@ -703,13 +705,13 @@ public class WriteValidationGuardTests
 
         var nullOptionsTask = (Task)ensureValidForWriteAsync.Invoke(
             null,
-            new object?[] { CreateValidEds(), null, CancellationToken.None })!;
+            new object?[] { ValidCanOpenModelBuilder.CreateValidEds(), null, CancellationToken.None })!;
         nullOptionsTask.IsCompletedSuccessfully.Should().BeTrue();
         await nullOptionsTask;
 
         var defaultOptionsTask = (Task)ensureValidForWriteAsync.Invoke(
             null,
-            new object?[] { CreateValidEds(), CanOpenWriteOptions.Default, CancellationToken.None })!;
+            new object?[] { ValidCanOpenModelBuilder.CreateValidEds(), CanOpenWriteOptions.Default, CancellationToken.None })!;
         defaultOptionsTask.IsCompletedSuccessfully.Should().BeTrue();
         await defaultOptionsTask;
     }
@@ -746,9 +748,9 @@ public class WriteValidationGuardTests
     [Fact]
     public async Task EnsureValidForWriteAsync_ValidEdsDcfCpj_DoesNotThrow()
     {
-        await InvokeEnsureValidForWriteAsync(CreateValidEds());
-        await InvokeEnsureValidForWriteAsync(CreateValidDcf());
-        await InvokeEnsureValidForWriteAsync(CreateValidCpj());
+        await InvokeEnsureValidForWriteAsync(ValidCanOpenModelBuilder.CreateValidEds());
+        await InvokeEnsureValidForWriteAsync(ValidCanOpenModelBuilder.CreateValidDcf());
+        await InvokeEnsureValidForWriteAsync(ValidCanOpenModelBuilder.CreateValidCpj());
     }
 
     private static async Task InvokeEnsureValidForWriteAsync<T>(T model)
@@ -783,54 +785,5 @@ public class WriteValidationGuardTests
             ?? throw new InvalidOperationException("EnsureValidForWrite method not found.");
 
         return method.MakeGenericMethod(modelType);
-    }
-
-    private static DeviceConfigurationFile CreateValidDcf()
-    {
-        var dcf = new DeviceConfigurationFile
-        {
-            DeviceCommissioning = new DeviceCommissioning
-            {
-                NodeId = 5,
-                Baudrate = 500
-            }
-        };
-
-        dcf.ObjectDictionary.MandatoryObjects.Add(0x1000);
-        dcf.ObjectDictionary.Objects[0x1000] = new CanOpenObject
-        {
-            Index = 0x1000,
-            ParameterName = "Device Type",
-            ObjectType = 0x7,
-            DataType = 0x0007,
-            AccessType = AccessType.ReadOnly
-        };
-
-        return dcf;
-    }
-
-    private static ElectronicDataSheet CreateValidEds()
-    {
-        var eds = new ElectronicDataSheet();
-        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
-        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
-        {
-            Index = 0x1000,
-            ParameterName = "Device Type",
-            ObjectType = 0x7,
-            DataType = 0x0007,
-            AccessType = AccessType.ReadOnly
-        };
-
-        return eds;
-    }
-
-    private static NodelistProject CreateValidCpj()
-    {
-        var cpj = new NodelistProject();
-        var network = new NetworkTopology { NetName = "Main Network" };
-        network.Nodes[2] = new NetworkNode { NodeId = 2, Present = true, Name = "Node-2" };
-        cpj.Networks.Add(network);
-        return cpj;
     }
 }
