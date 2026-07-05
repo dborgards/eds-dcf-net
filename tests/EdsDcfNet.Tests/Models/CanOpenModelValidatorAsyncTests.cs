@@ -323,4 +323,21 @@ public class CanOpenModelValidatorAsyncTests
 
         return eds;
     }
+
+    [Fact]
+    public async Task ValidateAsync_NullModels_ThrowArgumentNullExceptionWithPublicParameterNames()
+    {
+        // Act
+        var validateEds = () => CanOpenModelValidator.ValidateAsync((ElectronicDataSheet)null!);
+        var validateDcf = () => CanOpenModelValidator.ValidateAsync((DeviceConfigurationFile)null!);
+        var validateCpj = () => CanOpenModelValidator.ValidateAsync((NodelistProject)null!);
+
+        // Assert
+        (await validateEds.Should().ThrowAsync<ArgumentNullException>())
+            .Which.ParamName.Should().Be("eds");
+        (await validateDcf.Should().ThrowAsync<ArgumentNullException>())
+            .Which.ParamName.Should().Be("dcf");
+        (await validateCpj.Should().ThrowAsync<ArgumentNullException>())
+            .Which.ParamName.Should().Be("cpj");
+    }
 }

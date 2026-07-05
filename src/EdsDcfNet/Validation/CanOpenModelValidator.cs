@@ -49,11 +49,7 @@ public static class CanOpenModelValidator
     public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
         ElectronicDataSheet eds,
         CancellationToken cancellationToken = default)
-    {
-        ThrowIfNull(eds, nameof(eds));
-
-        return Task.Run<IReadOnlyList<ValidationIssue>>(() => ValidateEdsCore(eds, cancellationToken), cancellationToken);
-    }
+        => RunValidationAsync(eds, nameof(eds), ValidateEdsCore, cancellationToken);
 
     /// <summary>
     /// Validates a <see cref="DeviceConfigurationFile"/> instance.
@@ -78,11 +74,7 @@ public static class CanOpenModelValidator
     public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
         DeviceConfigurationFile dcf,
         CancellationToken cancellationToken = default)
-    {
-        ThrowIfNull(dcf, nameof(dcf));
-
-        return Task.Run<IReadOnlyList<ValidationIssue>>(() => ValidateDcfCore(dcf, cancellationToken), cancellationToken);
-    }
+        => RunValidationAsync(dcf, nameof(dcf), ValidateDcfCore, cancellationToken);
 
     /// <summary>
     /// Validates a <see cref="NodelistProject"/> instance.
@@ -107,10 +99,17 @@ public static class CanOpenModelValidator
     public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
         NodelistProject cpj,
         CancellationToken cancellationToken = default)
-    {
-        ThrowIfNull(cpj, nameof(cpj));
+        => RunValidationAsync(cpj, nameof(cpj), ValidateCpjCore, cancellationToken);
 
-        return Task.Run<IReadOnlyList<ValidationIssue>>(() => ValidateCpjCore(cpj, cancellationToken), cancellationToken);
+    private static Task<IReadOnlyList<ValidationIssue>> RunValidationAsync<T>(
+        T model,
+        string paramName,
+        Func<T, CancellationToken, ReadOnlyCollection<ValidationIssue>> core,
+        CancellationToken cancellationToken)
+    {
+        ThrowIfNull(model, paramName);
+
+        return Task.Run<IReadOnlyList<ValidationIssue>>(() => core(model, cancellationToken), cancellationToken);
     }
 
     private static ReadOnlyCollection<ValidationIssue> ValidateEdsCore(
@@ -228,7 +227,7 @@ public static class CanOpenModelValidator
     private static void ValidateObjectDictionary(
         ObjectDictionary objectDictionary,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         var classifiedIndices = new HashSet<ushort>();
 
@@ -280,7 +279,7 @@ public static class CanOpenModelValidator
         Dictionary<ushort, CanOpenObject> objects,
         HashSet<ushort> classifiedIndices,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         var seenInCurrentList = new HashSet<ushort>();
         foreach (var index in indexes)
@@ -366,7 +365,7 @@ public static class CanOpenModelValidator
         NetworkTopology network,
         string path,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         ValidateMaxLength(network.NetName, MaxNetworkNameLength, path + ".NetName", issues);
         ValidateMaxLength(network.NetRefd, MaxReferenceNameLength, path + ".NetRefd", issues);
@@ -420,7 +419,7 @@ public static class CanOpenModelValidator
         ApplicationProcess applicationProcess,
         string path,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -523,7 +522,7 @@ public static class CanOpenModelValidator
         HashSet<string> allUniqueIds,
         HashSet<string> dataTypeIds,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         var functionTypeIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < applicationProcess.FunctionTypeList.Count; index++)
@@ -568,7 +567,7 @@ public static class CanOpenModelValidator
         HashSet<string> functionTypeIds,
         HashSet<string> allUniqueIds,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         for (var index = 0; index < applicationProcess.FunctionTypeList.Count; index++)
         {
@@ -601,7 +600,7 @@ public static class CanOpenModelValidator
         HashSet<string> parameterTemplateIds,
         HashSet<string> allowedValuesTemplateIds,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         var parameterIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < applicationProcess.ParameterList.Count; index++)
@@ -646,7 +645,7 @@ public static class CanOpenModelValidator
         HashSet<string> allUniqueIds,
         HashSet<string> parameterIds,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         for (var index = 0; index < applicationProcess.ParameterGroupList.Count; index++)
         {
@@ -667,7 +666,7 @@ public static class CanOpenModelValidator
         HashSet<string> allUniqueIds,
         HashSet<string> dataTypeIds,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         for (var index = 0; index < dataTypeList.Arrays.Count; index++)
         {
@@ -756,7 +755,7 @@ public static class CanOpenModelValidator
         HashSet<string> allUniqueIds,
         HashSet<string> dataTypeIds,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         for (var index = 0; index < templateList.ParameterTemplates.Count; index++)
         {
@@ -782,7 +781,7 @@ public static class CanOpenModelValidator
         HashSet<string> allUniqueIds,
         HashSet<string> dataTypeIds,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         ValidateVarDeclarations(interfaceList.InputVars, path + ".InputVars", allUniqueIds, dataTypeIds, issues, cancellationToken);
         ValidateVarDeclarations(interfaceList.OutputVars, path + ".OutputVars", allUniqueIds, dataTypeIds, issues, cancellationToken);
@@ -795,7 +794,7 @@ public static class CanOpenModelValidator
         HashSet<string> allUniqueIds,
         HashSet<string> dataTypeIds,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         for (var index = 0; index < varDeclarations.Count; index++)
         {
@@ -867,7 +866,7 @@ public static class CanOpenModelValidator
         HashSet<string> allUniqueIds,
         HashSet<string> parameterIds,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         RegisterUniqueId(group.UniqueId, path + ".UniqueId", allUniqueIds, issues);
 
@@ -907,7 +906,7 @@ public static class CanOpenModelValidator
         HashSet<string> functionTypeIds,
         HashSet<string> allUniqueIds,
         List<ValidationIssue> issues,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         for (var index = 0; index < instanceList.FunctionInstances.Count; index++)
         {
