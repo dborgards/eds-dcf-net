@@ -169,19 +169,19 @@ public class FormatCanOpenOperations<TModel>
         Func<TModel, string> writeToString,
         Func<TModel, CanOpenWriteOptions?, CancellationToken, Task>? ensureValidForWriteAsync)
     {
-        // Direkte Zuweisung (kein new DelegatType(...)) - vermeidet NullReferenceException
-        _ensureValidForWrite = ensureValidForWrite;
-        _ensureValidForWriteAsync = ensureValidForWriteAsync;
-        _readFile = readFile;
-        _readFileAsync = readFileAsync;
-        _readString = readString;
-        _readStream = readStream;
-        _readStreamAsync = readStreamAsync;
-        _writeFile = writeFile;
-        _writeStream = writeStream;
-        _writeFileAsync = writeFileAsync;
-        _writeStreamAsync = writeStreamAsync;
-        _writeToString = writeToString;
+        // Null-Check vor dem Wrapping - vermeidet NullReferenceException bei Konstruktion
+        _ensureValidForWrite = ensureValidForWrite != null ? new EnsureValidForWriteCallback(ensureValidForWrite) : null!;
+        _ensureValidForWriteAsync = ensureValidForWriteAsync != null ? new EnsureValidForWriteAsyncCallback(ensureValidForWriteAsync) : null;
+        _readFile = readFile != null ? new ReadFileCallback(readFile) : null!;
+        _readFileAsync = readFileAsync != null ? new ReadFileAsyncCallback(readFileAsync) : null!;
+        _readString = readString != null ? new ReadStringCallback(readString) : null!;
+        _readStream = readStream != null ? new ReadStreamCallback(readStream) : null!;
+        _readStreamAsync = readStreamAsync != null ? new ReadStreamAsyncCallback(readStreamAsync) : null!;
+        _writeFile = writeFile != null ? new WriteFileCallback(writeFile) : null!;
+        _writeStream = writeStream != null ? new WriteStreamCallback(writeStream) : null!;
+        _writeFileAsync = writeFileAsync != null ? new WriteFileAsyncCallback(writeFileAsync) : null!;
+        _writeStreamAsync = writeStreamAsync != null ? new WriteStreamAsyncCallback(writeStreamAsync) : null!;
+        _writeToString = writeToString != null ? new WriteToStringCallback(writeToString) : null!;
     }
 
     /// <summary>
