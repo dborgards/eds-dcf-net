@@ -116,8 +116,9 @@ public static class CanOpenModelValidator
         ElectronicDataSheet eds,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
+        // No entry check: Task.Run in RunValidationAsync already observes a
+        // pre-canceled token before this core runs, and the sync path passes
+        // CancellationToken.None.
         var issues = new List<ValidationIssue>();
         ValidateDeviceInfo(eds.DeviceInfo, issues);
         ValidateObjectDictionary(eds.ObjectDictionary, issues, cancellationToken);
@@ -133,8 +134,6 @@ public static class CanOpenModelValidator
         DeviceConfigurationFile dcf,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         var issues = new List<ValidationIssue>();
         ValidateDeviceInfo(dcf.DeviceInfo, issues);
         ValidateObjectDictionary(dcf.ObjectDictionary, issues, cancellationToken);
@@ -151,8 +150,6 @@ public static class CanOpenModelValidator
         NodelistProject cpj,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         var issues = new List<ValidationIssue>();
         for (var networkIndex = 0; networkIndex < cpj.Networks.Count; networkIndex++)
         {
@@ -259,9 +256,11 @@ public static class CanOpenModelValidator
             ValidateObject(kvp.Key, kvp.Value, issues);
         }
 
+        // One cancellation check for the whole loop: each iteration is a single
+        // HashSet lookup (plus an issue add for unclassified objects).
+        cancellationToken.ThrowIfCancellationRequested();
         foreach (var index in objectDictionary.Objects.Keys)
         {
-            cancellationToken.ThrowIfCancellationRequested();
             if (!classifiedIndices.Contains(index))
             {
                 issues.Add(new ValidationIssue(
@@ -449,16 +448,18 @@ public static class CanOpenModelValidator
                 issues,
                 cancellationToken);
 
+            // One cancellation check per collection is enough for these
+            // ID-registration loops: each iteration is a single HashSet add.
+            cancellationToken.ThrowIfCancellationRequested();
             foreach (var template in applicationProcess.TemplateList.ParameterTemplates)
             {
-                cancellationToken.ThrowIfCancellationRequested();
                 if (!string.IsNullOrEmpty(template.UniqueId))
                     parameterTemplateIds.Add(template.UniqueId);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             foreach (var template in applicationProcess.TemplateList.AllowedValuesTemplates)
             {
-                cancellationToken.ThrowIfCancellationRequested();
                 if (!string.IsNullOrEmpty(template.UniqueId))
                     allowedValuesTemplateIds.Add(template.UniqueId);
             }
@@ -870,9 +871,11 @@ public static class CanOpenModelValidator
     {
         RegisterUniqueId(group.UniqueId, path + ".UniqueId", allUniqueIds, issues);
 
+        // One cancellation check per group: each iteration is a single HashSet
+        // lookup. Recursion into sub-groups below keeps its per-element check.
+        cancellationToken.ThrowIfCancellationRequested();
         foreach (var parameterRef in group.ParameterRefs)
         {
-            cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(parameterRef))
             {
                 issues.Add(new ValidationIssue(path + ".ParameterRefs", "Parameter reference must not be empty."));
