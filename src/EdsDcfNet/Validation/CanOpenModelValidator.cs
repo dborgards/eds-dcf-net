@@ -256,11 +256,12 @@ public static class CanOpenModelValidator
             ValidateObject(kvp.Key, kvp.Value, issues);
         }
 
-        // One cancellation check for the whole loop: each iteration is a single
-        // HashSet lookup (plus an issue add for unclassified objects).
-        cancellationToken.ThrowIfCancellationRequested();
+        // Per-element check stays: every unclassified object formats and
+        // appends an issue, so large invalid dictionaries must observe a
+        // canceled token at each iteration boundary.
         foreach (var index in objectDictionary.Objects.Keys)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!classifiedIndices.Contains(index))
             {
                 issues.Add(new ValidationIssue(
@@ -871,11 +872,12 @@ public static class CanOpenModelValidator
     {
         RegisterUniqueId(group.UniqueId, path + ".UniqueId", allUniqueIds, issues);
 
-        // One cancellation check per group: each iteration is a single HashSet
-        // lookup. Recursion into sub-groups below keeps its per-element check.
-        cancellationToken.ThrowIfCancellationRequested();
+        // Per-element check stays: ParameterRefs is unbounded and each miss
+        // allocates a ValidationIssue, so a single pre-loop check would let a
+        // canceled token walk an arbitrarily large malformed list.
         foreach (var parameterRef in group.ParameterRefs)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(parameterRef))
             {
                 issues.Add(new ValidationIssue(path + ".ParameterRefs", "Parameter reference must not be empty."));
