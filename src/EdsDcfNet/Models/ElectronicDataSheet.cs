@@ -5,7 +5,7 @@ using EdsDcfNet.Validation;
 /// Represents a complete Electronic Data Sheet (EDS) for a CANopen device.
 /// An EDS serves as a template describing the device's capabilities and object dictionary.
 /// </summary>
-public class ElectronicDataSheet
+public class ElectronicDataSheet : ICanOpenFileModel
 {
     /// <summary>
     /// File information section.

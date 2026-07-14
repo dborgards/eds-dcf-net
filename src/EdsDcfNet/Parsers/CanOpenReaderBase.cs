@@ -20,6 +20,76 @@ public abstract class CanOpenReaderBase
     protected abstract string[] KnownSectionNames { get; }
 
     /// <summary>
+    /// Template method that parses all sections shared between EDS and DCF files into
+    /// <paramref name="model"/>. The parse order (FileInfo, DeviceInfo, format-specific
+    /// pre-object sections, ObjectDictionary, Comments, format-specific post-object
+    /// sections, SupportedModules, DynamicChannels, Tools, additional sections) is part
+    /// of the observable behavior: it determines which parse exception surfaces first
+    /// for files with multiple defects and must not change.
+    /// </summary>
+    /// <remarks>
+    /// The shared section parsers in <see cref="CanOpenSectionParsers"/> self-guard
+    /// against absent sections (they default counts to 0 and return empty results, or
+    /// <see langword="null"/> for <c>[DynamicChannels]</c>), so no
+    /// <c>HasSection</c> pre-checks are needed here.
+    /// </remarks>
+    private protected void ParseCommonSections(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+        model.FileInfo = ParseFileInfo(sections);
+        model.DeviceInfo = CanOpenSectionParsers.ParseDeviceInfo(sections);
+        ParsePreObjectDictionarySections(model, sections);
+        model.ObjectDictionary = ParseObjectDictionary(sections);
+        model.Comments = CanOpenSectionParsers.ParseComments(sections);
+        ParsePostObjectDictionarySections(model, sections);
+
+        model.SupportedModules.AddRange(CanOpenSectionParsers.ParseSupportedModules(sections));
+        model.DynamicChannels = CanOpenSectionParsers.ParseDynamicChannels(sections);
+        model.Tools.AddRange(CanOpenSectionParsers.ParseTools(sections));
+
+        // Preserve any unknown sections for round-trip fidelity.
+        foreach (var sectionName in sections.Keys)
+        {
+            if (!IsKnownSection(sectionName) &&
+                !IsToolSectionForParsedTools(sectionName, model.Tools.Count) &&
+                !IsSectionHandledByFormat(sectionName, model))
+            {
+                model.AdditionalSections[sectionName] =
+                    new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extension point for format-specific sections that must be parsed after
+    /// <c>[DeviceInfo]</c> but before the object dictionary (DCF: <c>[DeviceCommissioning]</c>).
+    /// </summary>
+    private protected virtual void ParsePreObjectDictionarySections(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+    }
+
+    /// <summary>
+    /// Extension point for format-specific sections that must be parsed after
+    /// <c>[Comments]</c> but before the shared module/tool sections (DCF: <c>[ConnectedModules]</c>).
+    /// </summary>
+    private protected virtual void ParsePostObjectDictionarySections(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+    }
+
+    /// <summary>
+    /// Extension point that reports whether a section was already captured by
+    /// format-specific parsing and therefore must not be preserved in
+    /// <c>AdditionalSections</c> (DCF: <c>ObjectLinks</c> sections of existing objects).
+    /// </summary>
+    private protected virtual bool IsSectionHandledByFormat(string sectionName, ICanOpenFileModel model)
+        => false;
+
+    /// <summary>
     /// Parses the <c>[FileInfo]</c> section into an <see cref="EdsFileInfo"/> object.
     /// Derived classes may override this to read additional format-specific fields.
     /// </summary>

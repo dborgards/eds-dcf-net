@@ -127,42 +127,8 @@ public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
 
     private ElectronicDataSheet ParseEds(Dictionary<string, Dictionary<string, string>> sections)
     {
-        var eds = new ElectronicDataSheet
-        {
-            FileInfo = ParseFileInfo(sections),
-            DeviceInfo = CanOpenSectionParsers.ParseDeviceInfo(sections),
-            ObjectDictionary = ParseObjectDictionary(sections),
-            Comments = CanOpenSectionParsers.ParseComments(sections)
-        };
-
-        // Parse supported modules if present
-        if (IniParser.HasSection(sections, "SupportedModules"))
-        {
-            eds.SupportedModules.AddRange(CanOpenSectionParsers.ParseSupportedModules(sections));
-        }
-
-        // Parse dynamic channels if present
-        if (IniParser.HasSection(sections, "DynamicChannels"))
-        {
-            eds.DynamicChannels = CanOpenSectionParsers.ParseDynamicChannels(sections);
-        }
-
-        // Parse tools if present
-        if (IniParser.HasSection(sections, "Tools"))
-        {
-            eds.Tools.AddRange(CanOpenSectionParsers.ParseTools(sections));
-        }
-
-        // Parse any additional unknown sections
-        foreach (var sectionName in sections.Keys)
-        {
-            if (!IsKnownSection(sectionName) && !IsToolSectionForParsedTools(sectionName, eds.Tools.Count))
-            {
-                eds.AdditionalSections[sectionName] =
-                    new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
-            }
-        }
-
+        var eds = new ElectronicDataSheet();
+        ParseCommonSections(eds, sections);
         return eds;
     }
 }

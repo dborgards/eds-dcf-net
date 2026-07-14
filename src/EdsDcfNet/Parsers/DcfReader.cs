@@ -121,55 +121,32 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
 
     private DeviceConfigurationFile ParseDcf(Dictionary<string, Dictionary<string, string>> sections)
     {
-        var dcf = new DeviceConfigurationFile
-        {
-            FileInfo = ParseFileInfo(sections),
-            DeviceInfo = CanOpenSectionParsers.ParseDeviceInfo(sections),
-            DeviceCommissioning = ParseDeviceCommissioning(sections),
-            ObjectDictionary = ParseObjectDictionary(sections),
-            Comments = CanOpenSectionParsers.ParseComments(sections)
-        };
-
-        // Parse connected modules if present
-        if (IniParser.HasSection(sections, "ConnectedModules"))
-        {
-            dcf.ConnectedModules.AddRange(ParseConnectedModules(sections));
-        }
-
-        // Parse supported modules if present
-        if (IniParser.HasSection(sections, "SupportedModules"))
-        {
-            dcf.SupportedModules.AddRange(CanOpenSectionParsers.ParseSupportedModules(sections));
-        }
-
-        // Parse dynamic channels if present
-        if (IniParser.HasSection(sections, "DynamicChannels"))
-        {
-            dcf.DynamicChannels = CanOpenSectionParsers.ParseDynamicChannels(sections);
-        }
-
-        // Parse tools if present
-        if (IniParser.HasSection(sections, "Tools"))
-        {
-            dcf.Tools.AddRange(CanOpenSectionParsers.ParseTools(sections));
-        }
-
-        // Parse any additional unknown sections
-        foreach (var sectionName in sections.Keys)
-        {
-            if (!IsKnownSection(sectionName) &&
-                !IsToolSectionForParsedTools(sectionName, dcf.Tools.Count) &&
-                !ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(sectionName, dcf.ObjectDictionary))
-            {
-                dcf.AdditionalSections[sectionName] =
-                    new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
-            }
-        }
-
+        var dcf = new DeviceConfigurationFile();
+        ParseCommonSections(dcf, sections);
         return dcf;
     }
 
     #region DCF-specific overrides
+
+    /// <inheritdoc/>
+    private protected override void ParsePreObjectDictionarySections(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+        ((DeviceConfigurationFile)model).DeviceCommissioning = ParseDeviceCommissioning(sections);
+    }
+
+    /// <inheritdoc/>
+    private protected override void ParsePostObjectDictionarySections(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+        ((DeviceConfigurationFile)model).ConnectedModules.AddRange(ParseConnectedModules(sections));
+    }
+
+    /// <inheritdoc/>
+    private protected override bool IsSectionHandledByFormat(string sectionName, ICanOpenFileModel model)
+        => ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(sectionName, model.ObjectDictionary);
 
     /// <inheritdoc/>
     protected override EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
