@@ -1,0 +1,301 @@
+namespace EdsDcfNet.Tests.Models;
+
+using System.Globalization;
+using EdsDcfNet;
+using EdsDcfNet.Exceptions;
+using EdsDcfNet.Models;
+using EdsDcfNet.Validation;
+using EdsDcfNet.Tests.Utilities;
+
+public class CanOpenModelValidatorAsyncTests
+{
+    [Fact]
+    public async Task ValidateAsync_Dcf_ReturnsSameIssuesAsSync()
+    {
+        // Arrange
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 42 }
+        };
+        dcf.ObjectDictionary.MandatoryObjects.Add(0x1000);
+
+        // Act
+        var syncIssues = CanOpenModelValidator.Validate(dcf);
+        var asyncIssues = await CanOpenModelValidator.ValidateAsync(dcf);
+
+        // Assert
+        asyncIssues.Select(i => i.ToString())
+            .Should().Equal(syncIssues.Select(i => i.ToString()));
+    }
+
+    [Fact]
+    public async Task ValidateAsync_Eds_ReturnsSameIssuesAsSync()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet();
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+
+        // Act
+        var syncIssues = CanOpenModelValidator.Validate(eds);
+        var asyncIssues = await CanOpenModelValidator.ValidateAsync(eds);
+
+        // Assert
+        asyncIssues.Select(i => i.ToString())
+            .Should().Equal(syncIssues.Select(i => i.ToString()));
+    }
+
+    [Fact]
+    public async Task ValidateAsync_Cpj_ReturnsSameIssuesAsSync()
+    {
+        // Arrange
+        var cpj = new NodelistProject();
+        cpj.Networks.Add(new NetworkTopology());
+        cpj.Networks[0].Nodes[0] = new NetworkNode { NodeId = 0, Present = true };
+
+        // Act
+        var syncIssues = CanOpenModelValidator.Validate(cpj);
+        var asyncIssues = await CanOpenModelValidator.ValidateAsync(cpj);
+
+        // Assert
+        asyncIssues.Select(i => i.ToString())
+            .Should().Equal(syncIssues.Select(i => i.ToString()));
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ValidModel_ReturnsNoIssues()
+    {
+        // Arrange
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+
+        // Act
+        var issues = await CanOpenFile.ValidateAsync(eds);
+
+        // Assert
+        issues.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidateAsync_PreCanceledToken_ThrowsOperationCanceled()
+    {
+        // Arrange
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var act = () => CanOpenModelValidator.ValidateAsync(eds, cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task ValidateAsync_LargeModelCanceledMidRun_ThrowsOperationCanceled()
+    {
+        // Arrange — model large enough to hit many per-object cancellation checkpoints
+        var eds = CreateLargeEds(objectCount: 50_000);
+
+        // Act & Assert — start validation, cancel once it is running, retry until observed
+        await AsyncCancellationTestSupport.AssertCanceledMidRunAsync(
+            token => CanOpenModelValidator.ValidateAsync(eds, token));
+    }
+
+    [Fact]
+    public async Task EnsureValidAsync_InvalidDcf_ThrowsModelValidationException()
+    {
+        // Arrange
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+
+        // Act
+        var act = () => CanOpenFile.EnsureValidAsync(dcf);
+
+        // Assert
+        await act.Should().ThrowAsync<ModelValidationException>();
+    }
+
+    [Fact]
+    public async Task EnsureValidAsync_ValidEdsDcfCpj_DoesNotThrow()
+    {
+        await CanOpenFile.EnsureValidAsync(ValidCanOpenModelBuilder.CreateValidEds());
+        await CanOpenFile.EnsureValidAsync(ValidCanOpenModelBuilder.CreateValidDcf());
+        await CanOpenFile.EnsureValidAsync(ValidCanOpenModelBuilder.CreateValidCpj());
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_ValidatedOptions_PreCanceledToken_ThrowsOperationCanceled()
+    {
+        // Arrange — invalid model, but cancellation must win over validation
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+        };
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var act = () => CanOpenFile.Dcf.WriteFileAsync(
+            dcf, Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()),
+            CanOpenWriteOptions.Validated, cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task ValidateAsync_LargeObjectListCanceledMidRun_ThrowsOperationCanceled()
+    {
+        var eds = new ElectronicDataSheet();
+        for (var i = 0; i < 50_000; i++)
+        {
+            var index = (ushort)(0x2000 + i);
+            eds.ObjectDictionary.MandatoryObjects.Add(index);
+            eds.ObjectDictionary.Objects[index] = new CanOpenObject
+            {
+                Index = index,
+                ParameterName = "Mandatory Object " + i.ToString(CultureInfo.InvariantCulture),
+                ObjectType = 0x7,
+                DataType = 0x0007,
+                AccessType = AccessType.ReadOnly
+            };
+        }
+
+        await AsyncCancellationTestSupport.AssertCanceledMidRunAsync(
+            token => CanOpenModelValidator.ValidateAsync(eds, token));
+    }
+
+    [Fact]
+    public async Task ValidateAsync_LargeApplicationProcessCanceledMidRun_ThrowsOperationCanceled()
+    {
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.ApplicationProcess = new ApplicationProcess();
+        for (var i = 0; i < 50_000; i++)
+        {
+            eds.ApplicationProcess.ParameterList.Add(new ApParameter
+            {
+                UniqueId = "P_" + i.ToString(CultureInfo.InvariantCulture)
+            });
+        }
+
+        await AsyncCancellationTestSupport.AssertCanceledMidRunAsync(
+            token => CanOpenModelValidator.ValidateAsync(eds, token));
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_ValidatedOptions_InvalidModel_ThrowsModelValidationException()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet();
+        eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
+        using var stream = new MemoryStream();
+
+        // Act
+        var act = () => CanOpenFile.Eds.WriteStreamAsync(eds, stream, CanOpenWriteOptions.Validated);
+
+        // Assert
+        await act.Should().ThrowAsync<ModelValidationException>();
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_ValidatedOptions_ValidCpj_WritesContent()
+    {
+        var cpj = ValidCanOpenModelBuilder.CreateValidCpj();
+        using var stream = new MemoryStream();
+
+        await CanOpenFile.Cpj.WriteStreamAsync(cpj, stream, CanOpenWriteOptions.Validated);
+
+        stream.Length.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task WriteFileAsync_ValidatedOptions_ValidDcf_WritesContent()
+    {
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+
+        try
+        {
+            await CanOpenFile.Dcf.WriteFileAsync(dcf, tempFile, CanOpenWriteOptions.Validated);
+            File.Exists(tempFile).Should().BeTrue();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_ValidatedOptions_ValidModel_WritesContent()
+    {
+        // Arrange
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        using var stream = new MemoryStream();
+
+        // Act
+        await CanOpenFile.Eds.WriteStreamAsync(eds, stream, CanOpenWriteOptions.Validated);
+
+        // Assert
+        stream.Length.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task WriteStreamAsync_DefaultOptions_SkipsValidationForInvalidModel()
+    {
+        // Arrange
+        var eds = new ElectronicDataSheet();
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Unclassified",
+            ObjectType = 0x7
+        };
+        using var stream = new MemoryStream();
+
+        // Act
+        var act = () => CanOpenFile.Eds.WriteStreamAsync(eds, stream);
+
+        // Assert
+        await act.Should().NotThrowAsync();
+    }
+
+    private static ElectronicDataSheet CreateLargeEds(int objectCount)
+    {
+        var eds = new ElectronicDataSheet();
+        for (var i = 0; i < objectCount; i++)
+        {
+            var index = (ushort)(0x2000 + i);
+
+            eds.ObjectDictionary.ManufacturerObjects.Add(index);
+            eds.ObjectDictionary.Objects[index] = new CanOpenObject
+            {
+                Index = index,
+                ParameterName = "Manufacturer Object " + i.ToString(CultureInfo.InvariantCulture),
+                ObjectType = 0x7,
+                DataType = 0x0007,
+                AccessType = AccessType.ReadWrite
+            };
+        }
+
+        return eds;
+    }
+
+    [Fact]
+    public async Task ValidateAsync_NullModels_ThrowArgumentNullExceptionWithPublicParameterNames()
+    {
+        // Act
+        var validateEds = () => CanOpenModelValidator.ValidateAsync((ElectronicDataSheet)null!);
+        var validateDcf = () => CanOpenModelValidator.ValidateAsync((DeviceConfigurationFile)null!);
+        var validateCpj = () => CanOpenModelValidator.ValidateAsync((NodelistProject)null!);
+
+        // Assert
+        (await validateEds.Should().ThrowAsync<ArgumentNullException>())
+            .Which.ParamName.Should().Be("eds");
+        (await validateDcf.Should().ThrowAsync<ArgumentNullException>())
+            .Which.ParamName.Should().Be("dcf");
+        (await validateCpj.Should().ThrowAsync<ArgumentNullException>())
+            .Which.ParamName.Should().Be("cpj");
+    }
+}

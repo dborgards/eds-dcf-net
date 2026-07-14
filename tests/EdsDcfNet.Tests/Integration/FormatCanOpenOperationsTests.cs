@@ -1,12 +1,27 @@
 namespace EdsDcfNet.Tests.Integration;
 
+using System.Reflection;
 using System.Text;
 using EdsDcfNet;
 using EdsDcfNet.Exceptions;
+using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 
 public class FormatCanOpenOperationsTests
 {
+    [Fact]
+    public void ProtectedConstructor_PreservesElevenArgumentOverloadForBinaryCompatibility()
+    {
+        var formatType = typeof(FormatCanOpenOperations<ElectronicDataSheet>);
+        var constructors = formatType.GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+
+        var elevenArgConstructor = constructors.SingleOrDefault(ctor => ctor.GetParameters().Length == 11);
+        elevenArgConstructor.Should().NotBeNull("subclasses compiled against the previous package must still bind to the 11-argument protected constructor");
+
+        var twelveArgConstructor = constructors.SingleOrDefault(ctor => ctor.GetParameters().Length == 12);
+        twelveArgConstructor.Should().NotBeNull("built-in format classes can opt into async validation via the 12-argument overload");
+    }
+
     private static CanOpenFileOptions DefaultReadOptions =>
         new() { MaxInputSize = IniParser.DefaultMaxInputSize };
 

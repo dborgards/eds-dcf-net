@@ -330,6 +330,19 @@ Current checks include:
 - object dictionary consistency (list membership, duplicates, missing entries)
 - object-level constraints (object type validity, parameter-name length, SubNumber mismatch)
 
+The CiA 306 Node-ID range used by these checks is exposed publicly via
+`CanOpenNodeId`, so consumers can validate or document node IDs without
+duplicating the `1..127` literals:
+
+```csharp
+using EdsDcfNet;
+
+bool valid = CanOpenNodeId.IsInRange(nodeId);          // true for 1..127
+byte min = CanOpenNodeId.MinValue;                     // 1
+byte max = CanOpenNodeId.MaxValue;                     // 127
+string range = CanOpenNodeId.RangeDescription;         // "1..127"
+```
+
 To validate automatically before writing, pass `CanOpenWriteOptions.Validated` to the
 format-specific entry points:
 
@@ -344,6 +357,36 @@ CanOpenFile.Dcf.WriteFile(dcf, "updated.dcf", CanOpenWriteOptions.Validated);
 
 The same option works on `CanOpenFile.Eds`, `.Cpj`, `.Xdd`, and `.Xdc` write methods.
 Legacy `CanOpenFile.WriteDcf(...)` overloads delegate to these entry points.
+
+#### Async validation
+
+For very large models, use the async validation API so validation runs on a
+thread-pool thread with cooperative cancellation instead of blocking the caller:
+
+```csharp
+using EdsDcfNet;
+using EdsDcfNet.Validation;
+
+IReadOnlyList<ValidationIssue> issues = await CanOpenFile.ValidateAsync(dcf, cancellationToken);
+
+// Or throw ModelValidationException on issues:
+await CanOpenFile.EnsureValidAsync(dcf, cancellationToken);
+```
+
+`ValidateAsync` / `EnsureValidAsync` exist for EDS, DCF, and CPJ models. The
+cancellation token is observed at iteration boundaries (per object-dictionary
+entry, per network node), so validation of large models can be cancelled
+mid-run.
+
+Async write methods with `CanOpenWriteOptions.Validated` use this path
+automatically — validation is awaited and honors the write call's
+`CancellationToken`:
+
+```csharp
+await CanOpenFile.Dcf.WriteFileAsync(dcf, "updated.dcf", CanOpenWriteOptions.Validated, cancellationToken);
+```
+
+Synchronous write methods keep the existing synchronous validation behavior.
 
 ### Working with Nodelist Projects (CPJ)
 
@@ -468,6 +511,42 @@ Guidance:
 - Keep the default whenever possible.
 - Increase limits only for trusted sources and known use cases.
 - Set the limit just high enough for your expected maximum file size.
+
+### Options extension pattern (format-specific options)
+
+`CanOpenFileOptions` (read) and `CanOpenWriteOptions` (write) are intentionally
+small, shared across all formats, and hold only cross-format concerns
+(input-size limit, pre-write validation).
+
+When a genuinely **format-specific** option becomes necessary (for example XDD
+XML formatting, INI section ordering, or CPJ network defaults), the agreed
+extension pattern is **derived per-format option types**, not new properties on
+the shared types:
+
+```csharp
+// Pattern (illustrative — implemented only when a concrete option exists):
+public class XddWriteOptions : CanOpenWriteOptions
+{
+    public bool IndentXml { get; init; } = true;
+}
+
+CanOpenFile.Xdd.WriteFile(xdd, "device.xdd", new XddWriteOptions { IndentXml = false });
+```
+
+Rules for adding such an option:
+
+- The shared base types stay limited to cross-format concerns; unrelated
+  format-specific properties must not accumulate on them (IntelliSense on
+  `CanOpenFile.Eds` should never show XDD-only options).
+- The base types are unsealed on demand in the same PR that introduces the
+  first derived type (unsealing is a non-breaking, additive change).
+- The derived type flows through the existing `CanOpenWriteOptions?` /
+  `CanOpenFileOptions?` parameters; the format-specific writer/reader checks
+  for its own derived type. Existing signatures, overload shapes, and
+  parameter names are untouched (see the Public API compatibility checklist
+  in CONTRIBUTING.md).
+- No format-specific option type is added before a concrete requirement
+  exists.
 
 ## Supported Features
 

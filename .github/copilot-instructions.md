@@ -59,6 +59,16 @@ EDS/DCF file → IniParser → EdsReader/DcfReader → Models → DcfWriter → 
 - **Pattern:** Arrange-Act-Assert (AAA)
 - **Fixture data:** `tests/EdsDcfNet.Tests/Fixtures/sample_device.eds`
 
+### Boundary & regression matrix
+
+Changes to **parsers, writers, validators, or converters** must fill in the
+**[Boundary & regression test guide](../CONTRIBUTING.md#boundary--regression-test-guide)**
+matrix from `CONTRIBUTING.md` in the PR description (numeric boundaries,
+round-trip fidelity per format, validation modes, representative fixtures,
+API contract assertions). Boundary tests use the `*_AtMaxValue` /
+`*_ValidatedRoundTrip` naming convention. This is upfront work — do not add
+edge-case tests only reactively (see incidents #305/#313 and #311/#320).
+
 ## Commit Convention
 
 This project uses **Conventional Commits** and **semantic-release** for automated versioning and NuGet publishing. All commit messages **must** follow this format:
@@ -140,6 +150,24 @@ This project uses a **develop → main** integration model:
 - **Merge to `main`** → `semantic-release.yml` runs (build + test + stable release).
 
 Direct commits to `main` or `develop` are not allowed; all changes go through PRs.
+
+## Public API compatibility
+
+When a change touches public surface area on `EdsDcfNet` (for example
+`CanOpenFile`, format entry points, or public models), follow the
+**[Public API compatibility checklist](../CONTRIBUTING.md#public-api-compatibility-checklist)**
+in `CONTRIBUTING.md` before opening a PR. It covers:
+
+- **Binary ABI** — no silent removal of public overloads (see #302)
+- **Named arguments** — parameter names are a source contract; shared generic
+  bases must not rename parameters visible on format entry points (see #314,
+  #321)
+- **Overload shape** — preserve or obsolete every sibling overload in the same
+  PR (see #302, #314)
+- **XML doc / warnings-as-errors** — no new CS15xx/CS16xx under
+  `TreatWarningsAsErrors`
+
+PRs that modify public API should confirm the checklist in the PR template.
 
 ## Code Style
 

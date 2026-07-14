@@ -32,7 +32,8 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
                 new EdsWriter().WriteFileAsync(eds, filePath, cancellationToken),
             (eds, stream, cancellationToken) =>
                 new EdsWriter().WriteStreamAsync(eds, stream, cancellationToken),
-            eds => new EdsWriter().GenerateString(eds))
+            eds => new EdsWriter().GenerateString(eds),
+            CanOpenWriteGuard.EnsureValidForWriteAsync)
     {
     }
 
@@ -123,7 +124,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <summary>
     /// Writes an EDS to disk.
     /// </summary>
-    public new void WriteFile(ElectronicDataSheet eds, string filePath)
+    public override void WriteFile(ElectronicDataSheet eds, string filePath)
         => base.WriteFile(eds, filePath);
 
     /// <summary>
@@ -132,13 +133,13 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new void WriteFile(ElectronicDataSheet eds, string filePath, CanOpenWriteOptions? options)
+    public override void WriteFile(ElectronicDataSheet eds, string filePath, CanOpenWriteOptions? options)
         => base.WriteFile(eds, filePath, options);
 
     /// <summary>
     /// Writes an EDS to a stream. The stream is not disposed.
     /// </summary>
-    public new void WriteStream(ElectronicDataSheet eds, Stream stream)
+    public override void WriteStream(ElectronicDataSheet eds, Stream stream)
         => base.WriteStream(eds, stream);
 
     /// <summary>
@@ -147,13 +148,13 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new void WriteStream(ElectronicDataSheet eds, Stream stream, CanOpenWriteOptions? options)
+    public override void WriteStream(ElectronicDataSheet eds, Stream stream, CanOpenWriteOptions? options)
         => base.WriteStream(eds, stream, options);
 
     /// <summary>
     /// Writes an EDS to disk asynchronously.
     /// </summary>
-    public new Task WriteFileAsync(
+    public override Task WriteFileAsync(
         ElectronicDataSheet eds,
         string filePath,
         CancellationToken cancellationToken = default)
@@ -165,7 +166,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new Task WriteFileAsync(
+    public override Task WriteFileAsync(
         ElectronicDataSheet eds,
         string filePath,
         CanOpenWriteOptions? options,
@@ -175,7 +176,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <summary>
     /// Writes an EDS to a stream asynchronously. The stream is not disposed.
     /// </summary>
-    public new Task WriteStreamAsync(
+    public override Task WriteStreamAsync(
         ElectronicDataSheet eds,
         Stream stream,
         CancellationToken cancellationToken = default)
@@ -187,7 +188,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new Task WriteStreamAsync(
+    public override Task WriteStreamAsync(
         ElectronicDataSheet eds,
         Stream stream,
         CanOpenWriteOptions? options,
@@ -197,7 +198,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <summary>
     /// Serializes an EDS to a string.
     /// </summary>
-    public new string WriteToString(ElectronicDataSheet eds)
+    public override string WriteToString(ElectronicDataSheet eds)
         => base.WriteToString(eds);
 
     /// <summary>
@@ -206,7 +207,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
-    public new string WriteToString(ElectronicDataSheet eds, CanOpenWriteOptions? options)
+    public override string WriteToString(ElectronicDataSheet eds, CanOpenWriteOptions? options)
         => base.WriteToString(eds, options);
 }
 #pragma warning restore CA1822

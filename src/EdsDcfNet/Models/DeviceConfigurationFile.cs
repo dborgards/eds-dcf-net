@@ -5,7 +5,7 @@ using EdsDcfNet.Validation;
 /// Represents a complete Device Configuration File (DCF) for a CANopen device.
 /// A DCF describes a concrete incarnation of a configured device with specific values.
 /// </summary>
-public class DeviceConfigurationFile
+public class DeviceConfigurationFile : ICanOpenFileModel
 {
     /// <summary>
     /// File information section.

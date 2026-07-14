@@ -94,6 +94,54 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Validates an Electronic Data Sheet (EDS) model asynchronously using the full
+    /// <see cref="CanOpenModelValidator"/> rule set. Validation runs on a thread-pool
+    /// thread and observes <paramref name="cancellationToken"/> at iteration boundaries.
+    /// </summary>
+    /// <param name="eds">Model instance to validate</param>
+    /// <param name="cancellationToken">Cancellation token observed during validation</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
+        ElectronicDataSheet eds,
+        CancellationToken cancellationToken = default)
+    {
+        return CanOpenModelValidator.ValidateAsync(eds, cancellationToken);
+    }
+
+    /// <summary>
+    /// Validates a Device Configuration File (DCF) model asynchronously using the full
+    /// <see cref="CanOpenModelValidator"/> rule set. Validation runs on a thread-pool
+    /// thread and observes <paramref name="cancellationToken"/> at iteration boundaries.
+    /// </summary>
+    /// <param name="dcf">Model instance to validate</param>
+    /// <param name="cancellationToken">Cancellation token observed during validation</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
+        DeviceConfigurationFile dcf,
+        CancellationToken cancellationToken = default)
+    {
+        return CanOpenModelValidator.ValidateAsync(dcf, cancellationToken);
+    }
+
+    /// <summary>
+    /// Validates a nodelist project (CPJ) model asynchronously using the full
+    /// <see cref="CanOpenModelValidator"/> rule set. Validation runs on a thread-pool
+    /// thread and observes <paramref name="cancellationToken"/> at iteration boundaries.
+    /// </summary>
+    /// <param name="cpj">Model instance to validate</param>
+    /// <param name="cancellationToken">Cancellation token observed during validation</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
+        NodelistProject cpj,
+        CancellationToken cancellationToken = default)
+    {
+        return CanOpenModelValidator.ValidateAsync(cpj, cancellationToken);
+    }
+
+    /// <summary>
     /// Validates an EDS model and throws <see cref="ModelValidationException"/> when issues are found.
     /// </summary>
     /// <param name="eds">Model instance to validate</param>
@@ -101,6 +149,21 @@ public static class CanOpenFile
     public static void EnsureValid(ElectronicDataSheet eds)
     {
         ThrowIfInvalid(Validate(eds));
+    }
+
+    /// <summary>
+    /// Validates an EDS model asynchronously and throws <see cref="ModelValidationException"/>
+    /// when issues are found.
+    /// </summary>
+    /// <param name="eds">Model instance to validate</param>
+    /// <param name="cancellationToken">Cancellation token observed during validation</param>
+    /// <exception cref="ModelValidationException">Thrown when validation issues are found.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    public static async Task EnsureValidAsync(
+        ElectronicDataSheet eds,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfInvalid(await ValidateAsync(eds, cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>
@@ -114,6 +177,21 @@ public static class CanOpenFile
     }
 
     /// <summary>
+    /// Validates a DCF model asynchronously and throws <see cref="ModelValidationException"/>
+    /// when issues are found.
+    /// </summary>
+    /// <param name="dcf">Model instance to validate</param>
+    /// <param name="cancellationToken">Cancellation token observed during validation</param>
+    /// <exception cref="ModelValidationException">Thrown when validation issues are found.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    public static async Task EnsureValidAsync(
+        DeviceConfigurationFile dcf,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfInvalid(await ValidateAsync(dcf, cancellationToken).ConfigureAwait(false));
+    }
+
+    /// <summary>
     /// Validates a CPJ model and throws <see cref="ModelValidationException"/> when issues are found.
     /// </summary>
     /// <param name="cpj">Model instance to validate</param>
@@ -121,6 +199,21 @@ public static class CanOpenFile
     public static void EnsureValid(NodelistProject cpj)
     {
         ThrowIfInvalid(Validate(cpj));
+    }
+
+    /// <summary>
+    /// Validates a CPJ model asynchronously and throws <see cref="ModelValidationException"/>
+    /// when issues are found.
+    /// </summary>
+    /// <param name="cpj">Model instance to validate</param>
+    /// <param name="cancellationToken">Cancellation token observed during validation</param>
+    /// <exception cref="ModelValidationException">Thrown when validation issues are found.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    public static async Task EnsureValidAsync(
+        NodelistProject cpj,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfInvalid(await ValidateAsync(cpj, cancellationToken).ConfigureAwait(false));
     }
 
     #region EDS Read

@@ -27,7 +27,7 @@ public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
         string filePath,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromFile(filePath, maxInputSize);
+        var sections = IniParser.ParseFile(filePath, maxInputSize);
         return ParseEds(sections);
     }
 
@@ -45,7 +45,7 @@ public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
         Stream stream,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromStream(stream, maxInputSize);
+        var sections = IniParser.ParseStream(stream, maxInputSize);
         return ParseEds(sections);
     }
 
@@ -72,7 +72,7 @@ public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
         long maxInputSize,
         CancellationToken cancellationToken = default)
     {
-        var sections = await ParseSectionsFromFileAsync(filePath, maxInputSize, cancellationToken).ConfigureAwait(false);
+        var sections = await IniParser.ParseFileAsync(filePath, maxInputSize, cancellationToken).ConfigureAwait(false);
         return ParseEds(sections);
     }
 
@@ -107,7 +107,7 @@ public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
         long maxInputSize,
         CancellationToken cancellationToken = default)
     {
-        var sections = await ParseSectionsFromStreamAsync(stream, maxInputSize, cancellationToken).ConfigureAwait(false);
+        var sections = await IniParser.ParseStreamAsync(stream, maxInputSize, cancellationToken).ConfigureAwait(false);
         return ParseEds(sections);
     }
 
@@ -121,48 +121,14 @@ public class EdsReader : CanOpenReaderBase, IFileReader<ElectronicDataSheet>
         string content,
         long maxInputSize = ReaderDefaults.DefaultMaxInputSize)
     {
-        var sections = ParseSectionsFromString(content, maxInputSize);
+        var sections = IniParser.ParseString(content, maxInputSize);
         return ParseEds(sections);
     }
 
     private ElectronicDataSheet ParseEds(Dictionary<string, Dictionary<string, string>> sections)
     {
-        var eds = new ElectronicDataSheet
-        {
-            FileInfo = ParseFileInfo(sections),
-            DeviceInfo = ParseDeviceInfo(sections),
-            ObjectDictionary = ParseObjectDictionary(sections),
-            Comments = ParseComments(sections)
-        };
-
-        // Parse supported modules if present
-        if (IniParser.HasSection(sections, "SupportedModules"))
-        {
-            eds.SupportedModules.AddRange(ParseSupportedModules(sections));
-        }
-
-        // Parse dynamic channels if present
-        if (IniParser.HasSection(sections, "DynamicChannels"))
-        {
-            eds.DynamicChannels = ParseDynamicChannels(sections);
-        }
-
-        // Parse tools if present
-        if (IniParser.HasSection(sections, "Tools"))
-        {
-            eds.Tools.AddRange(ParseTools(sections));
-        }
-
-        // Parse any additional unknown sections
-        foreach (var sectionName in sections.Keys)
-        {
-            if (!IsKnownSection(sectionName) && !IsToolSectionForParsedTools(sectionName, eds.Tools.Count))
-            {
-                eds.AdditionalSections[sectionName] =
-                    new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
-            }
-        }
-
+        var eds = new ElectronicDataSheet();
+        ParseCommonSections(eds, sections);
         return eds;
     }
 }
