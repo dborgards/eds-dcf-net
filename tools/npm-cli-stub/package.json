@@ -1,0 +1,10 @@
+{
+  "name": "eds-npm-cli-stub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PATH-forwarding stub that replaces the transitive npm CLI package from @semantic-release/npm. Removes the vulnerable bundled brace-expansion/tar tree from release tooling; EdsDcfNet publishes NuGet via @semantic-release/exec and does not use the npm publish plugin.",
+  "bin": {
+    "npm": "bin/npm.js",
+    "npx": "bin/npx.js"
+  }
+}
