@@ -87,8 +87,8 @@ public static class ObjectDictionaryExtensions
     public static object? GetParameterValueAsObject(this ObjectDictionary objDict, ushort index, byte? nodeId = null)
     {
         var obj = objDict.GetObject(index);
-        var value = obj?.ParameterValue ?? obj?.DefaultValue;
-        if (IsMissingValue(value, obj?.DataType))
+        var value = ResolveParameterOrDefaultValue(obj?.ParameterValue, obj?.DefaultValue, obj?.DataType);
+        if (value is null)
         {
             return null;
         }
@@ -98,7 +98,7 @@ public static class ObjectDictionaryExtensions
             throw new InvalidOperationException($"Object 0x{index:X4} does not define a CANopen data type.");
         }
 
-        return CanOpenValueConverter.Parse(value!, obj.DataType.Value, nodeId);
+        return CanOpenValueConverter.Parse(value, obj.DataType.Value, nodeId);
     }
 
     /// <summary>
@@ -115,8 +115,8 @@ public static class ObjectDictionaryExtensions
     public static object? GetParameterValueAsObject(this ObjectDictionary objDict, ushort index, byte subIndex, byte? nodeId = null)
     {
         var subObj = objDict.GetSubObject(index, subIndex);
-        var value = subObj?.ParameterValue ?? subObj?.DefaultValue;
-        if (IsMissingValue(value, subObj?.DataType))
+        var value = ResolveParameterOrDefaultValue(subObj?.ParameterValue, subObj?.DefaultValue, subObj?.DataType);
+        if (value is null)
         {
             return null;
         }
@@ -129,7 +129,7 @@ public static class ObjectDictionaryExtensions
                 $"Sub-object 0x{index:X4}:{subIndex:X2} does not define a CANopen data type.");
         }
 
-        return CanOpenValueConverter.Parse(value!, subObj.DataType, nodeId);
+        return CanOpenValueConverter.Parse(value, subObj.DataType, nodeId);
     }
 
     /// <summary>
@@ -275,6 +275,26 @@ public static class ObjectDictionaryExtensions
         {
             throw new ArgumentNullException(parameterName);
         }
+    }
+
+    /// <summary>
+    /// Prefers a non-missing configured value, otherwise a non-missing default value.
+    /// Empty/whitespace handling is applied per field so a blank ParameterValue does not
+    /// block fallback to a usable DefaultValue.
+    /// </summary>
+    private static string? ResolveParameterOrDefaultValue(string? parameterValue, string? defaultValue, ushort? dataType)
+    {
+        if (!IsMissingValue(parameterValue, dataType))
+        {
+            return parameterValue;
+        }
+
+        if (!IsMissingValue(defaultValue, dataType))
+        {
+            return defaultValue;
+        }
+
+        return null;
     }
 
     /// <summary>

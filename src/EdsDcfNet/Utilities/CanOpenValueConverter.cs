@@ -110,12 +110,16 @@ public static class CanOpenValueConverter
     private static bool ParseBoolean(string value)
     {
         var normalized = value.Trim();
-        if (normalized == "1" || normalized.Equals("true", StringComparison.OrdinalIgnoreCase))
+        if (normalized == "1"
+            || normalized.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("yes", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        if (normalized == "0" || normalized.Equals("false", StringComparison.OrdinalIgnoreCase))
+        if (normalized == "0"
+            || normalized.Equals("false", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("no", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }

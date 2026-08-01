@@ -12,8 +12,12 @@ public class TypedObjectDictionaryValueTests
     {
         { "1", 0x0001, true },
         { "true", 0x0001, true },
+        { "yes", 0x0001, true },
+        { "YES", 0x0001, true },
         { "0", 0x0001, false },
         { "false", 0x0001, false },
+        { "no", 0x0001, false },
+        { "No", 0x0001, false },
         { "0xFF", 0x0002, (sbyte)-1 },
         { "017", 0x0002, (sbyte)15 },
         { "0377", 0x0002, (sbyte)-1 },
@@ -473,6 +477,21 @@ public class TypedObjectDictionaryValueTests
 
         dictionary.GetParameterValueAsObject(0x2000).Should().BeNull();
         dictionary.GetParameterValueAsObject(0x1018, 1).Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void GetParameterValueAsObject_BlankParameterValue_FallsBackToDefault(string blankParameter)
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x2000].ParameterValue = blankParameter;
+        dictionary.Objects[0x2000].DefaultValue = "10";
+        dictionary.Objects[0x1018].SubObjects[1].ParameterValue = blankParameter;
+        dictionary.Objects[0x1018].SubObjects[1].DefaultValue = "20";
+
+        dictionary.GetParameterValueAsObject(0x2000).Should().Be((byte)10);
+        dictionary.GetParameterValueAsObject(0x1018, 1).Should().Be(20U);
     }
 
     [Fact]
