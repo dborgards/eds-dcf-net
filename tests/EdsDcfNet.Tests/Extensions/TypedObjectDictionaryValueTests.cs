@@ -411,12 +411,21 @@ public class TypedObjectDictionaryValueTests
         CanOpenValueConverter.Format(value, 0x0001).Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(0x0003)] // INTEGER16
-    [InlineData(0x0007)] // UNSIGNED32
-    public void Format_FractionalValueForIntegerType_ThrowsArgumentException(ushort dataType)
+    public static TheoryData<object, ushort> FractionalValues => new()
     {
-        var act = () => CanOpenValueConverter.Format(1.5, dataType);
+        { 1.5D, 0x0003 },  // double -> INTEGER16
+        { 1.5F, 0x0003 },  // float -> INTEGER16
+        { 1.5M, 0x0003 },  // decimal -> INTEGER16
+        { 1.5D, 0x0007 },  // double -> UNSIGNED32
+        { 1.5F, 0x0007 },  // float -> UNSIGNED32
+        { 1.5M, 0x0007 }   // decimal -> UNSIGNED32
+    };
+
+    [Theory]
+    [MemberData(nameof(FractionalValues))]
+    public void Format_FractionalValueForIntegerType_ThrowsArgumentException(object value, ushort dataType)
+    {
+        var act = () => CanOpenValueConverter.Format(value, dataType);
 
         act.Should().Throw<ArgumentException>().WithMessage($"*0x{dataType:X4}*");
     }
