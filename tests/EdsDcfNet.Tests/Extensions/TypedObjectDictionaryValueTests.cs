@@ -415,6 +415,62 @@ public class TypedObjectDictionaryValueTests
         CanOpenValueConverter.Parse("$NODEID+0x100", 0x0004, nodeId: 2).Should().Be(0x102);
     }
 
+    [Fact]
+    public void Parse_NodeIdSubtractionForSignedType_YieldsNegativeValue()
+    {
+        CanOpenValueConverter.Parse("$NODEID-2", 0x0002, nodeId: 1).Should().Be((sbyte)-1);
+        CanOpenValueConverter.Parse("$NODEID-0x10", 0x0004, nodeId: 2).Should().Be(-14);
+    }
+
+    [Fact]
+    public void Parse_NodeIdSubtractionOutsideSignedRange_ThrowsOverflowException()
+    {
+        var act = () => CanOpenValueConverter.Parse("$NODEID-200", 0x0002, nodeId: 1);
+
+        act.Should().Throw<OverflowException>();
+    }
+
+    [Fact]
+    public void Parse_SignedNodeIdFormulaWithoutNodeId_ThrowsNotSupportedException()
+    {
+        var act = () => CanOpenValueConverter.Parse("$NODEID+1", 0x0004);
+
+        act.Should().Throw<NotSupportedException>().WithMessage("*node ID*");
+    }
+
+    [Theory]
+    [InlineData("$NODEID+")]
+    [InlineData("$NODEID*2")]
+    [InlineData("$NODEID+1+1")]
+    public void Parse_MalformedSignedNodeIdFormula_ThrowsFormatException(string formula)
+    {
+        var act = () => CanOpenValueConverter.Parse(formula, 0x0004, nodeId: 1);
+
+        act.Should().Throw<FormatException>();
+    }
+
+    [Fact]
+    public void Parse_BareNodeIdTokenForSignedType_ReturnsNodeId()
+    {
+        CanOpenValueConverter.Parse("$NODEID", 0x0004, nodeId: 5).Should().Be(5);
+    }
+
+    [Fact]
+    public void GetParameterValue_NodeIdPassedByName_ReadsObjectLevelValue()
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x2002] = new CanOpenObject
+        {
+            Index = 0x2002,
+            DataType = 0x0007,
+            DefaultValue = "$NODEID+0x200"
+        };
+
+        // The second positional argument is always the sub-index, so nodeId must be named.
+        dictionary.GetParameterValue<uint>(0x2002, nodeId: 5).Should().Be(0x205U);
+        dictionary.GetParameterValueAsObject(0x2002, nodeId: 5).Should().Be(0x205U);
+    }
+
     [Theory]
     [InlineData(2)]
     [InlineData(-1)]

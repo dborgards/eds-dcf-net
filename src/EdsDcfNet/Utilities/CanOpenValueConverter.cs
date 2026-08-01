@@ -157,7 +157,7 @@ public static class CanOpenValueConverter
         long result;
         if (trimmed.StartsWith("$NODEID", StringComparison.OrdinalIgnoreCase))
         {
-            result = ValueConverter.ParseInteger(trimmed, nodeId);
+            result = EvaluateSignedNodeIdFormula(trimmed, nodeId);
             ValidateSignedRange(result, bits);
             return result;
         }
@@ -272,6 +272,44 @@ public static class CanOpenValueConverter
 
     private static bool IsOctal(string value) =>
         value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]);
+
+    /// <summary>
+    /// Evaluates a <c>$NODEID</c> formula in signed arithmetic so subtraction can yield
+    /// negative values for signed target types (e.g. <c>$NODEID-2</c> with node ID 1 is -1).
+    /// The unsigned evaluator in <see cref="ValueConverter.ParseInteger"/> would underflow.
+    /// </summary>
+    private static long EvaluateSignedNodeIdFormula(string formula, byte? nodeId)
+    {
+        if (!nodeId.HasValue)
+        {
+            throw new NotSupportedException(
+                $"Cannot evaluate $NODEID formula '{formula}' without a node ID context.");
+        }
+
+        const string token = "$NODEID";
+        var suffix = formula[token.Length..].Trim();
+        if (suffix.Length == 0)
+        {
+            return nodeId.Value;
+        }
+
+        if (suffix[0] is '+' or '-')
+        {
+            var rightSide = suffix[1..].Trim();
+            if (rightSide.Length == 0 || rightSide.Contains('+') || rightSide.Contains('-'))
+            {
+                throw new FormatException(
+                    $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
+            }
+
+            // Reuse the existing unsigned literal parser for the operand, then combine in signed math.
+            var right = (long)ValueConverter.ParseInteger(rightSide);
+            return suffix[0] == '+' ? nodeId.Value + right : nodeId.Value - right;
+        }
+
+        throw new FormatException(
+            $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
+    }
 
     private static byte[] ParseByteString(string value)
     {
