@@ -51,6 +51,13 @@ for EDS/DCF/CPJ/XDD/XDC via `CanOpenFileOptions`.
 Guideline: keep the default for untrusted inputs and raise limits only as needed for
 trusted, known-large payloads.
 
+### XML Nesting Depth Limits (XDD/XDC)
+
+`SecureXmlParser` additionally caps `XmlReader.Depth` when loading XDD/XDC documents
+(default **64**). Deeply nested but still small well-formed trees can otherwise cause
+high CPU cost under the size limit alone. Typical CiA 311 profiles are far shallower
+(around depth 8). Exceeding the limit fails with `EdsParseException` during parse.
+
 ## 8.2 Culture Independence (InvariantCulture)
 
 CANopen INI/XML files are culture-independent. Numeric values use deterministic formats and must not depend on OS locale.

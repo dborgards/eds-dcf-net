@@ -14,6 +14,13 @@ internal static class SecureXmlParser
 {
     internal const long DefaultMaxInputSize = ReaderDefaults.DefaultMaxInputSize;
 
+    /// <summary>
+    /// Default maximum allowed <see cref="XmlReader.Depth"/> for XDD/XDC parsing.
+    /// Root elements have depth 0. CiA 311 profiles are typically around depth 8;
+    /// 64 blocks deep-nesting DoS payloads while remaining generous for real files.
+    /// </summary>
+    internal const int DefaultMaxDepth = 64;
+
     internal static void EnsureFileWithinSizeLimit(
         string filePath,
         string formatName,
@@ -37,16 +44,27 @@ internal static class SecureXmlParser
         string content,
         string formatName,
         string parseErrorMessage,
-        long maxInputSize = DefaultMaxInputSize)
+        long maxInputSize = DefaultMaxInputSize,
+        int maxDepth = DefaultMaxDepth)
     {
         EnsureContentWithinSizeLimit(content, formatName, maxInputSize);
+        if (maxDepth < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxDepth),
+                maxDepth,
+                "Maximum XML nesting depth must be non-negative.");
+        }
 
         try
         {
             var settings = CreateSecureReaderSettings(maxInputSize);
             using var stringReader = new StringReader(content);
-            using var xmlReader = XmlReader.Create(stringReader, settings);
-            return XDocument.Load(xmlReader, LoadOptions.None);
+            using var depthLimitedReader = new DepthLimitingXmlReader(
+                XmlReader.Create(stringReader, settings),
+                maxDepth,
+                formatName);
+            return XDocument.Load(depthLimitedReader, LoadOptions.None);
         }
         catch (XmlException ex)
         {
@@ -207,5 +225,82 @@ internal static class SecureXmlParser
         if (value == null)
             throw new ArgumentNullException(parameterName);
 #endif
+    }
+
+    /// <summary>
+    /// Forwards to an inner <see cref="XmlReader"/> and rejects nodes whose
+    /// <see cref="XmlReader.Depth"/> exceeds a configured maximum.
+    /// </summary>
+    private sealed class DepthLimitingXmlReader : XmlReader
+    {
+        private readonly XmlReader _inner;
+        private readonly int _maxDepth;
+        private readonly string _formatName;
+
+        public DepthLimitingXmlReader(XmlReader inner, int maxDepth, string formatName)
+        {
+            _inner = inner;
+            _maxDepth = maxDepth;
+            _formatName = formatName;
+        }
+
+        public override XmlNodeType NodeType => _inner.NodeType;
+        public override string LocalName => _inner.LocalName;
+        public override string NamespaceURI => _inner.NamespaceURI;
+        public override string Prefix => _inner.Prefix;
+        public override string Value => _inner.Value;
+        public override int Depth => _inner.Depth;
+        public override string BaseURI => _inner.BaseURI;
+        public override bool IsEmptyElement => _inner.IsEmptyElement;
+        public override int AttributeCount => _inner.AttributeCount;
+        public override bool EOF => _inner.EOF;
+        public override ReadState ReadState => _inner.ReadState;
+        public override XmlNameTable NameTable => _inner.NameTable;
+
+        public override string? GetAttribute(string name) => _inner.GetAttribute(name);
+        public override string? GetAttribute(string name, string? namespaceURI) => _inner.GetAttribute(name, namespaceURI);
+        public override string GetAttribute(int i) => _inner.GetAttribute(i);
+
+        public override bool MoveToAttribute(string name) => _inner.MoveToAttribute(name);
+        public override bool MoveToAttribute(string name, string? ns) => _inner.MoveToAttribute(name, ns);
+        public override void MoveToAttribute(int i) => _inner.MoveToAttribute(i);
+        public override bool MoveToFirstAttribute() => _inner.MoveToFirstAttribute();
+        public override bool MoveToNextAttribute() => _inner.MoveToNextAttribute();
+        public override bool MoveToElement() => _inner.MoveToElement();
+        public override bool ReadAttributeValue() => _inner.ReadAttributeValue();
+
+        public override string? LookupNamespace(string prefix) => _inner.LookupNamespace(prefix);
+        public override void ResolveEntity() => _inner.ResolveEntity();
+
+        public override bool Read()
+        {
+            if (!_inner.Read())
+                return false;
+
+            EnsureDepthWithinLimit();
+            return true;
+        }
+
+        public override void Close() => _inner.Close();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                _inner.Dispose();
+            base.Dispose(disposing);
+        }
+
+        private void EnsureDepthWithinLimit()
+        {
+            if (_inner.Depth <= _maxDepth)
+                return;
+
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} content exceeds the maximum XML nesting depth of {1}.",
+                    _formatName,
+                    _maxDepth));
+        }
     }
 }
