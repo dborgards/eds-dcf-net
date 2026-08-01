@@ -245,6 +245,16 @@ public static class CanOpenValueConverter
             throw new InvalidCastException(
                 $"Value '{value}' is a floating-point number and cannot be stored in an integer CANopen data type without loss.");
         }
+
+        // Only genuine integral numeric types are allowed. bool, char, strings, and other
+        // convertible types must be rejected: BOOLEAN is a separate CANopen data type, so
+        // e.g. SetParameterValue(index, true) must not silently write 1 to an UNSIGNED8.
+        if (value is not (sbyte or byte or short or ushort or int or uint or long or ulong))
+        {
+            throw new InvalidCastException(
+                $"Value of type {value.GetType().Name} cannot be stored in an integer CANopen data type. " +
+                "Provide an integral numeric value.");
+        }
     }
 
     private static void ValidateSignedRange(long value, int bits)

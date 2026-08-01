@@ -484,6 +484,37 @@ public class TypedObjectDictionaryValueTests
         CanOpenValueConverter.Parse("$NODEID-2", 0x0005, nodeId: 10).Should().Be((byte)8);
     }
 
+    [Theory]
+    [InlineData(0x0005)] // UNSIGNED8
+    [InlineData(0x0004)] // INTEGER16
+    public void Format_BooleanForIntegerType_ThrowsInvalidCastException(ushort dataType)
+    {
+        // BOOLEAN is a separate CANopen data type; true must not silently become 1.
+        var act = () => CanOpenValueConverter.Format(true, dataType);
+
+        act.Should().Throw<InvalidCastException>().WithMessage("*integral*");
+    }
+
+    [Theory]
+    [InlineData(0x0005)]
+    [InlineData(0x0003)]
+    public void Format_CharForIntegerType_ThrowsInvalidCastException(ushort dataType)
+    {
+        var act = () => CanOpenValueConverter.Format('1', dataType);
+
+        act.Should().Throw<InvalidCastException>().WithMessage("*integral*");
+    }
+
+    [Fact]
+    public void SetParameterValue_BooleanForUnsignedObject_ThrowsInvalidCastException()
+    {
+        var dictionary = CreateDictionary();
+
+        var act = () => dictionary.SetParameterValue(0x2000, (object)true);
+
+        act.Should().Throw<InvalidCastException>();
+    }
+
     [Fact]
     public void Parse_UnsignedNodeIdFormulaWithoutNodeId_ThrowsNotSupportedException()
     {
