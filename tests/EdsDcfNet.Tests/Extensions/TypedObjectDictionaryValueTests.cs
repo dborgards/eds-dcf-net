@@ -456,6 +456,86 @@ public class TypedObjectDictionaryValueTests
     }
 
     [Fact]
+    public void Parse_NodeIdFormulaWithLargeOffset_SupportsWideUnsignedTypes()
+    {
+        // Offsets beyond the 32-bit range must survive for UNSIGNED40..UNSIGNED64.
+        CanOpenValueConverter.Parse("$NODEID+0x100000000", 0x001B, nodeId: 2).Should().Be(0x100000002UL);
+        CanOpenValueConverter.Parse("$NODEID+0xFF00000000", 0x0018, nodeId: 1).Should().Be(0xFF00000001UL);
+    }
+
+    [Fact]
+    public void Parse_NodeIdFormulaWithLargeOffset_SupportsWideSignedTypes()
+    {
+        CanOpenValueConverter.Parse("$NODEID+0x100000000", 0x0015, nodeId: 2).Should().Be(0x100000002L);
+        CanOpenValueConverter.Parse("$NODEID-0x100000000", 0x0015, nodeId: 1).Should().Be(-0xFFFFFFFFL);
+    }
+
+    [Fact]
+    public void Parse_UnsignedNodeIdSubtractionBelowZero_ThrowsOverflowException()
+    {
+        var act = () => CanOpenValueConverter.Parse("$NODEID-2", 0x0005, nodeId: 1);
+
+        act.Should().Throw<OverflowException>();
+    }
+
+    [Fact]
+    public void Parse_UnsignedNodeIdSubtractionWithinRange_ReturnsDifference()
+    {
+        CanOpenValueConverter.Parse("$NODEID-2", 0x0005, nodeId: 10).Should().Be((byte)8);
+    }
+
+    [Fact]
+    public void Parse_UnsignedNodeIdFormulaWithoutNodeId_ThrowsNotSupportedException()
+    {
+        var act = () => CanOpenValueConverter.Parse("$NODEID+1", 0x0007);
+
+        act.Should().Throw<NotSupportedException>().WithMessage("*node ID*");
+    }
+
+    [Fact]
+    public void Parse_BareNodeIdTokenForUnsignedType_ReturnsNodeId()
+    {
+        CanOpenValueConverter.Parse("$NODEID", 0x0007, nodeId: 9).Should().Be(9U);
+    }
+
+    [Theory]
+    [InlineData("$NODEID-")]
+    [InlineData("$NODEID/2")]
+    [InlineData("$NODEID+abc")]
+    [InlineData("$NODEID+1-1")]
+    public void Parse_MalformedUnsignedNodeIdFormula_ThrowsFormatException(string formula)
+    {
+        // The typed converter must consistently throw FormatException, never EdsParseException.
+        var act = () => CanOpenValueConverter.Parse(formula, 0x0007, nodeId: 1);
+
+        act.Should().Throw<FormatException>();
+    }
+
+    [Fact]
+    public void Parse_SignedNodeIdOperandOutsideSigned64Range_ThrowsOverflowException()
+    {
+        var act = () => CanOpenValueConverter.Parse("$NODEID-0xFFFFFFFFFFFFFFFF", 0x0015, nodeId: 1);
+
+        act.Should().Throw<OverflowException>();
+    }
+
+    [Fact]
+    public void Parse_SignedNodeIdAdditionOverflowingInt64_ThrowsOverflowException()
+    {
+        var act = () => CanOpenValueConverter.Parse("$NODEID+0x7FFFFFFFFFFFFFFF", 0x0015, nodeId: 1);
+
+        act.Should().Throw<OverflowException>();
+    }
+
+    [Fact]
+    public void Parse_UnsignedNodeIdAdditionOverflowingUInt64_ThrowsOverflowException()
+    {
+        var act = () => CanOpenValueConverter.Parse("$NODEID+0xFFFFFFFFFFFFFFFF", 0x001B, nodeId: 1);
+
+        act.Should().Throw<OverflowException>();
+    }
+
+    [Fact]
     public void GetParameterValue_NodeIdPassedByName_ReadsObjectLevelValue()
     {
         var dictionary = CreateDictionary();

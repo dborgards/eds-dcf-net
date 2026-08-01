@@ -203,19 +203,19 @@ public static class CanOpenValueConverter
         ulong result;
         if (trimmed.StartsWith("$NODEID", StringComparison.OrdinalIgnoreCase))
         {
-            result = ValueConverter.ParseInteger(trimmed, nodeId);
+            result = EvaluateUnsignedNodeIdFormula(trimmed, nodeId);
         }
         else if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
         {
-            result = ulong.Parse(trimmed[2..], NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture);
+            result = ParseUnsignedLiteral(trimmed);
         }
         else if (IsOctal(trimmed))
         {
-            result = Convert.ToUInt64(trimmed, 8);
+            result = ParseUnsignedLiteral(trimmed);
         }
         else
         {
-            result = ulong.Parse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture);
+            result = ParseUnsignedLiteral(trimmed);
         }
 
         ValidateUnsignedRange(result, bits);
@@ -274,11 +274,31 @@ public static class CanOpenValueConverter
         value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]);
 
     /// <summary>
-    /// Evaluates a <c>$NODEID</c> formula in signed arithmetic so subtraction can yield
-    /// negative values for signed target types (e.g. <c>$NODEID-2</c> with node ID 1 is -1).
-    /// The unsigned evaluator in <see cref="ValueConverter.ParseInteger"/> would underflow.
+    /// Parses an unsigned integer literal (decimal, hexadecimal, or octal) into a
+    /// <see cref="ulong"/> so 40/48/56/64-bit values are preserved.
     /// </summary>
-    private static long EvaluateSignedNodeIdFormula(string formula, byte? nodeId)
+    private static ulong ParseUnsignedLiteral(string trimmed)
+    {
+        if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            return ulong.Parse(trimmed[2..], NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture);
+        }
+
+        if (IsOctal(trimmed))
+        {
+            return Convert.ToUInt64(trimmed, 8);
+        }
+
+        return ulong.Parse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Splits a <c>$NODEID</c> formula into its operator and unsigned operand. The operand is
+    /// parsed as <see cref="ulong"/> so 40/48/56/64-bit offsets are preserved, and malformed
+    /// input consistently surfaces as <see cref="FormatException"/> like other literals in
+    /// this converter.
+    /// </summary>
+    private static (char? Operator, ulong Operand) SplitNodeIdFormula(string formula, byte? nodeId)
     {
         if (!nodeId.HasValue)
         {
@@ -290,7 +310,7 @@ public static class CanOpenValueConverter
         var suffix = formula[token.Length..].Trim();
         if (suffix.Length == 0)
         {
-            return nodeId.Value;
+            return (null, 0);
         }
 
         if (suffix[0] is '+' or '-')
@@ -302,13 +322,52 @@ public static class CanOpenValueConverter
                     $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
             }
 
-            // Reuse the existing unsigned literal parser for the operand, then combine in signed math.
-            var right = (long)ValueConverter.ParseInteger(rightSide);
-            return suffix[0] == '+' ? nodeId.Value + right : nodeId.Value - right;
+            return (suffix[0], ParseUnsignedLiteral(rightSide));
         }
 
         throw new FormatException(
             $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
+    }
+
+    /// <summary>
+    /// Evaluates a <c>$NODEID</c> formula in signed 64-bit arithmetic so subtraction can yield
+    /// negative values for signed target types (e.g. <c>$NODEID-2</c> with node ID 1 is -1).
+    /// </summary>
+    private static long EvaluateSignedNodeIdFormula(string formula, byte? nodeId)
+    {
+        var (op, operand) = SplitNodeIdFormula(formula, nodeId);
+        if (op is null)
+        {
+            return nodeId!.Value;
+        }
+
+        if (operand > long.MaxValue)
+        {
+            throw new OverflowException($"$NODEID formula '{formula}' has an operand outside the signed 64-bit range.");
+        }
+
+        // Fold the sign into the operand so a single checked addition covers both cases.
+        // Only addition can overflow: the node ID is at most 255 and the negated operand
+        // is at least -long.MaxValue, so subtraction stays within the signed 64-bit range.
+        var signedOperand = op.Value == '+' ? (long)operand : -(long)operand;
+        return checked(nodeId!.Value + signedOperand);
+    }
+
+    /// <summary>
+    /// Evaluates a <c>$NODEID</c> formula in unsigned 64-bit arithmetic so 40/48/56/64-bit
+    /// offsets are preserved. Subtraction below zero raises <see cref="OverflowException"/>.
+    /// </summary>
+    private static ulong EvaluateUnsignedNodeIdFormula(string formula, byte? nodeId)
+    {
+        var (op, operand) = SplitNodeIdFormula(formula, nodeId);
+        return op switch
+        {
+            null => nodeId!.Value,
+            '+' => checked(nodeId!.Value + operand),
+            _ => nodeId!.Value >= operand
+                ? nodeId!.Value - operand
+                : throw new OverflowException($"$NODEID formula '{formula}' underflows the unsigned value range.")
+        };
     }
 
     private static byte[] ParseByteString(string value)
