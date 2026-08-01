@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Extensions;
 
+using System.Globalization;
 using EdsDcfNet.Extensions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
@@ -885,6 +886,142 @@ public class TypedObjectDictionaryValueTests
         var act = () => dictionary.GetParameterValue<byte>(0x9999);
 
         act.Should().Throw<KeyNotFoundException>().WithMessage("*0x9999*");
+    }
+
+    [Theory]
+    [InlineData(0x0008)] // REAL32
+    [InlineData(0x0011)] // REAL64
+    public void Format_PositiveInfinityForRealType_ThrowsArgumentException(ushort dataType)
+    {
+        var act = () => CanOpenValueConverter.Format(double.PositiveInfinity, dataType);
+
+        act.Should().Throw<ArgumentException>().WithInnerException<OverflowException>();
+    }
+
+    [Theory]
+    [InlineData(0x0008)]
+    [InlineData(0x0011)]
+    public void Format_NegativeInfinityForRealType_ThrowsArgumentException(ushort dataType)
+    {
+        var act = () => CanOpenValueConverter.Format(double.NegativeInfinity, dataType);
+
+        act.Should().Throw<ArgumentException>().WithInnerException<OverflowException>();
+    }
+
+    [Theory]
+    [InlineData(0x0008)]
+    [InlineData(0x0011)]
+    public void Format_NaNForRealType_ThrowsArgumentException(ushort dataType)
+    {
+        var act = () => CanOpenValueConverter.Format(double.NaN, dataType);
+
+        act.Should().Throw<ArgumentException>().WithInnerException<FormatException>();
+    }
+
+    public static TheoryData<object> Real32OverflowingInputs => new()
+    {
+        double.MaxValue,
+        double.MinValue,
+        3.5e40D,
+        -3.5e40D
+    };
+
+    [Theory]
+    [MemberData(nameof(Real32OverflowingInputs))]
+    public void Format_WiderValueOutsideReal32Range_ThrowsArgumentException(object value)
+    {
+        // Convert.ToSingle saturates to infinity instead of throwing, so the converted
+        // result must be validated explicitly (see PR #393 review feedback).
+        var act = () => CanOpenValueConverter.Format(value, 0x0008);
+
+        act.Should().Throw<ArgumentException>()
+            .WithInnerException<OverflowException>()
+            .WithMessage("*REAL32*");
+    }
+
+    [Fact]
+    public void Format_Real32AtMaxValue_IsAccepted()
+    {
+        CanOpenValueConverter.Format(float.MaxValue, 0x0008)
+            .Should().Be(float.MaxValue.ToString("R", CultureInfo.InvariantCulture));
+        CanOpenValueConverter.Format(float.MinValue, 0x0008)
+            .Should().Be(float.MinValue.ToString("R", CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public void Format_Real64AtMaxValue_IsAccepted()
+    {
+        CanOpenValueConverter.Format(double.MaxValue, 0x0011)
+            .Should().Be(double.MaxValue.ToString("R", CultureInfo.InvariantCulture));
+        CanOpenValueConverter.Format(double.MinValue, 0x0011)
+            .Should().Be(double.MinValue.ToString("R", CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public void SetParameterValue_Real32OverflowingValue_DoesNotPersistInfinity()
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x2004] = new CanOpenObject
+        {
+            Index = 0x2004,
+            DataType = 0x0008,
+            ParameterValue = "1.5"
+        };
+
+        var act = () => dictionary.SetParameterValue(0x2004, (object)double.MaxValue);
+
+        act.Should().Throw<ArgumentException>();
+        dictionary.Objects[0x2004].ParameterValue.Should().Be("1.5");
+    }
+
+    [Theory]
+    [InlineData("3.5e40", 0x0008)]   // saturates float.Parse to +Infinity
+    [InlineData("-3.5e40", 0x0008)]  // saturates float.Parse to -Infinity
+    [InlineData("3.5e400", 0x0011)]  // saturates double.Parse to +Infinity
+    [InlineData("-3.5e400", 0x0011)]
+    public void Parse_RealLiteralOutsideRange_ThrowsOverflowException(string value, ushort dataType)
+    {
+        // float.Parse/double.Parse saturate to infinity rather than throwing, so a value that
+        // cannot be represented must not silently round-trip as Infinity.
+        var act = () => CanOpenValueConverter.Parse(value, dataType);
+
+        act.Should().Throw<OverflowException>();
+    }
+
+    [Theory]
+    [InlineData("NaN", 0x0008)]
+    [InlineData("NaN", 0x0011)]
+    [InlineData("Infinity", 0x0008)]
+    [InlineData("-Infinity", 0x0011)]
+    public void Parse_NonFiniteRealLiteral_ThrowsFormatOrOverflowException(string value, ushort dataType)
+    {
+        var act = () => CanOpenValueConverter.Parse(value, dataType);
+
+        act.Should().Throw<Exception>().Which.Should().Match(ex => ex is FormatException || ex is OverflowException);
+    }
+
+    [Fact]
+    public void Parse_RealAtMaxValue_RoundTripsThroughFormat()
+    {
+        var real32 = CanOpenValueConverter.Format(float.MaxValue, 0x0008);
+        CanOpenValueConverter.Parse(real32, 0x0008).Should().Be(float.MaxValue);
+
+        var real64 = CanOpenValueConverter.Format(double.MaxValue, 0x0011);
+        CanOpenValueConverter.Parse(real64, 0x0011).Should().Be(double.MaxValue);
+    }
+
+    [Fact]
+    public void Format_NonByteArrayForOctetString_MessageDoesNotMentionDomain()
+    {
+        // DOMAIN is rejected earlier with NotSupportedException, so naming it here would
+        // mislead callers debugging a type mismatch (see PR #393 review feedback).
+        var act = () => CanOpenValueConverter.Format("not bytes", 0x000A);
+
+        var inner = act.Should().Throw<ArgumentException>()
+            .WithInnerException<InvalidCastException>().Which;
+        inner.Message.Should().Contain("OCTET_STRING");
+        inner.Message.Should().Contain("String");
+        inner.Message.Should().NotContain("DOMAIN");
     }
 
     private static ObjectDictionary CreateDictionary()

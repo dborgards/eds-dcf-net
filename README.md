@@ -108,9 +108,11 @@ parameter ranges.
 
 Typed value conversion covers BOOLEAN, signed and unsigned integers (including the CANopen
 24/40/48/56-bit types), REAL32/REAL64, VISIBLE_STRING, UNICODE_STRING, and OCTET_STRING.
-Numeric ranges are validated when setting values. DOMAIN entries are excluded because DCF
-files reference their payload through `UploadFile`/`DownloadFile` instead of an inline
-value; use those properties directly. The original string overloads
+Numeric ranges are validated when setting values, and REAL32/REAL64 values must be finite:
+`NaN` and values that overflow the target range (for example `double.MaxValue` on a REAL32
+entry) are rejected instead of being written as `Infinity`. DOMAIN entries are excluded
+because DCF files reference their payload through `UploadFile`/`DownloadFile` instead of an
+inline value; use those properties directly. The original string overloads
 remain available when an application needs exact control of the serialized representation.
 
 ### Writing an EDS File

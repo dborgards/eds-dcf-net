@@ -26,6 +26,9 @@ public static class CanOpenValueConverter
     /// <remarks>
     /// Integer values may use decimal, hexadecimal (<c>0x</c>), octal notation, or
     /// <c>$NODEID</c> formulas. Empty or whitespace-only integer literals are treated as zero.
+    /// REAL32/REAL64 values must be finite: <c>NaN</c> and literals that saturate to infinity
+    /// (for example <c>3.5e40</c> for REAL32) are rejected because EDS/DCF has no
+    /// interoperable representation for them.
     /// OCTET_STRING values are returned as <see cref="byte"/> arrays when written as
     /// hexadecimal literals. DOMAIN is not supported because DCF files reference its payload
     /// through <c>UploadFile</c>/<c>DownloadFile</c> instead of an inline value.
@@ -45,12 +48,12 @@ public static class CanOpenValueConverter
             0x0005 => (byte)ParseUnsignedInteger(value, 8, nodeId),
             0x0006 => (ushort)ParseUnsignedInteger(value, 16, nodeId),
             0x0007 => (uint)ParseUnsignedInteger(value, 32, nodeId),
-            0x0008 => float.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture),
+            0x0008 => ParseReal32(value),
             0x0009 => value,
             0x000A => ParseByteString(value),
             0x000B => value,
             0x0010 => (int)ParseSignedInteger(value, 24, nodeId),
-            0x0011 => double.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture),
+            0x0011 => ParseReal64(value),
             0x0012 => ParseSignedInteger(value, 40, nodeId),
             0x0013 => ParseSignedInteger(value, 48, nodeId),
             0x0014 => ParseSignedInteger(value, 56, nodeId),
@@ -70,6 +73,12 @@ public static class CanOpenValueConverter
     /// <summary>
     /// Formats a .NET value according to its CANopen data type index for storage in an EDS/DCF model.
     /// </summary>
+    /// <remarks>
+    /// REAL32/REAL64 values must be finite. <c>NaN</c> and infinities are rejected, including
+    /// inputs that only become infinite through the narrowing conversion (for example
+    /// <see cref="double.MaxValue"/> for a REAL32 entry), so a value that cannot be represented
+    /// is never persisted as <c>Infinity</c>.
+    /// </remarks>
     public static string Format(object value, ushort dataType)
     {
         EnsureNotNull(value, nameof(value));
@@ -268,13 +277,60 @@ public static class CanOpenValueConverter
     private static string FormatReal32(object value)
     {
         EnsureNumeric(value);
-        return Convert.ToSingle(value, CultureInfo.InvariantCulture).ToString("R", CultureInfo.InvariantCulture);
+        var converted = Convert.ToSingle(value, CultureInfo.InvariantCulture);
+        EnsureFiniteReal(float.IsNaN(converted), float.IsInfinity(converted), value, 32);
+        return converted.ToString("R", CultureInfo.InvariantCulture);
     }
 
     private static string FormatReal64(object value)
     {
         EnsureNumeric(value);
-        return Convert.ToDouble(value, CultureInfo.InvariantCulture).ToString("R", CultureInfo.InvariantCulture);
+        var converted = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+        EnsureFiniteReal(double.IsNaN(converted), double.IsInfinity(converted), value, 64);
+        return converted.ToString("R", CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Parses a REAL32 literal. <c>float.Parse</c> saturates out-of-range literals such as
+    /// <c>3.5e40</c> to infinity instead of throwing, so the result is validated explicitly.
+    /// </summary>
+    private static float ParseReal32(string value)
+    {
+        var parsed = float.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
+        EnsureFiniteReal(float.IsNaN(parsed), float.IsInfinity(parsed), value.Trim(), 32);
+        return parsed;
+    }
+
+    /// <summary>
+    /// Parses a REAL64 literal. <c>double.Parse</c> saturates out-of-range literals such as
+    /// <c>3.5e400</c> to infinity instead of throwing, so the result is validated explicitly.
+    /// </summary>
+    private static double ParseReal64(string value)
+    {
+        var parsed = double.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
+        EnsureFiniteReal(double.IsNaN(parsed), double.IsInfinity(parsed), value.Trim(), 64);
+        return parsed;
+    }
+
+    /// <summary>
+    /// Rejects REAL32/REAL64 values that are not finite. EDS/DCF stores REAL values as plain
+    /// numeric literals, so <c>NaN</c> and infinities have no interoperable representation.
+    /// Infinity is reported as <see cref="OverflowException"/> because it is also what a
+    /// narrowing conversion silently produces when a wider input such as
+    /// <see cref="double.MaxValue"/> exceeds the finite <see cref="float"/> range; without this
+    /// check the value would be persisted as <c>Infinity</c>.
+    /// </summary>
+    private static void EnsureFiniteReal(bool isNaN, bool isInfinity, object value, int bits)
+    {
+        if (isNaN)
+        {
+            throw new FormatException($"'{value}' is not a valid CANopen REAL{bits} value.");
+        }
+
+        if (isInfinity)
+        {
+            throw new OverflowException($"Value '{value}' is outside the finite REAL{bits} range.");
+        }
     }
 
     /// <summary>
@@ -460,7 +516,12 @@ public static class CanOpenValueConverter
     {
         if (value is not byte[] bytes)
         {
-            throw new InvalidCastException("OCTET_STRING and DOMAIN values must be supplied as byte arrays.");
+            // DOMAIN (0x000F) is rejected earlier with NotSupportedException, so OCTET_STRING
+            // is the only data type that reaches this conversion. Do not mention DOMAIN here:
+            // it misleads callers debugging a type mismatch.
+            throw new InvalidCastException(
+                "OCTET_STRING values must be supplied as byte arrays, but a value of type " +
+                $"{value.GetType().Name} was provided.");
         }
 
         const string hexDigits = "0123456789ABCDEF";
