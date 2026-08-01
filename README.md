@@ -10,9 +10,16 @@
 A comprehensive, easy-to-use C# .NET library for CANopen file formats:
 CiA DS 306 (EDS, DCF, CPJ) and CiA 311 (XDD, XDC).
 
+EdsDcfNet exposes the CANopen **Object Dictionary as a fully typed, editable API**.
+Applications can inspect, query, create, and configure objects and sub-objects directly;
+the library is not limited to file conversion or lossless round-trips.
+
 ## Features
 
 ✨ **Simple API** - Intuitive, fluent API style for quick integration
+
+🗂️ **First-Class Object Dictionary API** - Query, create, and modify CANopen objects,
+sub-objects, object lists, data types, access rights, defaults, and configured values
 
 📖 **Read & Write EDS** - Parse and generate Electronic Data Sheets
 
@@ -45,6 +52,66 @@ Console.WriteLine($"Device: {eds.DeviceInfo.ProductName}");
 Console.WriteLine($"Vendor: {eds.DeviceInfo.VendorName}");
 Console.WriteLine($"Product Number: 0x{eds.DeviceInfo.ProductNumber:X}");
 ```
+
+### Working with the CANopen Object Dictionary
+
+Every EDS, DCF, XDD, and XDC model exposes its parsed object dictionary through
+`ObjectDictionary`. It is an application-facing model, not merely parser state: use it
+to inspect device capabilities, find objects and sub-objects by index, evaluate default
+or configured values, update a DCF configuration, or build an object dictionary in code.
+
+```csharp
+using EdsDcfNet;
+using EdsDcfNet.Extensions;
+using EdsDcfNet.Models;
+
+var dcf = CanOpenFile.Dcf.ReadFile("configured_device.dcf");
+var dictionary = dcf.ObjectDictionary;
+
+// Query objects and sub-objects by their CANopen index.
+var deviceType = dictionary.GetObject(0x1000);
+var mappingEntry = dictionary.GetSubObject(0x1A00, 0x01);
+
+Console.WriteLine(deviceType?.ParameterName);
+
+// Read values as object or as a strongly typed value. The .NET type is derived
+// automatically from DataType in the Object Dictionary.
+object? rawDeviceType = dictionary.GetParameterValueAsObject(0x1000); // uint for UNSIGNED32
+uint mapping = dictionary.GetParameterValue<uint>(0x1A00, 0x01);
+
+// Pass a .NET value directly. It is validated against the OD data type and converted
+// to the textual ParameterValue representation persisted by the writer.
+if (!dictionary.SetParameterValue(0x1A00, 0x01, 0x60000108U))
+    throw new InvalidOperationException("TPDO mapping entry 0x1A00:01 is missing.");
+
+// Create a manufacturer-specific object programmatically.
+dictionary.ManufacturerObjects.Add(0x2000);
+dictionary.Objects[0x2000] = new CanOpenObject
+{
+    Index = 0x2000,
+    ParameterName = "Application mode",
+    ObjectType = 0x07,       // VAR
+    DataType = 0x0005,       // UNSIGNED8
+    AccessType = AccessType.ReadWrite,
+    DefaultValue = "0",
+    ParameterValue = "1",
+    PdoMapping = true
+};
+
+CanOpenFile.Dcf.WriteFile(dcf, "configured_device_updated.dcf");
+```
+
+The model distinguishes mandatory, optional, and manufacturer-specific object lists and
+represents ARRAY and RECORD entries through typed `CanOpenSubObject` instances. Convenience
+extensions also provide category queries and access to RPDO/TPDO communication and mapping
+parameter ranges.
+
+Typed value conversion covers BOOLEAN, signed and unsigned integers (including the CANopen
+24/40/48/56-bit types), REAL32/REAL64, VISIBLE_STRING, UNICODE_STRING, and OCTET_STRING.
+Numeric ranges are validated when setting values. DOMAIN entries are excluded because DCF
+files reference their payload through `UploadFile`/`DownloadFile` instead of an inline
+value; use those properties directly. The original string overloads
+remain available when an application needs exact control of the serialized representation.
 
 ### Writing an EDS File
 
@@ -550,6 +617,12 @@ Rules for adding such an option:
 
 ## Supported Features
 
+- ✅ First-class, editable CANopen Object Dictionary model for EDS, DCF, XDD, and XDC
+- ✅ Indexed lookup, creation, and modification of objects and sub-objects
+- ✅ Mandatory, optional, and manufacturer-specific object lists
+- ✅ Default values and DCF/XDC configured parameter values
+- ✅ Automatic conversion between OD data types and .NET values, with range validation
+- ✅ Helpers for RPDO/TPDO communication and mapping parameters
 - ✅ Complete EDS parsing and writing
 - ✅ Complete DCF parsing and writing
 - ✅ CPJ nodelist project parsing and writing (CiA 306-3 network topologies)
