@@ -257,8 +257,8 @@ internal static class SecureXmlParser
         public override ReadState ReadState => _inner.ReadState;
         public override XmlNameTable NameTable => _inner.NameTable;
 
-        public override string GetAttribute(string name) => _inner.GetAttribute(name)!;
-        public override string GetAttribute(string name, string? namespaceURI) => _inner.GetAttribute(name, namespaceURI)!;
+        public override string? GetAttribute(string name) => _inner.GetAttribute(name);
+        public override string? GetAttribute(string name, string? namespaceURI) => _inner.GetAttribute(name, namespaceURI);
         public override string GetAttribute(int i) => _inner.GetAttribute(i);
 
         public override bool MoveToAttribute(string name) => _inner.MoveToAttribute(name);
