@@ -3,6 +3,7 @@ namespace EdsDcfNet.Tests.Parsers;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Parsers;
@@ -12,6 +13,11 @@ public class SecureXmlParserTests
     private static readonly Type SecureXmlParserType =
         typeof(XddReader).Assembly.GetType("EdsDcfNet.Parsers.SecureXmlParser")
         ?? throw new InvalidOperationException("Internal type EdsDcfNet.Parsers.SecureXmlParser not found.");
+
+    private static readonly Type DepthLimitingXmlReaderType =
+        SecureXmlParserType.GetNestedType("DepthLimitingXmlReader", BindingFlags.NonPublic)
+        ?? throw new InvalidOperationException(
+            "Internal type EdsDcfNet.Parsers.SecureXmlParser+DepthLimitingXmlReader not found.");
 
     [Fact]
     public void ReadContentFromStreamWithLimit_ValidStream_ReturnsContent()
@@ -197,6 +203,64 @@ public class SecureXmlParserTests
     }
 
     [Fact]
+    public void DepthLimitingXmlReader_ForwardingMembers_DelegateToInner()
+    {
+        // XDocument.Load does not exercise every XmlReader abstract member.
+        // Drive the remaining forwarding overrides directly so patch coverage
+        // includes the DepthLimitingXmlReader wrapper surface.
+        const string xml = """
+            <root xmlns:p="urn:eds-dcf-net:test" p:attr="ns-value" id="42">
+              text
+            </root>
+            """;
+
+        using var stringReader = new StringReader(xml);
+        var inner = XmlReader.Create(
+            stringReader,
+            new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null
+            });
+        // DepthLimitingXmlReader owns and disposes the inner reader.
+        using var reader = CreateDepthLimitingXmlReader(inner, maxDepth: 8, formatName: "XDD");
+
+        reader.Read().Should().BeTrue(); // move to <root>
+        reader.NodeType.Should().Be(XmlNodeType.Element);
+
+        reader.Depth.Should().Be(0);
+        _ = reader.BaseURI;
+        reader.AttributeCount.Should().Be(3);
+        reader.NameTable.Should().NotBeNull();
+
+        reader.GetAttribute("id").Should().Be("42");
+        reader.GetAttribute("attr", "urn:eds-dcf-net:test").Should().Be("ns-value");
+        reader.GetAttribute(0).Should().NotBeNullOrEmpty();
+
+        reader.MoveToAttribute("id").Should().BeTrue();
+        reader.Value.Should().Be("42");
+        reader.MoveToElement().Should().BeTrue();
+
+        reader.MoveToAttribute("attr", "urn:eds-dcf-net:test").Should().BeTrue();
+        reader.Value.Should().Be("ns-value");
+        reader.MoveToElement().Should().BeTrue();
+
+        reader.MoveToAttribute(0);
+        reader.ReadAttributeValue().Should().BeTrue();
+        reader.MoveToElement().Should().BeTrue();
+
+        reader.LookupNamespace("p").Should().Be("urn:eds-dcf-net:test");
+
+        var resolveEntity = () => reader.ResolveEntity();
+        resolveEntity.Should().Throw<InvalidOperationException>();
+
+        reader.Close();
+        reader.ReadState.Should().Be(ReadState.Closed);
+
+        InvokeDispose(reader, disposing: false);
+    }
+
+    [Fact]
     public void EnsureFileWithinSizeLimit_TooLarge_ThrowsEdsParseException()
     {
         var tempFile = Path.GetTempFileName();
@@ -234,6 +298,34 @@ public class SecureXmlParserTests
             parseErrorMessage,
             maxInputSize,
             maxDepth);
+    }
+
+    private static XmlReader CreateDepthLimitingXmlReader(
+        XmlReader inner,
+        int maxDepth,
+        string formatName)
+    {
+        var instance = Activator.CreateInstance(
+            DepthLimitingXmlReaderType,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+            binder: null,
+            args: [inner, maxDepth, formatName],
+            culture: null);
+
+        return (XmlReader)instance!;
+    }
+
+    private static void InvokeDispose(XmlReader reader, bool disposing)
+    {
+        var dispose = typeof(XmlReader).GetMethod(
+            "Dispose",
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            types: [typeof(bool)],
+            modifiers: null)
+            ?? throw new InvalidOperationException("XmlReader.Dispose(bool) not found.");
+
+        dispose.Invoke(reader, [disposing]);
     }
 
     private static T Invoke<T>(string methodName, params object?[] args)
