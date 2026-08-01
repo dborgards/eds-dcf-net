@@ -24,7 +24,7 @@ function collectSelfRealpaths(entryScriptPath) {
   add(entryScriptPath);
   add(__filename);
 
-  // Cover both the package bin files and any install shims that point at them.
+  // Package bin entrypoints (Unix .bin symlinks share these realpaths).
   add(path.join(__dirname, "..", "bin", "npm.js"));
   add(path.join(__dirname, "..", "bin", "npx.js"));
 
@@ -47,6 +47,38 @@ function candidateNames(command) {
   return [command, ...exts.map((ext) => command + ext)];
 }
 
+// Windows cmd-shim / Git Bash wrappers are separate files (not symlinks) that
+// invoke node with a path to our bin script. Their realpath differs from the
+// .js entry, so detect them by resolving .js references in the shim text.
+function shimTargetsSelf(candidatePath, selfRealpaths) {
+  let content;
+  try {
+    const st = fs.statSync(candidatePath);
+    if (!st.isFile() || st.size > 16384) {
+      return false;
+    }
+    content = fs.readFileSync(candidatePath, "utf8");
+  } catch {
+    return false;
+  }
+  if (content.includes("\0")) {
+    return false;
+  }
+
+  const dir = path.dirname(candidatePath);
+  const expanded = content
+    .replace(/%~?dp0%/gi, dir)
+    .replace(/\$basedir/g, dir);
+  const refs = expanded.match(/[^\s"'<>|]+\.js\b/g) || [];
+  for (const ref of refs) {
+    const resolved = realpathOrNull(path.resolve(dir, ref.replace(/\\/g, "/")));
+    if (resolved && selfRealpaths.has(resolved)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function findExternalCommand(command, selfRealpaths) {
   const pathParts = (process.env.PATH || "").split(path.delimiter).filter(Boolean);
 
@@ -54,7 +86,7 @@ function findExternalCommand(command, selfRealpaths) {
     for (const name of candidateNames(command)) {
       const candidate = path.join(dir, name);
       const real = realpathOrNull(candidate);
-      if (!real || selfRealpaths.has(real)) {
+      if (!real || selfRealpaths.has(real) || shimTargetsSelf(real, selfRealpaths)) {
         continue;
       }
 
