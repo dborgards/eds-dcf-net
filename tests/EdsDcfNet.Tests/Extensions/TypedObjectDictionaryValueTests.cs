@@ -429,6 +429,19 @@ public class TypedObjectDictionaryValueTests
         act.Should().Throw<InvalidOperationException>().WithMessage("*0x1018:03*");
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void GetParameterValueAsObject_EmptyDefault_TreatedAsMissingValue(string emptyDefault)
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x2000].DefaultValue = emptyDefault;
+        dictionary.Objects[0x1018].SubObjects[1].DefaultValue = emptyDefault;
+
+        dictionary.GetParameterValueAsObject(0x2000).Should().BeNull();
+        dictionary.GetParameterValueAsObject(0x1018, 1).Should().BeNull();
+    }
+
     [Fact]
     public void SetParameterValue_NullLiteral_StillBindsToStringOverload()
     {

@@ -88,7 +88,9 @@ public static class ObjectDictionaryExtensions
     {
         var obj = objDict.GetObject(index);
         var value = obj?.ParameterValue ?? obj?.DefaultValue;
-        if (value == null)
+        // Parsed models store a missing DefaultValue as an empty string, so treat
+        // empty/whitespace like "no value" instead of forwarding it to the converter.
+        if (string.IsNullOrWhiteSpace(value))
         {
             return null;
         }
@@ -98,7 +100,7 @@ public static class ObjectDictionaryExtensions
             throw new InvalidOperationException($"Object 0x{index:X4} does not define a CANopen data type.");
         }
 
-        return CanOpenValueConverter.Parse(value, obj.DataType.Value, nodeId);
+        return CanOpenValueConverter.Parse(value!, obj.DataType.Value, nodeId);
     }
 
     /// <summary>
@@ -116,7 +118,9 @@ public static class ObjectDictionaryExtensions
     {
         var subObj = objDict.GetSubObject(index, subIndex);
         var value = subObj?.ParameterValue ?? subObj?.DefaultValue;
-        if (value == null)
+        // Parsed models store a missing DefaultValue as an empty string, so treat
+        // empty/whitespace like "no value" instead of forwarding it to the converter.
+        if (string.IsNullOrWhiteSpace(value))
         {
             return null;
         }
@@ -129,7 +133,7 @@ public static class ObjectDictionaryExtensions
                 $"Sub-object 0x{index:X4}:{subIndex:X2} does not define a CANopen data type.");
         }
 
-        return CanOpenValueConverter.Parse(value, subObj.DataType, nodeId);
+        return CanOpenValueConverter.Parse(value!, subObj.DataType, nodeId);
     }
 
     /// <summary>
