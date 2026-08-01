@@ -150,6 +150,77 @@ public class TypedObjectDictionaryValueTests
     }
 
     [Fact]
+    public void TypedAccess_SubObjectWithoutDataType_ThrowsInvalidOperationException()
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x1400] = new CanOpenObject
+        {
+            Index = 0x1400,
+            ObjectType = 0x09
+        };
+        dictionary.Objects[0x1400].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            DataType = 0,
+            DefaultValue = "$NODEID+0x200"
+        };
+
+        var act = () => dictionary.GetParameterValueAsObject(0x1400, 1);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*0x1400:01*");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Parse_EmptyOrWhitespaceInteger_ReturnsZero(string value)
+    {
+        CanOpenValueConverter.Parse(value, 0x0004).Should().Be(0);
+        CanOpenValueConverter.Parse(value, 0x0007).Should().Be(0U);
+        CanOpenValueConverter.Parse(value, 0x0005).Should().Be((byte)0);
+    }
+
+    [Fact]
+    public void Parse_NodeIdFormula_EvaluatesWithProvidedNodeId()
+    {
+        CanOpenValueConverter.Parse("$NODEID+0x200", 0x0007, nodeId: 5)
+            .Should().Be(517U);
+        CanOpenValueConverter.Parse("$NODEID", 0x0005, nodeId: 7)
+            .Should().Be((byte)7);
+    }
+
+    [Fact]
+    public void Parse_NodeIdFormulaWithoutNodeId_ThrowsNotSupportedException()
+    {
+        var act = () => CanOpenValueConverter.Parse("$NODEID+0x200", 0x0007);
+
+        act.Should().Throw<NotSupportedException>()
+            .WithMessage("*Cannot evaluate $NODEID formula*");
+    }
+
+    [Fact]
+    public void GetParameterValue_SubObjectNodeIdFormula_EvaluatesWithNodeId()
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x1400] = new CanOpenObject
+        {
+            Index = 0x1400,
+            ObjectType = 0x09
+        };
+        dictionary.Objects[0x1400].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            DataType = 0x0007,
+            DefaultValue = "$NODEID+0x200"
+        };
+
+        dictionary.GetParameterValueAsObject(0x1400, 1, nodeId: 5).Should().Be(517U);
+        dictionary.GetParameterValue<uint>(0x1400, 1, nodeId: 5).Should().Be(517U);
+        dictionary.GetParameterValue(0x1400, 1).Should().Be("$NODEID+0x200");
+    }
+
+    [Fact]
     public void TypedAccess_MissingObjectOrValue_ReturnsNullOrFalse()
     {
         var dictionary = CreateDictionary();

@@ -78,8 +78,13 @@ public static class ObjectDictionaryExtensions
     /// Gets an object's configured or default value converted to the .NET type indicated
     /// by its CANopen data type.
     /// </summary>
+    /// <param name="objDict">The object dictionary.</param>
+    /// <param name="index">Object index.</param>
+    /// <param name="nodeId">
+    /// Optional node ID used to evaluate <c>$NODEID</c> formulas in the configured or default value.
+    /// </param>
     /// <returns>The typed value, or <see langword="null"/> if the object or value does not exist.</returns>
-    public static object? GetParameterValueAsObject(this ObjectDictionary objDict, ushort index)
+    public static object? GetParameterValueAsObject(this ObjectDictionary objDict, ushort index, byte? nodeId = null)
     {
         var obj = objDict.GetObject(index);
         var value = obj?.ParameterValue ?? obj?.DefaultValue;
@@ -93,37 +98,67 @@ public static class ObjectDictionaryExtensions
             throw new InvalidOperationException($"Object 0x{index:X4} does not define a CANopen data type.");
         }
 
-        return CanOpenValueConverter.Parse(value, obj.DataType.Value);
+        return CanOpenValueConverter.Parse(value, obj.DataType.Value, nodeId);
     }
 
     /// <summary>
     /// Gets a sub-object's configured or default value converted to the .NET type indicated
     /// by its CANopen data type.
     /// </summary>
+    /// <param name="objDict">The object dictionary.</param>
+    /// <param name="index">Object index.</param>
+    /// <param name="subIndex">Sub-object sub-index.</param>
+    /// <param name="nodeId">
+    /// Optional node ID used to evaluate <c>$NODEID</c> formulas in the configured or default value.
+    /// </param>
     /// <returns>The typed value, or <see langword="null"/> if the sub-object or value does not exist.</returns>
-    public static object? GetParameterValueAsObject(this ObjectDictionary objDict, ushort index, byte subIndex)
+    public static object? GetParameterValueAsObject(this ObjectDictionary objDict, ushort index, byte subIndex, byte? nodeId = null)
     {
         var subObj = objDict.GetSubObject(index, subIndex);
         var value = subObj?.ParameterValue ?? subObj?.DefaultValue;
-        return value == null ? null : CanOpenValueConverter.Parse(value, subObj!.DataType);
+        if (value == null)
+        {
+            return null;
+        }
+
+        // Sub-objects store a missing DataType as 0 (see ParseSubObject default), unlike
+        // top-level objects which leave DataType null when the field is omitted.
+        if (subObj!.DataType == 0)
+        {
+            throw new InvalidOperationException(
+                $"Sub-object 0x{index:X4}:{subIndex:X2} does not define a CANopen data type.");
+        }
+
+        return CanOpenValueConverter.Parse(value, subObj.DataType, nodeId);
     }
 
     /// <summary>
     /// Gets an object's configured or default value as <typeparamref name="T"/>.
     /// </summary>
+    /// <param name="objDict">The object dictionary.</param>
+    /// <param name="index">Object index.</param>
+    /// <param name="nodeId">
+    /// Optional node ID used to evaluate <c>$NODEID</c> formulas in the configured or default value.
+    /// </param>
     /// <exception cref="KeyNotFoundException">The object or its configured/default value does not exist.</exception>
-    public static T GetParameterValue<T>(this ObjectDictionary objDict, ushort index)
+    public static T GetParameterValue<T>(this ObjectDictionary objDict, ushort index, byte? nodeId = null)
     {
-        return CastParameterValue<T>(objDict.GetParameterValueAsObject(index), index, null);
+        return CastParameterValue<T>(objDict.GetParameterValueAsObject(index, nodeId), index, null);
     }
 
     /// <summary>
     /// Gets a sub-object's configured or default value as <typeparamref name="T"/>.
     /// </summary>
+    /// <param name="objDict">The object dictionary.</param>
+    /// <param name="index">Object index.</param>
+    /// <param name="subIndex">Sub-object sub-index.</param>
+    /// <param name="nodeId">
+    /// Optional node ID used to evaluate <c>$NODEID</c> formulas in the configured or default value.
+    /// </param>
     /// <exception cref="KeyNotFoundException">The sub-object or its configured/default value does not exist.</exception>
-    public static T GetParameterValue<T>(this ObjectDictionary objDict, ushort index, byte subIndex)
+    public static T GetParameterValue<T>(this ObjectDictionary objDict, ushort index, byte subIndex, byte? nodeId = null)
     {
-        return CastParameterValue<T>(objDict.GetParameterValueAsObject(index, subIndex), index, subIndex);
+        return CastParameterValue<T>(objDict.GetParameterValueAsObject(index, subIndex, nodeId), index, subIndex);
     }
 
     /// <summary>

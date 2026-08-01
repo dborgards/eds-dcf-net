@@ -13,42 +13,47 @@ public static class CanOpenValueConverter
     /// </summary>
     /// <param name="value">The textual EDS/DCF value.</param>
     /// <param name="dataType">The CANopen data type index.</param>
+    /// <param name="nodeId">
+    /// Optional node ID used to evaluate <c>$NODEID</c> formulas such as <c>$NODEID+0x200</c>.
+    /// Required when <paramref name="value"/> contains a <c>$NODEID</c> expression.
+    /// </param>
     /// <returns>The value represented by the corresponding .NET type.</returns>
     /// <remarks>
-    /// Integer values may use decimal, hexadecimal (<c>0x</c>), or octal notation.
+    /// Integer values may use decimal, hexadecimal (<c>0x</c>), octal notation, or
+    /// <c>$NODEID</c> formulas. Empty or whitespace-only integer literals are treated as zero.
     /// OCTET_STRING and DOMAIN values are returned as <see cref="byte"/> arrays when written
     /// as hexadecimal literals. TIME_OF_DAY and TIME_DIFFERENCE currently remain unsupported
     /// because their file representation does not provide a universally interoperable mapping.
     /// </remarks>
-    public static object Parse(string value, ushort dataType)
+    public static object Parse(string value, ushort dataType, byte? nodeId = null)
     {
         EnsureNotNull(value, nameof(value));
 
         return dataType switch
         {
             0x0001 => ParseBoolean(value),
-            0x0002 => (sbyte)ParseSignedInteger(value, 8),
-            0x0003 => (short)ParseSignedInteger(value, 16),
-            0x0004 => (int)ParseSignedInteger(value, 32),
-            0x0005 => (byte)ParseUnsignedInteger(value, 8),
-            0x0006 => (ushort)ParseUnsignedInteger(value, 16),
-            0x0007 => (uint)ParseUnsignedInteger(value, 32),
+            0x0002 => (sbyte)ParseSignedInteger(value, 8, nodeId),
+            0x0003 => (short)ParseSignedInteger(value, 16, nodeId),
+            0x0004 => (int)ParseSignedInteger(value, 32, nodeId),
+            0x0005 => (byte)ParseUnsignedInteger(value, 8, nodeId),
+            0x0006 => (ushort)ParseUnsignedInteger(value, 16, nodeId),
+            0x0007 => (uint)ParseUnsignedInteger(value, 32, nodeId),
             0x0008 => float.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture),
             0x0009 => value,
             0x000A => ParseByteString(value),
             0x000B => value,
             0x000F => ParseByteString(value),
-            0x0010 => (int)ParseSignedInteger(value, 24),
+            0x0010 => (int)ParseSignedInteger(value, 24, nodeId),
             0x0011 => double.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture),
-            0x0012 => ParseSignedInteger(value, 40),
-            0x0013 => ParseSignedInteger(value, 48),
-            0x0014 => ParseSignedInteger(value, 56),
-            0x0015 => ParseSignedInteger(value, 64),
-            0x0016 => (uint)ParseUnsignedInteger(value, 24),
-            0x0018 => ParseUnsignedInteger(value, 40),
-            0x0019 => ParseUnsignedInteger(value, 48),
-            0x001A => ParseUnsignedInteger(value, 56),
-            0x001B => ParseUnsignedInteger(value, 64),
+            0x0012 => ParseSignedInteger(value, 40, nodeId),
+            0x0013 => ParseSignedInteger(value, 48, nodeId),
+            0x0014 => ParseSignedInteger(value, 56, nodeId),
+            0x0015 => ParseSignedInteger(value, 64, nodeId),
+            0x0016 => (uint)ParseUnsignedInteger(value, 24, nodeId),
+            0x0018 => ParseUnsignedInteger(value, 40, nodeId),
+            0x0019 => ParseUnsignedInteger(value, 48, nodeId),
+            0x001A => ParseUnsignedInteger(value, 56, nodeId),
+            0x001B => ParseUnsignedInteger(value, 64, nodeId),
             0x000C or 0x000D => throw new NotSupportedException(
                 $"CANopen data type 0x{dataType:X4} does not have a universally interoperable EDS/DCF to .NET mapping."),
             _ => throw new NotSupportedException($"CANopen data type 0x{dataType:X4} is not supported for typed value conversion.")
@@ -117,10 +122,22 @@ public static class CanOpenValueConverter
         throw new FormatException($"'{value}' is not a valid CANopen BOOLEAN value.");
     }
 
-    private static long ParseSignedInteger(string value, int bits)
+    private static long ParseSignedInteger(string value, int bits, byte? nodeId)
     {
         var trimmed = value.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return 0;
+        }
+
         long result;
+        if (trimmed.StartsWith("$NODEID", StringComparison.OrdinalIgnoreCase))
+        {
+            result = ValueConverter.ParseInteger(trimmed, nodeId);
+            ValidateSignedRange(result, bits);
+            return result;
+        }
+
         if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
         {
             var raw = ulong.Parse(trimmed[2..], NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture);
@@ -151,11 +168,20 @@ public static class CanOpenValueConverter
         return result;
     }
 
-    private static ulong ParseUnsignedInteger(string value, int bits)
+    private static ulong ParseUnsignedInteger(string value, int bits, byte? nodeId)
     {
         var trimmed = value.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return 0;
+        }
+
         ulong result;
-        if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        if (trimmed.StartsWith("$NODEID", StringComparison.OrdinalIgnoreCase))
+        {
+            result = ValueConverter.ParseInteger(trimmed, nodeId);
+        }
+        else if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
         {
             result = ulong.Parse(trimmed[2..], NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture);
         }
