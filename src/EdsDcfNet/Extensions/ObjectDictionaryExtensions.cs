@@ -93,7 +93,9 @@ public static class ObjectDictionaryExtensions
             return null;
         }
 
-        if (!obj!.DataType.HasValue)
+        // Explicit DataType=0 from EDS parsing is HasValue but not a real CANopen type
+        // (same sentinel sub-objects use when the field is omitted).
+        if (obj!.DataType is null or 0)
         {
             throw new InvalidOperationException($"Object 0x{index:X4} does not define a CANopen data type.");
         }
@@ -175,7 +177,9 @@ public static class ObjectDictionaryExtensions
             return false;
         }
 
-        if (!obj.DataType.HasValue)
+        // Explicit DataType=0 from EDS parsing is HasValue but not a real CANopen type
+        // (same sentinel sub-objects use when the field is omitted).
+        if (obj.DataType is null or 0)
         {
             throw new InvalidOperationException($"Object 0x{index:X4} does not define a CANopen data type.");
         }
