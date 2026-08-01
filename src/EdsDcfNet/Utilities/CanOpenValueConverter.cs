@@ -85,12 +85,12 @@ public static class CanOpenValueConverter
                 0x0005 => FormatUnsigned(value, 8),
                 0x0006 => FormatUnsigned(value, 16),
                 0x0007 => FormatUnsigned(value, 32),
-                0x0008 => Convert.ToSingle(value, CultureInfo.InvariantCulture).ToString("R", CultureInfo.InvariantCulture),
+                0x0008 => FormatReal32(value),
                 0x0009 or 0x000B => value as string
                     ?? throw new InvalidCastException("VISIBLE_STRING and UNICODE_STRING values must be supplied as strings."),
                 0x000A => FormatByteString(value),
                 0x0010 => FormatSigned(value, 24),
-                0x0011 => Convert.ToDouble(value, CultureInfo.InvariantCulture).ToString("R", CultureInfo.InvariantCulture),
+                0x0011 => FormatReal64(value),
                 0x0012 => FormatSigned(value, 40),
                 0x0013 => FormatSigned(value, 48),
                 0x0014 => FormatSigned(value, 56),
@@ -262,6 +262,34 @@ public static class CanOpenValueConverter
             throw new InvalidCastException(
                 $"Value of type {value.GetType().Name} cannot be stored in an integer CANopen data type. " +
                 "Provide an integral numeric value.");
+        }
+    }
+
+    private static string FormatReal32(object value)
+    {
+        EnsureNumeric(value);
+        return Convert.ToSingle(value, CultureInfo.InvariantCulture).ToString("R", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatReal64(object value)
+    {
+        EnsureNumeric(value);
+        return Convert.ToDouble(value, CultureInfo.InvariantCulture).ToString("R", CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Ensures a value destined for a REAL32/REAL64 entry is a genuine numeric type.
+    /// bool, char, strings, and other <see cref="IConvertible"/> inputs must be rejected:
+    /// BOOLEAN is a separate CANopen data type, so e.g. SetParameterValue(index, true)
+    /// must not silently write 1 to a REAL32 object.
+    /// </summary>
+    private static void EnsureNumeric(object value)
+    {
+        if (value is not (sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal))
+        {
+            throw new InvalidCastException(
+                $"Value of type {value.GetType().Name} cannot be stored in a REAL CANopen data type. " +
+                "Provide a numeric value.");
         }
     }
 

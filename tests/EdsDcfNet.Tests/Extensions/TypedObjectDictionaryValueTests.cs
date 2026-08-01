@@ -590,6 +590,63 @@ public class TypedObjectDictionaryValueTests
         act.Should().Throw<NotSupportedException>().WithMessage("*DOMAIN*");
     }
 
+    [Theory]
+    [InlineData(0x0008)] // REAL32
+    [InlineData(0x0011)] // REAL64
+    public void Format_BooleanForRealType_ThrowsInvalidCastException(ushort dataType)
+    {
+        // BOOLEAN is a separate CANopen data type; true must not silently become 1.
+        var act = () => CanOpenValueConverter.Format(true, dataType);
+
+        act.Should().Throw<ArgumentException>().WithInnerException<InvalidCastException>().WithMessage("*numeric*");
+    }
+
+    [Theory]
+    [InlineData(0x0008)]
+    [InlineData(0x0011)]
+    public void Format_CharForRealType_ThrowsInvalidCastException(ushort dataType)
+    {
+        var act = () => CanOpenValueConverter.Format('1', dataType);
+
+        act.Should().Throw<ArgumentException>().WithInnerException<InvalidCastException>().WithMessage("*numeric*");
+    }
+
+    public static TheoryData<object> NumericRealInputs => new()
+    {
+        (sbyte)1,
+        (byte)2,
+        (short)3,
+        (ushort)4,
+        5,
+        6U,
+        7L,
+        8UL,
+        9.5F,
+        10.5D,
+        11.5M
+    };
+
+    [Theory]
+    [MemberData(nameof(NumericRealInputs))]
+    public void Format_NumericValuesForRealType_AreAccepted(object value)
+    {
+        var act = () => CanOpenValueConverter.Format(value, 0x0008);
+
+        act.Should().NotThrow();
+        CanOpenValueConverter.Format(value, 0x0011).Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void SetParameterValue_BooleanForRealObject_ThrowsInvalidCastException()
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x2003] = new CanOpenObject { Index = 0x2003, DataType = 0x0008 };
+
+        var act = () => dictionary.SetParameterValue(0x2003, (object)true);
+
+        act.Should().Throw<ArgumentException>().WithInnerException<InvalidCastException>();
+    }
+
     [Fact]
     public void Parse_SignedNodeIdAdditionOverflowingInt64_ThrowsOverflowException()
     {
