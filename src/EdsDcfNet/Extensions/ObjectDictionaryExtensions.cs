@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Extensions;
 
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Extension methods for ObjectDictionary to make it easier to work with CANopen objects.
@@ -74,6 +75,135 @@ public static class ObjectDictionaryExtensions
     }
 
     /// <summary>
+    /// Gets an object's configured or default value converted to the .NET type indicated
+    /// by its CANopen data type.
+    /// </summary>
+    /// <param name="objDict">The object dictionary.</param>
+    /// <param name="index">Object index.</param>
+    /// <param name="subIndex">
+    /// Optional sub-object sub-index. Omit (or pass <see langword="null"/>) for the
+    /// object-level value. The second positional argument is always the sub-index;
+    /// pass <paramref name="nodeId"/> by name for object-level reads.
+    /// </param>
+    /// <param name="nodeId">
+    /// Optional node ID used to evaluate <c>$NODEID</c> formulas in the configured or default value.
+    /// </param>
+    /// <returns>The typed value, or <see langword="null"/> if the object/sub-object or value does not exist.</returns>
+    public static object? GetParameterValueAsObject(this ObjectDictionary objDict, ushort index, byte? subIndex = null, byte? nodeId = null)
+    {
+        if (subIndex.HasValue)
+        {
+            return GetSubObjectParameterValueAsObject(objDict, index, subIndex.Value, nodeId);
+        }
+
+        var obj = objDict.GetObject(index);
+        var value = ResolveParameterOrDefaultValue(obj?.ParameterValue, obj?.DefaultValue, obj?.DataType);
+        if (value is null)
+        {
+            return null;
+        }
+
+        // Explicit DataType=0 from EDS parsing is HasValue but not a real CANopen type
+        // (same sentinel sub-objects use when the field is omitted).
+        if (obj!.DataType is null or 0)
+        {
+            throw new InvalidOperationException($"Object 0x{index:X4} does not define a CANopen data type.");
+        }
+
+        return CanOpenValueConverter.Parse(value, obj.DataType.Value, nodeId);
+    }
+
+    private static object? GetSubObjectParameterValueAsObject(ObjectDictionary objDict, ushort index, byte subIndex, byte? nodeId)
+    {
+        var subObj = objDict.GetSubObject(index, subIndex);
+        var value = ResolveParameterOrDefaultValue(subObj?.ParameterValue, subObj?.DefaultValue, subObj?.DataType);
+        if (value is null)
+        {
+            return null;
+        }
+
+        // Sub-objects store a missing DataType as 0 (see ParseSubObject default), unlike
+        // top-level objects which leave DataType null when the field is omitted.
+        if (subObj!.DataType == 0)
+        {
+            throw new InvalidOperationException(
+                $"Sub-object 0x{index:X4}:{subIndex:X2} does not define a CANopen data type.");
+        }
+
+        return CanOpenValueConverter.Parse(value, subObj.DataType, nodeId);
+    }
+
+    /// <summary>
+    /// Gets an object's or sub-object's configured or default value as <typeparamref name="T"/>.
+    /// </summary>
+    /// <param name="objDict">The object dictionary.</param>
+    /// <param name="index">Object index.</param>
+    /// <param name="subIndex">
+    /// Optional sub-object sub-index. Omit (or pass <see langword="null"/>) for the
+    /// object-level value. The second positional argument is always the sub-index;
+    /// pass <paramref name="nodeId"/> by name for object-level reads.
+    /// </param>
+    /// <param name="nodeId">
+    /// Optional node ID used to evaluate <c>$NODEID</c> formulas in the configured or default value.
+    /// </param>
+    /// <exception cref="KeyNotFoundException">The object/sub-object or its configured/default value does not exist.</exception>
+    public static T GetParameterValue<T>(this ObjectDictionary objDict, ushort index, byte? subIndex = null, byte? nodeId = null)
+    {
+        return CastParameterValue<T>(objDict.GetParameterValueAsObject(index, subIndex, nodeId), index, subIndex);
+    }
+
+    /// <summary>
+    /// Converts and sets an object's parameter value according to its CANopen data type.
+    /// </summary>
+    /// <returns><c>true</c> if the object was found and the value was set.</returns>
+    public static bool SetParameterValue(this ObjectDictionary objDict, ushort index, object value)
+    {
+        EnsureNotNull(value, nameof(value));
+
+        var obj = objDict.GetObject(index);
+        if (obj == null)
+        {
+            return false;
+        }
+
+        // Explicit DataType=0 from EDS parsing is HasValue but not a real CANopen type
+        // (same sentinel sub-objects use when the field is omitted).
+        if (obj.DataType is null or 0)
+        {
+            throw new InvalidOperationException($"Object 0x{index:X4} does not define a CANopen data type.");
+        }
+
+        obj.ParameterValue = CanOpenValueConverter.Format(value, obj.DataType.Value);
+        return true;
+    }
+
+    /// <summary>
+    /// Converts and sets a sub-object's parameter value according to its CANopen data type.
+    /// </summary>
+    /// <returns><c>true</c> if the sub-object was found and the value was set.</returns>
+    public static bool SetParameterValue(this ObjectDictionary objDict, ushort index, byte subIndex, object value)
+    {
+        EnsureNotNull(value, nameof(value));
+
+        var subObj = objDict.GetSubObject(index, subIndex);
+        if (subObj == null)
+        {
+            return false;
+        }
+
+        // Sub-objects store a missing DataType as 0 (see ParseSubObject default), unlike
+        // top-level objects which leave DataType null when the field is omitted.
+        if (subObj.DataType == 0)
+        {
+            throw new InvalidOperationException(
+                $"Sub-object 0x{index:X4}:{subIndex:X2} does not define a CANopen data type.");
+        }
+
+        subObj.ParameterValue = CanOpenValueConverter.Format(value, subObj.DataType);
+        return true;
+    }
+
+    /// <summary>
     /// Gets all objects of a specific type (mandatory, optional, or manufacturer).
     /// </summary>
     public static IEnumerable<CanOpenObject> GetObjectsByType(this ObjectDictionary objDict, ObjectCategory category)
@@ -113,6 +243,72 @@ public static class ObjectDictionaryExtensions
         return objDict.Objects.Values
             .Where(obj => obj.Index >= startIndex && obj.Index <= endIndex)
             .OrderBy(obj => obj.Index);
+    }
+
+    private static T CastParameterValue<T>(object? value, ushort index, byte? subIndex)
+    {
+        var address = subIndex.HasValue ? $"0x{index:X4}:{subIndex.Value:X2}" : $"0x{index:X4}";
+        if (value == null)
+        {
+            throw new KeyNotFoundException($"Object Dictionary value {address} does not exist.");
+        }
+
+        if (value is T typedValue)
+        {
+            return typedValue;
+        }
+
+        throw new InvalidCastException(
+            $"Object Dictionary value {address} has .NET type {value.GetType().Name}, not {typeof(T).Name}.");
+    }
+
+    private static void EnsureNotNull(object? value, string parameterName)
+    {
+        if (value == null)
+        {
+            throw new ArgumentNullException(parameterName);
+        }
+    }
+
+    /// <summary>
+    /// Prefers a non-missing configured value, otherwise a non-missing default value.
+    /// Empty/whitespace handling is applied per field so a blank ParameterValue does not
+    /// block fallback to a usable DefaultValue.
+    /// </summary>
+    private static string? ResolveParameterOrDefaultValue(string? parameterValue, string? defaultValue, ushort? dataType)
+    {
+        if (!IsMissingValue(parameterValue, dataType))
+        {
+            return parameterValue;
+        }
+
+        if (!IsMissingValue(defaultValue, dataType))
+        {
+            return defaultValue;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Decides whether a resolved textual value should be treated as "no value".
+    /// Parsed models store a missing DefaultValue as an empty string, so empty is always
+    /// missing. Whitespace-only is missing too, except for string data types where
+    /// whitespace is representable content that the writers persist, and except when
+    /// <paramref name="dataType"/> is null or the parser sentinel 0 — then any
+    /// non-empty text must stay present so typed APIs can reject the untyped object.
+    /// </summary>
+    private static bool IsMissingValue(string? value, ushort? dataType)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return true;
+        }
+
+        // VISIBLE_STRING / UNICODE_STRING keep whitespace; unknown/sentinel DataType
+        // must also keep it so GetParameterValueAsObject can throw rather than return null.
+        var preserveWhitespace = dataType is null or 0 or 0x0009 or 0x000B;
+        return !preserveWhitespace && string.IsNullOrWhiteSpace(value);
     }
 }
 
