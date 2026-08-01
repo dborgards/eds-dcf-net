@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Extensions;
 
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Extension methods for ObjectDictionary to make it easier to work with CANopen objects.
@@ -74,6 +75,99 @@ public static class ObjectDictionaryExtensions
     }
 
     /// <summary>
+    /// Gets an object's configured or default value converted to the .NET type indicated
+    /// by its CANopen data type.
+    /// </summary>
+    /// <returns>The typed value, or <see langword="null"/> if the object or value does not exist.</returns>
+    public static object? GetParameterValueAsObject(this ObjectDictionary objDict, ushort index)
+    {
+        var obj = objDict.GetObject(index);
+        var value = obj?.ParameterValue ?? obj?.DefaultValue;
+        if (value == null)
+        {
+            return null;
+        }
+
+        if (!obj!.DataType.HasValue)
+        {
+            throw new InvalidOperationException($"Object 0x{index:X4} does not define a CANopen data type.");
+        }
+
+        return CanOpenValueConverter.Parse(value, obj.DataType.Value);
+    }
+
+    /// <summary>
+    /// Gets a sub-object's configured or default value converted to the .NET type indicated
+    /// by its CANopen data type.
+    /// </summary>
+    /// <returns>The typed value, or <see langword="null"/> if the sub-object or value does not exist.</returns>
+    public static object? GetParameterValueAsObject(this ObjectDictionary objDict, ushort index, byte subIndex)
+    {
+        var subObj = objDict.GetSubObject(index, subIndex);
+        var value = subObj?.ParameterValue ?? subObj?.DefaultValue;
+        return value == null ? null : CanOpenValueConverter.Parse(value, subObj!.DataType);
+    }
+
+    /// <summary>
+    /// Gets an object's configured or default value as <typeparamref name="T"/>.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">The object or its configured/default value does not exist.</exception>
+    public static T GetParameterValue<T>(this ObjectDictionary objDict, ushort index)
+    {
+        return CastParameterValue<T>(objDict.GetParameterValueAsObject(index), index, null);
+    }
+
+    /// <summary>
+    /// Gets a sub-object's configured or default value as <typeparamref name="T"/>.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">The sub-object or its configured/default value does not exist.</exception>
+    public static T GetParameterValue<T>(this ObjectDictionary objDict, ushort index, byte subIndex)
+    {
+        return CastParameterValue<T>(objDict.GetParameterValueAsObject(index, subIndex), index, subIndex);
+    }
+
+    /// <summary>
+    /// Converts and sets an object's parameter value according to its CANopen data type.
+    /// </summary>
+    /// <returns><c>true</c> if the object was found and the value was set.</returns>
+    public static bool SetParameterValue(this ObjectDictionary objDict, ushort index, object value)
+    {
+        EnsureNotNull(value, nameof(value));
+
+        var obj = objDict.GetObject(index);
+        if (obj == null)
+        {
+            return false;
+        }
+
+        if (!obj.DataType.HasValue)
+        {
+            throw new InvalidOperationException($"Object 0x{index:X4} does not define a CANopen data type.");
+        }
+
+        obj.ParameterValue = CanOpenValueConverter.Format(value, obj.DataType.Value);
+        return true;
+    }
+
+    /// <summary>
+    /// Converts and sets a sub-object's parameter value according to its CANopen data type.
+    /// </summary>
+    /// <returns><c>true</c> if the sub-object was found and the value was set.</returns>
+    public static bool SetParameterValue(this ObjectDictionary objDict, ushort index, byte subIndex, object value)
+    {
+        EnsureNotNull(value, nameof(value));
+
+        var subObj = objDict.GetSubObject(index, subIndex);
+        if (subObj == null)
+        {
+            return false;
+        }
+
+        subObj.ParameterValue = CanOpenValueConverter.Format(value, subObj.DataType);
+        return true;
+    }
+
+    /// <summary>
     /// Gets all objects of a specific type (mandatory, optional, or manufacturer).
     /// </summary>
     public static IEnumerable<CanOpenObject> GetObjectsByType(this ObjectDictionary objDict, ObjectCategory category)
@@ -113,6 +207,31 @@ public static class ObjectDictionaryExtensions
         return objDict.Objects.Values
             .Where(obj => obj.Index >= startIndex && obj.Index <= endIndex)
             .OrderBy(obj => obj.Index);
+    }
+
+    private static T CastParameterValue<T>(object? value, ushort index, byte? subIndex)
+    {
+        var address = subIndex.HasValue ? $"0x{index:X4}:{subIndex.Value:X2}" : $"0x{index:X4}";
+        if (value == null)
+        {
+            throw new KeyNotFoundException($"Object Dictionary value {address} does not exist.");
+        }
+
+        if (value is T typedValue)
+        {
+            return typedValue;
+        }
+
+        throw new InvalidCastException(
+            $"Object Dictionary value {address} has .NET type {value.GetType().Name}, not {typeof(T).Name}.");
+    }
+
+    private static void EnsureNotNull(object? value, string parameterName)
+    {
+        if (value == null)
+        {
+            throw new ArgumentNullException(parameterName);
+        }
     }
 }
 

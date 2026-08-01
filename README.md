@@ -73,10 +73,15 @@ var deviceType = dictionary.GetObject(0x1000);
 var mappingEntry = dictionary.GetSubObject(0x1A00, 0x01);
 
 Console.WriteLine(deviceType?.ParameterName);
-Console.WriteLine(dictionary.GetParameterValue(0x1A00, 0x01));
 
-// Change a configured value. The writer persists it as ParameterValue.
-if (!dictionary.SetParameterValue(0x1A00, 0x01, "0x60000108"))
+// Read values as object or as a strongly typed value. The .NET type is derived
+// automatically from DataType in the Object Dictionary.
+object? rawDeviceType = dictionary.GetParameterValueAsObject(0x1000); // uint for UNSIGNED32
+uint mapping = dictionary.GetParameterValue<uint>(0x1A00, 0x01);
+
+// Pass a .NET value directly. It is validated against the OD data type and converted
+// to the textual ParameterValue representation persisted by the writer.
+if (!dictionary.SetParameterValue(0x1A00, 0x01, 0x60000108U))
     throw new InvalidOperationException("TPDO mapping entry 0x1A00:01 is missing.");
 
 // Create a manufacturer-specific object programmatically.
@@ -100,6 +105,11 @@ The model distinguishes mandatory, optional, and manufacturer-specific object li
 represents ARRAY and RECORD entries through typed `CanOpenSubObject` instances. Convenience
 extensions also provide category queries and access to RPDO/TPDO communication and mapping
 parameter ranges.
+
+Typed value conversion covers BOOLEAN, signed and unsigned integers (including the CANopen
+24/40/48/56-bit types), REAL32/REAL64, VISIBLE_STRING, UNICODE_STRING, OCTET_STRING, and
+DOMAIN. Numeric ranges are validated when setting values. The original string overloads
+remain available when an application needs exact control of the serialized representation.
 
 ### Writing an EDS File
 
@@ -609,6 +619,7 @@ Rules for adding such an option:
 - ✅ Indexed lookup, creation, and modification of objects and sub-objects
 - ✅ Mandatory, optional, and manufacturer-specific object lists
 - ✅ Default values and DCF/XDC configured parameter values
+- ✅ Automatic conversion between OD data types and .NET values, with range validation
 - ✅ Helpers for RPDO/TPDO communication and mapping parameters
 - ✅ Complete EDS parsing and writing
 - ✅ Complete DCF parsing and writing
