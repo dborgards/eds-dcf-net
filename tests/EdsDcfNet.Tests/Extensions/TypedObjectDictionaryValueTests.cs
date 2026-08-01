@@ -492,7 +492,7 @@ public class TypedObjectDictionaryValueTests
         // BOOLEAN is a separate CANopen data type; true must not silently become 1.
         var act = () => CanOpenValueConverter.Format(true, dataType);
 
-        act.Should().Throw<InvalidCastException>().WithMessage("*integral*");
+        act.Should().Throw<ArgumentException>().WithInnerException<InvalidCastException>().WithMessage("*integral*");
     }
 
     [Theory]
@@ -502,7 +502,7 @@ public class TypedObjectDictionaryValueTests
     {
         var act = () => CanOpenValueConverter.Format('1', dataType);
 
-        act.Should().Throw<InvalidCastException>().WithMessage("*integral*");
+        act.Should().Throw<ArgumentException>().WithInnerException<InvalidCastException>().WithMessage("*integral*");
     }
 
     [Fact]
@@ -512,7 +512,7 @@ public class TypedObjectDictionaryValueTests
 
         var act = () => dictionary.SetParameterValue(0x2000, (object)true);
 
-        act.Should().Throw<InvalidCastException>();
+        act.Should().Throw<ArgumentException>().WithInnerException<InvalidCastException>();
     }
 
     [Fact]
