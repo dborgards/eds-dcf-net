@@ -44,7 +44,10 @@ function candidateNames(command) {
     return [command];
   }
 
-  return [command, ...exts.map((ext) => command + ext)];
+  // Prefer PATHEXT wrappers (npm.cmd) over Node's extensionless shell shims.
+  // CreateProcess cannot launch those shims without a shell, so listing the
+  // bare name first makes Windows forwarding fail even when npm.cmd exists.
+  return [...exts.map((ext) => command + ext), command];
 }
 
 // Windows cmd-shim / Git Bash wrappers are separate files (not symlinks) that
