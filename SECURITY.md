@@ -68,8 +68,9 @@ network), consumers should apply the standard defense-in-depth measures:
 - **Validate file origin** before passing paths or content to the library.
 - **Limit resource usage** (memory, CPU) at the process level when parsing
   files from untrusted sources. The library applies default input-size limits
-  for all formats and an XML nesting-depth limit for XDD/XDC; raise these only
-  for trusted, known-large payloads.
+  for all formats (raise via `CanOpenFileOptions.MaxInputSize` only for
+  trusted, known-large payloads) and a fixed XML nesting-depth cap for
+  XDD/XDC that is not consumer-configurable.
 - **Keep the package up to date** to receive security fixes as soon as they
   are released.
 
