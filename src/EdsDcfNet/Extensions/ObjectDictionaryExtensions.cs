@@ -294,7 +294,9 @@ public static class ObjectDictionaryExtensions
     /// Decides whether a resolved textual value should be treated as "no value".
     /// Parsed models store a missing DefaultValue as an empty string, so empty is always
     /// missing. Whitespace-only is missing too, except for string data types where
-    /// whitespace is representable content that the writers persist.
+    /// whitespace is representable content that the writers persist, and except when
+    /// <paramref name="dataType"/> is null or the parser sentinel 0 — then any
+    /// non-empty text must stay present so typed APIs can reject the untyped object.
     /// </summary>
     private static bool IsMissingValue(string? value, ushort? dataType)
     {
@@ -303,8 +305,10 @@ public static class ObjectDictionaryExtensions
             return true;
         }
 
-        var isStringType = dataType is 0x0009 or 0x000B; // VISIBLE_STRING, UNICODE_STRING
-        return !isStringType && string.IsNullOrWhiteSpace(value);
+        // VISIBLE_STRING / UNICODE_STRING keep whitespace; unknown/sentinel DataType
+        // must also keep it so GetParameterValueAsObject can throw rather than return null.
+        var preserveWhitespace = dataType is null or 0 or 0x0009 or 0x000B;
+        return !preserveWhitespace && string.IsNullOrWhiteSpace(value);
     }
 }
 
