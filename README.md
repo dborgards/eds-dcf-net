@@ -10,9 +10,16 @@
 A comprehensive, easy-to-use C# .NET library for CANopen file formats:
 CiA DS 306 (EDS, DCF, CPJ) and CiA 311 (XDD, XDC).
 
+EdsDcfNet exposes the CANopen **Object Dictionary as a fully typed, editable API**.
+Applications can inspect, query, create, and configure objects and sub-objects directly;
+the library is not limited to file conversion or lossless round-trips.
+
 ## Features
 
 ✨ **Simple API** - Intuitive, fluent API style for quick integration
+
+🗂️ **First-Class Object Dictionary API** - Query, create, and modify CANopen objects,
+sub-objects, object lists, data types, access rights, defaults, and configured values
 
 📖 **Read & Write EDS** - Parse and generate Electronic Data Sheets
 
@@ -45,6 +52,54 @@ Console.WriteLine($"Device: {eds.DeviceInfo.ProductName}");
 Console.WriteLine($"Vendor: {eds.DeviceInfo.VendorName}");
 Console.WriteLine($"Product Number: 0x{eds.DeviceInfo.ProductNumber:X}");
 ```
+
+### Working with the CANopen Object Dictionary
+
+Every EDS, DCF, XDD, and XDC model exposes its parsed object dictionary through
+`ObjectDictionary`. It is an application-facing model, not merely parser state: use it
+to inspect device capabilities, find objects and sub-objects by index, evaluate default
+or configured values, update a DCF configuration, or build an object dictionary in code.
+
+```csharp
+using EdsDcfNet;
+using EdsDcfNet.Extensions;
+using EdsDcfNet.Models;
+
+var dcf = CanOpenFile.Dcf.ReadFile("configured_device.dcf");
+var dictionary = dcf.ObjectDictionary;
+
+// Query objects and sub-objects by their CANopen index.
+var deviceType = dictionary.GetObject(0x1000);
+var mappingEntry = dictionary.GetSubObject(0x1A00, 0x01);
+
+Console.WriteLine(deviceType?.ParameterName);
+Console.WriteLine(dictionary.GetParameterValue(0x1A00, 0x01));
+
+// Change a configured value. The writer persists it as ParameterValue.
+if (!dictionary.SetParameterValue(0x1A00, 0x01, "0x60000108"))
+    throw new InvalidOperationException("TPDO mapping entry 0x1A00:01 is missing.");
+
+// Create a manufacturer-specific object programmatically.
+dictionary.ManufacturerObjects.Add(0x2000);
+dictionary.Objects[0x2000] = new CanOpenObject
+{
+    Index = 0x2000,
+    ParameterName = "Application mode",
+    ObjectType = 0x07,       // VAR
+    DataType = 0x0005,       // UNSIGNED8
+    AccessType = AccessType.ReadWrite,
+    DefaultValue = "0",
+    ParameterValue = "1",
+    PdoMapping = true
+};
+
+CanOpenFile.Dcf.WriteFile(dcf, "configured_device_updated.dcf");
+```
+
+The model distinguishes mandatory, optional, and manufacturer-specific object lists and
+represents ARRAY and RECORD entries through typed `CanOpenSubObject` instances. Convenience
+extensions also provide category queries and access to RPDO/TPDO communication and mapping
+parameter ranges.
 
 ### Writing an EDS File
 
@@ -550,6 +605,11 @@ Rules for adding such an option:
 
 ## Supported Features
 
+- ✅ First-class, editable CANopen Object Dictionary model for EDS, DCF, XDD, and XDC
+- ✅ Indexed lookup, creation, and modification of objects and sub-objects
+- ✅ Mandatory, optional, and manufacturer-specific object lists
+- ✅ Default values and DCF/XDC configured parameter values
+- ✅ Helpers for RPDO/TPDO communication and mapping parameters
 - ✅ Complete EDS parsing and writing
 - ✅ Complete DCF parsing and writing
 - ✅ CPJ nodelist project parsing and writing (CiA 306-3 network topologies)
