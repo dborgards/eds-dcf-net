@@ -34,6 +34,7 @@ public class TypedObjectDictionaryValueTests
         { "0xFFFFFFFFFFFFFF", 0x0014, -1L },
         { "9223372036854775807", 0x0015, long.MaxValue },
         { "0xFFFFFFFFFFFFFFFF", 0x0015, -1L },
+        { "0777", 0x0015, 511L },
         { "16777215", 0x0016, 16777215U },
         { "0xFFFFFFFFFF", 0x0018, 1099511627775UL },
         { "281474976710655", 0x0019, 281474976710655UL },
@@ -68,6 +69,8 @@ public class TypedObjectDictionaryValueTests
     [Theory]
     [InlineData("0x123", 0x000A)]  // odd digit count
     [InlineData("0xZZ", 0x000A)]   // invalid hex digit
+    [InlineData("0x!!", 0x000A)]   // character below '0'
+    [InlineData("0x::", 0x000A)]   // character between '9' and 'A'
     [InlineData("maybe", 0x0001)]  // invalid boolean token
     public void Parse_MalformedValue_ThrowsFormatException(string value, ushort dataType)
     {
@@ -80,6 +83,7 @@ public class TypedObjectDictionaryValueTests
     [InlineData("256", 0x0005)]           // unsigned decimal overflow
     [InlineData("0x1FF", 0x0005)]         // unsigned hex overflow
     [InlineData("128", 0x0002)]           // signed decimal overflow
+    [InlineData("-129", 0x0002)]          // signed decimal underflow
     [InlineData("0x1000000", 0x0010)]     // signed hex overflow (24-bit)
     public void Parse_ValueOutsideRange_ThrowsOverflowException(string value, ushort dataType)
     {
@@ -208,6 +212,15 @@ public class TypedObjectDictionaryValueTests
         var dictionary = CreateDictionary();
 
         dictionary.GetParameterValue<uint>(0x1018, 1).Should().Be(0x100U);
+    }
+
+    [Fact]
+    public void GetParameterValueAsObject_SubObjectConfiguredValue_TakesPrecedenceOverDefault()
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x1018].SubObjects[1].ParameterValue = "0x200";
+
+        dictionary.GetParameterValueAsObject(0x1018, 1).Should().Be(0x200U);
     }
 
     [Fact]
