@@ -513,6 +513,58 @@ public class TypedObjectDictionaryValueTests
     }
 
     [Fact]
+    public void GetParameterValue_ParsedDcfWithoutConfiguredValue_FallsBackToDefault()
+    {
+        // End-to-end: DcfReader stores an absent ParameterValue INI key as an empty
+        // string, which must not mask the DefaultValue for typed reads.
+        const string dcfContent = """
+            [FileInfo]
+            FileName=test.dcf
+            FileVersion=1
+            FileRevision=0
+            EDSVersion=4.0
+
+            [DeviceInfo]
+            VendorName=Test
+            VendorNumber=0x1
+            ProductName=Test Device
+            ProductNumber=0x1
+            RevisionNumber=0x1
+            OrderCode=T-1
+            BaudRate_500=1
+            SimpleBootUpSlave=1
+            Granularity=8
+            NrOfRXPDO=0
+            NrOfTXPDO=0
+            LSS_Supported=0
+
+            [DeviceComissioning]
+            NodeID=2
+            NodeName=TestNode
+            Baudrate=500
+            NetNumber=1
+            NetworkName=net
+            LSS_SerialNumber=0
+
+            [MandatoryObjects]
+            SupportedObjects=1
+            1=0x1000
+
+            [1000]
+            ParameterName=Device Type
+            ObjectType=0x7
+            DataType=0x0007
+            AccessType=ro
+            DefaultValue=0x00000191
+            PDOMapping=0
+            """;
+
+        var dcf = CanOpenFile.Dcf.ReadString(dcfContent);
+
+        dcf.ObjectDictionary.GetParameterValue<uint>(0x1000).Should().Be(0x191U);
+    }
+
+    [Fact]
     public void GetParameterValueAsObject_WhitespaceOnlyStringValue_IsPreserved()
     {
         var dictionary = CreateDictionary();
