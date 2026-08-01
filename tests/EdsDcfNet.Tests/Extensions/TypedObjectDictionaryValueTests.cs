@@ -66,7 +66,7 @@ public class TypedObjectDictionaryValueTests
     [Fact]
     public void Parse_ByteStringWithSeparators_IgnoresSpacesAndDashes()
     {
-        CanOpenValueConverter.Parse("01 02-fe", 0x000F)
+        CanOpenValueConverter.Parse("01 02-fe", 0x000A)
             .Should().BeEquivalentTo(new byte[] { 0x01, 0x02, 0xFE });
     }
 
@@ -178,7 +178,7 @@ public class TypedObjectDictionaryValueTests
     {
         CanOpenValueConverter.Format(true, 0x0001).Should().Be("1");
         CanOpenValueConverter.Format(1.5F, 0x0008).Should().Be("1.5");
-        CanOpenValueConverter.Format(new byte[] { 0x01, 0xAB }, 0x000F).Should().Be("0x01AB");
+        CanOpenValueConverter.Format(new byte[] { 0x01, 0xAB }, 0x000A).Should().Be("0x01AB");
     }
 
     [Fact]
@@ -545,9 +545,49 @@ public class TypedObjectDictionaryValueTests
     [Fact]
     public void Parse_SignedNodeIdOperandOutsideSigned64Range_ThrowsOverflowException()
     {
-        var act = () => CanOpenValueConverter.Parse("$NODEID-0xFFFFFFFFFFFFFFFF", 0x0015, nodeId: 1);
+        // long.MinValue magnitude is 2^63; one more than that underflows.
+        var act = () => CanOpenValueConverter.Parse("$NODEID-0x8000000000000001", 0x0015, nodeId: 0);
 
         act.Should().Throw<OverflowException>();
+    }
+
+    [Fact]
+    public void Parse_SignedNodeIdSubtractionWithOperandAboveInt64Max_ReturnsNegativeResult()
+    {
+        // 1 - 0x8000000000000000 == -9223372036854775807, which fits in INTEGER64.
+        CanOpenValueConverter.Parse("$NODEID-0x8000000000000000", 0x0015, nodeId: 1)
+            .Should().Be(-9223372036854775807L);
+    }
+
+    [Fact]
+    public void Parse_SignedNodeIdSubtractionReachingInt64Min_ReturnsMinValue()
+    {
+        CanOpenValueConverter.Parse("$NODEID-0x8000000000000000", 0x0015, nodeId: 0)
+            .Should().Be(long.MinValue);
+    }
+
+    [Fact]
+    public void Parse_SignedNodeIdSubtractionStayingPositive_ReturnsDifference()
+    {
+        CanOpenValueConverter.Parse("$NODEID-2", 0x0003, nodeId: 10).Should().Be((short)8);
+    }
+
+    [Theory]
+    [InlineData(0x000F)]
+    public void Parse_DomainDataType_ThrowsNotSupportedException(ushort dataType)
+    {
+        // DCF DOMAIN payloads live in UploadFile/DownloadFile, not in ParameterValue.
+        var act = () => CanOpenValueConverter.Parse("0x01AB", dataType);
+
+        act.Should().Throw<NotSupportedException>().WithMessage("*DOMAIN*");
+    }
+
+    [Fact]
+    public void Format_DomainDataType_ThrowsNotSupportedException()
+    {
+        var act = () => CanOpenValueConverter.Format(new byte[] { 0x01, 0xAB }, 0x000F);
+
+        act.Should().Throw<NotSupportedException>().WithMessage("*DOMAIN*");
     }
 
     [Fact]

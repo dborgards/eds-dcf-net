@@ -107,8 +107,10 @@ extensions also provide category queries and access to RPDO/TPDO communication a
 parameter ranges.
 
 Typed value conversion covers BOOLEAN, signed and unsigned integers (including the CANopen
-24/40/48/56-bit types), REAL32/REAL64, VISIBLE_STRING, UNICODE_STRING, OCTET_STRING, and
-DOMAIN. Numeric ranges are validated when setting values. The original string overloads
+24/40/48/56-bit types), REAL32/REAL64, VISIBLE_STRING, UNICODE_STRING, and OCTET_STRING.
+Numeric ranges are validated when setting values. DOMAIN entries are excluded because DCF
+files reference their payload through `UploadFile`/`DownloadFile` instead of an inline
+value; use those properties directly. The original string overloads
 remain available when an application needs exact control of the serialized representation.
 
 ### Writing an EDS File

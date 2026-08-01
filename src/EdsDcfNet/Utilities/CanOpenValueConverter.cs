@@ -8,6 +8,11 @@ using System.Globalization;
 /// </summary>
 public static class CanOpenValueConverter
 {
+    private const string DomainNotSupportedMessage =
+        "CANopen data type 0x000F (DOMAIN) is not supported for typed value conversion. " +
+        "DCF DOMAIN payloads are referenced through CanOpenObject.UploadFile and " +
+        "CanOpenObject.DownloadFile rather than an inline ParameterValue; access those " +
+        "properties directly.";
     /// <summary>
     /// Parses an Object Dictionary value according to its CANopen data type index.
     /// </summary>
@@ -21,8 +26,10 @@ public static class CanOpenValueConverter
     /// <remarks>
     /// Integer values may use decimal, hexadecimal (<c>0x</c>), octal notation, or
     /// <c>$NODEID</c> formulas. Empty or whitespace-only integer literals are treated as zero.
-    /// OCTET_STRING and DOMAIN values are returned as <see cref="byte"/> arrays when written
-    /// as hexadecimal literals. TIME_OF_DAY and TIME_DIFFERENCE currently remain unsupported
+    /// OCTET_STRING values are returned as <see cref="byte"/> arrays when written as
+    /// hexadecimal literals. DOMAIN is not supported because DCF files reference its payload
+    /// through <c>UploadFile</c>/<c>DownloadFile</c> instead of an inline value.
+    /// TIME_OF_DAY and TIME_DIFFERENCE currently remain unsupported
     /// because their file representation does not provide a universally interoperable mapping.
     /// </remarks>
     public static object Parse(string value, ushort dataType, byte? nodeId = null)
@@ -42,7 +49,6 @@ public static class CanOpenValueConverter
             0x0009 => value,
             0x000A => ParseByteString(value),
             0x000B => value,
-            0x000F => ParseByteString(value),
             0x0010 => (int)ParseSignedInteger(value, 24, nodeId),
             0x0011 => double.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture),
             0x0012 => ParseSignedInteger(value, 40, nodeId),
@@ -56,6 +62,7 @@ public static class CanOpenValueConverter
             0x001B => ParseUnsignedInteger(value, 64, nodeId),
             0x000C or 0x000D => throw new NotSupportedException(
                 $"CANopen data type 0x{dataType:X4} does not have a universally interoperable EDS/DCF to .NET mapping."),
+            0x000F => throw new NotSupportedException(DomainNotSupportedMessage),
             _ => throw new NotSupportedException($"CANopen data type 0x{dataType:X4} is not supported for typed value conversion.")
         };
     }
@@ -81,7 +88,7 @@ public static class CanOpenValueConverter
                 0x0008 => Convert.ToSingle(value, CultureInfo.InvariantCulture).ToString("R", CultureInfo.InvariantCulture),
                 0x0009 or 0x000B => value as string
                     ?? throw new InvalidCastException("VISIBLE_STRING and UNICODE_STRING values must be supplied as strings."),
-                0x000A or 0x000F => FormatByteString(value),
+                0x000A => FormatByteString(value),
                 0x0010 => FormatSigned(value, 24),
                 0x0011 => Convert.ToDouble(value, CultureInfo.InvariantCulture).ToString("R", CultureInfo.InvariantCulture),
                 0x0012 => FormatSigned(value, 40),
@@ -95,6 +102,7 @@ public static class CanOpenValueConverter
                 0x001B => FormatUnsigned(value, 64),
                 0x000C or 0x000D => throw new NotSupportedException(
                     $"CANopen data type 0x{dataType:X4} does not have a universally interoperable EDS/DCF to .NET mapping."),
+                0x000F => throw new NotSupportedException(DomainNotSupportedMessage),
                 _ => throw new NotSupportedException($"CANopen data type 0x{dataType:X4} is not supported for typed value conversion.")
             };
         }
@@ -346,21 +354,38 @@ public static class CanOpenValueConverter
     private static long EvaluateSignedNodeIdFormula(string formula, byte? nodeId)
     {
         var (op, operand) = SplitNodeIdFormula(formula, nodeId);
+        long baseValue = nodeId!.Value;
         if (op is null)
         {
-            return nodeId!.Value;
+            return baseValue;
         }
 
-        if (operand > long.MaxValue)
+        if (op.Value == '+')
         {
-            throw new OverflowException($"$NODEID formula '{formula}' has an operand outside the signed 64-bit range.");
+            if (operand > (ulong)(long.MaxValue - baseValue))
+            {
+                throw new OverflowException($"$NODEID formula '{formula}' overflows the signed 64-bit range.");
+            }
+
+            return baseValue + (long)operand;
         }
 
-        // Fold the sign into the operand so a single checked addition covers both cases.
-        // Only addition can overflow: the node ID is at most 255 and the negated operand
-        // is at least -long.MaxValue, so subtraction stays within the signed 64-bit range.
-        var signedOperand = op.Value == '+' ? (long)operand : -(long)operand;
-        return checked(nodeId!.Value + signedOperand);
+        if (operand <= (ulong)baseValue)
+        {
+            return baseValue - (long)operand;
+        }
+
+        // The result is negative. Evaluate its magnitude in unsigned space so operands above
+        // long.MaxValue still produce valid results, e.g. $NODEID-0x8000000000000000 with node
+        // ID 1 is -9223372036854775807, which fits in a signed 64-bit value.
+        const ulong maximumNegativeMagnitude = (ulong)long.MaxValue + 1;
+        var magnitude = operand - (ulong)baseValue;
+        if (magnitude > maximumNegativeMagnitude)
+        {
+            throw new OverflowException($"$NODEID formula '{formula}' underflows the signed 64-bit range.");
+        }
+
+        return magnitude == maximumNegativeMagnitude ? long.MinValue : -(long)magnitude;
     }
 
     /// <summary>
