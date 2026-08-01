@@ -124,8 +124,7 @@ public class SecureXmlParserTests
     [Fact]
     public void ParseDocument_InvalidXml_ThrowsEdsParseException()
     {
-        var act = () => Invoke<XDocument>(
-            "ParseDocument",
+        var act = () => InvokeParseDocument(
             "<root><broken></root>",
             "XDD",
             "Failed to parse XDD XML content.",
@@ -133,6 +132,68 @@ public class SecureXmlParserTests
 
         act.Should().Throw<EdsParseException>()
             .WithMessage("*Failed to parse XDD XML content.*");
+    }
+
+    [Fact]
+    public void ParseDocument_ExceedsMaxDepth_ThrowsEdsParseException()
+    {
+        // Depth 0 = <a>, depth 1 = <b>, depth 2 = <c>. With maxDepth 1, <c> must fail.
+        const string nested = "<a><b><c/></b></a>";
+
+        var act = () => InvokeParseDocument(
+            nested,
+            "XDD",
+            "Failed to parse XDD XML content.",
+            1024L,
+            maxDepth: 1);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*maximum XML nesting depth of 1*");
+    }
+
+    [Fact]
+    public void ParseDocument_AtMaxDepth_Succeeds()
+    {
+        const string nested = "<a><b><c/></b></a>";
+
+        var doc = InvokeParseDocument(
+            nested,
+            "XDD",
+            "Failed to parse XDD XML content.",
+            1024L,
+            maxDepth: 2);
+
+        doc.Root.Should().NotBeNull();
+        doc.Root!.Name.LocalName.Should().Be("a");
+    }
+
+    [Fact]
+    public void ParseDocument_RealisticFlatFixture_Succeeds()
+    {
+        var content = File.ReadAllText("Fixtures/sample_device.xdd");
+
+        var doc = InvokeParseDocument(
+            content,
+            "XDD",
+            "Failed to parse XDD XML content.",
+            10L * 1024 * 1024);
+
+        doc.Root.Should().NotBeNull();
+        doc.Root!.Name.LocalName.Should().Be("ISO15745ProfileContainer");
+    }
+
+    [Fact]
+    public void ParseDocument_NegativeMaxDepth_ThrowsArgumentOutOfRangeException()
+    {
+        var act = () => InvokeParseDocument(
+            "<root/>",
+            "XDD",
+            "Failed to parse XDD XML content.",
+            1024L,
+            maxDepth: -1);
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .Where(ex => ex.ParamName == "maxDepth");
     }
 
     [Fact]
@@ -159,11 +220,25 @@ public class SecureXmlParserTests
         }
     }
 
+    private static XDocument InvokeParseDocument(
+        string content,
+        string formatName,
+        string parseErrorMessage,
+        long maxInputSize,
+        int maxDepth = 64)
+    {
+        return Invoke<XDocument>(
+            "ParseDocument",
+            content,
+            formatName,
+            parseErrorMessage,
+            maxInputSize,
+            maxDepth);
+    }
+
     private static T Invoke<T>(string methodName, params object?[] args)
     {
-        var method = SecureXmlParserType.GetMethod(
-            methodName,
-            BindingFlags.NonPublic | BindingFlags.Static)!;
+        var method = ResolveMethod(methodName, args.Length);
 
         try
         {
@@ -179,9 +254,7 @@ public class SecureXmlParserTests
 
     private static async Task<T> InvokeAsync<T>(string methodName, params object?[] args)
     {
-        var method = SecureXmlParserType.GetMethod(
-            methodName,
-            BindingFlags.NonPublic | BindingFlags.Static)!;
+        var method = ResolveMethod(methodName, args.Length);
 
         Task<T> task;
         try
@@ -195,6 +268,17 @@ public class SecureXmlParserTests
         }
 
         return await task.ConfigureAwait(false);
+    }
+
+    private static MethodInfo ResolveMethod(string methodName, int argumentCount)
+    {
+        var method = SecureXmlParserType
+            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+            .SingleOrDefault(m => m.Name == methodName && m.GetParameters().Length == argumentCount);
+
+        return method
+            ?? throw new InvalidOperationException(
+                $"Internal method {methodName} with {argumentCount} parameter(s) not found.");
     }
 
     private sealed class WriteOnlyStream : MemoryStream

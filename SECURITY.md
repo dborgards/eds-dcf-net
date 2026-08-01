@@ -49,7 +49,7 @@ surface is therefore limited to:
 |------|-----------------------------|
 | Malformed input handling | Unbounded memory allocation, infinite loops, or unhandled exceptions when parsing crafted EDS/DCF/CPJ files |
 | Path traversal | Any API that accepts a file path and could be abused to read or write outside the intended directory |
-| Denial of service via parsing | Algorithmic complexity attacks (e.g. quadratic parsing) triggered by crafted files |
+| Denial of service via parsing | Algorithmic complexity attacks (e.g. quadratic parsing, deeply nested XML) triggered by crafted files |
 | Dependency vulnerabilities | Vulnerabilities in NuGet dependencies. The main library has no runtime dependencies shipped to consumers, but does use build-time/dev-only tooling packages (e.g. Microsoft.SourceLink.GitHub). |
 
 The following are **out of scope**:
@@ -67,7 +67,9 @@ network), consumers should apply the standard defense-in-depth measures:
 
 - **Validate file origin** before passing paths or content to the library.
 - **Limit resource usage** (memory, CPU) at the process level when parsing
-  files from untrusted sources.
+  files from untrusted sources. The library applies default input-size limits
+  for all formats and an XML nesting-depth limit for XDD/XDC; raise these only
+  for trusted, known-large payloads.
 - **Keep the package up to date** to receive security fixes as soon as they
   are released.
 
