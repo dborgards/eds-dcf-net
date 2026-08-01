@@ -81,10 +81,14 @@ function forward(command, entryScriptPath = process.argv[1]) {
     process.exit(1);
   }
 
+  // Node rejects direct .cmd/.bat spawns without a shell (EINVAL / CVE-2024-27980).
+  const shell =
+    process.platform === "win32" && /\.(?:cmd|bat)$/i.test(target);
+
   const result = spawnSync(target, process.argv.slice(2), {
     stdio: "inherit",
     env: process.env,
-    shell: false,
+    shell,
   });
 
   if (result.error) {
