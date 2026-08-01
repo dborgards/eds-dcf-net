@@ -287,6 +287,24 @@ public class TypedObjectDictionaryValueTests
     }
 
     [Fact]
+    public void TypedAccess_ObjectWithDataTypeZero_ThrowsInvalidOperationException()
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x3001] = new CanOpenObject
+        {
+            Index = 0x3001,
+            DataType = 0, // parser sentinel for an omitted DataType field
+            DefaultValue = "1"
+        };
+
+        var get = () => dictionary.GetParameterValueAsObject(0x3001);
+        var set = () => dictionary.SetParameterValue(0x3001, (object)1);
+
+        get.Should().Throw<InvalidOperationException>().WithMessage("*0x3001*");
+        set.Should().Throw<InvalidOperationException>().WithMessage("*0x3001*");
+    }
+
+    [Fact]
     public void TypedAccess_SubObjectWithoutDataType_ThrowsInvalidOperationException()
     {
         var dictionary = CreateDictionary();
