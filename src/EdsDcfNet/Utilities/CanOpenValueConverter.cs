@@ -131,6 +131,8 @@ public static class CanOpenValueConverter
         }
 
         // Accept numeric 0/1 only; any other number is outside the CANopen BOOLEAN value range.
+        // Fractional inputs must be rejected before conversion so 0.25 does not round to 0.
+        EnsureIntegral(value);
         var numeric = Convert.ToInt64(value, CultureInfo.InvariantCulture);
         return numeric switch
         {

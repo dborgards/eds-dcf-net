@@ -411,6 +411,17 @@ public class TypedObjectDictionaryValueTests
         CanOpenValueConverter.Format(value, 0x0001).Should().Be(expected);
     }
 
+    public static TheoryData<object> FractionalBooleanValues => new() { 0.25D, 1.4F, 0.5M };
+
+    [Theory]
+    [MemberData(nameof(FractionalBooleanValues))]
+    public void Format_FractionalNumericBoolean_ThrowsArgumentException(object value)
+    {
+        var act = () => CanOpenValueConverter.Format(value, 0x0001);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*0x0001*");
+    }
+
     public static TheoryData<object, ushort> FractionalValues => new()
     {
         { 1.5D, 0x0003 },  // double -> INTEGER16
@@ -462,6 +473,42 @@ public class TypedObjectDictionaryValueTests
 
         dictionary.GetParameterValueAsObject(0x2000).Should().BeNull();
         dictionary.GetParameterValueAsObject(0x1018, 1).Should().BeNull();
+    }
+
+    [Fact]
+    public void GetParameterValueAsObject_WhitespaceOnlyStringValue_IsPreserved()
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x2001] = new CanOpenObject
+        {
+            Index = 0x2001,
+            DataType = 0x0009, // VISIBLE_STRING
+            ParameterValue = "   "
+        };
+        dictionary.Objects[0x1018].SubObjects[4] = new CanOpenSubObject
+        {
+            SubIndex = 4,
+            DataType = 0x000B, // UNICODE_STRING
+            DefaultValue = "  "
+        };
+
+        dictionary.GetParameterValueAsObject(0x2001).Should().Be("   ");
+        dictionary.GetParameterValue<string>(0x2001).Should().Be("   ");
+        dictionary.GetParameterValueAsObject(0x1018, 4).Should().Be("  ");
+    }
+
+    [Fact]
+    public void GetParameterValueAsObject_EmptyStringTypeValue_TreatedAsMissing()
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x2001] = new CanOpenObject
+        {
+            Index = 0x2001,
+            DataType = 0x0009, // VISIBLE_STRING
+            DefaultValue = ""  // parser default for a missing value
+        };
+
+        dictionary.GetParameterValueAsObject(0x2001).Should().BeNull();
     }
 
     [Fact]

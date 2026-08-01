@@ -88,9 +88,7 @@ public static class ObjectDictionaryExtensions
     {
         var obj = objDict.GetObject(index);
         var value = obj?.ParameterValue ?? obj?.DefaultValue;
-        // Parsed models store a missing DefaultValue as an empty string, so treat
-        // empty/whitespace like "no value" instead of forwarding it to the converter.
-        if (string.IsNullOrWhiteSpace(value))
+        if (IsMissingValue(value, obj?.DataType))
         {
             return null;
         }
@@ -118,9 +116,7 @@ public static class ObjectDictionaryExtensions
     {
         var subObj = objDict.GetSubObject(index, subIndex);
         var value = subObj?.ParameterValue ?? subObj?.DefaultValue;
-        // Parsed models store a missing DefaultValue as an empty string, so treat
-        // empty/whitespace like "no value" instead of forwarding it to the converter.
-        if (string.IsNullOrWhiteSpace(value))
+        if (IsMissingValue(value, subObj?.DataType))
         {
             return null;
         }
@@ -279,6 +275,23 @@ public static class ObjectDictionaryExtensions
         {
             throw new ArgumentNullException(parameterName);
         }
+    }
+
+    /// <summary>
+    /// Decides whether a resolved textual value should be treated as "no value".
+    /// Parsed models store a missing DefaultValue as an empty string, so empty is always
+    /// missing. Whitespace-only is missing too, except for string data types where
+    /// whitespace is representable content that the writers persist.
+    /// </summary>
+    private static bool IsMissingValue(string? value, ushort? dataType)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return true;
+        }
+
+        var isStringType = dataType is 0x0009 or 0x000B; // VISIBLE_STRING, UNICODE_STRING
+        return !isStringType && string.IsNullOrWhiteSpace(value);
     }
 }
 
