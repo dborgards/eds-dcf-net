@@ -71,7 +71,7 @@ public static class CanOpenValueConverter
         {
             return dataType switch
             {
-                0x0001 => Convert.ToBoolean(value, CultureInfo.InvariantCulture) ? "1" : "0",
+                0x0001 => FormatBoolean(value),
                 0x0002 => FormatSigned(value, 8),
                 0x0003 => FormatSigned(value, 16),
                 0x0004 => FormatSigned(value, 32),
@@ -79,7 +79,8 @@ public static class CanOpenValueConverter
                 0x0006 => FormatUnsigned(value, 16),
                 0x0007 => FormatUnsigned(value, 32),
                 0x0008 => Convert.ToSingle(value, CultureInfo.InvariantCulture).ToString("R", CultureInfo.InvariantCulture),
-                0x0009 or 0x000B => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty,
+                0x0009 or 0x000B => value as string
+                    ?? throw new InvalidCastException("VISIBLE_STRING and UNICODE_STRING values must be supplied as strings."),
                 0x000A or 0x000F => FormatByteString(value),
                 0x0010 => FormatSigned(value, 24),
                 0x0011 => Convert.ToDouble(value, CultureInfo.InvariantCulture).ToString("R", CultureInfo.InvariantCulture),
@@ -120,6 +121,23 @@ public static class CanOpenValueConverter
         }
 
         throw new FormatException($"'{value}' is not a valid CANopen BOOLEAN value.");
+    }
+
+    private static string FormatBoolean(object value)
+    {
+        if (value is bool boolean)
+        {
+            return boolean ? "1" : "0";
+        }
+
+        // Accept numeric 0/1 only; any other number is outside the CANopen BOOLEAN value range.
+        var numeric = Convert.ToInt64(value, CultureInfo.InvariantCulture);
+        return numeric switch
+        {
+            0 => "0",
+            1 => "1",
+            _ => throw new OverflowException($"Value {numeric} is outside the CANopen BOOLEAN value range (0 or 1).")
+        };
     }
 
     private static long ParseSignedInteger(string value, int bits, byte? nodeId)
@@ -200,6 +218,7 @@ public static class CanOpenValueConverter
 
     private static string FormatSigned(object value, int bits)
     {
+        EnsureIntegral(value);
         var converted = Convert.ToInt64(value, CultureInfo.InvariantCulture);
         ValidateSignedRange(converted, bits);
         return converted.ToString(CultureInfo.InvariantCulture);
@@ -207,9 +226,19 @@ public static class CanOpenValueConverter
 
     private static string FormatUnsigned(object value, int bits)
     {
+        EnsureIntegral(value);
         var converted = Convert.ToUInt64(value, CultureInfo.InvariantCulture);
         ValidateUnsignedRange(converted, bits);
         return converted.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static void EnsureIntegral(object value)
+    {
+        if (value is float or double or decimal)
+        {
+            throw new InvalidCastException(
+                $"Value '{value}' is a floating-point number and cannot be stored in an integer CANopen data type without loss.");
+        }
     }
 
     private static void ValidateSignedRange(long value, int bits)

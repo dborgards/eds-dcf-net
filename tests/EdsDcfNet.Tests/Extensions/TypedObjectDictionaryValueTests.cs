@@ -380,6 +380,68 @@ public class TypedObjectDictionaryValueTests
         CanOpenValueConverter.Parse("$NODEID+0x100", 0x0004, nodeId: 2).Should().Be(0x102);
     }
 
+    [Theory]
+    [InlineData(2)]
+    [InlineData(-1)]
+    public void Format_NumericBooleanOutsideRange_ThrowsArgumentException(int value)
+    {
+        var act = () => CanOpenValueConverter.Format(value, 0x0001);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*0x0001*");
+    }
+
+    [Theory]
+    [InlineData(0, "0")]
+    [InlineData(1, "1")]
+    public void Format_NumericBooleanZeroOrOne_IsAccepted(int value, string expected)
+    {
+        CanOpenValueConverter.Format(value, 0x0001).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(0x0003)] // INTEGER16
+    [InlineData(0x0007)] // UNSIGNED32
+    public void Format_FractionalValueForIntegerType_ThrowsArgumentException(ushort dataType)
+    {
+        var act = () => CanOpenValueConverter.Format(1.5, dataType);
+
+        act.Should().Throw<ArgumentException>().WithMessage($"*0x{dataType:X4}*");
+    }
+
+    [Theory]
+    [InlineData(0x0009)] // VISIBLE_STRING
+    [InlineData(0x000B)] // UNICODE_STRING
+    public void Format_NonStringForStringType_ThrowsArgumentException(ushort dataType)
+    {
+        var act = () => CanOpenValueConverter.Format(new byte[] { 0x01 }, dataType);
+
+        act.Should().Throw<ArgumentException>().WithMessage($"*0x{dataType:X4}*");
+    }
+
+    [Fact]
+    public void SetParameterValue_SubObjectWithoutDataType_ThrowsInvalidOperationException()
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x1018].SubObjects[3] = new CanOpenSubObject { SubIndex = 3, DataType = 0 };
+
+        var act = () => dictionary.SetParameterValue(0x1018, 3, (object)1U);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*0x1018:03*");
+    }
+
+    [Fact]
+    public void SetParameterValue_NullLiteral_StillBindsToStringOverload()
+    {
+        var dictionary = CreateDictionary();
+        dictionary.Objects[0x2000].ParameterValue = "10";
+
+        // Overload resolution must keep preferring the string overload for null literals,
+        // preserving source compatibility with pre-typed-API callers.
+        dictionary.SetParameterValue(0x2000, null!).Should().BeTrue();
+
+        dictionary.Objects[0x2000].ParameterValue.Should().BeNull();
+    }
+
     [Fact]
     public void GetParameterValue_GenericMissingValue_ThrowsKeyNotFoundException()
     {

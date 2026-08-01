@@ -198,6 +198,14 @@ public static class ObjectDictionaryExtensions
             return false;
         }
 
+        // Sub-objects store a missing DataType as 0 (see ParseSubObject default), unlike
+        // top-level objects which leave DataType null when the field is omitted.
+        if (subObj.DataType == 0)
+        {
+            throw new InvalidOperationException(
+                $"Sub-object 0x{index:X4}:{subIndex:X2} does not define a CANopen data type.");
+        }
+
         subObj.ParameterValue = CanOpenValueConverter.Format(value, subObj.DataType);
         return true;
     }
