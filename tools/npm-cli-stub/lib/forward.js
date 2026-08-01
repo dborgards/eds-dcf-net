@@ -69,8 +69,12 @@ function shimTargetsSelf(candidatePath, selfRealpaths) {
   }
 
   const dir = path.dirname(candidatePath);
+  // Expand both modern (`%dp0%` after SET dp0=%~dp0) and older (`%~dp0\...`)
+  // cmd-shim forms. Requiring a trailing % misses bare %~dp0 and can re-enter
+  // the stub when node_modules/.bin is first on PATH.
   const expanded = content
-    .replace(/%~?dp0%/gi, dir)
+    .replace(/%~dp0/gi, dir)
+    .replace(/%dp0%/gi, dir)
     .replace(/\$basedir/g, dir);
   const refs = expanded.match(/[^\s"'<>|]+\.js\b/g) || [];
   for (const ref of refs) {
