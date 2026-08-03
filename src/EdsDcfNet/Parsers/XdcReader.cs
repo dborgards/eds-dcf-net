@@ -1,11 +1,9 @@
 namespace EdsDcfNet.Parsers;
 
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
-using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Reader for CiA 311 XDC (XML Device Configuration) files.
@@ -29,7 +27,16 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
             throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
 
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC", maxInputSize);
-        var content = File.ReadAllText(filePath);
+        // Bounded stream read enforces MaxInputSize while loading (guards TOCTOU
+        // if the file grows after the FileInfo.Length pre-check).
+        using var stream = new FileStream(
+            filePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 4096,
+            options: FileOptions.SequentialScan);
+        var content = SecureXmlParser.ReadContentFromStreamWithLimit(stream, "XDC", maxInputSize);
         return ReadString(content, maxInputSize);
     }
 
@@ -79,10 +86,20 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
             throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
 
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC", maxInputSize);
-        var content = await TextFileIo.ReadAllTextAsync(
+        // Bounded stream read enforces MaxInputSize while loading (guards TOCTOU
+        // if the file grows after the FileInfo.Length pre-check).
+        using var stream = new FileStream(
             filePath,
-            Encoding.UTF8,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 4096,
+            options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+        var content = await SecureXmlParser.ReadContentFromStreamWithLimitAsync(
+            stream,
+            "XDC",
+            maxInputSize,
+            cancellationToken).ConfigureAwait(false);
         return ReadString(content, maxInputSize);
     }
 

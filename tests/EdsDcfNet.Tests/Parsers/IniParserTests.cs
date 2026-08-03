@@ -445,6 +445,52 @@ DataType=0x0005
     }
 
     [Fact]
+    public void ParseFile_ContentAtExactMaxInputSize_ParsesSuccessfully()
+    {
+        // Arrange — ASCII content so byte length == character count; FileInfo
+        // pre-check passes and ParseReader enforces the limit while streaming.
+        const string content = "[Section1]\nKey1=Value1\n";
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            File.WriteAllText(tempFile, content);
+
+            // Act
+            var result = IniParser.ParseFile(tempFile, maxInputSize: content.Length);
+
+            // Assert
+            result.Should().ContainKey("Section1");
+            result["Section1"]["Key1"].Should().Be("Value1");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void ParseFile_ContentOneOverMaxInputSize_ThrowsEdsParseException()
+    {
+        const string content = "[Section1]\nKey1=Value1\n";
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            File.WriteAllText(tempFile, content);
+
+            var act = () => IniParser.ParseFile(tempFile, maxInputSize: content.Length - 1);
+
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*too large*");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public async Task ParseFileAsync_ValidFile_ParsesCorrectly()
     {
         // Arrange
@@ -489,6 +535,48 @@ DataType=0x0005
             var act = () => IniParser.ParseFileAsync(tempFile, maxInputSize: 10);
 
             // Assert
+            await act.Should().ThrowAsync<EdsParseException>()
+                .WithMessage("*too large*");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ParseFileAsync_ContentAtExactMaxInputSize_ParsesSuccessfully()
+    {
+        const string content = "[Section1]\nKey1=Value1\n";
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, content);
+
+            var result = await IniParser.ParseFileAsync(tempFile, maxInputSize: content.Length);
+
+            result.Should().ContainKey("Section1");
+            result["Section1"]["Key1"].Should().Be("Value1");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ParseFileAsync_ContentOneOverMaxInputSize_ThrowsEdsParseException()
+    {
+        const string content = "[Section1]\nKey1=Value1\n";
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, content);
+
+            var act = () => IniParser.ParseFileAsync(tempFile, maxInputSize: content.Length - 1);
+
             await act.Should().ThrowAsync<EdsParseException>()
                 .WithMessage("*too large*");
         }

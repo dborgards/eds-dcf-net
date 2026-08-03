@@ -51,7 +51,18 @@ public static class IniParser
                     "File '{0}' is too large ({1:N0} bytes). Maximum supported size is {2:N0} bytes.",
                     filePath, fileInfo.Length, maxInputSize));
 
-        return ParseLines(File.ReadLines(filePath));
+        // Stream through ParseReader so MaxInputSize is enforced while reading
+        // (guards TOCTOU if the file grows after the FileInfo.Length check).
+        using var stream = new FileStream(
+            filePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 4096,
+            options: FileOptions.SequentialScan);
+        using var reader = new StreamReader(stream);
+
+        return ParseReader(reader, maxInputSize);
     }
 
     /// <summary>
