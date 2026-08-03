@@ -47,15 +47,7 @@ internal sealed class ByteLimitingStream : Stream
             bufferSize: 4096,
             options: options);
 
-        try
-        {
-            return new ByteLimitingStream(fileStream, maxBytes, exceededMessage);
-        }
-        catch
-        {
-            fileStream.Dispose();
-            throw;
-        }
+        return new ByteLimitingStream(fileStream, maxBytes, exceededMessage);
     }
 
     public override bool CanRead => _inner.CanRead;
