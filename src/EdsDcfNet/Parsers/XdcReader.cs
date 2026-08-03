@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Reader for CiA 311 XDC (XML Device Configuration) files.
