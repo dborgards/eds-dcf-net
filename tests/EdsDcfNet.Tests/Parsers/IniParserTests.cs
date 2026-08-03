@@ -457,7 +457,9 @@ DataType=0x0005
             File.WriteAllText(tempFile, content);
 
             // Act
-            var result = IniParser.ParseFile(tempFile, maxInputSize: content.Length);
+            var result = IniParser.ParseFile(
+                tempFile,
+                maxInputSize: System.Text.Encoding.UTF8.GetByteCount(content));
 
             // Assert
             result.Should().ContainKey("Section1");
@@ -479,7 +481,9 @@ DataType=0x0005
         {
             File.WriteAllText(tempFile, content);
 
-            var act = () => IniParser.ParseFile(tempFile, maxInputSize: content.Length - 1);
+            var act = () => IniParser.ParseFile(
+                tempFile,
+                maxInputSize: System.Text.Encoding.UTF8.GetByteCount(content) - 1);
 
             act.Should().Throw<EdsParseException>()
                 .WithMessage("*too large*");
@@ -554,7 +558,9 @@ DataType=0x0005
         {
             await File.WriteAllTextAsync(tempFile, content);
 
-            var result = await IniParser.ParseFileAsync(tempFile, maxInputSize: content.Length);
+            var result = await IniParser.ParseFileAsync(
+                tempFile,
+                maxInputSize: System.Text.Encoding.UTF8.GetByteCount(content));
 
             result.Should().ContainKey("Section1");
             result["Section1"]["Key1"].Should().Be("Value1");
@@ -575,7 +581,9 @@ DataType=0x0005
         {
             await File.WriteAllTextAsync(tempFile, content);
 
-            var act = () => IniParser.ParseFileAsync(tempFile, maxInputSize: content.Length - 1);
+            var act = () => IniParser.ParseFileAsync(
+                tempFile,
+                maxInputSize: System.Text.Encoding.UTF8.GetByteCount(content) - 1);
 
             await act.Should().ThrowAsync<EdsParseException>()
                 .WithMessage("*too large*");

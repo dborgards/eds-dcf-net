@@ -135,6 +135,45 @@ public class ByteLimitingStreamTests
     }
 
     [Fact]
+    public void Read_OverLimit_ReadsAtMostOneByteBeyondTheLimit()
+    {
+        var inner = new CountingStream(new byte[1024]);
+        using var stream = Create(inner, maxBytes: 8);
+        var buffer = new byte[1024];
+
+        var act = () => stream.Read(buffer, 0, buffer.Length);
+
+        act.Should().Throw<EdsParseException>();
+        inner.TotalBytesServed.Should().Be(9);
+    }
+
+    [Fact]
+    public async Task ReadAsync_OverLimit_ReadsAtMostOneByteBeyondTheLimit()
+    {
+        var inner = new CountingStream(new byte[1024]);
+        using var stream = Create(inner, maxBytes: 8);
+        var buffer = new byte[1024];
+
+        var act = () => stream.ReadAsync(buffer, 0, buffer.Length);
+
+        await act.Should().ThrowAsync<EdsParseException>();
+        inner.TotalBytesServed.Should().Be(9);
+    }
+
+    [Fact]
+    public async Task ReadAsync_MemoryOverload_OverLimit_ReadsAtMostOneByteBeyondTheLimit()
+    {
+        var inner = new CountingStream(new byte[1024]);
+        using var stream = Create(inner, maxBytes: 8);
+        var buffer = new byte[1024];
+
+        var act = async () => await stream.ReadAsync(buffer.AsMemory());
+
+        await act.Should().ThrowAsync<EdsParseException>();
+        inner.TotalBytesServed.Should().Be(9);
+    }
+
+    [Fact]
     public void UnsupportedMembers_ThrowNotSupportedException()
     {
         using var stream = Create(new MemoryStream([1, 2, 3]), maxBytes: 8);
@@ -166,6 +205,30 @@ public class ByteLimitingStreamTests
             binder: null,
             args: [inner, maxBytes, ExceededMessage],
             culture: null)!;
+
+    private sealed class CountingStream : MemoryStream
+    {
+        public CountingStream(byte[] buffer)
+            : base(buffer)
+        {
+        }
+
+        public long TotalBytesServed { get; private set; }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var bytesRead = base.Read(buffer, offset, count);
+            TotalBytesServed += bytesRead;
+            return bytesRead;
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            var bytesRead = base.Read(buffer);
+            TotalBytesServed += bytesRead;
+            return bytesRead;
+        }
+    }
 
     private static Stream OpenFile(string filePath, long maxBytes)
     {

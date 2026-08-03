@@ -273,7 +273,7 @@ public class XddReaderTests
         {
             File.WriteAllText(tempFile, MinimalXdd);
 
-            var result = _reader.ReadFile(tempFile, maxInputSize: MinimalXdd.Length);
+            var result = _reader.ReadFile(tempFile, maxInputSize: Encoding.UTF8.GetByteCount(MinimalXdd));
 
             result.FileInfo.FileName.Should().Be("test.xdd");
         }
@@ -293,7 +293,7 @@ public class XddReaderTests
         {
             File.WriteAllText(tempFile, MinimalXdd);
 
-            var act = () => _reader.ReadFile(tempFile, maxInputSize: MinimalXdd.Length - 1);
+            var act = () => _reader.ReadFile(tempFile, maxInputSize: Encoding.UTF8.GetByteCount(MinimalXdd) - 1);
 
             act.Should().Throw<EdsParseException>()
                 .WithMessage("*too large*");
@@ -314,7 +314,7 @@ public class XddReaderTests
         {
             await File.WriteAllTextAsync(tempFile, MinimalXdd);
 
-            var result = await _reader.ReadFileAsync(tempFile, maxInputSize: MinimalXdd.Length);
+            var result = await _reader.ReadFileAsync(tempFile, maxInputSize: Encoding.UTF8.GetByteCount(MinimalXdd));
 
             result.FileInfo.FileName.Should().Be("test.xdd");
         }
@@ -334,7 +334,7 @@ public class XddReaderTests
         {
             await File.WriteAllTextAsync(tempFile, MinimalXdd);
 
-            var act = () => _reader.ReadFileAsync(tempFile, maxInputSize: MinimalXdd.Length - 1);
+            var act = () => _reader.ReadFileAsync(tempFile, maxInputSize: Encoding.UTF8.GetByteCount(MinimalXdd) - 1);
 
             await act.Should().ThrowAsync<EdsParseException>()
                 .WithMessage("*too large*");

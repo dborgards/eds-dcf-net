@@ -64,7 +64,7 @@ internal sealed class ByteLimitingStream : Stream
     public override void Flush() => _inner.Flush();
 
     public override int Read(byte[] buffer, int offset, int count)
-        => CountBytes(_inner.Read(buffer, offset, LimitCount(count)));
+        => CountBytes(_inner.Read(buffer, offset, AllowedCount(count)));
 
     public override async Task<int> ReadAsync(
         byte[] buffer,
@@ -72,11 +72,11 @@ internal sealed class ByteLimitingStream : Stream
         int count,
         CancellationToken cancellationToken)
     {
-        count = LimitCount(count);
+        var allowedCount = AllowedCount(count);
 #if NET10_0_OR_GREATER
-        var bytesRead = await _inner.ReadAsync(buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
+        var bytesRead = await _inner.ReadAsync(buffer.AsMemory(offset, allowedCount), cancellationToken).ConfigureAwait(false);
 #else
-        var bytesRead = await _inner.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
+        var bytesRead = await _inner.ReadAsync(buffer, offset, allowedCount, cancellationToken).ConfigureAwait(false);
 #endif
         return CountBytes(bytesRead);
     }
@@ -86,11 +86,8 @@ internal sealed class ByteLimitingStream : Stream
         Memory<byte> buffer,
         CancellationToken cancellationToken = default)
     {
-        var limitedLength = LimitCount(buffer.Length);
-        if (limitedLength < buffer.Length)
-            buffer = buffer.Slice(0, limitedLength);
-
-        var bytesRead = await _inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+        var allowed = buffer[..AllowedCount(buffer.Length)];
+        var bytesRead = await _inner.ReadAsync(allowed, cancellationToken).ConfigureAwait(false);
         return CountBytes(bytesRead);
     }
 #endif
@@ -110,19 +107,14 @@ internal sealed class ByteLimitingStream : Stream
     }
 
     /// <summary>
-    /// Caps the requested read size so at most one byte past <see cref="_maxBytes"/>
-    /// can be transferred in a single operation (needed to detect overflow).
+    /// Caps a requested read at one byte past the remaining budget, so an
+    /// oversized input is still detected without buffering a whole block beyond
+    /// the limit.
     /// </summary>
-    private int LimitCount(int count)
+    private int AllowedCount(int count)
     {
-        var remainingIncludingProbe = _maxBytes - _totalBytesRead + 1;
-        if (remainingIncludingProbe <= 0)
-            throw new EdsParseException(_exceededMessage);
-
-        if (count > remainingIncludingProbe)
-            return remainingIncludingProbe > int.MaxValue ? int.MaxValue : (int)remainingIncludingProbe;
-
-        return count;
+        var allowed = _maxBytes - _totalBytesRead + 1;
+        return allowed < count ? (int)allowed : count;
     }
 
     private int CountBytes(int bytesRead)

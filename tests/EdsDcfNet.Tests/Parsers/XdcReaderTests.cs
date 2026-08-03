@@ -312,7 +312,7 @@ public class XdcReaderTests
         {
             File.WriteAllText(tempFile, MinimalXdc);
 
-            var result = _reader.ReadFile(tempFile, maxInputSize: MinimalXdc.Length);
+            var result = _reader.ReadFile(tempFile, maxInputSize: Encoding.UTF8.GetByteCount(MinimalXdc));
 
             result.FileInfo.FileName.Should().Be("test.xdc");
         }
@@ -332,7 +332,7 @@ public class XdcReaderTests
         {
             File.WriteAllText(tempFile, MinimalXdc);
 
-            var act = () => _reader.ReadFile(tempFile, maxInputSize: MinimalXdc.Length - 1);
+            var act = () => _reader.ReadFile(tempFile, maxInputSize: Encoding.UTF8.GetByteCount(MinimalXdc) - 1);
 
             act.Should().Throw<EdsParseException>()
                 .WithMessage("*too large*");
@@ -353,7 +353,7 @@ public class XdcReaderTests
         {
             await File.WriteAllTextAsync(tempFile, MinimalXdc);
 
-            var result = await _reader.ReadFileAsync(tempFile, maxInputSize: MinimalXdc.Length);
+            var result = await _reader.ReadFileAsync(tempFile, maxInputSize: Encoding.UTF8.GetByteCount(MinimalXdc));
 
             result.FileInfo.FileName.Should().Be("test.xdc");
         }
@@ -373,7 +373,7 @@ public class XdcReaderTests
         {
             await File.WriteAllTextAsync(tempFile, MinimalXdc);
 
-            var act = () => _reader.ReadFileAsync(tempFile, maxInputSize: MinimalXdc.Length - 1);
+            var act = () => _reader.ReadFileAsync(tempFile, maxInputSize: Encoding.UTF8.GetByteCount(MinimalXdc) - 1);
 
             await act.Should().ThrowAsync<EdsParseException>()
                 .WithMessage("*too large*");
