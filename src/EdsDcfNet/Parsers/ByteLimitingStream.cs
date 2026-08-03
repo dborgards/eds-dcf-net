@@ -64,7 +64,7 @@ internal sealed class ByteLimitingStream : Stream
     public override void Flush() => _inner.Flush();
 
     public override int Read(byte[] buffer, int offset, int count)
-        => CountBytes(_inner.Read(buffer, offset, count));
+        => CountBytes(_inner.Read(buffer, offset, LimitCount(count)));
 
     public override async Task<int> ReadAsync(
         byte[] buffer,
@@ -72,6 +72,7 @@ internal sealed class ByteLimitingStream : Stream
         int count,
         CancellationToken cancellationToken)
     {
+        count = LimitCount(count);
 #if NET10_0_OR_GREATER
         var bytesRead = await _inner.ReadAsync(buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
 #else
@@ -85,6 +86,10 @@ internal sealed class ByteLimitingStream : Stream
         Memory<byte> buffer,
         CancellationToken cancellationToken = default)
     {
+        var limitedLength = LimitCount(buffer.Length);
+        if (limitedLength < buffer.Length)
+            buffer = buffer.Slice(0, limitedLength);
+
         var bytesRead = await _inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
         return CountBytes(bytesRead);
     }
@@ -102,6 +107,22 @@ internal sealed class ByteLimitingStream : Stream
             _inner.Dispose();
 
         base.Dispose(disposing);
+    }
+
+    /// <summary>
+    /// Caps the requested read size so at most one byte past <see cref="_maxBytes"/>
+    /// can be transferred in a single operation (needed to detect overflow).
+    /// </summary>
+    private int LimitCount(int count)
+    {
+        var remainingIncludingProbe = _maxBytes - _totalBytesRead + 1;
+        if (remainingIncludingProbe <= 0)
+            throw new EdsParseException(_exceededMessage);
+
+        if (count > remainingIncludingProbe)
+            return remainingIncludingProbe > int.MaxValue ? int.MaxValue : (int)remainingIncludingProbe;
+
+        return count;
     }
 
     private int CountBytes(int bytesRead)
