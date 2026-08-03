@@ -174,6 +174,19 @@ public class ByteLimitingStreamTests
     }
 
     [Fact]
+    public void Dispose_WithoutDisposingManagedState_LeavesInnerStreamOpen()
+    {
+        var inner = new CountingStream(new byte[8]);
+        var stream = Create(inner, maxBytes: 8);
+
+        InvokeDispose(stream, disposing: false);
+        inner.CanRead.Should().BeTrue();
+
+        stream.Dispose();
+        inner.CanRead.Should().BeFalse();
+    }
+
+    [Fact]
     public void UnsupportedMembers_ThrowNotSupportedException()
     {
         using var stream = Create(new MemoryStream([1, 2, 3]), maxBytes: 8);
@@ -205,6 +218,20 @@ public class ByteLimitingStreamTests
             binder: null,
             args: [inner, maxBytes, ExceededMessage],
             culture: null)!;
+
+    private static void InvokeDispose(Stream stream, bool disposing)
+    {
+        var method = ByteLimitingStreamType
+            .GetMethod(
+                "Dispose",
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                binder: null,
+                types: [typeof(bool)],
+                modifiers: null)
+            ?? throw new InvalidOperationException("ByteLimitingStream.Dispose(bool) not found.");
+
+        method.Invoke(stream, [disposing]);
+    }
 
     private sealed class CountingStream : MemoryStream
     {
