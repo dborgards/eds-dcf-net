@@ -30,13 +30,7 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC", maxInputSize);
         // Bounded stream read enforces MaxInputSize while loading (guards TOCTOU
         // if the file grows after the FileInfo.Length pre-check).
-        using var stream = new FileStream(
-            filePath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 4096,
-            options: FileOptions.SequentialScan);
+        using var stream = SecureXmlParser.OpenFileWithSizeLimit(filePath, "XDC", maxInputSize, useAsync: false);
         var content = SecureXmlParser.ReadContentFromStreamWithLimit(stream, "XDC", maxInputSize);
         return ReadString(content, maxInputSize);
     }
@@ -89,13 +83,7 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC", maxInputSize);
         // Bounded stream read enforces MaxInputSize while loading (guards TOCTOU
         // if the file grows after the FileInfo.Length pre-check).
-        using var stream = new FileStream(
-            filePath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 4096,
-            options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+        using var stream = SecureXmlParser.OpenFileWithSizeLimit(filePath, "XDC", maxInputSize, useAsync: true);
         var content = await SecureXmlParser.ReadContentFromStreamWithLimitAsync(
             stream,
             "XDC",

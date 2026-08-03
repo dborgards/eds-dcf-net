@@ -53,13 +53,7 @@ public static class IniParser
 
         // Stream through ParseReader so MaxInputSize is enforced while reading
         // (guards TOCTOU if the file grows after the FileInfo.Length check).
-        using var stream = new FileStream(
-            filePath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 4096,
-            options: FileOptions.SequentialScan);
+        using var stream = OpenFileWithByteLimit(filePath, maxInputSize, useAsync: false);
         using var reader = new StreamReader(stream);
 
         return ParseReader(reader, maxInputSize);
@@ -92,16 +86,24 @@ public static class IniParser
                     "File '{0}' is too large ({1:N0} bytes). Maximum supported size is {2:N0} bytes.",
                     filePath, fileInfo.Length, maxInputSize));
 
-        using var stream = new FileStream(
-            filePath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 4096,
-            options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+        using var stream = OpenFileWithByteLimit(filePath, maxInputSize, useAsync: true);
         using var reader = new StreamReader(stream);
 
         return await ParseReaderAsync(reader, maxInputSize, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static ByteLimitingStream OpenFileWithByteLimit(
+        string filePath,
+        long maxInputSize,
+        bool useAsync)
+    {
+        var message = string.Format(
+            CultureInfo.InvariantCulture,
+            "File '{0}' is too large. Maximum supported size is {1:N0} bytes.",
+            filePath,
+            maxInputSize);
+
+        return ByteLimitingStream.OpenFile(filePath, maxInputSize, message, useAsync);
     }
 
     /// <summary>

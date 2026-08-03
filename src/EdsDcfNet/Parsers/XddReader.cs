@@ -28,13 +28,7 @@ public class XddReader : IFileReader<ElectronicDataSheet>
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD", maxInputSize);
         // Bounded stream read enforces MaxInputSize while loading (guards TOCTOU
         // if the file grows after the FileInfo.Length pre-check).
-        using var stream = new FileStream(
-            filePath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 4096,
-            options: FileOptions.SequentialScan);
+        using var stream = SecureXmlParser.OpenFileWithSizeLimit(filePath, "XDD", maxInputSize, useAsync: false);
         var content = SecureXmlParser.ReadContentFromStreamWithLimit(stream, "XDD", maxInputSize);
         return ReadString(content, maxInputSize);
     }
@@ -87,13 +81,7 @@ public class XddReader : IFileReader<ElectronicDataSheet>
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD", maxInputSize);
         // Bounded stream read enforces MaxInputSize while loading (guards TOCTOU
         // if the file grows after the FileInfo.Length pre-check).
-        using var stream = new FileStream(
-            filePath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 4096,
-            options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+        using var stream = SecureXmlParser.OpenFileWithSizeLimit(filePath, "XDD", maxInputSize, useAsync: true);
         var content = await SecureXmlParser.ReadContentFromStreamWithLimitAsync(
             stream,
             "XDD",
