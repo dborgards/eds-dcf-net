@@ -1,7 +1,6 @@
 namespace EdsDcfNet.Parsers;
 
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
@@ -29,7 +28,10 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
             throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
 
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC", maxInputSize);
-        var content = File.ReadAllText(filePath);
+        // Bounded stream read enforces MaxInputSize while loading (guards TOCTOU
+        // if the file grows after the FileInfo.Length pre-check).
+        using var stream = SecureXmlParser.OpenFileWithSizeLimit(filePath, "XDC", maxInputSize, useAsync: false);
+        var content = SecureXmlParser.ReadContentFromStreamWithLimit(stream, "XDC", maxInputSize);
         return ReadString(content, maxInputSize);
     }
 
@@ -79,10 +81,14 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
             throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
 
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC", maxInputSize);
-        var content = await TextFileIo.ReadAllTextAsync(
-            filePath,
-            Encoding.UTF8,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+        // Bounded stream read enforces MaxInputSize while loading (guards TOCTOU
+        // if the file grows after the FileInfo.Length pre-check).
+        using var stream = SecureXmlParser.OpenFileWithSizeLimit(filePath, "XDC", maxInputSize, useAsync: true);
+        var content = await SecureXmlParser.ReadContentFromStreamWithLimitAsync(
+            stream,
+            "XDC",
+            maxInputSize,
+            cancellationToken).ConfigureAwait(false);
         return ReadString(content, maxInputSize);
     }
 

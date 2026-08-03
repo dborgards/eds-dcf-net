@@ -263,6 +263,90 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ReadFile_ContentAtExactMaxInputSize_ParsesSuccessfully()
+    {
+        // Arrange — FileInfo pre-check passes at exact size; bounded stream read
+        // enforces the character limit while loading.
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            File.WriteAllText(tempFile, MinimalXdd);
+
+            var result = _reader.ReadFile(tempFile, maxInputSize: Encoding.UTF8.GetByteCount(MinimalXdd));
+
+            result.FileInfo.FileName.Should().Be("test.xdd");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void ReadFile_ContentOneOverMaxInputSize_ThrowsEdsParseException()
+    {
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            File.WriteAllText(tempFile, MinimalXdd);
+
+            var act = () => _reader.ReadFile(tempFile, maxInputSize: Encoding.UTF8.GetByteCount(MinimalXdd) - 1);
+
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*too large*");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ReadFileAsync_ContentAtExactMaxInputSize_ParsesSuccessfully()
+    {
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, MinimalXdd);
+
+            var result = await _reader.ReadFileAsync(tempFile, maxInputSize: Encoding.UTF8.GetByteCount(MinimalXdd));
+
+            result.FileInfo.FileName.Should().Be("test.xdd");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ReadFileAsync_ContentOneOverMaxInputSize_ThrowsEdsParseException()
+    {
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, MinimalXdd);
+
+            var act = () => _reader.ReadFileAsync(tempFile, maxInputSize: Encoding.UTF8.GetByteCount(MinimalXdd) - 1);
+
+            await act.Should().ThrowAsync<EdsParseException>()
+                .WithMessage("*too large*");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public void ReadStream_ContentExceedsCustomMaximumSize_ThrowsEdsParseException()
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(MinimalXdd));

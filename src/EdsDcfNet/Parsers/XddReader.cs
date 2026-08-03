@@ -1,11 +1,9 @@
 namespace EdsDcfNet.Parsers;
 
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
-using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Reader for CiA 311 XDD (XML Device Description) files.
@@ -28,7 +26,10 @@ public class XddReader : IFileReader<ElectronicDataSheet>
             throw new FileNotFoundException($"XDD file not found: {filePath}", filePath);
 
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD", maxInputSize);
-        var content = File.ReadAllText(filePath);
+        // Bounded stream read enforces MaxInputSize while loading (guards TOCTOU
+        // if the file grows after the FileInfo.Length pre-check).
+        using var stream = SecureXmlParser.OpenFileWithSizeLimit(filePath, "XDD", maxInputSize, useAsync: false);
+        var content = SecureXmlParser.ReadContentFromStreamWithLimit(stream, "XDD", maxInputSize);
         return ReadString(content, maxInputSize);
     }
 
@@ -78,10 +79,14 @@ public class XddReader : IFileReader<ElectronicDataSheet>
             throw new FileNotFoundException($"XDD file not found: {filePath}", filePath);
 
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDD", maxInputSize);
-        var content = await TextFileIo.ReadAllTextAsync(
-            filePath,
-            Encoding.UTF8,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+        // Bounded stream read enforces MaxInputSize while loading (guards TOCTOU
+        // if the file grows after the FileInfo.Length pre-check).
+        using var stream = SecureXmlParser.OpenFileWithSizeLimit(filePath, "XDD", maxInputSize, useAsync: true);
+        var content = await SecureXmlParser.ReadContentFromStreamWithLimitAsync(
+            stream,
+            "XDD",
+            maxInputSize,
+            cancellationToken).ConfigureAwait(false);
         return ReadString(content, maxInputSize);
     }
 

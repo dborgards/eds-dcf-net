@@ -40,6 +40,27 @@ internal static class SecureXmlParser
         }
     }
 
+    /// <summary>
+    /// Opens a file for sequential reading with <paramref name="maxInputSize"/>
+    /// enforced in bytes while reading, so the limit still holds if the file grew
+    /// after <see cref="EnsureFileWithinSizeLimit"/> inspected its length.
+    /// </summary>
+    internal static Stream OpenFileWithSizeLimit(
+        string filePath,
+        string formatName,
+        long maxInputSize,
+        bool useAsync)
+    {
+        var message = string.Format(
+            CultureInfo.InvariantCulture,
+            "{0} file '{1}' is too large. Maximum supported size is {2:N0} bytes.",
+            formatName,
+            filePath,
+            maxInputSize);
+
+        return ByteLimitingStream.OpenFile(filePath, maxInputSize, message, useAsync);
+    }
+
     internal static XDocument ParseDocument(
         string content,
         string formatName,
