@@ -5,14 +5,12 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { spawnSync } = require("node:child_process");
 
 const {
   extractJsRefs,
   shimTargetsSelf,
   collectSelfRealpaths,
   findExternalCommand,
-  STUB_ACTIVE_ENV,
 } = require("../lib/forward.js");
 
 describe("extractJsRefs", () => {
@@ -123,19 +121,6 @@ exec node  "$basedir/../eds-npm-cli-stub/bin/npm.js" "$@"
     } finally {
       process.env.PATH = prevPath;
     }
-  });
-});
-
-describe("recursion guard", () => {
-  it("fails fast when EDS_NPM_STUB_ACTIVE is already set", () => {
-    const npmBin = path.join(__dirname, "..", "bin", "npm.js");
-    const result = spawnSync(process.execPath, [npmBin, "--version"], {
-      encoding: "utf8",
-      env: { ...process.env, [STUB_ACTIVE_ENV]: "1", PATH: process.env.PATH },
-    });
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /refused to re-enter/);
-    assert.match(result.stderr, new RegExp(STUB_ACTIVE_ENV));
   });
 });
 

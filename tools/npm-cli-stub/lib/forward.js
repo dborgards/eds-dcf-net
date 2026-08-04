@@ -4,9 +4,6 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
-/** Set while spawning the forwarded command so a re-entry fails fast. */
-const STUB_ACTIVE_ENV = "EDS_NPM_STUB_ACTIVE";
-
 function realpathOrNull(candidate) {
   try {
     return fs.realpathSync(candidate);
@@ -175,15 +172,6 @@ function findExternalCommand(command, selfRealpaths) {
 }
 
 function forward(command, entryScriptPath = process.argv[1]) {
-  if (process.env[STUB_ACTIVE_ENV]) {
-    console.error(
-      `eds-npm-cli-stub: refused to re-enter while forwarding ${command} ` +
-        `(${STUB_ACTIVE_ENV} is set). Self-shim detection likely failed; ` +
-        `check that the install path is handled correctly.`
-    );
-    process.exit(1);
-  }
-
   const selfRealpaths = collectSelfRealpaths(entryScriptPath);
   const target = findExternalCommand(command, selfRealpaths);
 
@@ -196,10 +184,9 @@ function forward(command, entryScriptPath = process.argv[1]) {
   const shell =
     process.platform === "win32" && /\.(?:cmd|bat)$/i.test(target);
 
-  const env = { ...process.env, [STUB_ACTIVE_ENV]: "1" };
   const result = spawnSync(target, process.argv.slice(2), {
     stdio: "inherit",
-    env,
+    env: process.env,
     shell,
   });
 
@@ -217,5 +204,4 @@ module.exports = {
   shimTargetsSelf,
   collectSelfRealpaths,
   findExternalCommand,
-  STUB_ACTIVE_ENV,
 };
