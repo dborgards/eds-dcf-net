@@ -268,6 +268,7 @@ describe("resolveWinShellWrapper / buildSpawnInvocation", () => {
     const npmCli = path.join(npmBin, "npm-cli.js");
     const npmPrefix = path.join(npmBin, "npm-prefix.js");
     fs.writeFileSync(npmCli, "#!/usr/bin/env node\n");
+    // Empty stdout → keep bundled CLI (same as IF EXIST failing in the batch).
     fs.writeFileSync(npmPrefix, "#!/usr/bin/env node\n");
 
     const npmCmd = path.join(prefix, "npm.cmd");
@@ -276,6 +277,63 @@ describe("resolveWinShellWrapper / buildSpawnInvocation", () => {
       `@ECHO OFF
 SETLOCAL
 SET "NODE_EXE=%~dp0\\node.exe"
+IF NOT EXIST "%NODE_EXE%" (
+  SET "NODE_EXE=node"
+)
+SET "NPM_PREFIX_JS=%~dp0\\node_modules\\npm\\bin\\npm-prefix.js"
+SET "NPM_CLI_JS=%~dp0\\node_modules\\npm\\bin\\npm-cli.js"
+FOR /F "delims=" %%F IN ('CALL "%NODE_EXE%" "%NPM_PREFIX_JS%"') DO (
+  SET "NPM_PREFIX_NPM_CLI_JS=%%F\\node_modules\\npm\\bin\\npm-cli.js"
+)
+IF EXIST "%NPM_PREFIX_NPM_CLI_JS%" (
+  SET "NPM_CLI_JS=%NPM_PREFIX_NPM_CLI_JS%"
+)
+"%NODE_EXE%" "%NPM_CLI_JS%" %*
+`
+    );
+
+    const unwrapped = resolveWinShellWrapper(npmCmd, "npm");
+    assert.ok(unwrapped, "expected unwrap to succeed");
+    assert.equal(unwrapped.command, "node");
+    assert.equal(unwrapped.args.length, 1);
+    assert.equal(fs.realpathSync(unwrapped.args[0]), fs.realpathSync(npmCli));
+
+    const spaced = ["run", "foo", "--", "a b", "x&y"];
+    const invocation = buildSpawnInvocation(npmCmd, spaced, "npm");
+    assert.equal(invocation.shell, false);
+    assert.equal(invocation.file, "node");
+    assert.deepEqual(invocation.args.slice(-spaced.length), spaced);
+    assert.equal(
+      fs.realpathSync(invocation.args[0]),
+      fs.realpathSync(npmCli)
+    );
+  });
+
+  it("applies npm-prefix.js override when that CLI exists", () => {
+    const bundled = path.join(root, "bundled-node");
+    const npmBin = path.join(bundled, "node_modules", "npm", "bin");
+    fs.mkdirSync(npmBin, { recursive: true });
+    const bundledCli = path.join(npmBin, "npm-cli.js");
+    const npmPrefix = path.join(npmBin, "npm-prefix.js");
+    fs.writeFileSync(bundledCli, "#!/usr/bin/env node\n");
+
+    const upgraded = path.join(root, "upgraded-prefix");
+    const upgradedBin = path.join(upgraded, "node_modules", "npm", "bin");
+    fs.mkdirSync(upgradedBin, { recursive: true });
+    const upgradedCli = path.join(upgradedBin, "npm-cli.js");
+    fs.writeFileSync(upgradedCli, "#!/usr/bin/env node\n");
+
+    fs.writeFileSync(
+      npmPrefix,
+      `#!/usr/bin/env node
+process.stdout.write(${JSON.stringify(upgraded)});
+`
+    );
+
+    const npmCmd = path.join(bundled, "npm.cmd");
+    fs.writeFileSync(
+      npmCmd,
+      `@ECHO OFF
 SET "NPM_PREFIX_JS=%~dp0\\node_modules\\npm\\bin\\npm-prefix.js"
 SET "NPM_CLI_JS=%~dp0\\node_modules\\npm\\bin\\npm-cli.js"
 "%NODE_EXE%" "%NPM_CLI_JS%" %*
@@ -283,18 +341,36 @@ SET "NPM_CLI_JS=%~dp0\\node_modules\\npm\\bin\\npm-cli.js"
     );
 
     const unwrapped = resolveWinShellWrapper(npmCmd, "npm");
-    assert.ok(unwrapped, "expected unwrap to succeed");
-    assert.equal(unwrapped.args.length, 1);
-    assert.equal(fs.realpathSync(unwrapped.args[0]), fs.realpathSync(npmCli));
-
-    const spaced = ["run", "foo", "--", "a b", "x&y"];
-    const invocation = buildSpawnInvocation(npmCmd, spaced, "npm");
-    assert.equal(invocation.shell, false);
-    assert.deepEqual(invocation.args.slice(-spaced.length), spaced);
+    assert.ok(unwrapped);
+    assert.equal(unwrapped.command, "node");
     assert.equal(
-      fs.realpathSync(invocation.args[0]),
-      fs.realpathSync(npmCli)
+      fs.realpathSync(unwrapped.args[0]),
+      fs.realpathSync(upgradedCli)
     );
+  });
+
+  it("uses sibling node.exe when present beside the wrapper", () => {
+    const prefix = path.join(root, "with-sibling-node");
+    const npmBin = path.join(prefix, "node_modules", "npm", "bin");
+    fs.mkdirSync(npmBin, { recursive: true });
+    const npmCli = path.join(npmBin, "npm-cli.js");
+    fs.writeFileSync(npmCli, "#!/usr/bin/env node\n");
+    const sibling = path.join(prefix, "node.exe");
+    fs.writeFileSync(sibling, "not-a-real-exe\n");
+
+    const npmCmd = path.join(prefix, "npm.cmd");
+    fs.writeFileSync(
+      npmCmd,
+      `@ECHO OFF
+SET "NPM_CLI_JS=%~dp0\\node_modules\\npm\\bin\\npm-cli.js"
+"%NODE_EXE%" "%NPM_CLI_JS%" %*
+`
+    );
+
+    const unwrapped = resolveWinShellWrapper(npmCmd, "npm");
+    assert.ok(unwrapped);
+    assert.equal(unwrapped.command, sibling);
+    assert.equal(fs.realpathSync(unwrapped.args[0]), fs.realpathSync(npmCli));
   });
 
   it("prefers npx-cli.js when forwarding npx", () => {

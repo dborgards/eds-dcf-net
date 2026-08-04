@@ -218,7 +218,49 @@ function resolveNodeNearWrapper(wrapperDir) {
   } catch {
     // fall through
   }
-  return process.execPath;
+  // Match official npm.cmd / npx.cmd: when %~dp0\node.exe is absent, use
+  // PATH `node` — not the Node running this stub (which may differ).
+  return "node";
+}
+
+/**
+ * Mirror official npm.cmd / npx.cmd: run npm-prefix.js and, when a CLI exists
+ * under that prefix, prefer it over the bundled default path.
+ *
+ * @returns {string | null}
+ */
+function resolveCliViaNpmPrefix(nodeExe, prefixJs, preferName) {
+  try {
+    const result = spawnSync(nodeExe, [prefixJs], {
+      encoding: "utf8",
+      windowsHide: true,
+      shell: false,
+    });
+    if (result.error || result.status !== 0) {
+      return null;
+    }
+    const lines = String(result.stdout || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const prefix = lines.length > 0 ? lines[lines.length - 1] : "";
+    if (!prefix) {
+      return null;
+    }
+    const candidate = path.join(
+      prefix,
+      "node_modules",
+      "npm",
+      "bin",
+      preferName
+    );
+    if (!fs.existsSync(candidate)) {
+      return null;
+    }
+    return realpathOrNull(candidate) || candidate;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -285,9 +327,17 @@ function resolveWinShellWrapper(target, command = "npm") {
     return null;
   }
 
+  const nodeExe = resolveNodeNearWrapper(dir);
+  const prefixJs = resolved.find(
+    (p) => path.basename(p).toLowerCase() === "npm-prefix.js"
+  );
+  const cli =
+    (prefixJs && resolveCliViaNpmPrefix(nodeExe, prefixJs, preferName)) ||
+    preferred;
+
   return {
-    command: resolveNodeNearWrapper(dir),
-    args: [preferred],
+    command: nodeExe,
+    args: [cli],
   };
 }
 
