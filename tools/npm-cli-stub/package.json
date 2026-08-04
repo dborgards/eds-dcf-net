@@ -6,5 +6,8 @@
   "bin": {
     "npm": "bin/npm.js",
     "npx": "bin/npx.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
   }
 }
