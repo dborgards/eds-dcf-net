@@ -4,6 +4,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
+/** Set while spawning the forwarded command so a re-entry fails fast. */
+const STUB_ACTIVE_ENV = "EDS_NPM_STUB_ACTIVE";
+
 function realpathOrNull(candidate) {
   try {
     return fs.realpathSync(candidate);
@@ -50,6 +53,66 @@ function candidateNames(command) {
   return [...exts.map((ext) => command + ext), command];
 }
 
+/**
+ * Extract .js path references from expanded shim text.
+ * Quoted paths and paths that start with the shim directory may contain spaces
+ * (common when the Windows user profile or checkout path has whitespace).
+ */
+function extractJsRefs(expanded, dir) {
+  const refs = [];
+  const seen = new Set();
+  const add = (ref) => {
+    if (!ref || seen.has(ref)) {
+      return;
+    }
+    seen.add(ref);
+    refs.push(ref);
+  };
+
+  // Quoted segments: "…npm.js" / '…npm.js'
+  const quotedRe = /(["'])([^"'<>|\r\n]*?\.js)\1/gi;
+  let match;
+  while ((match = quotedRe.exec(expanded)) !== null) {
+    add(match[2]);
+  }
+
+  // Unquoted refs anchored on the expanded shim directory (may contain spaces).
+  let from = 0;
+  while (from < expanded.length) {
+    const idx = expanded.indexOf(dir, from);
+    if (idx === -1) {
+      break;
+    }
+    const jsIdx = expanded.indexOf(".js", idx + dir.length);
+    if (jsIdx === -1) {
+      from = idx + 1;
+      continue;
+    }
+    const after = expanded[jsIdx + 3];
+    if (after && /[A-Za-z0-9_]/.test(after)) {
+      // e.g. ".json" — keep scanning
+      from = idx + 1;
+      continue;
+    }
+    const candidate = expanded.slice(idx, jsIdx + 3);
+    // Stop at shell/path delimiters that cannot appear in a file path ref.
+    if (/[\r\n"'<>|]/.test(candidate.slice(dir.length))) {
+      from = idx + 1;
+      continue;
+    }
+    add(candidate);
+    from = jsIdx + 3;
+  }
+
+  // Fallback: unquoted refs without whitespace (relative paths, no dir prefix).
+  const plain = expanded.match(/[^\s"'<>|]+\.js\b/g) || [];
+  for (const ref of plain) {
+    add(ref);
+  }
+
+  return refs;
+}
+
 // Windows cmd-shim / Git Bash wrappers are separate files (not symlinks) that
 // invoke node with a path to our bin script. Their realpath differs from the
 // .js entry, so detect them by resolving .js references in the shim text.
@@ -76,7 +139,7 @@ function shimTargetsSelf(candidatePath, selfRealpaths) {
     .replace(/%~dp0/gi, dir)
     .replace(/%dp0%/gi, dir)
     .replace(/\$basedir/g, dir);
-  const refs = expanded.match(/[^\s"'<>|]+\.js\b/g) || [];
+  const refs = extractJsRefs(expanded, dir);
   for (const ref of refs) {
     const resolved = realpathOrNull(path.resolve(dir, ref.replace(/\\/g, "/")));
     if (resolved && selfRealpaths.has(resolved)) {
@@ -112,6 +175,15 @@ function findExternalCommand(command, selfRealpaths) {
 }
 
 function forward(command, entryScriptPath = process.argv[1]) {
+  if (process.env[STUB_ACTIVE_ENV]) {
+    console.error(
+      `eds-npm-cli-stub: refused to re-enter while forwarding ${command} ` +
+        `(${STUB_ACTIVE_ENV} is set). Self-shim detection likely failed; ` +
+        `check that the install path is handled correctly.`
+    );
+    process.exit(1);
+  }
+
   const selfRealpaths = collectSelfRealpaths(entryScriptPath);
   const target = findExternalCommand(command, selfRealpaths);
 
@@ -124,9 +196,10 @@ function forward(command, entryScriptPath = process.argv[1]) {
   const shell =
     process.platform === "win32" && /\.(?:cmd|bat)$/i.test(target);
 
+  const env = { ...process.env, [STUB_ACTIVE_ENV]: "1" };
   const result = spawnSync(target, process.argv.slice(2), {
     stdio: "inherit",
-    env: process.env,
+    env,
     shell,
   });
 
@@ -138,4 +211,11 @@ function forward(command, entryScriptPath = process.argv[1]) {
   process.exit(result.status == null ? 1 : result.status);
 }
 
-module.exports = { forward };
+module.exports = {
+  forward,
+  extractJsRefs,
+  shimTargetsSelf,
+  collectSelfRealpaths,
+  findExternalCommand,
+  STUB_ACTIVE_ENV,
+};
