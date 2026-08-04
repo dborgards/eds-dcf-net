@@ -177,6 +177,11 @@ jobs:
   # HEAD is that new release commit — which is the SHA that actually needs the required
   # checks. If the branch HEAD equals head_sha, semantic-release did not publish a
   # release this run and there is nothing to relay.
+  #
+  # HEAD ≠ trigger SHA alone is not enough: another commit can land on the branch in
+  # the race window between the release push and this job resolving refs. Verify the
+  # resolved HEAD is actually the semantic-release commit (message, committer, and
+  # first parent == trigger SHA) before posting required checks.
   relay-release-status:
     if: github.event_name == 'workflow_run'
     runs-on: ubuntu-latest
@@ -197,10 +202,34 @@ jobs:
         if [[ "$current_sha" == "$trigger_sha" ]]; then
           echo "Branch HEAD unchanged — semantic-release did not publish a release. Nothing to relay."
           echo "release_sha=" >> "$GITHUB_OUTPUT"
-        else
-          echo "Release commit detected: ${current_sha} (trigger was ${trigger_sha})"
-          echo "release_sha=${current_sha}" >> "$GITHUB_OUTPUT"
+          exit 0
         fi
+
+        commit_json=$(gh api "repos/${{ github.repository }}/commits/${current_sha}")
+        message=$(jq -r '.commit.message' <<< "$commit_json")
+        committer=$(jq -r '.commit.committer.name' <<< "$commit_json")
+        parent_sha=$(jq -r '.parents[0].sha // empty' <<< "$commit_json")
+
+        if [[ "$message" != "chore(release):"* ]]; then
+          echo "HEAD ${current_sha} is not a chore(release) commit; nothing to relay."
+          echo "release_sha=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        if [[ "$committer" != "semantic-release-bot" ]]; then
+          echo "HEAD ${current_sha} committer is '${committer}', expected semantic-release-bot; nothing to relay."
+          echo "release_sha=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        if [[ "$parent_sha" != "$trigger_sha" ]]; then
+          echo "HEAD ${current_sha} parent is ${parent_sha}, expected trigger ${trigger_sha}; nothing to relay."
+          echo "release_sha=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        echo "Release commit verified: ${current_sha} (trigger was ${trigger_sha})"
+        echo "release_sha=${current_sha}" >> "$GITHUB_OUTPUT"
 
     - name: Post build check run for release commit
       if: steps.resolve_sha.outputs.release_sha != ''
