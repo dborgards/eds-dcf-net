@@ -4,6 +4,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
+/**
+ * Marker set on the forwarded child so an immediate self-shim re-entry fails
+ * fast. Nested npm/npx from lifecycle scripts inherit it too, so the guard
+ * must ignore those (see isImmediateReentry).
+ */
+const STUB_ACTIVE_ENV = "EDS_NPM_STUB_ACTIVE";
+
 function realpathOrNull(candidate) {
   try {
     return fs.realpathSync(candidate);
@@ -171,7 +178,31 @@ function findExternalCommand(command, selfRealpaths) {
   return null;
 }
 
+/**
+ * True only for immediate self-shim re-entry, not for nested npm/npx invoked
+ * from lifecycle scripts (which inherit EDS_NPM_STUB_ACTIVE from the forwarded
+ * real npm and also set npm_lifecycle_event / npm_command).
+ */
+function isImmediateReentry() {
+  if (!process.env[STUB_ACTIVE_ENV]) {
+    return false;
+  }
+  if (process.env.npm_lifecycle_event || process.env.npm_command) {
+    return false;
+  }
+  return true;
+}
+
 function forward(command, entryScriptPath = process.argv[1]) {
+  if (isImmediateReentry()) {
+    console.error(
+      `eds-npm-cli-stub: refused to re-enter while forwarding ${command} ` +
+        `(${STUB_ACTIVE_ENV} is set). Self-shim detection likely failed; ` +
+        `check that the install path is handled correctly.`
+    );
+    process.exit(1);
+  }
+
   const selfRealpaths = collectSelfRealpaths(entryScriptPath);
   const target = findExternalCommand(command, selfRealpaths);
 
@@ -184,9 +215,10 @@ function forward(command, entryScriptPath = process.argv[1]) {
   const shell =
     process.platform === "win32" && /\.(?:cmd|bat)$/i.test(target);
 
+  const env = { ...process.env, [STUB_ACTIVE_ENV]: "1" };
   const result = spawnSync(target, process.argv.slice(2), {
     stdio: "inherit",
-    env: process.env,
+    env,
     shell,
   });
 
@@ -204,4 +236,6 @@ module.exports = {
   shimTargetsSelf,
   collectSelfRealpaths,
   findExternalCommand,
+  isImmediateReentry,
+  STUB_ACTIVE_ENV,
 };

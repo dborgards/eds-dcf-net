@@ -5,12 +5,15 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 
 const {
   extractJsRefs,
   shimTargetsSelf,
   collectSelfRealpaths,
   findExternalCommand,
+  isImmediateReentry,
+  STUB_ACTIVE_ENV,
 } = require("../lib/forward.js");
 
 describe("extractJsRefs", () => {
@@ -120,6 +123,98 @@ exec node  "$basedir/../eds-npm-cli-stub/bin/npm.js" "$@"
       assert.equal(found, fs.realpathSync(external));
     } finally {
       process.env.PATH = prevPath;
+    }
+  });
+});
+
+describe("recursion guard", () => {
+  function withEnv(overrides, fn) {
+    const keys = Object.keys(overrides);
+    const previous = {};
+    for (const key of keys) {
+      previous[key] = process.env[key];
+      if (overrides[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = overrides[key];
+      }
+    }
+    try {
+      return fn();
+    } finally {
+      for (const key of keys) {
+        if (previous[key] === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = previous[key];
+        }
+      }
+    }
+  }
+
+  it("treats bare EDS_NPM_STUB_ACTIVE as immediate re-entry", () => {
+    withEnv(
+      {
+        [STUB_ACTIVE_ENV]: "1",
+        npm_lifecycle_event: undefined,
+        npm_command: undefined,
+      },
+      () => {
+        assert.equal(isImmediateReentry(), true);
+      }
+    );
+  });
+
+  it("allows nested npm during lifecycle scripts despite the marker", () => {
+    withEnv(
+      {
+        [STUB_ACTIVE_ENV]: "1",
+        npm_lifecycle_event: "build",
+        npm_command: undefined,
+      },
+      () => {
+        assert.equal(isImmediateReentry(), false);
+      }
+    );
+  });
+
+  it("fails fast on immediate re-entry via bin entrypoint", () => {
+    const npmBin = path.join(__dirname, "..", "bin", "npm.js");
+    const env = { ...process.env, [STUB_ACTIVE_ENV]: "1", PATH: process.env.PATH };
+    delete env.npm_lifecycle_event;
+    delete env.npm_command;
+    const result = spawnSync(process.execPath, [npmBin, "--version"], {
+      encoding: "utf8",
+      env,
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /refused to re-enter/);
+    assert.match(result.stderr, new RegExp(STUB_ACTIVE_ENV));
+  });
+
+  it("does not refuse re-entry when npm_command is set (nested npm)", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "npm-stub-nested-"));
+    try {
+      const externalDir = path.join(root, "bin");
+      fs.mkdirSync(externalDir, { recursive: true });
+      const external = path.join(externalDir, "npm");
+      fs.writeFileSync(external, "#!/bin/sh\necho nested-ok\n");
+      fs.chmodSync(external, 0o755);
+
+      const npmBin = path.join(__dirname, "..", "bin", "npm.js");
+      const result = spawnSync(process.execPath, [npmBin, "--version"], {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          [STUB_ACTIVE_ENV]: "1",
+          npm_command: "run-script",
+          PATH: externalDir,
+        },
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /nested-ok/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
     }
   });
 });
