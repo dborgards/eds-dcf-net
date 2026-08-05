@@ -292,7 +292,7 @@ public class XddWriter
             elem.Add(new XAttribute("highLimit", obj.HighLimit));
 
         if (obj.DataType.HasValue)
-            elem.Add(new XAttribute("PDOmapping", obj.PdoMapping ? "optional" : "no"));
+            elem.Add(new XAttribute("PDOmapping", ToXddPdoMappingAttribute(obj.PdoMappingMode)));
 
         if (obj.ObjFlags > 0)
             elem.Add(new XAttribute("objFlags",
@@ -347,7 +347,7 @@ public class XddWriter
         if (!string.IsNullOrEmpty(subObject.HighLimit))
             elem.Add(new XAttribute("highLimit", subObject.HighLimit));
 
-        elem.Add(new XAttribute("PDOmapping", subObject.PdoMapping ? "optional" : "no"));
+        elem.Add(new XAttribute("PDOmapping", ToXddPdoMappingAttribute(subObject.PdoMappingMode)));
 
         AddCanOpenSubObjectXdcAttributes(elem, subObject);
 
@@ -458,6 +458,16 @@ public class XddWriter
 
         public override string ToString() => _sb.ToString();
     }
+
+    private static string ToXddPdoMappingAttribute(PdoMappingMode mode) => mode switch
+    {
+        PdoMappingMode.No => "no",
+        PdoMappingMode.Default => "default",
+        PdoMappingMode.Optional => "optional",
+        PdoMappingMode.Tpdo => "TPDO",
+        PdoMappingMode.Rpdo => "RPDO",
+        _ => "no"
+    };
 
     private static void ThrowIfNull(object? value, string parameterName)
     {

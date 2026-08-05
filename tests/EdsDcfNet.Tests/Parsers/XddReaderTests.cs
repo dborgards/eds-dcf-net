@@ -655,6 +655,7 @@ public class XddReaderTests
 
         // Assert
         result.ObjectDictionary.Objects[0x1000].PdoMapping.Should().BeFalse();
+        result.ObjectDictionary.Objects[0x1000].PdoMappingMode.Should().Be(PdoMappingMode.No);
     }
 
     [Fact]
@@ -693,6 +694,51 @@ public class XddReaderTests
 
         // Assert
         result.ObjectDictionary.Objects[0x1001].PdoMapping.Should().BeTrue();
+        result.ObjectDictionary.Objects[0x1001].PdoMappingMode.Should().Be(PdoMappingMode.Optional);
+    }
+
+    [Theory]
+    [InlineData("default", PdoMappingMode.Default)]
+    [InlineData("TPDO", PdoMappingMode.Tpdo)]
+    [InlineData("RPDO", PdoMappingMode.Rpdo)]
+    [InlineData("tpdo", PdoMappingMode.Tpdo)]
+    public void PdoMapping_KnownMappableTokens_PreserveMode(string token, PdoMappingMode expected)
+    {
+        var xdd = MinimalXdd.Replace(@"PDOmapping=""no""", $@"PDOmapping=""{token}""");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.Objects[0x1000].PdoMapping.Should().BeTrue();
+        result.ObjectDictionary.Objects[0x1000].PdoMappingMode.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("false")]
+    [InlineData("0")]
+    [InlineData("yes")]
+    [InlineData("unknown")]
+    public void PdoMapping_UnknownToken_ThrowsEdsParseException(string token)
+    {
+        var xdd = MinimalXdd.Replace(@"PDOmapping=""no""", $@"PDOmapping=""{token}""");
+
+        var act = () => _reader.ReadString(xdd);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*PDOmapping*");
+    }
+
+    [Fact]
+    public void PdoMapping_ValidatedRoundTrip_PreservesTpdoMode()
+    {
+        var eds = _reader.ReadString(MinimalXdd.Replace(@"PDOmapping=""no""", @"PDOmapping=""TPDO"""));
+        eds.ObjectDictionary.Objects[0x1000].PdoMappingMode.Should().Be(PdoMappingMode.Tpdo);
+
+        var written = new EdsDcfNet.Writers.XddWriter().GenerateString(eds);
+        written.Should().Contain(@"PDOmapping=""TPDO""");
+
+        var roundTripped = _reader.ReadString(written);
+        roundTripped.ObjectDictionary.Objects[0x1000].PdoMappingMode.Should().Be(PdoMappingMode.Tpdo);
+        roundTripped.ObjectDictionary.Objects[0x1000].PdoMapping.Should().BeTrue();
     }
 
     #endregion
