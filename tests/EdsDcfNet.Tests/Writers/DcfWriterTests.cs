@@ -621,6 +621,66 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void GenerateString_CompactSubObj_PreservesSubNumberForExpandedBeyondCompactRange()
+    {
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.ManufacturerObjects.Add(0x2100);
+        var obj = new CanOpenObject
+        {
+            Index = 0x2100,
+            ParameterName = "ConfigArray",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "0",
+            PdoMapping = false,
+            CompactSubObj = 2,
+            SubNumber = 255
+        };
+        obj.SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "NrOfObjects",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "2"
+        };
+        obj.SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "ConfigArray1",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "0",
+            ParameterValue = "1"
+        };
+        obj.SubObjects[255] = new CanOpenSubObject
+        {
+            SubIndex = 255,
+            ParameterName = "Identity",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            ParameterValue = "keep"
+        };
+        dcf.ObjectDictionary.Objects[0x2100] = obj;
+
+        var written = _writer.GenerateString(dcf);
+        written.Should().Contain("CompactSubObj=2");
+        written.Should().Contain("SubNumber=255");
+        written.Should().Contain("[2100subFF]");
+        written.Should().Contain("[2100Value]");
+
+        var parsed = new DcfReader().ReadString(written);
+        parsed.ObjectDictionary.Objects[0x2100].SubObjects.Should().ContainKey(255);
+        parsed.ObjectDictionary.Objects[0x2100].SubObjects[255].ParameterValue.Should().Be("keep");
+        parsed.ObjectDictionary.Objects[0x2100].SubObjects[1].ParameterValue.Should().Be("1");
+    }
+
+    [Fact]
     public void GenerateString_OptionalObjects_WritesCorrectly()
     {
         // Arrange

@@ -110,10 +110,12 @@ public abstract class IniWriterBase
 
         sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}]", obj.Index));
 
-        // CiA 306: SubNumber is not supported when CompactSubObj is used.
-        if (!useCompact && obj.SubNumber.HasValue && obj.SubNumber.Value > 0)
+        // CiA 306: SubNumber is normally omitted under CompactSubObj. Keep/emit it when
+        // expanded sub-objects exist above the compact range so the reader can reach them.
+        var subNumberToWrite = ResolveSubNumberForWrite(obj, compactMax, useCompact);
+        if (subNumberToWrite > 0)
         {
-            WriteKeyValue(sb, "SubNumber", obj.SubNumber.Value.ToString(CultureInfo.InvariantCulture));
+            WriteKeyValue(sb, "SubNumber", subNumberToWrite.ToString(CultureInfo.InvariantCulture));
         }
 
         WriteKeyValue(sb, "ParameterName", obj.ParameterName);
@@ -217,6 +219,33 @@ public abstract class IniWriterBase
         if (!obj.CompactSubObj.HasValue || obj.CompactSubObj.Value == 0)
             return 0;
         return Math.Min((int)obj.CompactSubObj.Value, 254);
+    }
+
+    /// <summary>
+    /// Chooses the SubNumber to emit. Under compact storage this is usually omitted,
+    /// except when expanded sub-objects above the compact range must remain reachable.
+    /// </summary>
+    private static byte ResolveSubNumberForWrite(CanOpenObject obj, int compactMax, bool useCompact)
+    {
+        if (!useCompact)
+            return obj.SubNumber.GetValueOrDefault();
+
+        byte maxExpandedBeyondCompact = 0;
+        var hasBeyond = false;
+        foreach (var key in obj.SubObjects.Keys)
+        {
+            if (key <= compactMax)
+                continue;
+            hasBeyond = true;
+            if (key > maxExpandedBeyondCompact)
+                maxExpandedBeyondCompact = key;
+        }
+
+        if (!hasBeyond)
+            return 0;
+
+        var fromModel = obj.SubNumber.GetValueOrDefault();
+        return fromModel > maxExpandedBeyondCompact ? fromModel : maxExpandedBeyondCompact;
     }
 
     /// <summary>
