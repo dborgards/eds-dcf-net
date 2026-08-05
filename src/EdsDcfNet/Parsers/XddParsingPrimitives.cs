@@ -62,28 +62,32 @@ internal static class XddParsingPrimitives
 
     internal static ushort ParseHexDataType(string value)
     {
-        value = value.Trim();
+        var trimmed = value.Trim();
+        var hex = trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? trimmed[2..] : trimmed;
 
-        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            value = value[2..];
-
-        if (ushort.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
+        if (ushort.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
             return result;
 
-        return 0;
+        throw new EdsParseException(
+            string.Format(CultureInfo.InvariantCulture,
+                "Malformed CANopen dataType '{0}'. Expected a hex value (e.g. '0007' or '0x0007').",
+                value));
     }
 
     internal static uint ParseHexId(string value)
     {
-        value = value.Trim();
+        var trimmed = value.Trim();
+        var hex = trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? trimmed[2..] : trimmed;
 
-        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            value = value[2..];
-
-        if (uint.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
+        if (uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var result))
             return result;
 
-        return 0;
+        throw new EdsParseException(
+            string.Format(CultureInfo.InvariantCulture,
+                "Malformed CANopen identifier '{0}'. Expected a hex value (e.g. '0x00000100').",
+                value));
     }
 
     internal static AccessType ParseXddAccessType(string value)
