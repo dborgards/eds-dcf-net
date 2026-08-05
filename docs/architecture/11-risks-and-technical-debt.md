@@ -9,7 +9,7 @@
 | **Risk**         | Future versions of CiA DS 306 or CiA 311 introduce new sections/elements or attributes. |
 | **Likelihood**   | Medium (specification is periodically updated).                             |
 | **Impact**       | New fields could be ignored or misinterpreted.                              |
-| **Mitigation**   | INI unknown sections are preserved in `AdditionalSections`; XML handling is kept strict to the supported mapped profile subset and extended incrementally with tests. |
+| **Mitigation**   | INI unknown sections are preserved in `AdditionalSections`; XML handling is kept strict to the supported mapped profile subset and extended incrementally with tests. Unknown ProfileBody children are attribute-only captures and are not re-emitted by XDD/XDC writers (see §8.4). |
 
 ### R-2: netstandard2.0 API Limitations
 

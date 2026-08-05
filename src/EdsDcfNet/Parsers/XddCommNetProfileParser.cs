@@ -60,7 +60,9 @@ internal static class XddCommNetProfileParser
         if (networkMgmt != null)
             ParseNetworkManagement(networkMgmt, eds.DeviceInfo);
 
-        // Preserve unknown ProfileBody children in AdditionalSections for round-trip and XdcReader coverage
+        // Capture unknown ProfileBody children as INI-shaped AdditionalSections entries
+        // (attributes only). Nested element content is not preserved, and XddWriter does
+        // not re-emit these entries into ProfileBody — see architecture docs §8.4.
         var knownNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "ApplicationLayers",

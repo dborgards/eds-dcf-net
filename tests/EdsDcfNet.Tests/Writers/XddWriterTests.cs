@@ -667,6 +667,27 @@ public class XddWriterTests
     }
 
     [Fact]
+    public void GenerateString_AdditionalSections_NotReEmittedIntoProfileBody()
+    {
+        // Arrange — AdditionalSections is INI-shaped and is not an XDD vendor-extension store
+        var eds = CreateSampleEds();
+        eds.AdditionalSections["VendorExtension"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["customKey"] = "customValue"
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert — writer rebuilds a fixed ProfileBody without AdditionalSections entries
+        result.Should().NotContain("VendorExtension");
+        result.Should().NotContain("customKey");
+        result.Should().Contain("ApplicationLayers");
+        result.Should().Contain("TransportLayers");
+        result.Should().Contain("NetworkManagement");
+    }
+
+    [Fact]
     public void GenerateString_DateConversion_EdsToXsd()
     {
         // Arrange — CreationDate in EDS format "MM-DD-YYYY"
