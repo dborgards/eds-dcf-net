@@ -1786,6 +1786,23 @@ VendorKey=VendorData
     }
 
     [Fact]
+    public void ReadString_HexPrefixedSubExtra_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "[1000subExtra]" has a hex prefix + "sub" but the suffix is not a hex sub-index
+        var content = BuildMinimalDcf(extraSections: @"
+[1000subExtra]
+VendorKey=VendorData
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - custom hex-prefixed "sub*" names must round-trip via AdditionalSections
+        result.AdditionalSections.Should().ContainKey("1000subExtra");
+        result.AdditionalSections["1000subExtra"]["VendorKey"].Should().Be("VendorData");
+    }
+
+    [Fact]
     public void ReadString_SectionStartingWithM_NotModule_PreservedInAdditionalSections()
     {
         // Arrange - "Manufacturing" starts with "M" but is NOT a module section (no digit after "M")

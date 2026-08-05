@@ -504,6 +504,8 @@ public abstract class CanOpenReaderBase
 
     /// <summary>
     /// Checks if a section name matches the sub-object pattern: {HexIndex}sub{HexSubIndex}.
+    /// The suffix after <c>sub</c> must be a valid hex sub-index (and nothing else),
+    /// matching <see cref="ParseSubObject"/> section naming.
     /// </summary>
     protected static bool IsSubObjectSection(string sectionName)
     {
@@ -512,8 +514,14 @@ public abstract class CanOpenReaderBase
             return false;
 
         var prefix = sectionName[..subPos];
+        var suffix = sectionName[(subPos + 3)..];
+        if (suffix.Length == 0)
+            return false;
+
         return ushort.TryParse(prefix, NumberStyles.HexNumber,
-            CultureInfo.InvariantCulture, out _);
+                   CultureInfo.InvariantCulture, out _)
+               && byte.TryParse(suffix, NumberStyles.HexNumber,
+                   CultureInfo.InvariantCulture, out _);
     }
 
     /// <summary>

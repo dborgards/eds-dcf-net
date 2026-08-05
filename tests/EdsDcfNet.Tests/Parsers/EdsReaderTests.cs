@@ -1871,6 +1871,49 @@ VendorKey=VendorData
     }
 
     [Fact]
+    public void ReadString_HexPrefixedSubExtra_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "[1000subExtra]" has a hex prefix + "sub" but the suffix is not a hex sub-index
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x191
+PDOMapping=0
+
+[1000sub0]
+ParameterName=Highest sub-index
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=0x00
+PDOMapping=0
+
+[1000subExtra]
+VendorKey=VendorData
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - custom hex-prefixed "sub*" names must round-trip via AdditionalSections
+        result.AdditionalSections.Should().ContainKey("1000subExtra");
+        result.AdditionalSections["1000subExtra"]["VendorKey"].Should().Be("VendorData");
+        // Valid [1000sub0] remains known (not dumped into AdditionalSections)
+        result.AdditionalSections.Should().NotContainKey("1000sub0");
+        result.ObjectDictionary.Objects.Should().ContainKey((ushort)0x1000);
+    }
+
+    [Fact]
     public void ReadString_SectionStartingWithM_NotModule_PreservedInAdditionalSections()
     {
         // Arrange - "Manufacturing" starts with "M" but is NOT a module section
