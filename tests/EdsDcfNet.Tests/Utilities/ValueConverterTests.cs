@@ -46,10 +46,12 @@ public class ValueConverterTests
     [Theory]
     [InlineData("00", 0u)]
     [InlineData("01", 1u)]
-    [InlineData("010", 8u)]
-    [InlineData("0377", 255u)]
-    [InlineData("01000", 512u)]
-    public void ParseInteger_OctalValues_ParsesCorrectly(string input, uint expected)
+    [InlineData("010", 10u)]
+    [InlineData("08", 8u)]
+    [InlineData("09", 9u)]
+    [InlineData("0377", 377u)]
+    [InlineData("01000", 1000u)]
+    public void ParseInteger_LeadingZeroDecimals_ParsesAsDecimal(string input, uint expected)
     {
         // Act
         var result = ValueConverter.ParseInteger(input);
@@ -61,7 +63,7 @@ public class ValueConverterTests
     [Theory]
     [InlineData("  123  ", 123u)]
     [InlineData("  0xFF  ", 255u)]
-    [InlineData("  010  ", 8u)]
+    [InlineData("  010  ", 10u)]
     public void ParseInteger_WithWhitespace_TrimsAndParses(string input, uint expected)
     {
         // Act
@@ -219,9 +221,10 @@ public class ValueConverterTests
 
     [Theory]
     [InlineData("00", (byte)0)]
-    [InlineData("010", (byte)8)]
-    [InlineData("0377", (byte)255)]
-    public void ParseByte_OctalValues_ParsesCorrectly(string input, byte expected)
+    [InlineData("010", (byte)10)]
+    [InlineData("08", (byte)8)]
+    [InlineData("099", (byte)99)]
+    public void ParseByte_LeadingZeroDecimals_ParsesAsDecimal(string input, byte expected)
     {
         // Act
         var result = ValueConverter.ParseByte(input);
@@ -274,9 +277,10 @@ public class ValueConverterTests
 
     [Theory]
     [InlineData("00", (ushort)0)]
-    [InlineData("010", (ushort)8)]
-    [InlineData("0177777", (ushort)65535)]
-    public void ParseUInt16_OctalValues_ParsesCorrectly(string input, ushort expected)
+    [InlineData("010", (ushort)10)]
+    [InlineData("08", (ushort)8)]
+    [InlineData("01000", (ushort)1000)]
+    public void ParseUInt16_LeadingZeroDecimals_ParsesAsDecimal(string input, ushort expected)
     {
         // Act
         var result = ValueConverter.ParseUInt16(input);
@@ -602,7 +606,7 @@ public class ValueConverterTests
 
     [Theory]
     [InlineData("0x100000000", "*hexadecimal literal*", "*outside the representable range*")]
-    [InlineData("040000000000", "*octal literal*", "*outside the representable range*")]
+    [InlineData("040000000000", "*decimal literal*", "*outside the representable range*")]
     [InlineData("4294967296", "*decimal literal*", "*outside the representable range*")]
     [InlineData("+4294967296", "*decimal literal*", "*outside the representable range*")]
     [InlineData("-1", "*decimal literal*", "*outside the representable range*")]
@@ -651,8 +655,7 @@ public class ValueConverterTests
     [InlineData("0xag", "*hexadecimal literal contains non-hex characters*")]
     [InlineData("0x/", "*hexadecimal literal contains non-hex characters*")]
     [InlineData("0x", "*hexadecimal literal has no digits after the 0x prefix*")]
-    [InlineData("008", "*octal literal contains characters outside 0-7*")]
-    [InlineData("00/", "*octal literal contains characters outside 0-7*")]
+    [InlineData("00/", "*decimal literal contains non-digit characters*")]
     [InlineData("+", "*decimal literal contains non-digit characters*")]
     [InlineData("-", "*decimal literal contains non-digit characters*")]
     public void ParseInteger_InvalidLiteral_ProvidesActionableContext(string input, string expectedMessageFragment)
@@ -667,7 +670,7 @@ public class ValueConverterTests
 
     [Theory]
     [InlineData("0x100", "*hexadecimal literal*", "*outside the representable range*")]
-    [InlineData("0400", "*octal literal*", "*outside the representable range*")]
+    [InlineData("0400", "*decimal literal*", "*outside the representable range*")]
     public void ParseByte_InvalidValueWithOverflow_ProvidesActionableContext(string input, string expectedFragment1, string expectedFragment2)
     {
         var act = () => ValueConverter.ParseByte(input);
@@ -706,7 +709,7 @@ public class ValueConverterTests
 
     [Theory]
     [InlineData("0x10000", "*hexadecimal literal*", "*outside the representable range*")]
-    [InlineData("0200000", "*octal literal*", "*outside the representable range*")]
+    [InlineData("0200000", "*decimal literal*", "*outside the representable range*")]
     public void ParseUInt16_InvalidValueWithOverflow_ProvidesActionableContext(string input, string expectedFragment1, string expectedFragment2)
     {
         var act = () => ValueConverter.ParseUInt16(input);

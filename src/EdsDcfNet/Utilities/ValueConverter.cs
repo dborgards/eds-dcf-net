@@ -12,12 +12,11 @@ public static class ValueConverter
     private enum NumericBase
     {
         Decimal = 10,
-        Octal = 8,
         Hexadecimal = 16
     }
 
     /// <summary>
-    /// Parses an integer value from string (supports decimal, hexadecimal, and octal).
+    /// Parses an integer value from string (supports decimal and hexadecimal <c>0x</c>).
     /// </summary>
     /// <param name="value">String value to parse</param>
     /// <param name="nodeId">Optional node ID for evaluating $NODEID formulas</param>
@@ -223,15 +222,14 @@ public static class ValueConverter
             return (hexDigits, NumericBase.Hexadecimal);
         }
 
-        if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
-            return (value, NumericBase.Octal);
-
+        // Leading zeros are decimal (padded EDS/DCF values such as "010" or "08"),
+        // not C-style octal. Hexadecimal requires an explicit 0x prefix.
         return (value, NumericBase.Decimal);
     }
 
     /// <summary>
     /// Builds a detailed error message for an invalid numeric literal, including its interpreted kind
-    /// (decimal/hex/octal) and whether the value is outside the valid range for the requested type.
+    /// (decimal/hex) and whether the value is outside the valid range for the requested type.
     /// </summary>
     /// <param name="typeName">The logical type name being parsed (e.g. "uint", "byte").</param>
     /// <param name="value">The original string literal value that failed to parse.</param>
@@ -249,7 +247,7 @@ public static class ValueConverter
     }
 
     /// <summary>
-    /// Describes the shape of a numeric literal (hex/octal/decimal) for error diagnostics.
+    /// Describes the shape of a numeric literal (hex/decimal) for error diagnostics.
     /// </summary>
     private static string DescribeNumericLiteral(string value)
     {
@@ -269,17 +267,6 @@ public static class ValueConverter
             }
 
             return "hexadecimal literal";
-        }
-
-        if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
-        {
-            foreach (var c in value)
-            {
-                if (c < '0' || c > '7')
-                    return "octal literal contains characters outside 0-7";
-            }
-
-            return "octal literal";
         }
 
         var startIndex = 0;

@@ -8,7 +8,7 @@ Comprehensive unit and integration tests for the EdsDcfNet library using XUnit a
 
 #### Utilities/ValueConverterTests.cs
 Tests for the `ValueConverter` utility class:
-- Parsing integers (decimal, hexadecimal, octal formats)
+- Parsing integers (decimal and hexadecimal formats)
 - Parsing $NODEID formulas with arithmetic operations
 - Parsing booleans (1/0, true/false, yes/no)
 - Parsing bytes and ushort values

@@ -3,6 +3,7 @@ namespace EdsDcfNet.Tests.Parsers;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
+using EdsDcfNet.Utilities;
 
 public class DcfReaderTests
 {
@@ -2439,16 +2440,16 @@ PDOMapping=0
     }
 
     [Fact]
-    public void ReadString_OctalNotation_ParsedCorrectly()
+    public void ReadString_LeadingZeroDecimalNotation_PreservedAsRawString()
     {
-        // Arrange – Octal notation (0755 style)
+        // Arrange – padded decimal literals remain stored as raw strings on the model
         var content = BuildMinimalDcf(extraSections: @"
 [ManufacturerObjects]
 SupportedObjects=1
 1=0x2000
 
 [2000]
-ParameterName=Octal Value
+ParameterName=Padded Decimal Value
 ObjectType=0x7
 DataType=0x0007
 AccessType=ro
@@ -2459,9 +2460,10 @@ PDOMapping=0
         // Act
         var result = _reader.ReadString(content);
 
-        // Assert
+        // Assert — Object Dictionary stores the literal; numeric conversion is decimal (755)
         var obj = result.ObjectDictionary.Objects[0x2000];
         obj.DefaultValue.Should().Be("0755");
+        ValueConverter.ParseInteger(obj.DefaultValue).Should().Be(755u);
     }
 
     #endregion

@@ -24,8 +24,9 @@ public static class CanOpenValueConverter
     /// </param>
     /// <returns>The value represented by the corresponding .NET type.</returns>
     /// <remarks>
-    /// Integer values may use decimal, hexadecimal (<c>0x</c>), octal notation, or
-    /// <c>$NODEID</c> formulas. Empty or whitespace-only integer literals are treated as zero.
+    /// Integer values may use decimal, hexadecimal (<c>0x</c>), or
+    /// <c>$NODEID</c> formulas. Leading zeros are treated as decimal (padded EDS/DCF
+    /// literals), not C-style octal. Empty or whitespace-only integer literals are treated as zero.
     /// REAL32/REAL64 values must be finite: <c>NaN</c> and literals that saturate to infinity
     /// (for example <c>3.5e40</c> for REAL32) are rejected because EDS/DCF has no
     /// interoperable representation for them.
@@ -192,14 +193,6 @@ public static class CanOpenValueConverter
                 result = unchecked((long)raw);
             }
         }
-        else if (IsOctal(trimmed))
-        {
-            var raw = Convert.ToUInt64(trimmed, 8);
-            ValidateUnsignedRange(raw, bits);
-            result = bits < 64 && (raw & (1UL << (bits - 1))) != 0
-                ? (long)(raw - (1UL << bits))
-                : unchecked((long)raw);
-        }
         else
         {
             result = long.Parse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture);
@@ -223,10 +216,6 @@ public static class CanOpenValueConverter
             result = EvaluateUnsignedNodeIdFormula(trimmed, nodeId);
         }
         else if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-        {
-            result = ParseUnsignedLiteral(trimmed);
-        }
-        else if (IsOctal(trimmed))
         {
             result = ParseUnsignedLiteral(trimmed);
         }
@@ -372,23 +361,16 @@ public static class CanOpenValueConverter
         }
     }
 
-    private static bool IsOctal(string value) =>
-        value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]);
-
     /// <summary>
-    /// Parses an unsigned integer literal (decimal, hexadecimal, or octal) into a
+    /// Parses an unsigned integer literal (decimal or hexadecimal <c>0x</c>) into a
     /// <see cref="ulong"/> so 40/48/56/64-bit values are preserved.
+    /// Leading zeros are decimal, not C-style octal.
     /// </summary>
     private static ulong ParseUnsignedLiteral(string trimmed)
     {
         if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
         {
             return ulong.Parse(trimmed[2..], NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture);
-        }
-
-        if (IsOctal(trimmed))
-        {
-            return Convert.ToUInt64(trimmed, 8);
         }
 
         return ulong.Parse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture);

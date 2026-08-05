@@ -253,7 +253,7 @@ classDiagram
     }
 ```
 
-`ValueConverter` encapsulates number parsing (decimal/hex/octal), `$NODEID` formula evaluation, and AccessType conversions.
+`ValueConverter` encapsulates number parsing (decimal/hex `0x`), `$NODEID` formula evaluation, and AccessType conversions.
 `TextFileIo` centralizes asynchronous UTF-8 file access with cancellation support and consistent no-BOM output handling.
 
 ### 5.2.5 Extensions

@@ -78,18 +78,18 @@ value.ToString();
 
 ## 8.3 Number Format Processing
 
-The `ValueConverter` supports three number formats specified in CiA DS 306:
+The `ValueConverter` supports decimal and hexadecimal formats commonly used in EDS/DCF files:
 
 ```mermaid
 flowchart TD
     A["Input string"] --> B{"Starts with '0x' or '0X'?"}
     B -->|Yes| C["Parse as hexadecimal<br/>(e.g., 0x1A00)"]
-    B -->|No| D{"Starts with '0' and length > 1?"}
-    D -->|Yes| E["Parse as octal<br/>(e.g., 0177)"]
-    D -->|No| F{"Starts with '$NODEID'?"}
+    B -->|No| F{"Starts with '$NODEID'?"}
     F -->|Yes| G["Evaluate $NODEID formula<br/>(e.g., $NODEID+0x200)"]
-    F -->|No| H["Parse as decimal<br/>(e.g., 42)"]
+    F -->|No| H["Parse as decimal<br/>(e.g., 42, 010, 08)"]
 ```
+
+Leading zeros are treated as **decimal** padding (e.g. `"010"` → 10, `"08"` → 8), not C-style octal. Hexadecimal requires an explicit `0x` prefix.
 
 ### $NODEID Formula
 
