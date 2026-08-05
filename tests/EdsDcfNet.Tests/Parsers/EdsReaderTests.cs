@@ -605,6 +605,81 @@ NrOfEntries=2
     }
 
     [Fact]
+    public void ReadString_OrphanNameSection_PreservedInAdditionalSections()
+    {
+        // Arrange — [xxxxName] without a matching CompactSubObj object must round-trip
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[2100Name]
+NrOfEntries=1
+1=OrphanName
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("2100Name");
+        result.AdditionalSections["2100Name"]["1"].Should().Be("OrphanName");
+    }
+
+    [Fact]
+    public void ReadString_NameSectionWithoutCompactSubObj_PreservedInAdditionalSections()
+    {
+        // Arrange — object exists but CompactSubObj is absent/zero
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+SubNumber=1
+
+[2100sub0]
+ParameterName=Number of Entries
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[2100Name]
+NrOfEntries=1
+1=ShouldStayAdditional
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("2100Name");
+        result.ObjectDictionary.Objects[0x2100].SubObjects.Should().NotContainKey(1);
+    }
+
+    [Fact]
     public void ReadString_CompactSubObj_SampleDevice_SynthesizesMissingArrayElements()
     {
         // Arrange — sample_device.eds uses CompactSubObj with only sub0 expanded

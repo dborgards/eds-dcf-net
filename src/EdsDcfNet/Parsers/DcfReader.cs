@@ -146,7 +146,8 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
 
     /// <inheritdoc/>
     private protected override bool IsSectionHandledByFormat(string sectionName, ICanOpenFileModel model)
-        => ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(sectionName, model.ObjectDictionary);
+        => base.IsSectionHandledByFormat(sectionName, model)
+           || ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(sectionName, model.ObjectDictionary);
 
     /// <inheritdoc/>
     protected override EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)

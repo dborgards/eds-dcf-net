@@ -84,10 +84,33 @@ public abstract class CanOpenReaderBase
     /// <summary>
     /// Extension point that reports whether a section was already captured by
     /// format-specific parsing and therefore must not be preserved in
-    /// <c>AdditionalSections</c> (DCF: <c>ObjectLinks</c> sections of existing objects).
+    /// <c>AdditionalSections</c> (DCF: <c>ObjectLinks</c> of existing objects;
+    /// shared: consumed <c>[xxxxName]</c> for compact objects).
     /// </summary>
     private protected virtual bool IsSectionHandledByFormat(string sectionName, ICanOpenFileModel model)
-        => false;
+        => IsCompactNameSectionForExistingObject(sectionName, model.ObjectDictionary);
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="sectionName"/> is a
+    /// <c>[xxxxName]</c> section for an object that uses CompactSubObj storage
+    /// (and was therefore consumed by <see cref="ApplyCompactNameOverrides"/>).
+    /// Orphan name sections remain in <c>AdditionalSections</c> for round-trip.
+    /// </summary>
+    private protected static bool IsCompactNameSectionForExistingObject(
+        string sectionName,
+        ObjectDictionary objectDictionary)
+    {
+        if (!IsHexPrefixedSection(sectionName, "Name"))
+            return false;
+
+        var prefix = sectionName[..^"Name".Length];
+        if (!ushort.TryParse(prefix, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
+            return false;
+
+        return objectDictionary.Objects.TryGetValue(index, out var obj)
+               && obj.CompactSubObj.HasValue
+               && obj.CompactSubObj.Value > 0;
+    }
 
     /// <summary>
     /// Parses the <c>[FileInfo]</c> section into an <see cref="EdsFileInfo"/> object.
@@ -422,10 +445,6 @@ public abstract class CanOpenReaderBase
 
         // Check for sub-object sections (hex index + "sub" + hex subindex)
         if (IsSubObjectSection(sectionName))
-            return true;
-
-        // CompactSubObj optional name overrides: [xxxxName]
-        if (IsHexPrefixedSection(sectionName, "Name"))
             return true;
 
         // Check for module sections (M + digits + known suffix)
