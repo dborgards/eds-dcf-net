@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Writers;
 
+using System.Globalization;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
@@ -216,7 +217,6 @@ public class EdsWriterTests
             SrdoMapping = true,
             InvertedSrad = "0x2000",
             ObjFlags = 0x10,
-            CompactSubObj = 2,
             SubNumber = 1
         };
 
@@ -248,11 +248,347 @@ public class EdsWriterTests
         result.Should().Contain("SRDOMapping=1");
         result.Should().Contain("InvertedSRAD=0x2000");
         result.Should().Contain("ObjFlags=0x10");
-        result.Should().Contain("CompactSubObj=2");
         result.Should().Contain("[2000sub1]");
         result.Should().Contain("LowLimit=0");
         result.Should().Contain("HighLimit=5");
         result.Should().Contain("InvertedSRAD=0x3000");
+    }
+
+    [Fact]
+    public void GenerateString_CompactSubObj_OmitsRedundantSubsAndWritesNameSection()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.ObjectDictionary.ManufacturerObjects.Add(0x2100);
+        eds.ObjectDictionary.Objects[0x2100] = new CanOpenObject
+        {
+            Index = 0x2100,
+            ParameterName = "StatusBits",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = true,
+            CompactSubObj = 2,
+            SubNumber = 2 // must be omitted in compact form
+        };
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "NrOfObjects",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "2",
+            PdoMapping = false
+        };
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "FirstBit",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = true
+        };
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[2] = new CanOpenSubObject
+        {
+            SubIndex = 2,
+            ParameterName = "StatusBits2",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = true
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("CompactSubObj=2");
+        result.Should().NotContain("SubNumber=");
+        result.Should().NotContain("[2100sub0]");
+        result.Should().NotContain("[2100sub1]");
+        result.Should().NotContain("[2100sub2]");
+        result.Should().Contain("[2100Name]");
+        result.Should().Contain("NrOfEntries=1");
+        result.Should().Contain("1=FirstBit");
+        result.Should().NotContain("2=StatusBits2");
+    }
+
+    [Fact]
+    public void GenerateString_CompactSubObj_ExpandsSub0WhenNameDiffersFromTemplate()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.ObjectDictionary.ManufacturerObjects.Add(0x2100);
+        eds.ObjectDictionary.Objects[0x2100] = new CanOpenObject
+        {
+            Index = 0x2100,
+            ParameterName = "StatusBits",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = false,
+            CompactSubObj = 1
+        };
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Number of Elements",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "1",
+            PdoMapping = false
+        };
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "StatusBits1",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = false
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("[2100sub0]");
+        result.Should().Contain("ParameterName=Number of Elements");
+        result.Should().NotContain("[2100sub1]");
+    }
+
+    [Theory]
+    // Structural fields the compact template fixes (MatchesCompactElementTemplate)…
+    [InlineData("ObjectType")]
+    [InlineData("DataType")]
+    [InlineData("AccessType")]
+    [InlineData("DefaultValue")]
+    [InlineData("PdoMapping")]
+    [InlineData("LowLimit")]
+    [InlineData("HighLimit")]
+    // …and fields no compact list can carry (HasNonCompactExclusiveFields).
+    [InlineData("SrdoMapping")]
+    [InlineData("InvertedSrad")]
+    [InlineData("ParamRefd")]
+    public void GenerateString_CompactSubObj_ExpandsElementDeviatingFromTemplate(string deviation)
+    {
+        // Arrange — sub1 matches the parent template except for one field, which the
+        // compact [xxxxName]/[xxxxValue]/[xxxxDenotation] lists cannot express.
+        var eds = CreateCompactEds(out var element);
+        ApplyDeviation(element, deviation);
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("[2100sub1]", $"a deviating {deviation} cannot be stored compactly");
+        result.Should().NotContain("[2100sub2]"); // untouched element stays compact
+    }
+
+    [Theory]
+    [InlineData("ObjectType")]
+    [InlineData("DataType")]
+    [InlineData("AccessType")]
+    [InlineData("DefaultValue")]
+    [InlineData("PdoMapping")]
+    [InlineData("LowLimit")]
+    [InlineData("HighLimit")]
+    [InlineData("Denotation")]
+    [InlineData("SrdoMapping")]
+    [InlineData("InvertedSrad")]
+    [InlineData("ParamRefd")]
+    public void GenerateString_CompactSubObj_ExpandsSub0DeviatingFromTemplate(string deviation)
+    {
+        // Arrange — sub0 has no compact list entry at all (CiA 306 keys are 1..254),
+        // so any deviation from the synthesized NrOfObjects template must expand it.
+        var eds = CreateCompactEds(out _);
+        var sub0 = eds.ObjectDictionary.Objects[0x2100].SubObjects[0];
+        ApplyDeviation(sub0, deviation);
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("[2100sub0]", $"a deviating {deviation} cannot be stored compactly");
+    }
+
+    [Fact]
+    public void GenerateString_CompactSubObj_UnnamedSubObjects_StayCompact()
+    {
+        // Arrange — an empty ParameterName carries no information the reader cannot
+        // synthesize, so it must not force an expanded section or a [xxxxName] entry.
+        var eds = CreateCompactEds(out var element);
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[0].ParameterName = string.Empty;
+        element.ParameterName = string.Empty;
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("CompactSubObj=2");
+        result.Should().NotContain("[2100sub0]");
+        result.Should().NotContain("[2100sub1]");
+        result.Should().NotContain("[2100Name]");
+    }
+
+    [Fact]
+    public void GenerateString_CompactSubObj_SparseSubObjects_SkipsMissingSubIndexes()
+    {
+        // Arrange — CompactSubObj=3 with sub2 absent: the gap is skipped, not defaulted
+        var eds = CreateCompactEds(out var element);
+        var obj = eds.ObjectDictionary.Objects[0x2100];
+        obj.CompactSubObj = 3;
+        obj.SubObjects[0].DefaultValue = "3";
+        obj.SubObjects.Remove(2);
+        element.ParameterName = "FirstBit";
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("CompactSubObj=3");
+        result.Should().Contain("[2100Name]");
+
+        // Only sub1 has a name to store; the absent sub2 and sub3 contribute nothing.
+        var nameSection = result[result.IndexOf("[2100Name]", StringComparison.Ordinal)..];
+        nameSection.Should().Contain("NrOfEntries=1");
+        nameSection.Should().Contain("1=FirstBit");
+    }
+
+    [Fact]
+    public void GenerateString_CompactSubObjZero_WritesPlainExpandedObject()
+    {
+        // Arrange — CompactSubObj=0 is not compact storage
+        var eds = CreateCompactEds(out _);
+        eds.ObjectDictionary.Objects[0x2100].CompactSubObj = 0;
+        eds.ObjectDictionary.Objects[0x2100].SubNumber = 3;
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().NotContain("CompactSubObj=");
+        result.Should().Contain("SubNumber=3");
+        result.Should().Contain("[2100sub0]");
+        result.Should().Contain("[2100sub1]");
+        result.Should().Contain("[2100sub2]");
+        result.Should().NotContain("[2100Name]");
+    }
+
+    [Fact]
+    public void GenerateString_CompactSubObj_SubNumberCoversHighestExpandedSubIndex()
+    {
+        // Arrange — several sub-objects above the compact range: SubNumber must stay high
+        // enough for the reader to reach all of them. Inserted highest-first so the writer
+        // sees the descending order.
+        var eds = CreateCompactEds(out _);
+        var obj = eds.ObjectDictionary.Objects[0x2100];
+        obj.SubNumber = 255;
+        obj.SubObjects[200] = new CanOpenSubObject
+        {
+            SubIndex = 200,
+            ParameterName = "Beyond200",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0"
+        };
+        obj.SubObjects[150] = new CanOpenSubObject
+        {
+            SubIndex = 150,
+            ParameterName = "Beyond150",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0"
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert — the model's SubNumber wins because it exceeds the highest expanded index
+        result.Should().Contain("SubNumber=255");
+        result.Should().Contain("CompactSubObj=2");
+        result.Should().Contain("[2100sub96]");  // 150 = 0x96
+        result.Should().Contain("[2100subC8]"); // 200 = 0xC8
+    }
+
+    /// <summary>
+    /// Builds an EDS with one CompactSubObj=2 object whose sub-objects all match the
+    /// template, so a single deviation is what forces an expanded section.
+    /// </summary>
+    private static ElectronicDataSheet CreateCompactEds(out CanOpenSubObject element)
+    {
+        var eds = CreateMinimalEds();
+        eds.ObjectDictionary.ManufacturerObjects.Add(0x2100);
+
+        var obj = new CanOpenObject
+        {
+            Index = 0x2100,
+            ParameterName = "StatusBits",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = false,
+            CompactSubObj = 2
+        };
+
+        obj.SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "NrOfObjects",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "2",
+            PdoMapping = false
+        };
+
+        for (byte subIndex = 1; subIndex <= 2; subIndex++)
+        {
+            obj.SubObjects[subIndex] = new CanOpenSubObject
+            {
+                SubIndex = subIndex,
+                ParameterName = "StatusBits" + subIndex.ToString(CultureInfo.InvariantCulture),
+                ObjectType = 0x7,
+                DataType = 0x0005,
+                AccessType = AccessType.ReadOnly,
+                DefaultValue = "0",
+                PdoMapping = false
+            };
+        }
+
+        eds.ObjectDictionary.Objects[0x2100] = obj;
+        element = obj.SubObjects[1];
+        return eds;
+    }
+
+    private static void ApplyDeviation(CanOpenSubObject subObj, string deviation)
+    {
+        switch (deviation)
+        {
+            case "ObjectType": subObj.ObjectType = 0x9; break;
+            case "DataType": subObj.DataType = 0x0007; break;
+            case "AccessType": subObj.AccessType = AccessType.ReadWrite; break;
+            case "DefaultValue": subObj.DefaultValue = "42"; break;
+            case "PdoMapping": subObj.PdoMapping = true; break;
+            case "LowLimit": subObj.LowLimit = "0"; break;
+            case "HighLimit": subObj.HighLimit = "5"; break;
+            case "Denotation": subObj.Denotation = "Label"; break;
+            case "SrdoMapping": subObj.SrdoMapping = true; break;
+            case "InvertedSrad": subObj.InvertedSrad = "0x2000"; break;
+            case "ParamRefd": subObj.ParamRefd = "0x1000"; break;
+            default: throw new ArgumentOutOfRangeException(nameof(deviation), deviation, "Unknown deviation");
+        }
     }
 
     [Fact]

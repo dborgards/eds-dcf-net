@@ -30,7 +30,7 @@
 | **RECORD**                    | Object Dictionary object type (0x09) for a structure with heterogeneous sub-objects.              |
 | **INI format**                | Simple text format with sections (`[Section]`) and key-value pairs (`Key=Value`). Basis for EDS/DCF files. |
 | **$NODEID formula**           | Expression in DCF files (e.g., `$NODEID+0x600`) evaluated relative to the device's node ID.      |
-| **CompactSubObj**             | Compact representation of sub-objects where not every sub-object needs to be defined individually. |
+| **CompactSubObj**             | Compact array storage (CiA 306 §4.5.2.4.2): parent object is the template for sub-indexes `0..N`; individual `[xxxsubN]` sections are optional. Values/denotations/names use `[xxxxValue]`, `[xxxxDenotation]`, `[xxxxName]`. |
 | **CompactPDO**                | Compact storage of PDO value and denotation information in dedicated sections.                    |
 | **Round-trip fidelity**       | Property that a file does not lose information after being read and written back unchanged.        |
 | **Semantic Versioning (SemVer)** | Versioning scheme with the format `MAJOR.MINOR.PATCH` that communicates the nature of changes. |
