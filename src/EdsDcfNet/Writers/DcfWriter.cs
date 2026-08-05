@@ -268,6 +268,15 @@ public class DcfWriter : IniWriterBase
 
     private static void WriteDeviceCommissioning(StringBuilder sb, DeviceCommissioning dc)
     {
+        if (!CanOpenNodeId.IsInRange(dc.NodeId))
+        {
+            throw new DcfWriteException(
+                string.Format(CultureInfo.InvariantCulture,
+                    "Cannot write DCF: NodeId {0} is outside the valid CANopen range " + CanOpenNodeId.RangeDescription + ".",
+                    dc.NodeId),
+                "DeviceCommissioning");
+        }
+
         sb.AppendLine("[DeviceCommissioning]");
         WriteKeyValue(sb, "NodeID", dc.NodeId.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "NodeName", dc.NodeName);

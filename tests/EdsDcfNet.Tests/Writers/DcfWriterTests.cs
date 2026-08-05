@@ -142,6 +142,40 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void GenerateString_NodeIdZeroWithOtherFields_ThrowsDcfWriteException()
+    {
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceCommissioning = new DeviceCommissioning
+        {
+            NodeId = 0,
+            NodeName = "Unassigned",
+            Baudrate = 500
+        };
+
+        var act = () => _writer.GenerateString(dcf);
+
+        var ex = act.Should().Throw<DcfWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceCommissioning");
+        ex.Message.Should().Contain("NodeId");
+    }
+
+    [Theory]
+    [InlineData(128)]
+    [InlineData(200)]
+    [InlineData(255)]
+    public void GenerateString_OutOfRangeNodeId_ThrowsDcfWriteException(byte nodeId)
+    {
+        var dcf = CreateMinimalDcf();
+        dcf.DeviceCommissioning.NodeId = nodeId;
+
+        var act = () => _writer.GenerateString(dcf);
+
+        var ex = act.Should().Throw<DcfWriteException>().Which;
+        ex.SectionName.Should().Be("DeviceCommissioning");
+        ex.Message.Should().Contain("NodeId");
+    }
+
+    [Fact]
     public void GenerateString_ReferenceDesignators_WrittenWhenSet()
     {
         // Arrange

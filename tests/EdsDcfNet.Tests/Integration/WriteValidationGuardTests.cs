@@ -349,9 +349,18 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteWithDefaultOptions_SkipsValidationForInvalidModel()
     {
+        // Model is invalid for CanOpenModelValidator (object not listed in
+        // Mandatory/Optional/Manufacturer) but has a writable NodeId — NodeId
+        // range is always enforced on DCF write (see #409), so use a different defect.
         var dcf = new DeviceConfigurationFile
         {
-            DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
+            DeviceCommissioning = new DeviceCommissioning { NodeId = 5, Baudrate = 250 }
+        };
+        dcf.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Unclassified",
+            ObjectType = 0x7
         };
 
         var act = () => CanOpenFile.WriteDcfToString(dcf, CanOpenWriteOptions.Default);
