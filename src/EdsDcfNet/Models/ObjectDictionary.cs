@@ -106,7 +106,10 @@ public class CanOpenObject
     public Dictionary<byte, CanOpenSubObject> SubObjects { get; } = new();
 
     /// <summary>
-    /// For compact sub-object storage: number of sub-indexes with equal description.
+    /// For compact sub-object storage (CiA 306 §4.5.2.4.2): highest sub-index described
+    /// by the parent object template. When non-zero, missing <c>[xxxsubN]</c> sections are
+    /// synthesized from this object; ParameterValues/Denotations use <c>[xxxxValue]</c> /
+    /// <c>[xxxxDenotation]</c> (DCF) and optional names use <c>[xxxxName]</c>.
     /// </summary>
     public byte? CompactSubObj { get; set; }
 

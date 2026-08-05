@@ -190,8 +190,9 @@ public class XdcWriter : XddWriter
     {
         var networkMgmt = base.BuildNetworkManagement(eds, commissioning);
 
-        // NodeId == 0 means no commissioning was configured; omit the element.
-        if (commissioning != null && commissioning.NodeId > 0)
+        // Align with DCF: omit only when every commissioning field is empty/zero.
+        // Non-omitted commissioning with NodeId outside 1..127 fails in BuildDeviceCommissioning.
+        if (commissioning != null && !DeviceCommissioningSemantics.IsOmitted(commissioning))
             networkMgmt.Add(BuildDeviceCommissioning(commissioning));
 
         return networkMgmt;
