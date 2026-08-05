@@ -121,7 +121,7 @@ internal static class XddCommNetProfileParser
         obj.HighLimit = elem.Attribute("highLimit")?.Value;
 
         var pdoMappingStr = elem.Attribute("PDOmapping")?.Value;
-        obj.PdoMapping = ParseXddPdoMapping(pdoMappingStr);
+        obj.PdoMappingMode = ParseXddPdoMapping(pdoMappingStr);
 
         var objFlagsStr = elem.Attribute("objFlags")?.Value;
         if (!string.IsNullOrEmpty(objFlagsStr) &&
@@ -178,7 +178,7 @@ internal static class XddCommNetProfileParser
         subObj.HighLimit = elem.Attribute("highLimit")?.Value;
 
         var pdoMappingStr = elem.Attribute("PDOmapping")?.Value;
-        subObj.PdoMapping = ParseXddPdoMapping(pdoMappingStr);
+        subObj.PdoMappingMode = ParseXddPdoMapping(pdoMappingStr);
 
         if (includeActualValues)
         {

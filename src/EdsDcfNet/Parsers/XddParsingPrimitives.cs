@@ -102,12 +102,27 @@ internal static class XddParsingPrimitives
         };
     }
 
-    internal static bool ParseXddPdoMapping(string? value)
+    internal static PdoMappingMode ParseXddPdoMapping(string? value)
     {
         if (string.IsNullOrEmpty(value))
-            return false;
+            return PdoMappingMode.No;
 
-        return !value!.Equals("no", StringComparison.OrdinalIgnoreCase);
+        var token = value!.Trim();
+        if (token.Equals("no", StringComparison.OrdinalIgnoreCase))
+            return PdoMappingMode.No;
+        if (token.Equals("default", StringComparison.OrdinalIgnoreCase))
+            return PdoMappingMode.Default;
+        if (token.Equals("optional", StringComparison.OrdinalIgnoreCase))
+            return PdoMappingMode.Optional;
+        if (token.Equals("TPDO", StringComparison.OrdinalIgnoreCase))
+            return PdoMappingMode.Tpdo;
+        if (token.Equals("RPDO", StringComparison.OrdinalIgnoreCase))
+            return PdoMappingMode.Rpdo;
+
+        throw new EdsParseException(
+            string.Format(CultureInfo.InvariantCulture,
+                "Invalid PDOmapping '{0}'. Expected one of: no, default, optional, TPDO, RPDO.",
+                value));
     }
 
     internal static bool ParseXmlBool(string value)
