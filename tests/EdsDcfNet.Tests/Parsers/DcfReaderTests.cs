@@ -1173,6 +1173,115 @@ NrOfEntries=oops
     }
 
     [Fact]
+    public void ReadString_CompactSubObj_ValueSection_IgnoresKeysOutsideCompactListRange()
+    {
+        // Arrange — compact value lists cover sub-indexes 1..254 only; sub-index 0, non-numeric
+        // keys, empty values and keys without a matching sub-object must all be ignored.
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=ConfigArray
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=2
+
+[2100Value]
+NrOfEntries=2
+0=NotTheEntryCount
+Comment=NotASubIndex
+1=10
+2=
+9=99
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.SubObjects.Should().HaveCount(3); // 0..2 — no sub-object is created by a value entry
+        obj.SubObjects[0].ParameterValue.Should().BeNull(); // key 0 ignored
+        obj.SubObjects[1].ParameterValue.Should().Be("10");
+        obj.SubObjects[2].ParameterValue.Should().BeNull(); // empty value ignored
+        obj.SubObjects.Should().NotContainKey(9);
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_NameSection_OverridesNamesAndIsConsumed()
+    {
+        // Arrange — [xxxxName] is shared EDS/DCF compact storage (CiA 306 §4.5.2.4.2)
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=ConfigArray
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=2
+
+[2100Name]
+NrOfEntries=1
+2=SecondEntry
+
+[2100Value]
+NrOfEntries=1
+2=20
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.SubObjects[1].ParameterName.Should().Be("ConfigArray1");
+        obj.SubObjects[2].ParameterName.Should().Be("SecondEntry");
+        obj.SubObjects[2].ParameterValue.Should().Be("20");
+        result.AdditionalSections.Should().NotContainKey("2100Name");
+    }
+
+    [Fact]
+    public void ReadString_OrphanNameSection_PreservedInAdditionalSections()
+    {
+        // Arrange — [xxxxName] without a matching CompactSubObj object must round-trip
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=ConfigArray
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=2
+
+[2200Name]
+NrOfEntries=1
+1=OrphanName
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("2200Name");
+        result.AdditionalSections["2200Name"]["1"].Should().Be("OrphanName");
+    }
+
+    [Fact]
     public void ReadString_SubObject_AllFieldsParsed()
     {
         // Arrange

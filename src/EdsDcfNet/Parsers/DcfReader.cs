@@ -186,65 +186,20 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         base.ParseSubObjects(sections, index, obj);
 
         // Parse compact value storage (CiA 306 §5.2.3.2): keys are sub-indexes 1..254
-        var valueSectionName = string.Concat(ToHexInvariant(index), "Value");
-        if (IniParser.HasSection(sections, valueSectionName))
-        {
-            ApplyCompactSubObjectEntries(
-                sections[valueSectionName],
-                obj,
-                static (subObj, value) => subObj.ParameterValue = value);
-        }
+        ApplyCompactListSection(
+            sections,
+            index,
+            "Value",
+            obj,
+            static (subObj, value) => subObj.ParameterValue = value);
 
         // Parse compact denotation storage (CiA 306 §5.2.3.2)
-        var denotationSectionName = string.Concat(ToHexInvariant(index), "Denotation");
-        if (IniParser.HasSection(sections, denotationSectionName))
-        {
-            ApplyCompactSubObjectEntries(
-                sections[denotationSectionName],
-                obj,
-                static (subObj, value) => subObj.Denotation = value);
-        }
-    }
-
-    /// <summary>
-    /// Applies compact list entries whose keys are decimal sub-indexes (1..254).
-    /// <c>NrOfEntries</c> is the list length, not a loop bound — keys may be sparse —
-    /// but a present <c>NrOfEntries</c> value is still validated (throws on malformed).
-    /// </summary>
-    private static void ApplyCompactSubObjectEntries(
-        Dictionary<string, string> section,
-        CanOpenObject obj,
-        Action<CanOpenSubObject, string> apply)
-    {
-        foreach (var key in section.Keys)
-        {
-            if (!key.Equals("NrOfEntries", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            // Validate even when not used as a loop bound (preserves prior ParseUInt16 failure mode).
-            _ = ValueConverter.ParseUInt16(section[key]);
-            break;
-        }
-
-        foreach (var entry in section)
-        {
-            if (entry.Key.Equals("NrOfEntries", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            if (string.IsNullOrEmpty(entry.Value))
-                continue;
-
-            if (!byte.TryParse(entry.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var subIndex))
-                continue;
-
-            if (subIndex < 1 || subIndex > MaxCompactListableSubIndex)
-                continue;
-
-            if (obj.SubObjects.TryGetValue(subIndex, out var subObj))
-            {
-                apply(subObj, entry.Value);
-            }
-        }
+        ApplyCompactListSection(
+            sections,
+            index,
+            "Denotation",
+            obj,
+            static (subObj, denotation) => subObj.Denotation = denotation);
     }
 
     /// <inheritdoc/>

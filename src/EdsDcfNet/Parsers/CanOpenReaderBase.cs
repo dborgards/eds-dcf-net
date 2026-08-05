@@ -93,23 +93,18 @@ public abstract class CanOpenReaderBase
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="sectionName"/> is a
     /// <c>[xxxxName]</c> section for an object that uses CompactSubObj storage
-    /// (and was therefore consumed by <see cref="ApplyCompactNameOverrides"/>).
+    /// (and was therefore consumed by <see cref="ApplyCompactListSection"/>).
     /// Orphan name sections remain in <c>AdditionalSections</c> for round-trip.
     /// </summary>
     private protected static bool IsCompactNameSectionForExistingObject(
         string sectionName,
         ObjectDictionary objectDictionary)
     {
-        if (!IsHexPrefixedSection(sectionName, "Name"))
-            return false;
-
-        var prefix = sectionName[..^"Name".Length];
-        if (!ushort.TryParse(prefix, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
+        if (!TryParseHexPrefixedSection(sectionName, NameSectionSuffix, out var index))
             return false;
 
         return objectDictionary.Objects.TryGetValue(index, out var obj)
-               && obj.CompactSubObj.HasValue
-               && obj.CompactSubObj.Value > 0;
+               && obj.CompactSubObj.GetValueOrDefault() > 0;
     }
 
     /// <summary>
@@ -330,7 +325,13 @@ public abstract class CanOpenReaderBase
 
         if (compactMax > 0)
         {
-            ApplyCompactNameOverrides(sections, index, obj);
+            // Optional [xxxxName] parameter-name overrides (CiA 306 §4.5.2.4.2).
+            ApplyCompactListSection(
+                sections,
+                index,
+                NameSectionSuffix,
+                obj,
+                static (subObj, name) => subObj.ParameterName = name);
         }
     }
 
@@ -369,57 +370,70 @@ public abstract class CanOpenReaderBase
     }
 
     /// <summary>
-    /// Applies optional <c>[xxxxName]</c> parameter-name overrides for compact sub-objects
-    /// (CiA 306 §4.5.2.4.2). Keys are decimal sub-indexes (1..254) and may be sparse;
-    /// <c>NrOfEntries</c> is the list length, not a loop bound.
+    /// Applies a compact sub-object list section — <c>[xxxxName]</c> (CiA 306 §4.5.2.4.2)
+    /// and, for DCF, <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c> (CiA 306 §5.2.3.2) — to the
+    /// sub-objects of <paramref name="obj"/> via <paramref name="apply"/>.
+    /// Keys are decimal sub-indexes (1..254) and may be sparse: <c>NrOfEntries</c> is the list
+    /// length, not a loop bound, but a present value is still validated (throws on malformed).
+    /// Entries with an empty value, a non-numeric key, a key outside 1..254, or a key without a
+    /// matching sub-object are ignored.
     /// </summary>
-    private static void ApplyCompactNameOverrides(
+    private protected static void ApplyCompactListSection(
         Dictionary<string, Dictionary<string, string>> sections,
         ushort index,
-        CanOpenObject obj)
+        string sectionSuffix,
+        CanOpenObject obj,
+        Action<CanOpenSubObject, string> apply)
     {
-        var nameSection = string.Concat(ToHexInvariant(index), "Name");
-        if (!IniParser.HasSection(sections, nameSection))
+        var sectionName = string.Concat(ToHexInvariant(index), sectionSuffix);
+        if (!sections.TryGetValue(sectionName, out var section))
             return;
 
-        var section = sections[nameSection];
-        foreach (var key in section.Keys)
+        // Validate even when not used as a loop bound (preserves prior ParseUInt16 failure mode).
+        if (section.TryGetValue(NrOfEntriesKey, out var nrOfEntries))
         {
-            if (!key.Equals("NrOfEntries", StringComparison.OrdinalIgnoreCase))
-                continue;
-            _ = ValueConverter.ParseUInt16(section[key]);
-            break;
+            _ = ValueConverter.ParseUInt16(nrOfEntries);
         }
 
         foreach (var entry in section)
         {
-            if (entry.Key.Equals("NrOfEntries", StringComparison.OrdinalIgnoreCase))
+            // Rejects NrOfEntries and any other non sub-index key.
+            if (!TryParseCompactListSubIndex(entry.Key, out var subIndex))
                 continue;
 
             if (string.IsNullOrEmpty(entry.Value))
                 continue;
 
-            if (!byte.TryParse(entry.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var subIndex))
-                continue;
-
-            if (subIndex < 1 || subIndex > MaxCompactListableSubIndex)
-                continue;
-
             if (obj.SubObjects.TryGetValue(subIndex, out var subObj))
             {
-                subObj.ParameterName = entry.Value;
+                apply(subObj, entry.Value);
             }
         }
     }
 
+    /// <summary>
+    /// Parses a compact list key as a decimal sub-index in the CiA 306 range 1..254.
+    /// Reserved sub-index <c>0xFF</c> and non-numeric keys are rejected.
+    /// </summary>
+    private static bool TryParseCompactListSubIndex(string key, out byte subIndex)
+        => byte.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out subIndex)
+           && subIndex >= 1
+           && subIndex <= MaxCompactListableSubIndex;
+
     /// <summary>CiA 301 / CiA 306 UNSIGNED8 data-type index.</summary>
     private const ushort Unsigned8DataType = 0x0005;
+
+    /// <summary>Section-name suffix of the optional compact parameter-name list.</summary>
+    private const string NameSectionSuffix = "Name";
+
+    /// <summary>Entry-count key shared by all compact list sections.</summary>
+    private const string NrOfEntriesKey = "NrOfEntries";
 
     /// <summary>
     /// Highest sub-index covered by CompactSubObj value/name/denotation lists (CiA 306).
     /// Sub-index <c>0xFF</c> is reserved and is never synthesized from the template.
     /// </summary>
-    private protected const int MaxCompactListableSubIndex = 254;
+    private const int MaxCompactListableSubIndex = 254;
 
     /// <summary>
     /// Parses a single sub-object at the given <paramref name="index"/> and <paramref name="subIndex"/>.
@@ -509,14 +523,22 @@ public abstract class CanOpenReaderBase
     /// Checks if a section name has a valid hex object index prefix followed by the given suffix.
     /// </summary>
     protected static bool IsHexPrefixedSection(string sectionName, string suffix)
+        => TryParseHexPrefixedSection(sectionName, suffix, out _);
+
+    /// <summary>
+    /// Parses a section name of the form <c>{hex object index}{suffix}</c> (for example
+    /// <c>1018Name</c>) and returns the object index. Returns <see langword="false"/> when
+    /// the suffix does not match or the prefix is not a hexadecimal object index.
+    /// </summary>
+    private protected static bool TryParseHexPrefixedSection(string sectionName, string suffix, out ushort index)
     {
+        index = 0;
+
         if (!sectionName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
             return false;
 
         var prefix = sectionName[..^suffix.Length];
-        return prefix.Length > 0 && ushort.TryParse(prefix,
-            NumberStyles.HexNumber,
-            CultureInfo.InvariantCulture, out _);
+        return ushort.TryParse(prefix, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out index);
     }
 
     /// <summary>

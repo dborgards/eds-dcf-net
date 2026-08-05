@@ -680,6 +680,158 @@ NrOfEntries=1
     }
 
     [Fact]
+    public void ReadString_NameSectionWithCompactSubObjZero_PreservedInAdditionalSections()
+    {
+        // Arrange — CompactSubObj=0 means no compact storage, so [2100Name] is not consumed
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=0
+
+[2100Name]
+NrOfEntries=1
+1=ShouldStayAdditional
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.CompactSubObj.Should().Be(0);
+        obj.SubObjects.Should().BeEmpty();
+        result.AdditionalSections.Should().ContainKey("2100Name");
+        result.AdditionalSections["2100Name"]["1"].Should().Be("ShouldStayAdditional");
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_NameSection_IgnoresKeysOutsideCompactListRange()
+    {
+        // Arrange — compact name lists cover sub-indexes 1..254 only; everything else is ignored:
+        // sub-index 0 and 255 are out of range, non-numeric keys are not sub-indexes, empty values
+        // carry no name, and keys without a matching sub-object have nothing to rename.
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=2
+
+[2100Name]
+NrOfEntries=2
+0=NotTheEntryCount
+255=ReservedSubIndex
+Comment=NotASubIndex
+1=FirstBit
+2=
+9=NoSuchSubObject
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.SubObjects.Should().HaveCount(3); // 0..2 — no sub-object is created by a name entry
+        obj.SubObjects[0].ParameterName.Should().Be("NrOfObjects"); // key 0 ignored
+        obj.SubObjects[1].ParameterName.Should().Be("FirstBit");
+        obj.SubObjects[2].ParameterName.Should().Be("StatusBits2"); // empty value ignored
+        obj.SubObjects.Should().NotContainKey(9);
+        obj.SubObjects.Should().NotContainKey(255);
+        result.AdditionalSections.Should().NotContainKey("2100Name");
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_NameSectionWithoutNrOfEntries_AppliesNames()
+    {
+        // Arrange — NrOfEntries is optional: the keys themselves define the list
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=2
+
+[2100Name]
+1=FirstBit
+2=SecondBit
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.SubObjects[1].ParameterName.Should().Be("FirstBit");
+        obj.SubObjects[2].ParameterName.Should().Be("SecondBit");
+    }
+
+    [Fact]
+    public void ReadString_SectionEndingInNameWithNonHexPrefix_PreservedInAdditionalSections()
+    {
+        // Arrange — only a hex object index before "Name" makes a compact name section
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=2
+
+[CustomName]
+1=NotACompactList
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("CustomName");
+        result.AdditionalSections["CustomName"]["1"].Should().Be("NotACompactList");
+    }
+
+    [Fact]
     public void ReadString_CompactSubObj_SampleDevice_SynthesizesMissingArrayElements()
     {
         // Arrange — sample_device.eds uses CompactSubObj with only sub0 expanded
