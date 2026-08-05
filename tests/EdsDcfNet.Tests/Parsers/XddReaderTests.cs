@@ -1414,23 +1414,25 @@ public class XddReaderTests
     }
 
     [Fact]
-    public void ParseHexDataType_InvalidValue_DefaultsToZero()
+    public void ParseHexDataType_InvalidValue_ThrowsEdsParseException()
     {
         var xdd = MinimalXdd.Replace(@"dataType=""0007""", @"dataType=""nope""");
 
-        var result = _reader.ReadString(xdd);
+        var act = () => _reader.ReadString(xdd);
 
-        result.ObjectDictionary.Objects[0x1000].DataType.Should().Be(0);
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*dataType*nope*");
     }
 
     [Fact]
-    public void ParseHexId_InvalidVendorId_DefaultsToZero()
+    public void ParseHexId_InvalidVendorId_ThrowsEdsParseException()
     {
         var xdd = MinimalXdd.Replace(@"<vendorID>0x00000100</vendorID>", @"<vendorID>nothex</vendorID>");
 
-        var result = _reader.ReadString(xdd);
+        var act = () => _reader.ReadString(xdd);
 
-        result.DeviceInfo.VendorNumber.Should().Be(0);
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*identifier*nothex*");
     }
 
     [Fact]

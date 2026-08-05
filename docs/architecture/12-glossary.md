@@ -31,6 +31,7 @@
 | **INI format**                | Simple text format with sections (`[Section]`) and key-value pairs (`Key=Value`). Basis for EDS/DCF files. |
 | **$NODEID formula**           | Expression in DCF files (e.g., `$NODEID+0x600`) evaluated relative to the device's node ID.      |
 | **PDOmapping**                | CiA 311 object attribute: `no` \| `default` \| `optional` \| `TPDO` \| `RPDO`. Modelled as `PdoMappingMode` (EDS/DCF bool view via `PdoMapping`). |
+| **CompactSubObj**             | Compact array storage (CiA 306 §4.5.2.4.2): parent object is the template for sub-indexes `0..N`; individual `[xxxsubN]` sections are optional. Values/denotations/names use `[xxxxValue]`, `[xxxxDenotation]`, `[xxxxName]`. |
 | **CompactPDO**                | Compact storage of PDO value and denotation information in dedicated sections.                    |
 | **Round-trip fidelity**       | Property that a file does not lose information after being read and written back unchanged.        |
 | **Semantic Versioning (SemVer)** | Versioning scheme with the format `MAJOR.MINOR.PATCH` that communicates the nature of changes. |

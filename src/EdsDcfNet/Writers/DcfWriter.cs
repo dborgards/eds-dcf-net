@@ -193,12 +193,90 @@ public class DcfWriter : IniWriterBase
         }
     }
 
+    /// <inheritdoc/>
+    protected override void WriteCompactValueAndDenotationSections(
+        StringBuilder sb,
+        CanOpenObject obj,
+        int compactMax,
+        HashSet<byte> expandedSubIndexes,
+        Action<string, Action> writeSection)
+    {
+        WriteCompactListSection(
+            sb,
+            obj,
+            compactMax,
+            expandedSubIndexes,
+            writeSection,
+            "Value",
+            static sub => sub.ParameterValue);
+
+        WriteCompactListSection(
+            sb,
+            obj,
+            compactMax,
+            expandedSubIndexes,
+            writeSection,
+            "Denotation",
+            static sub => sub.Denotation);
+    }
+
+    private static void WriteCompactListSection(
+        StringBuilder sb,
+        CanOpenObject obj,
+        int compactMax,
+        HashSet<byte> expandedSubIndexes,
+        Action<string, Action> writeSection,
+        string suffix,
+        Func<CanOpenSubObject, string?> selectValue)
+    {
+        var entries = new SortedDictionary<byte, string>();
+        for (var i = 1; i <= compactMax; i++)
+        {
+            var subIndex = (byte)i;
+            if (expandedSubIndexes.Contains(subIndex))
+                continue;
+            if (!obj.SubObjects.TryGetValue(subIndex, out var subObj))
+                continue;
+
+            var value = selectValue(subObj);
+            if (!string.IsNullOrEmpty(value))
+                entries[subIndex] = value!;
+        }
+
+        if (entries.Count == 0)
+            return;
+
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}{1}", obj.Index, suffix);
+        writeSection(
+            sectionName,
+            () =>
+            {
+                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}{1}]", obj.Index, suffix));
+                WriteKeyValue(sb, "NrOfEntries", entries.Count.ToString(CultureInfo.InvariantCulture));
+                foreach (var entry in entries)
+                {
+                    WriteKeyValue(sb, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
+                }
+
+                sb.AppendLine();
+            });
+    }
+
     #endregion
 
     #region DCF-only sections
 
     private static void WriteDeviceCommissioning(StringBuilder sb, DeviceCommissioning dc)
     {
+        if (!CanOpenNodeId.IsInRange(dc.NodeId))
+        {
+            throw new DcfWriteException(
+                string.Format(CultureInfo.InvariantCulture,
+                    "Cannot write DCF: NodeId {0} is outside the valid CANopen range " + CanOpenNodeId.RangeDescription + ".",
+                    dc.NodeId),
+                "DeviceCommissioning");
+        }
+
         sb.AppendLine("[DeviceCommissioning]");
         WriteKeyValue(sb, "NodeID", dc.NodeId.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "NodeName", dc.NodeName);

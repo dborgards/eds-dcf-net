@@ -2092,8 +2092,9 @@ PDOMapping=0
     }
 
     [Fact]
-    public void WriteDcfToString_WithoutValidation_AllowsInvalidModelForBackwardCompatibility()
+    public void WriteDcfToString_WithoutValidation_RejectsOutOfRangeNodeId()
     {
+        // Always-on write guard (mirrors XdcWriter): unreadable NodeId must not be emitted.
         var dcf = new DeviceConfigurationFile
         {
             DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
@@ -2101,7 +2102,8 @@ PDOMapping=0
 
         var act = () => CanOpenFile.WriteDcfToString(dcf);
 
-        act.Should().NotThrow();
+        act.Should().Throw<DcfWriteException>()
+            .Which.SectionName.Should().Be("DeviceCommissioning");
     }
 
     [Fact]
