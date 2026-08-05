@@ -289,23 +289,20 @@ public abstract class CanOpenReaderBase
     /// When <see cref="CanOpenObject.CompactSubObj"/> is non-zero, missing
     /// <c>[xxxsubN]</c> sections are synthesized from the parent object template
     /// per CiA 306 §4.5.2.4.2 (sub-indexes <c>0..min(CompactSubObj, 254)</c>;
-    /// sub-index <c>0xFF</c> is never synthesized), then optional <c>[xxxxName]</c>
-    /// overrides are applied.
+    /// sub-index <c>0xFF</c> is never synthesized, but an explicit <c>[xxxxsubFF]</c>
+    /// section is still parsed), then optional <c>[xxxxName]</c> overrides are applied.
     /// Derived classes may override this to handle additional compact storage formats.
     /// </summary>
     protected virtual void ParseSubObjects(Dictionary<string, Dictionary<string, string>> sections, ushort index, CanOpenObject obj)
     {
-        // Determine the number of sub-objects to parse
-        var maxSubIndex = (int)(obj.SubNumber ?? 0);
-        var compactSubObj = obj.CompactSubObj.GetValueOrDefault();
-        // CiA 306 compact lists use sub-indexes 1..254; never synthesize 0xFF.
-        var compactMax = compactSubObj == 0
-            ? 0
-            : Math.Min((int)compactSubObj, MaxCompactListableSubIndex);
-        if (compactMax > 0)
-        {
-            maxSubIndex = Math.Max(maxSubIndex, compactMax);
-        }
+        // Scan every sub-index the object can describe: an explicit [xxxxsubFF] section is
+        // parsed even when it is only reachable through CompactSubObj=0xFF.
+        var compactSubObj = (int)obj.CompactSubObj.GetValueOrDefault();
+        var maxSubIndex = Math.Max((int)(obj.SubNumber ?? 0), compactSubObj);
+
+        // CiA 306 compact lists cover sub-indexes 1..254, so 0xFF is never *synthesized*
+        // from the template — only an explicit section can populate it.
+        var compactMax = Math.Min(compactSubObj, MaxCompactListableSubIndex);
 
         // Use an int loop counter so a max sub-index of 0xFF does not wrap back to 0.
         for (var subIndex = 0; subIndex <= maxSubIndex; subIndex++)

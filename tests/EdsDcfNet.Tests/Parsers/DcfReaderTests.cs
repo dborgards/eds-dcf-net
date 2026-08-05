@@ -1103,6 +1103,48 @@ CompactSubObj=255
     }
 
     [Fact]
+    public void ReadString_CompactSubObj_255_ParsesExplicitSubFFWithoutSubNumber()
+    {
+        // Arrange — CompactSubObj=255 without SubNumber: 0xFF is not synthesized, but an
+        // explicit [2100subFF] section must still be parsed instead of silently dropped.
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=BigArray
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=255
+
+[2100subFF]
+ParameterName=Identity
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+ParameterValue=keep-me
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.SubObjects.Should().HaveCount(256); // 0..254 synthesized + explicit 0xFF
+        obj.SubObjects[255].ParameterName.Should().Be("Identity");
+        obj.SubObjects[255].DataType.Should().Be(0x0007);
+        obj.SubObjects[255].ParameterValue.Should().Be("keep-me");
+        obj.SubObjects[254].ParameterName.Should().Be("BigArray254"); // still synthesized
+        result.AdditionalSections.Should().NotContainKey("2100subFF");
+    }
+
+    [Fact]
     public void ReadString_CompactSubObj_ValueKey255_DoesNotApplyToSubFF()
     {
         // Arrange — compact lists are 1..254; key 255 must not touch SubObjects[0xFF]
