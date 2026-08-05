@@ -373,6 +373,7 @@ public static class CanOpenValueConverter
         }
     }
 
+    // Leading 0 + digit → octal (same rule as ValueConverter; see #411 / docs §8.3).
     private static bool IsOctal(string value) =>
         value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]);
 
