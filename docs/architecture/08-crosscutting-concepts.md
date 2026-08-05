@@ -37,6 +37,7 @@ flowchart TD
 - **Required fields**: Missing required sections result in an `EdsParseException`.
 - **Optional fields**: Missing optional values result in `null` or default values.
 - **Unknown INI sections**: Preserved in `AdditionalSections` (no warning, no error).
+- **Duplicate INI keys**: Last write wins by default. With `CanOpenFileOptions.StrictParsing = true` (or `IniParser` `strictParsing: true`), duplicates throw `EdsParseException`.
 - **CiA 311 XML**: Parsed against supported profile structures; unsupported XML nodes are not represented as generic passthrough data.
 
 ### Input Size Limits

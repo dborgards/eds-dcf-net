@@ -28,6 +28,23 @@ public sealed class CanOpenFileOptions
     /// </summary>
     public long MaxInputSize { get; init; } = ReaderDefaults.DefaultMaxInputSize;
 
+    /// <summary>
+    /// When <see langword="true"/>, silent parse fallbacks fail with
+    /// <see cref="Exceptions.EdsParseException"/> instead of coercing to defaults.
+    /// </summary>
+    /// <remarks>
+    /// <para>Default is <see langword="false"/> (lenient), matching real-world EDS/DCF tolerance.</para>
+    /// <para>Currently enforced for:</para>
+    /// <list type="bullet">
+    /// <item><description>Duplicate keys within an INI section (default: last write wins)</description></item>
+    /// </list>
+    /// Additional coercion sites may join this switch in follow-up work (see issue #428).
+    /// </remarks>
+    public bool StrictParsing { get; init; }
+
     internal static long ResolveMaxInputSize(CanOpenFileOptions? options)
         => options?.MaxInputSize ?? ReaderDefaults.DefaultMaxInputSize;
+
+    internal static bool ResolveStrictParsing(CanOpenFileOptions? options)
+        => options?.StrictParsing ?? false;
 }

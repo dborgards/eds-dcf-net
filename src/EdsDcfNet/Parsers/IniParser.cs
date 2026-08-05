@@ -10,6 +10,13 @@ using EdsDcfNet.Exceptions;
 /// Parses INI-style files with sections and key-value pairs.
 /// All members are static; no instantiation is required.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Duplicate keys within a section use last-write-wins by default (lenient).
+/// Pass <c>strictParsing: true</c> or set <see cref="CanOpenFileOptions.StrictParsing"/>
+/// on facade reads to throw <see cref="EdsParseException"/> on duplicates.
+/// </para>
+/// </remarks>
 public static class IniParser
 {
     private static readonly char[] LineEndChars = { '\r', '\n' };
@@ -34,29 +41,37 @@ public static class IniParser
     /// Maximum file size in bytes before an <see cref="EdsParseException"/> is thrown.
     /// Defaults to <see cref="DefaultMaxInputSize"/> (10 MB).
     /// </param>
+    /// <param name="strictParsing">
+    /// When <see langword="true"/>, duplicate keys in a section throw
+    /// <see cref="EdsParseException"/> instead of last-write-wins.
+    /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
     /// <exception cref="EdsParseException">Thrown when the file exceeds the configured size limit.</exception>
     public static Dictionary<string, Dictionary<string, string>> ParseFile(
         string filePath,
-        long maxInputSize = DefaultMaxInputSize)
+        long maxInputSize = DefaultMaxInputSize,
+        bool strictParsing = false)
     {
-        if (!File.Exists(filePath))
-            throw new FileNotFoundException($"EDS/DCF file not found: {filePath}", filePath);
+        using (StrictParsingScope.Enter(strictParsing || StrictParsingScope.IsEnabled))
+        {
+            if (!File.Exists(filePath))
+                throw new FileNotFoundException($"EDS/DCF file not found: {filePath}", filePath);
 
-        var fileInfo = new FileInfo(filePath);
-        if (fileInfo.Length > maxInputSize)
-            throw new EdsParseException(
-                string.Format(CultureInfo.InvariantCulture,
-                    "File '{0}' is too large ({1:N0} bytes). Maximum supported size is {2:N0} bytes.",
-                    filePath, fileInfo.Length, maxInputSize));
+            var fileInfo = new FileInfo(filePath);
+            if (fileInfo.Length > maxInputSize)
+                throw new EdsParseException(
+                    string.Format(CultureInfo.InvariantCulture,
+                        "File '{0}' is too large ({1:N0} bytes). Maximum supported size is {2:N0} bytes.",
+                        filePath, fileInfo.Length, maxInputSize));
 
-        // Stream through ParseReader so MaxInputSize is enforced while reading
-        // (guards TOCTOU if the file grows after the FileInfo.Length check).
-        using var stream = OpenFileWithByteLimit(filePath, maxInputSize, useAsync: false);
-        using var reader = new StreamReader(stream);
+            // Stream through ParseReader so MaxInputSize is enforced while reading
+            // (guards TOCTOU if the file grows after the FileInfo.Length check).
+            using var stream = OpenFileWithByteLimit(filePath, maxInputSize, useAsync: false);
+            using var reader = new StreamReader(stream);
 
-        return ParseReader(reader, maxInputSize);
+            return ParseReader(reader, maxInputSize);
+        }
     }
 
     /// <summary>
@@ -76,6 +91,7 @@ public static class IniParser
         long maxInputSize = DefaultMaxInputSize,
         CancellationToken cancellationToken = default)
     {
+        // StrictParsing is supplied via StrictParsingScope (facade / sync overloads).
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"EDS/DCF file not found: {filePath}", filePath);
 
@@ -115,16 +131,24 @@ public static class IniParser
     /// This limit applies to parsed text content, not raw byte length.
     /// Defaults to <see cref="DefaultMaxInputSize"/> (10 MB).
     /// </param>
+    /// <param name="strictParsing">
+    /// When <see langword="true"/>, duplicate keys in a section throw
+    /// <see cref="EdsParseException"/> instead of last-write-wins.
+    /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     public static Dictionary<string, Dictionary<string, string>> ParseStream(
         Stream stream,
-        long maxInputSize = DefaultMaxInputSize)
+        long maxInputSize = DefaultMaxInputSize,
+        bool strictParsing = false)
     {
-        ThrowIfNull(stream, nameof(stream));
-        if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
+        using (StrictParsingScope.Enter(strictParsing || StrictParsingScope.IsEnabled))
+        {
+            ThrowIfNull(stream, nameof(stream));
+            if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
 
-        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
-        return ParseReader(reader, maxInputSize);
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
+            return ParseReader(reader, maxInputSize);
+        }
     }
 
     /// <summary>
@@ -143,6 +167,7 @@ public static class IniParser
         long maxInputSize = DefaultMaxInputSize,
         CancellationToken cancellationToken = default)
     {
+        // StrictParsing is supplied via StrictParsingScope (facade / sync overloads).
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
 
@@ -158,24 +183,32 @@ public static class IniParser
     /// Maximum content length in characters before an <see cref="EdsParseException"/> is thrown.
     /// Defaults to <see cref="DefaultMaxInputSize"/> (10 MB).
     /// </param>
+    /// <param name="strictParsing">
+    /// When <see langword="true"/>, duplicate keys in a section throw
+    /// <see cref="EdsParseException"/> instead of last-write-wins.
+    /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     /// <exception cref="EdsParseException">Thrown when the content length exceeds the configured size limit.</exception>
     public static Dictionary<string, Dictionary<string, string>> ParseString(
         string content,
-        long maxInputSize = DefaultMaxInputSize)
+        long maxInputSize = DefaultMaxInputSize,
+        bool strictParsing = false)
     {
-        if (content.Length > maxInputSize)
-            throw new EdsParseException(
-                string.Format(CultureInfo.InvariantCulture,
-                    "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
-                    content.Length, maxInputSize));
+        using (StrictParsingScope.Enter(strictParsing || StrictParsingScope.IsEnabled))
+        {
+            if (content.Length > maxInputSize)
+                throw new EdsParseException(
+                    string.Format(CultureInfo.InvariantCulture,
+                        "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
+                        content.Length, maxInputSize));
 
-        // Split on CR/LF as independent line terminators. RemoveEmptyEntries drops empty
-        // segments produced by splitting on both '\r' and '\n' (e.g., within CRLF); blank/
-        // whitespace-only lines are already ignored by ParseLine. This also means line
-        // numbers in exceptions from ParseString can differ from those produced by ParseReader.
-        var lines = content.Split(LineEndChars, StringSplitOptions.RemoveEmptyEntries);
-        return ParseLines(lines);
+            // Split on CR/LF as independent line terminators. RemoveEmptyEntries drops empty
+            // segments produced by splitting on both '\r' and '\n' (e.g., within CRLF); blank/
+            // whitespace-only lines are already ignored by ParseLine. This also means line
+            // numbers in exceptions from ParseString can differ from those produced by ParseReader.
+            var lines = content.Split(LineEndChars, StringSplitOptions.RemoveEmptyEntries);
+            return ParseLines(lines);
+        }
     }
 
     /// <summary>
@@ -416,7 +449,20 @@ public static class IniParser
             ? line[(equalIndex + 1)..].Trim()
             : string.Empty;
 
-        sections[currentSection][key] = value;
+        var section = sections[currentSection];
+        if (StrictParsingScope.IsEnabled && section.ContainsKey(key))
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Duplicate key '{0}' in section '{1}' at line {2}.",
+                    key,
+                    currentSection,
+                    lineNumber),
+                lineNumber);
+        }
+
+        section[key] = value;
     }
 
     private static void ThrowIfNull(object? value, string parameterName)

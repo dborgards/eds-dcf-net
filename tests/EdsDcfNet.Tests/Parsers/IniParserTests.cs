@@ -287,8 +287,50 @@ Key1=Value2
         // Act
         var result = IniParser.ParseString(content);
 
-        // Assert
+        // Assert — default policy is last-write-wins
         result["Section1"]["Key1"].Should().Be("Value2");
+    }
+
+    [Fact]
+    public void ParseString_DuplicateKey_StrictParsing_ThrowsEdsParseException()
+    {
+        // Arrange — ParameterValue / NodeID-style duplicate keys
+        var content = @"
+[DeviceCommissioning]
+NodeID=1
+NodeID=2
+ParameterValue=10
+ParameterValue=20
+";
+
+        // Act
+        var act = () => IniParser.ParseString(content, strictParsing: true);
+
+        // Assert
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*Duplicate key 'NodeID'*");
+    }
+
+    [Fact]
+    public void ParseString_DuplicateKey_FacadeStrictParsing_ThrowsEdsParseException()
+    {
+        var content = @"
+[FileInfo]
+FileName=test.eds
+FileName=other.eds
+FileVersion=1
+FileRevision=0
+EdsVersion=4.0
+Description=Test
+CreationDate=01-01-2024
+CreationTime=12:00AM
+CreatedBy=Test
+";
+
+        var act = () => CanOpenFile.Eds.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*Duplicate key 'FileName'*");
     }
 
     [Fact]
