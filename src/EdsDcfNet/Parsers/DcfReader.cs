@@ -146,7 +146,8 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
 
     /// <inheritdoc/>
     private protected override bool IsSectionHandledByFormat(string sectionName, ICanOpenFileModel model)
-        => ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(sectionName, model.ObjectDictionary);
+        => base.IsSectionHandledByFormat(sectionName, model)
+           || ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(sectionName, model.ObjectDictionary);
 
     /// <inheritdoc/>
     protected override EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
@@ -184,43 +185,21 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
     {
         base.ParseSubObjects(sections, index, obj);
 
-        // Parse compact value storage
-        var valueSectionName = string.Concat(ToHexInvariant(index), "Value");
-        if (IniParser.HasSection(sections, valueSectionName))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, valueSectionName, "NrOfEntries", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var value = IniParser.GetValue(sections, valueSectionName, i.ToString(CultureInfo.InvariantCulture));
-                if (!string.IsNullOrEmpty(value) && i <= 254)
-                {
-                    var subIndex = (byte)i;
-                    if (obj.SubObjects.TryGetValue(subIndex, out var subObjForValue))
-                    {
-                        subObjForValue.ParameterValue = value;
-                    }
-                }
-            }
-        }
+        // Parse compact value storage (CiA 306 §5.2.3.2): keys are sub-indexes 1..254
+        ApplyCompactListSection(
+            sections,
+            index,
+            "Value",
+            obj,
+            static (subObj, value) => subObj.ParameterValue = value);
 
-        // Parse compact denotation storage
-        var denotationSectionName = string.Concat(ToHexInvariant(index), "Denotation");
-        if (IniParser.HasSection(sections, denotationSectionName))
-        {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, denotationSectionName, "NrOfEntries", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var denotation = IniParser.GetValue(sections, denotationSectionName, i.ToString(CultureInfo.InvariantCulture));
-                if (!string.IsNullOrEmpty(denotation) && i <= 254)
-                {
-                    var subIndex = (byte)i;
-                    if (obj.SubObjects.TryGetValue(subIndex, out var subObjForDenotation))
-                    {
-                        subObjForDenotation.Denotation = denotation;
-                    }
-                }
-            }
-        }
+        // Parse compact denotation storage (CiA 306 §5.2.3.2)
+        ApplyCompactListSection(
+            sections,
+            index,
+            "Denotation",
+            obj,
+            static (subObj, denotation) => subObj.Denotation = denotation);
     }
 
     /// <inheritdoc/>
