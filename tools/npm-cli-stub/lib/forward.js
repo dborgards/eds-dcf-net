@@ -193,6 +193,190 @@ function isImmediateReentry() {
   return true;
 }
 
+function isWinShellWrapper(target) {
+  return /\.(?:cmd|bat)$/i.test(target);
+}
+
+/**
+ * Escape one argv token for cmd.exe when Node will concatenate
+ * `file + ' ' + args.join(' ')` under `spawn({ shell: true })`.
+ *
+ * Double-quote the token, double embedded quotes, and neutralize `%` / `!`
+ * so env / delayed-expansion cannot rewrite the argument.
+ */
+function escapeArgForCmd(arg) {
+  const s = String(arg).replace(/%/g, "%%").replace(/!/g, "^!").replace(/"/g, '""');
+  return `"${s}"`;
+}
+
+function resolveNodeNearWrapper(wrapperDir) {
+  const sibling = path.join(wrapperDir, "node.exe");
+  try {
+    if (fs.existsSync(sibling)) {
+      return sibling;
+    }
+  } catch {
+    // fall through
+  }
+  // Match official npm.cmd / npx.cmd: when %~dp0\node.exe is absent, use
+  // PATH `node` — not the Node running this stub (which may differ).
+  return "node";
+}
+
+/**
+ * Mirror official npm.cmd / npx.cmd: run npm-prefix.js and, when a CLI exists
+ * under that prefix, prefer it over the bundled default path.
+ *
+ * @returns {string | null}
+ */
+function resolveCliViaNpmPrefix(nodeExe, prefixJs, preferName) {
+  try {
+    const result = spawnSync(nodeExe, [prefixJs], {
+      encoding: "utf8",
+      windowsHide: true,
+      shell: false,
+    });
+    if (result.error || result.status !== 0) {
+      return null;
+    }
+    const lines = String(result.stdout || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const prefix = lines.length > 0 ? lines[lines.length - 1] : "";
+    if (!prefix) {
+      return null;
+    }
+    const candidate = path.join(
+      prefix,
+      "node_modules",
+      "npm",
+      "bin",
+      preferName
+    );
+    if (!fs.existsSync(candidate)) {
+      return null;
+    }
+    return realpathOrNull(candidate) || candidate;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Unwrap a Windows .cmd/.bat shim to `node <cli.js>` so we can spawn with
+ * `shell: false` and an intact argv array (avoids cmd metacharacter injection
+ * and space-splitting from Node's unescaped shell join).
+ *
+ * @returns {{ command: string, args: string[] } | null}
+ */
+function resolveWinShellWrapper(target, command = "npm") {
+  if (!isWinShellWrapper(target)) {
+    return null;
+  }
+
+  let content;
+  try {
+    const st = fs.statSync(target);
+    if (!st.isFile() || st.size > 65536) {
+      return null;
+    }
+    content = fs.readFileSync(target, "utf8");
+  } catch {
+    return null;
+  }
+  if (content.includes("\0")) {
+    return null;
+  }
+
+  const dir = path.dirname(target);
+  // %~dp0 includes a trailing separator; keep that so concatenated relative
+  // segments in official Node/npm wrappers resolve correctly.
+  const dp0 = dir.endsWith("\\") || dir.endsWith("/") ? dir : dir + path.sep;
+  const expanded = content
+    .replace(/%~dp0/gi, dp0)
+    .replace(/%dp0%/gi, dp0)
+    .replace(/\$basedir/g, dir);
+
+  const refs = extractJsRefs(expanded, dir);
+  const resolved = [];
+  const seen = new Set();
+  for (const ref of refs) {
+    const real = realpathOrNull(path.resolve(dir, ref.replace(/\\/g, "/")));
+    if (!real || seen.has(real) || !real.toLowerCase().endsWith(".js")) {
+      continue;
+    }
+    seen.add(real);
+    resolved.push(real);
+  }
+  if (resolved.length === 0) {
+    return null;
+  }
+
+  const preferName =
+    String(command).toLowerCase() === "npx" ? "npx-cli.js" : "npm-cli.js";
+  const preferred =
+    resolved.find((p) => path.basename(p).toLowerCase() === preferName) ||
+    resolved.find((p) => {
+      const base = path.basename(p).toLowerCase();
+      return base.endsWith("-cli.js") && !base.includes("prefix");
+    }) ||
+    resolved.find((p) => !path.basename(p).toLowerCase().includes("prefix"));
+
+  if (!preferred) {
+    return null;
+  }
+
+  const nodeExe = resolveNodeNearWrapper(dir);
+  const prefixJs = resolved.find(
+    (p) => path.basename(p).toLowerCase() === "npm-prefix.js"
+  );
+  const cli =
+    (prefixJs && resolveCliViaNpmPrefix(nodeExe, prefixJs, preferName)) ||
+    preferred;
+
+  return {
+    command: nodeExe,
+    args: [cli],
+  };
+}
+
+/**
+ * Build the spawnSync file/args/shell triple for forwarding.
+ * Prefer unwrapping .cmd/.bat to node+js; fall back to shell:true with
+ * cmd-escaped arguments when unwrapping is not possible.
+ */
+function buildSpawnInvocation(target, forwardedArgs, command = "npm") {
+  const args = forwardedArgs.map(String);
+
+  if (!isWinShellWrapper(target)) {
+    return { file: target, args, shell: false };
+  }
+
+  const unwrapped = resolveWinShellWrapper(target, command);
+  if (unwrapped) {
+    return {
+      file: unwrapped.command,
+      args: [...unwrapped.args, ...args],
+      shell: false,
+    };
+  }
+
+  // Node rejects direct .cmd/.bat spawns without a shell (EINVAL / CVE-2024-27980).
+  // Pre-escape every token because Node joins the array with spaces unescaped.
+  // Only use cmd.exe escaping on Windows — elsewhere shell:true would invoke /bin/sh
+  // and the quoting would be wrong (e.g. an explicit path to a .cmd on Linux/macOS).
+  if (process.platform === "win32") {
+    return {
+      file: escapeArgForCmd(target),
+      args: args.map(escapeArgForCmd),
+      shell: true,
+    };
+  }
+
+  return { file: target, args, shell: false };
+}
+
 function forward(command, entryScriptPath = process.argv[1]) {
   if (isImmediateReentry()) {
     console.error(
@@ -211,15 +395,12 @@ function forward(command, entryScriptPath = process.argv[1]) {
     process.exit(1);
   }
 
-  // Node rejects direct .cmd/.bat spawns without a shell (EINVAL / CVE-2024-27980).
-  const shell =
-    process.platform === "win32" && /\.(?:cmd|bat)$/i.test(target);
-
+  const invocation = buildSpawnInvocation(target, process.argv.slice(2), command);
   const env = { ...process.env, [STUB_ACTIVE_ENV]: "1" };
-  const result = spawnSync(target, process.argv.slice(2), {
+  const result = spawnSync(invocation.file, invocation.args, {
     stdio: "inherit",
     env,
-    shell,
+    shell: invocation.shell,
   });
 
   if (result.error) {
@@ -237,5 +418,8 @@ module.exports = {
   collectSelfRealpaths,
   findExternalCommand,
   isImmediateReentry,
+  escapeArgForCmd,
+  resolveWinShellWrapper,
+  buildSpawnInvocation,
   STUB_ACTIVE_ENV,
 };
