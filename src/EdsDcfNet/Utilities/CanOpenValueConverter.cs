@@ -24,7 +24,8 @@ public static class CanOpenValueConverter
     /// </param>
     /// <returns>The value represented by the corresponding .NET type.</returns>
     /// <remarks>
-    /// Integer values may use decimal, hexadecimal (<c>0x</c>), octal notation, or
+    /// Integer values may use decimal, hexadecimal (<c>0x</c>), octal notation
+    /// (leading <c>0</c> + digit, C-style / CiA DS 306 — <c>010</c> is 8, not 10), or
     /// <c>$NODEID</c> formulas. Empty or whitespace-only integer literals are treated as zero.
     /// REAL32/REAL64 values must be finite: <c>NaN</c> and literals that saturate to infinity
     /// (for example <c>3.5e40</c> for REAL32) are rejected because EDS/DCF has no

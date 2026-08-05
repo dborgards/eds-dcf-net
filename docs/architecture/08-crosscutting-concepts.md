@@ -78,18 +78,37 @@ value.ToString();
 
 ## 8.3 Number Format Processing
 
-The `ValueConverter` supports three number formats specified in CiA DS 306:
+The `ValueConverter` (and typed OD conversion via `CanOpenValueConverter`) supports three
+integer literal forms aligned with the C-style conventions used by CiA DS 306 tooling:
 
 ```mermaid
 flowchart TD
     A["Input string"] --> B{"Starts with '0x' or '0X'?"}
     B -->|Yes| C["Parse as hexadecimal<br/>(e.g., 0x1A00)"]
-    B -->|No| D{"Starts with '0' and length > 1?"}
-    D -->|Yes| E["Parse as octal<br/>(e.g., 0177)"]
+    B -->|No| D{"Starts with '0' and length > 1<br/>and second char is a digit?"}
+    D -->|Yes| E["Parse as octal<br/>(e.g., 010 → 8, 0177 → 127)"]
     D -->|No| F{"Starts with '$NODEID'?"}
     F -->|Yes| G["Evaluate $NODEID formula<br/>(e.g., $NODEID+0x200)"]
-    F -->|No| H["Parse as decimal<br/>(e.g., 42)"]
+    F -->|No| H["Parse as decimal<br/>(e.g., 42, 10)"]
 ```
+
+### Leading-zero decision (#411)
+
+| Literal | Interpreted as | Result |
+|---------|----------------|--------|
+| `10` | decimal | 10 |
+| `010` | **octal** | 8 |
+| `08` / `09` | invalid octal | parse error (`EdsParseException`) |
+| `0x10` | hexadecimal | 16 |
+
+**Decision (current major line):** keep automatic octal for `0`+digit. Hexadecimal
+requires an explicit `0x` / `0X` prefix. Zero-padded *decimal* values in real EDS/DCF
+files (for example `DefaultValue=010` meaning ten) are therefore misread unless authors
+use unpadded decimal (`10`) or hex (`0x0A`).
+
+Changing the default to “leading zeros are decimal” would be a **breaking** behavior
+change for callers that rely on C-style octal; that switch is deferred to a planned
+major release or an opt-in parse mode (see issue #428), not done as a silent patch.
 
 ### $NODEID Formula
 

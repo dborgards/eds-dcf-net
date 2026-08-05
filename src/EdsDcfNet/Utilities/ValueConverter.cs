@@ -17,8 +17,23 @@ public static class ValueConverter
     }
 
     /// <summary>
-    /// Parses an integer value from string (supports decimal, hexadecimal, and octal).
+    /// Parses an integer value from string (supports decimal, hexadecimal <c>0x</c>, and octal).
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Base detection (CiA DS 306 / C-style, see architecture docs §8.3 and issue #411):
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description><c>0x</c> / <c>0X</c> prefix → hexadecimal</description></item>
+    /// <item><description>leading <c>0</c> followed by a digit → octal (<c>010</c> is 8, not 10)</description></item>
+    /// <item><description>otherwise → decimal</description></item>
+    /// </list>
+    /// <para>
+    /// Zero-padded decimal literals such as <c>08</c>/<c>09</c> are invalid octal and throw
+    /// <see cref="EdsParseException"/>. Prefer unpadded decimal or an explicit <c>0x</c> prefix
+    /// when authoring EDS/DCF values.
+    /// </para>
+    /// </remarks>
     /// <param name="value">String value to parse</param>
     /// <param name="nodeId">Optional node ID for evaluating $NODEID formulas</param>
     public static uint ParseInteger(string value, byte? nodeId = null)
@@ -223,6 +238,8 @@ public static class ValueConverter
             return (hexDigits, NumericBase.Hexadecimal);
         }
 
+        // Leading 0 + digit → octal (CiA DS 306 / C-style). Not decimal padding.
+        // "010" → 8; "08"/"09" fail as invalid octal. See docs §8.3 / issue #411.
         if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
             return (value, NumericBase.Octal);
 
