@@ -1071,6 +1071,38 @@ NrOfEntries=2
     }
 
     [Fact]
+    public void ReadString_CompactSubObj_255_DoesNotSynthesizeSubIndexFF()
+    {
+        // Arrange — CompactSubObj=255 must not fabricate SubObjects[0xFF]
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=BigArray
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=255
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.CompactSubObj.Should().Be(255);
+        obj.SubObjects.Should().HaveCount(255); // 0..254 only
+        obj.SubObjects.Should().ContainKey(0);
+        obj.SubObjects.Should().ContainKey(254);
+        obj.SubObjects.Should().NotContainKey(255);
+        obj.SubObjects[0].DefaultValue.Should().Be("255");
+    }
+
+    [Fact]
     public void ReadString_SubObject_AllFieldsParsed()
     {
         // Arrange

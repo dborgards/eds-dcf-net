@@ -293,7 +293,9 @@ public abstract class CanOpenReaderBase
     /// <see cref="CanOpenObject.SubObjects"/>.
     /// When <see cref="CanOpenObject.CompactSubObj"/> is non-zero, missing
     /// <c>[xxxsubN]</c> sections are synthesized from the parent object template
-    /// per CiA 306 §4.5.2.4.2, then optional <c>[xxxxName]</c> overrides are applied.
+    /// per CiA 306 §4.5.2.4.2 (sub-indexes <c>0..min(CompactSubObj, 254)</c>;
+    /// sub-index <c>0xFF</c> is never synthesized), then optional <c>[xxxxName]</c>
+    /// overrides are applied.
     /// Derived classes may override this to handle additional compact storage formats.
     /// </summary>
     protected virtual void ParseSubObjects(Dictionary<string, Dictionary<string, string>> sections, ushort index, CanOpenObject obj)
@@ -301,9 +303,13 @@ public abstract class CanOpenReaderBase
         // Determine the number of sub-objects to parse
         var maxSubIndex = (int)(obj.SubNumber ?? 0);
         var compactSubObj = obj.CompactSubObj.GetValueOrDefault();
-        if (compactSubObj > 0)
+        // CiA 306 compact lists use sub-indexes 1..254; never synthesize 0xFF.
+        var compactMax = compactSubObj == 0
+            ? 0
+            : Math.Min((int)compactSubObj, MaxCompactListableSubIndex);
+        if (compactMax > 0)
         {
-            maxSubIndex = Math.Max(maxSubIndex, compactSubObj);
+            maxSubIndex = Math.Max(maxSubIndex, compactMax);
         }
 
         // Use an int loop counter so a max sub-index of 0xFF does not wrap back to 0.
@@ -311,7 +317,7 @@ public abstract class CanOpenReaderBase
         {
             var subIndexValue = (byte)subIndex;
             var subObj = ParseSubObject(sections, index, subIndexValue);
-            if (subObj == null && compactSubObj > 0 && subIndex <= compactSubObj)
+            if (subObj == null && compactMax > 0 && subIndex <= compactMax)
             {
                 subObj = SynthesizeCompactSubObject(obj, subIndexValue);
             }
@@ -322,7 +328,7 @@ public abstract class CanOpenReaderBase
             }
         }
 
-        if (compactSubObj > 0)
+        if (compactMax > 0)
         {
             ApplyCompactNameOverrides(sections, index, obj);
         }
@@ -399,6 +405,12 @@ public abstract class CanOpenReaderBase
 
     /// <summary>CiA 301 / CiA 306 UNSIGNED8 data-type index.</summary>
     private const ushort Unsigned8DataType = 0x0005;
+
+    /// <summary>
+    /// Highest sub-index covered by CompactSubObj value/name/denotation lists (CiA 306).
+    /// Sub-index <c>0xFF</c> is reserved and is never synthesized from the template.
+    /// </summary>
+    private const int MaxCompactListableSubIndex = 254;
 
     /// <summary>
     /// Parses a single sub-object at the given <paramref name="index"/> and <paramref name="subIndex"/>.
