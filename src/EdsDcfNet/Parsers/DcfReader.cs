@@ -184,41 +184,53 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
     {
         base.ParseSubObjects(sections, index, obj);
 
-        // Parse compact value storage
+        // Parse compact value storage (CiA 306 §5.2.3.2): keys are sub-indexes 1..254
         var valueSectionName = string.Concat(ToHexInvariant(index), "Value");
         if (IniParser.HasSection(sections, valueSectionName))
         {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, valueSectionName, "NrOfEntries", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var value = IniParser.GetValue(sections, valueSectionName, i.ToString(CultureInfo.InvariantCulture));
-                if (!string.IsNullOrEmpty(value) && i <= 254)
-                {
-                    var subIndex = (byte)i;
-                    if (obj.SubObjects.TryGetValue(subIndex, out var subObjForValue))
-                    {
-                        subObjForValue.ParameterValue = value;
-                    }
-                }
-            }
+            ApplyCompactSubObjectEntries(
+                sections[valueSectionName],
+                obj,
+                static (subObj, value) => subObj.ParameterValue = value);
         }
 
-        // Parse compact denotation storage
+        // Parse compact denotation storage (CiA 306 §5.2.3.2)
         var denotationSectionName = string.Concat(ToHexInvariant(index), "Denotation");
         if (IniParser.HasSection(sections, denotationSectionName))
         {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, denotationSectionName, "NrOfEntries", "0"));
-            for (int i = 1; i <= count; i++)
+            ApplyCompactSubObjectEntries(
+                sections[denotationSectionName],
+                obj,
+                static (subObj, value) => subObj.Denotation = value);
+        }
+    }
+
+    /// <summary>
+    /// Applies compact list entries whose keys are decimal sub-indexes (1..254).
+    /// <c>NrOfEntries</c> is the list length, not a loop bound — keys may be sparse.
+    /// </summary>
+    private static void ApplyCompactSubObjectEntries(
+        Dictionary<string, string> section,
+        CanOpenObject obj,
+        Action<CanOpenSubObject, string> apply)
+    {
+        foreach (var entry in section)
+        {
+            if (entry.Key.Equals("NrOfEntries", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (string.IsNullOrEmpty(entry.Value))
+                continue;
+
+            if (!byte.TryParse(entry.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var subIndex))
+                continue;
+
+            if (subIndex < 1)
+                continue;
+
+            if (obj.SubObjects.TryGetValue(subIndex, out var subObj))
             {
-                var denotation = IniParser.GetValue(sections, denotationSectionName, i.ToString(CultureInfo.InvariantCulture));
-                if (!string.IsNullOrEmpty(denotation) && i <= 254)
-                {
-                    var subIndex = (byte)i;
-                    if (obj.SubObjects.TryGetValue(subIndex, out var subObjForDenotation))
-                    {
-                        subObjForDenotation.Denotation = denotation;
-                    }
-                }
+                apply(subObj, entry.Value);
             }
         }
     }

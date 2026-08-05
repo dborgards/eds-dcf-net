@@ -520,6 +520,114 @@ PDOMapping=0
     }
 
     [Fact]
+    public void ReadString_CompactSubObj_TemplateOnly_SynthesizesFromParentTemplate()
+    {
+        // Arrange — EDS compact storage without any [xxxsubN] sections
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+CompactSubObj=2
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.CompactSubObj.Should().Be(2);
+        obj.SubObjects.Should().HaveCount(3);
+
+        obj.SubObjects[0].ParameterName.Should().Be("NrOfObjects");
+        obj.SubObjects[0].AccessType.Should().Be(AccessType.ReadOnly);
+        obj.SubObjects[0].DataType.Should().Be(0x0005);
+        obj.SubObjects[0].DefaultValue.Should().Be("2");
+        obj.SubObjects[0].PdoMapping.Should().BeFalse();
+
+        obj.SubObjects[1].ParameterName.Should().Be("StatusBits1");
+        obj.SubObjects[1].ObjectType.Should().Be(0x7);
+        obj.SubObjects[1].DataType.Should().Be(0x0005);
+        obj.SubObjects[1].AccessType.Should().Be(AccessType.ReadOnly);
+        obj.SubObjects[1].DefaultValue.Should().Be("0");
+        obj.SubObjects[1].PdoMapping.Should().BeTrue();
+
+        obj.SubObjects[2].ParameterName.Should().Be("StatusBits2");
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_NameSection_OverridesDefaultNames()
+    {
+        // Arrange
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=3
+
+[2100Name]
+NrOfEntries=2
+1=FirstBit
+3=ThirdBit
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.SubObjects[0].ParameterName.Should().Be("NrOfObjects");
+        obj.SubObjects[1].ParameterName.Should().Be("FirstBit");
+        obj.SubObjects[2].ParameterName.Should().Be("StatusBits2"); // default rule
+        obj.SubObjects[3].ParameterName.Should().Be("ThirdBit");
+        result.AdditionalSections.Should().NotContainKey("2100Name");
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_SampleDevice_SynthesizesMissingArrayElements()
+    {
+        // Arrange — sample_device.eds uses CompactSubObj with only sub0 expanded
+        var result = _reader.ReadFile("Fixtures/sample_device.eds");
+
+        // Assert
+        var digitalIn = result.ObjectDictionary.Objects[0x6000];
+        digitalIn.CompactSubObj.Should().Be(16);
+        digitalIn.SubObjects.Should().HaveCount(17); // 0..16
+        digitalIn.SubObjects[0].ParameterName.Should().Be("Number of Elements"); // explicit
+        digitalIn.SubObjects[1].ParameterName.Should().Be("Digital Input 8-Bit1");
+        digitalIn.SubObjects[1].AccessType.Should().Be(AccessType.ReadOnly);
+        digitalIn.SubObjects[1].PdoMapping.Should().BeTrue();
+        digitalIn.SubObjects[16].ParameterName.Should().Be("Digital Input 8-Bit16");
+
+        var rpdoMap = result.ObjectDictionary.Objects[0x1600];
+        rpdoMap.CompactSubObj.Should().Be(8);
+        rpdoMap.SubObjects.Should().HaveCount(9); // 0..8
+        rpdoMap.SubObjects[0].ParameterName.Should().Be("Number of Entries");
+        rpdoMap.SubObjects[1].ParameterName.Should().Be("RPDO Mapping Parameter1");
+    }
+
+    [Fact]
     public void ReadString_AccessTypes_ParsesAllTypes()
     {
         // Arrange

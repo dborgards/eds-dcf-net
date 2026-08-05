@@ -238,8 +238,11 @@ public abstract class CanOpenReaderBase
             obj.CompactSubObj = ValueConverter.ParseByte(compactSubObjStr);
         }
 
-        // Parse sub-objects for composite types (DEFSTRUCT, ARRAY, RECORD)
-        if (obj.SubNumber > 0 || CanOpenObjectType.HasSubObjects(obj.ObjectType))
+        // Parse sub-objects for composite types, CompactSubObj templates (CiA 306 §4.5.2.4.2),
+        // or an explicit SubNumber. CompactSubObj may be non-zero while SubNumber is 0/absent.
+        if (obj.SubNumber > 0 ||
+            (obj.CompactSubObj.HasValue && obj.CompactSubObj.Value > 0) ||
+            CanOpenObjectType.HasSubObjects(obj.ObjectType))
         {
             ParseSubObjects(sections, index, obj);
         }
@@ -265,15 +268,19 @@ public abstract class CanOpenReaderBase
     /// <summary>
     /// Parses all sub-objects for the given <paramref name="obj"/> and populates
     /// <see cref="CanOpenObject.SubObjects"/>.
+    /// When <see cref="CanOpenObject.CompactSubObj"/> is non-zero, missing
+    /// <c>[xxxsubN]</c> sections are synthesized from the parent object template
+    /// per CiA 306 §4.5.2.4.2, then optional <c>[xxxxName]</c> overrides are applied.
     /// Derived classes may override this to handle additional compact storage formats.
     /// </summary>
     protected virtual void ParseSubObjects(Dictionary<string, Dictionary<string, string>> sections, ushort index, CanOpenObject obj)
     {
         // Determine the number of sub-objects to parse
         var maxSubIndex = (int)(obj.SubNumber ?? 0);
-        if (obj.CompactSubObj.HasValue && obj.CompactSubObj.Value > 0)
+        var compactSubObj = obj.CompactSubObj.GetValueOrDefault();
+        if (compactSubObj > 0)
         {
-            maxSubIndex = Math.Max(maxSubIndex, obj.CompactSubObj.Value);
+            maxSubIndex = Math.Max(maxSubIndex, compactSubObj);
         }
 
         // Use an int loop counter so a max sub-index of 0xFF does not wrap back to 0.
@@ -281,12 +288,94 @@ public abstract class CanOpenReaderBase
         {
             var subIndexValue = (byte)subIndex;
             var subObj = ParseSubObject(sections, index, subIndexValue);
+            if (subObj == null && compactSubObj > 0 && subIndex <= compactSubObj)
+            {
+                subObj = SynthesizeCompactSubObject(obj, subIndexValue);
+            }
+
             if (subObj != null)
             {
                 obj.SubObjects[subIndexValue] = subObj;
             }
         }
+
+        if (compactSubObj > 0)
+        {
+            ApplyCompactNameOverrides(sections, index, obj);
+        }
     }
+
+    /// <summary>
+    /// Builds a sub-object from the parent object template when CompactSubObj storage
+    /// omits an individual <c>[xxxsubN]</c> section (CiA 306 §4.5.2.4.2).
+    /// </summary>
+    private static CanOpenSubObject SynthesizeCompactSubObject(CanOpenObject parent, byte subIndex)
+    {
+        if (subIndex == 0)
+        {
+            return new CanOpenSubObject
+            {
+                SubIndex = 0,
+                ParameterName = "NrOfObjects",
+                ObjectType = CanOpenObjectType.Var,
+                DataType = Unsigned8DataType,
+                AccessType = AccessType.ReadOnly,
+                DefaultValue = parent.CompactSubObj!.Value.ToString(CultureInfo.InvariantCulture),
+                PdoMapping = false
+            };
+        }
+
+        return new CanOpenSubObject
+        {
+            SubIndex = subIndex,
+            ParameterName = string.Concat(
+                parent.ParameterName,
+                subIndex.ToString(CultureInfo.InvariantCulture)),
+            ObjectType = CanOpenObjectType.Var,
+            DataType = parent.DataType ?? 0,
+            AccessType = parent.AccessType,
+            DefaultValue = parent.DefaultValue,
+            PdoMapping = parent.PdoMapping
+        };
+    }
+
+    /// <summary>
+    /// Applies optional <c>[xxxxName]</c> parameter-name overrides for compact sub-objects
+    /// (CiA 306 §4.5.2.4.2). Keys are decimal sub-indexes (1..254) and may be sparse;
+    /// <c>NrOfEntries</c> is the list length, not a loop bound.
+    /// </summary>
+    private static void ApplyCompactNameOverrides(
+        Dictionary<string, Dictionary<string, string>> sections,
+        ushort index,
+        CanOpenObject obj)
+    {
+        var nameSection = string.Concat(ToHexInvariant(index), "Name");
+        if (!IniParser.HasSection(sections, nameSection))
+            return;
+
+        foreach (var entry in sections[nameSection])
+        {
+            if (entry.Key.Equals("NrOfEntries", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (string.IsNullOrEmpty(entry.Value))
+                continue;
+
+            if (!byte.TryParse(entry.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var subIndex))
+                continue;
+
+            if (subIndex < 1)
+                continue;
+
+            if (obj.SubObjects.TryGetValue(subIndex, out var subObj))
+            {
+                subObj.ParameterName = entry.Value;
+            }
+        }
+    }
+
+    /// <summary>CiA 301 / CiA 306 UNSIGNED8 data-type index.</summary>
+    private const ushort Unsigned8DataType = 0x0005;
 
     /// <summary>
     /// Parses a single sub-object at the given <paramref name="index"/> and <paramref name="subIndex"/>.
@@ -333,6 +422,10 @@ public abstract class CanOpenReaderBase
 
         // Check for sub-object sections (hex index + "sub" + hex subindex)
         if (IsSubObjectSection(sectionName))
+            return true;
+
+        // CompactSubObj optional name overrides: [xxxxName]
+        if (IsHexPrefixedSection(sectionName, "Name"))
             return true;
 
         // Check for module sections (M + digits + known suffix)

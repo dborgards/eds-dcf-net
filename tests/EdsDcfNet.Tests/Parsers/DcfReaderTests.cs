@@ -898,6 +898,179 @@ NrOfEntries=2
     }
 
     [Fact]
+    public void ReadString_CompactSubObj_TemplateOnly_SynthesizesSubObjectsAndAppliesValues()
+    {
+        // Arrange — CiA 306 compact form: parent template only, no [xxxsubN] sections
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=ConfigArray
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=1
+CompactSubObj=3
+
+[2100Value]
+NrOfEntries=3
+1=10
+2=20
+3=30
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.CompactSubObj.Should().Be(3);
+        obj.SubObjects.Should().HaveCount(4); // 0..3
+
+        var sub0 = obj.SubObjects[0];
+        sub0.ParameterName.Should().Be("NrOfObjects");
+        sub0.ObjectType.Should().Be(0x7);
+        sub0.DataType.Should().Be(0x0005);
+        sub0.AccessType.Should().Be(AccessType.ReadOnly);
+        sub0.DefaultValue.Should().Be("3");
+        sub0.PdoMapping.Should().BeFalse();
+        sub0.ParameterValue.Should().BeNull();
+
+        obj.SubObjects[1].ParameterName.Should().Be("ConfigArray1");
+        obj.SubObjects[1].DataType.Should().Be(0x0005);
+        obj.SubObjects[1].AccessType.Should().Be(AccessType.ReadWrite);
+        obj.SubObjects[1].DefaultValue.Should().Be("0");
+        obj.SubObjects[1].PdoMapping.Should().BeTrue();
+        obj.SubObjects[1].ParameterValue.Should().Be("10");
+
+        obj.SubObjects[2].ParameterValue.Should().Be("20");
+        obj.SubObjects[3].ParameterValue.Should().Be("30");
+        obj.SubObjects[3].ParameterName.Should().Be("ConfigArray3");
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_TemplateOnly_AppliesDenotations()
+    {
+        // Arrange
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=ConfigArray
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=2
+
+[2100Denotation]
+NrOfEntries=2
+1=Label A
+2=Label B
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.SubObjects.Should().HaveCount(3);
+        obj.SubObjects[1].Denotation.Should().Be("Label A");
+        obj.SubObjects[2].Denotation.Should().Be("Label B");
+        obj.SubObjects[0].Denotation.Should().BeNull();
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_TemplateOnly_PartialExpandedSub0_PreservesExplicitAndSynthesizesRest()
+    {
+        // Arrange — hybrid: explicit sub0, synthesize 1..N from template
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=DigitalInput
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+CompactSubObj=2
+
+[2100sub0]
+ParameterName=Number of Elements
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=2
+PDOMapping=0
+
+[2100Value]
+NrOfEntries=2
+1=0xAA
+2=0xBB
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.SubObjects.Should().HaveCount(3);
+        obj.SubObjects[0].ParameterName.Should().Be("Number of Elements");
+        obj.SubObjects[0].DefaultValue.Should().Be("2");
+        obj.SubObjects[1].ParameterName.Should().Be("DigitalInput1");
+        obj.SubObjects[1].ParameterValue.Should().Be("0xAA");
+        obj.SubObjects[2].ParameterValue.Should().Be("0xBB");
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_AtMaxValue_SynthesizesAllSubIndexes()
+    {
+        // Arrange — CompactSubObj = 254 (max listable value sub-index per CiA 306)
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=BigArray
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=254
+
+[2100Value]
+NrOfEntries=2
+1=1
+254=254
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.CompactSubObj.Should().Be(254);
+        obj.SubObjects.Should().HaveCount(255); // 0..254
+        obj.SubObjects[0].DefaultValue.Should().Be("254");
+        obj.SubObjects[1].ParameterValue.Should().Be("1");
+        obj.SubObjects[254].ParameterValue.Should().Be("254");
+        obj.SubObjects[254].ParameterName.Should().Be("BigArray254");
+        obj.SubObjects[100].ParameterValue.Should().BeNull();
+        obj.SubObjects[100].DefaultValue.Should().Be("0");
+    }
+
+    [Fact]
     public void ReadString_SubObject_AllFieldsParsed()
     {
         // Arrange
