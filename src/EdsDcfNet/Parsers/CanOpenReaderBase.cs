@@ -382,7 +382,16 @@ public abstract class CanOpenReaderBase
         if (!IniParser.HasSection(sections, nameSection))
             return;
 
-        foreach (var entry in sections[nameSection])
+        var section = sections[nameSection];
+        foreach (var key in section.Keys)
+        {
+            if (!key.Equals("NrOfEntries", StringComparison.OrdinalIgnoreCase))
+                continue;
+            _ = ValueConverter.ParseUInt16(section[key]);
+            break;
+        }
+
+        foreach (var entry in section)
         {
             if (entry.Key.Equals("NrOfEntries", StringComparison.OrdinalIgnoreCase))
                 continue;

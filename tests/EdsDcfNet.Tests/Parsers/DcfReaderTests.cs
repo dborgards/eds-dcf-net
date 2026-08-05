@@ -1146,6 +1146,33 @@ NrOfEntries=2
     }
 
     [Fact]
+    public void ReadString_CompactSubObj_MalformedNrOfEntries_Throws()
+    {
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=ConfigArray
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=1
+
+[2100Value]
+NrOfEntries=oops
+1=10
+");
+
+        var act = () => _reader.ReadString(content);
+
+        act.Should().Throw<EdsParseException>();
+    }
+
+    [Fact]
     public void ReadString_SubObject_AllFieldsParsed()
     {
         // Arrange

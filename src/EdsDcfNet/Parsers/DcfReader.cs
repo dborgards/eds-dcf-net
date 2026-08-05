@@ -208,13 +208,24 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
 
     /// <summary>
     /// Applies compact list entries whose keys are decimal sub-indexes (1..254).
-    /// <c>NrOfEntries</c> is the list length, not a loop bound — keys may be sparse.
+    /// <c>NrOfEntries</c> is the list length, not a loop bound — keys may be sparse —
+    /// but a present <c>NrOfEntries</c> value is still validated (throws on malformed).
     /// </summary>
     private static void ApplyCompactSubObjectEntries(
         Dictionary<string, string> section,
         CanOpenObject obj,
         Action<CanOpenSubObject, string> apply)
     {
+        foreach (var key in section.Keys)
+        {
+            if (!key.Equals("NrOfEntries", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            // Validate even when not used as a loop bound (preserves prior ParseUInt16 failure mode).
+            _ = ValueConverter.ParseUInt16(section[key]);
+            break;
+        }
+
         foreach (var entry in section)
         {
             if (entry.Key.Equals("NrOfEntries", StringComparison.OrdinalIgnoreCase))
