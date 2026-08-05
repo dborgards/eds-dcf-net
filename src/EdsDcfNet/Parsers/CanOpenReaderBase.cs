@@ -393,7 +393,7 @@ public abstract class CanOpenReaderBase
             if (!byte.TryParse(entry.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var subIndex))
                 continue;
 
-            if (subIndex < 1)
+            if (subIndex < 1 || subIndex > MaxCompactListableSubIndex)
                 continue;
 
             if (obj.SubObjects.TryGetValue(subIndex, out var subObj))
@@ -410,7 +410,7 @@ public abstract class CanOpenReaderBase
     /// Highest sub-index covered by CompactSubObj value/name/denotation lists (CiA 306).
     /// Sub-index <c>0xFF</c> is reserved and is never synthesized from the template.
     /// </summary>
-    private const int MaxCompactListableSubIndex = 254;
+    private protected const int MaxCompactListableSubIndex = 254;
 
     /// <summary>
     /// Parses a single sub-object at the given <paramref name="index"/> and <paramref name="subIndex"/>.

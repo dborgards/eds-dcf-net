@@ -1103,6 +1103,49 @@ CompactSubObj=255
     }
 
     [Fact]
+    public void ReadString_CompactSubObj_ValueKey255_DoesNotApplyToSubFF()
+    {
+        // Arrange — compact lists are 1..254; key 255 must not touch SubObjects[0xFF]
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=BigArray
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+SubNumber=255
+CompactSubObj=2
+
+[2100subFF]
+ParameterName=Identity
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+ParameterValue=keep-me
+
+[2100Value]
+NrOfEntries=2
+1=10
+255=should-not-apply
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.SubObjects[1].ParameterValue.Should().Be("10");
+        obj.SubObjects[255].ParameterValue.Should().Be("keep-me");
+    }
+
+    [Fact]
     public void ReadString_SubObject_AllFieldsParsed()
     {
         // Arrange

@@ -226,7 +226,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
             if (!byte.TryParse(entry.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var subIndex))
                 continue;
 
-            if (subIndex < 1)
+            if (subIndex < 1 || subIndex > MaxCompactListableSubIndex)
                 continue;
 
             if (obj.SubObjects.TryGetValue(subIndex, out var subObj))
