@@ -562,6 +562,65 @@ public class DcfWriterTests
     }
 
     [Fact]
+    public void GenerateString_CompactSubObj_ExpandsSub0WhenParameterValueOrDenotationSet()
+    {
+        // Arrange — sub0 matches structural template but carries DCF fields that
+        // cannot be stored in compact [xxxxValue]/[xxxxDenotation] (keys 1..254).
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.ManufacturerObjects.Add(0x2100);
+        var obj = new CanOpenObject
+        {
+            Index = 0x2100,
+            ParameterName = "ConfigArray",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "0",
+            PdoMapping = false,
+            CompactSubObj = 1
+        };
+        obj.SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "NrOfObjects",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "1",
+            PdoMapping = false,
+            ParameterValue = "1",
+            Denotation = "Count"
+        };
+        obj.SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "ConfigArray1",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "0",
+            ParameterValue = "10"
+        };
+        dcf.ObjectDictionary.Objects[0x2100] = obj;
+
+        // Act
+        var written = _writer.GenerateString(dcf);
+        var parsed = new DcfReader().ReadString(written);
+
+        // Assert
+        written.Should().Contain("[2100sub0]");
+        written.Should().Contain("ParameterValue=1");
+        written.Should().Contain("Denotation=Count");
+        written.Should().Contain("[2100Value]");
+        written.Should().NotContain("[2100sub1]");
+
+        var roundTripped = parsed.ObjectDictionary.Objects[0x2100];
+        roundTripped.SubObjects[0].ParameterValue.Should().Be("1");
+        roundTripped.SubObjects[0].Denotation.Should().Be("Count");
+        roundTripped.SubObjects[1].ParameterValue.Should().Be("10");
+    }
+
+    [Fact]
     public void GenerateString_OptionalObjects_WritesCorrectly()
     {
         // Arrange

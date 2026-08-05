@@ -239,6 +239,8 @@ public abstract class IniWriterBase
 
     private static bool MatchesCompactSub0Template(CanOpenObject parent, CanOpenSubObject subObj)
     {
+        // Sub0 has no compact Value/Denotation list entry (CiA 306 keys are 1..254),
+        // so non-empty ParameterValue/Denotation must force an expanded [xxxsub0].
         return subObj.ObjectType == CanOpenObjectType.Var
                && subObj.DataType == 0x0005
                && subObj.AccessType == AccessType.ReadOnly
@@ -249,6 +251,8 @@ public abstract class IniWriterBase
                && !subObj.PdoMapping
                && string.IsNullOrEmpty(subObj.LowLimit)
                && string.IsNullOrEmpty(subObj.HighLimit)
+               && string.IsNullOrEmpty(subObj.ParameterValue)
+               && string.IsNullOrEmpty(subObj.Denotation)
                && !HasNonCompactExclusiveFields(subObj)
                && (string.IsNullOrEmpty(subObj.ParameterName)
                    || subObj.ParameterName.Equals("NrOfObjects", StringComparison.Ordinal));
