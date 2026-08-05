@@ -3,6 +3,7 @@ namespace EdsDcfNet.Tests.Writers;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 using EdsDcfNet.Writers;
 
 public class XdcWriterTests
@@ -476,7 +477,7 @@ public class XdcWriterTests
     [Fact]
     public void GenerateString_NodeIdZero_OmitsDeviceCommissioningElement()
     {
-        // NodeId == 0 means "no commissioning configured"; the element must be omitted
+        // Fully omitted commissioning (all fields empty/zero) must not emit the element
         // so that read→write round-trips for XDC files without commissioning succeed.
         var dcf = new DeviceConfigurationFile
         {
@@ -486,6 +487,53 @@ public class XdcWriterTests
         var result = _writer.GenerateString(dcf);
 
         result.Should().NotContain("deviceCommissioning");
+    }
+
+    [Fact]
+    public void GenerateString_NodeIdZeroWithOtherFields_ThrowsXdcWriteException()
+    {
+        // Non-omitted commissioning requires a valid Node-ID; do not silently drop baudrate/name.
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning
+            {
+                NodeId = 0,
+                NodeName = "Unassigned",
+                Baudrate = 500,
+                NetworkName = "PlantNet"
+            }
+        };
+
+        var act = () => _writer.GenerateString(dcf);
+
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.SectionName.Should().Be("deviceCommissioning");
+        ex.Message.Should().Contain("NodeId");
+    }
+
+    [Fact]
+    public void GenerateString_ValidatedRoundTrip_PreservesCommissioningWithValidNodeId()
+    {
+        var dcf = CreateSampleDcf();
+        dcf.DeviceCommissioning = new DeviceCommissioning
+        {
+            NodeId = 7,
+            NodeName = "EdgeNode",
+            Baudrate = 250,
+            NetNumber = 2,
+            NetworkName = "LineA",
+            CANopenManager = true
+        };
+
+        var written = _writer.GenerateString(dcf);
+        var parsed = new XdcReader().ReadString(written);
+
+        parsed.DeviceCommissioning.NodeId.Should().Be(7);
+        parsed.DeviceCommissioning.NodeName.Should().Be("EdgeNode");
+        parsed.DeviceCommissioning.Baudrate.Should().Be(250);
+        parsed.DeviceCommissioning.NetNumber.Should().Be(2);
+        parsed.DeviceCommissioning.NetworkName.Should().Be("LineA");
+        parsed.DeviceCommissioning.CANopenManager.Should().BeTrue();
     }
 
     [Fact]
