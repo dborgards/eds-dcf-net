@@ -1,8 +1,10 @@
 namespace EdsDcfNet.Tests.Writers;
 
+using System.Globalization;
 using System.Reflection;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 using EdsDcfNet.Writers;
 using FluentAssertions;
 using Xunit;
@@ -426,6 +428,137 @@ public class DcfWriterTests
 
         // Assert
         result.Should().Contain("ParameterValue=0x999");
+    }
+
+    [Fact]
+    public void GenerateString_CompactSubObj_WritesValueAndDenotationSections()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.ManufacturerObjects.Add(0x2100);
+        var obj = new CanOpenObject
+        {
+            Index = 0x2100,
+            ParameterName = "ConfigArray",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "0",
+            PdoMapping = false,
+            CompactSubObj = 3
+        };
+        obj.SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "NrOfObjects",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "3",
+            PdoMapping = false
+        };
+        obj.SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "ConfigArray1",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "0",
+            ParameterValue = "10",
+            Denotation = "Label A"
+        };
+        obj.SubObjects[2] = new CanOpenSubObject
+        {
+            SubIndex = 2,
+            ParameterName = "ConfigArray2",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "0",
+            ParameterValue = "20"
+        };
+        obj.SubObjects[3] = new CanOpenSubObject
+        {
+            SubIndex = 3,
+            ParameterName = "ConfigArray3",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "0",
+            ParameterValue = "30",
+            Denotation = "Label C"
+        };
+        dcf.ObjectDictionary.Objects[0x2100] = obj;
+
+        // Act
+        var result = _writer.GenerateString(dcf);
+
+        // Assert
+        result.Should().Contain("CompactSubObj=3");
+        result.Should().NotContain("[2100sub");
+        result.Should().Contain("[2100Value]");
+        result.Should().Contain("NrOfEntries=3");
+        result.Should().Contain("1=10");
+        result.Should().Contain("2=20");
+        result.Should().Contain("3=30");
+        result.Should().Contain("[2100Denotation]");
+        result.Should().Contain("1=Label A");
+        result.Should().Contain("3=Label C");
+        result.Should().NotContain("ParameterValue=10");
+    }
+
+    [Fact]
+    public void GenerateString_CompactSubObj_ValidatedRoundTrip_PreservesValuesAndDenotations()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+        dcf.ObjectDictionary.ManufacturerObjects.Add(0x2100);
+        var obj = new CanOpenObject
+        {
+            Index = 0x2100,
+            ParameterName = "ConfigArray",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = "0",
+            PdoMapping = true,
+            CompactSubObj = 2
+        };
+        for (byte i = 0; i <= 2; i++)
+        {
+            obj.SubObjects[i] = new CanOpenSubObject
+            {
+                SubIndex = i,
+                ParameterName = i == 0 ? "NrOfObjects" : "ConfigArray" + i.ToString(CultureInfo.InvariantCulture),
+                ObjectType = 0x7,
+                DataType = 0x0005,
+                AccessType = i == 0 ? AccessType.ReadOnly : AccessType.ReadWrite,
+                DefaultValue = i == 0 ? "2" : "0",
+                PdoMapping = i != 0,
+                ParameterValue = i == 0 ? null : (i * 10).ToString(CultureInfo.InvariantCulture),
+                Denotation = i == 0 ? null : "Label " + i.ToString(CultureInfo.InvariantCulture)
+            };
+        }
+        dcf.ObjectDictionary.Objects[0x2100] = obj;
+
+        // Act
+        var written = _writer.GenerateString(dcf);
+        var parsed = new DcfReader().ReadString(written);
+
+        // Assert
+        written.Should().Contain("[2100Value]");
+        written.Should().Contain("[2100Denotation]");
+        written.Should().NotContain("[2100sub");
+
+        var roundTripped = parsed.ObjectDictionary.Objects[0x2100];
+        roundTripped.CompactSubObj.Should().Be(2);
+        roundTripped.SubObjects.Should().HaveCount(3);
+        roundTripped.SubObjects[1].ParameterValue.Should().Be("10");
+        roundTripped.SubObjects[2].ParameterValue.Should().Be("20");
+        roundTripped.SubObjects[1].Denotation.Should().Be("Label 1");
+        roundTripped.SubObjects[2].Denotation.Should().Be("Label 2");
+        roundTripped.SubObjects[1].PdoMapping.Should().BeTrue();
     }
 
     [Fact]

@@ -216,7 +216,6 @@ public class EdsWriterTests
             SrdoMapping = true,
             InvertedSrad = "0x2000",
             ObjFlags = 0x10,
-            CompactSubObj = 2,
             SubNumber = 1
         };
 
@@ -248,11 +247,121 @@ public class EdsWriterTests
         result.Should().Contain("SRDOMapping=1");
         result.Should().Contain("InvertedSRAD=0x2000");
         result.Should().Contain("ObjFlags=0x10");
-        result.Should().Contain("CompactSubObj=2");
         result.Should().Contain("[2000sub1]");
         result.Should().Contain("LowLimit=0");
         result.Should().Contain("HighLimit=5");
         result.Should().Contain("InvertedSRAD=0x3000");
+    }
+
+    [Fact]
+    public void GenerateString_CompactSubObj_OmitsRedundantSubsAndWritesNameSection()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.ObjectDictionary.ManufacturerObjects.Add(0x2100);
+        eds.ObjectDictionary.Objects[0x2100] = new CanOpenObject
+        {
+            Index = 0x2100,
+            ParameterName = "StatusBits",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = true,
+            CompactSubObj = 2,
+            SubNumber = 2 // must be omitted in compact form
+        };
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "NrOfObjects",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "2",
+            PdoMapping = false
+        };
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "FirstBit",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = true
+        };
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[2] = new CanOpenSubObject
+        {
+            SubIndex = 2,
+            ParameterName = "StatusBits2",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = true
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("CompactSubObj=2");
+        result.Should().NotContain("SubNumber=");
+        result.Should().NotContain("[2100sub0]");
+        result.Should().NotContain("[2100sub1]");
+        result.Should().NotContain("[2100sub2]");
+        result.Should().Contain("[2100Name]");
+        result.Should().Contain("NrOfEntries=1");
+        result.Should().Contain("1=FirstBit");
+        result.Should().NotContain("2=StatusBits2");
+    }
+
+    [Fact]
+    public void GenerateString_CompactSubObj_ExpandsSub0WhenNameDiffersFromTemplate()
+    {
+        // Arrange
+        var eds = CreateMinimalEds();
+        eds.ObjectDictionary.ManufacturerObjects.Add(0x2100);
+        eds.ObjectDictionary.Objects[0x2100] = new CanOpenObject
+        {
+            Index = 0x2100,
+            ParameterName = "StatusBits",
+            ObjectType = 0x8,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = false,
+            CompactSubObj = 1
+        };
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Number of Elements",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "1",
+            PdoMapping = false
+        };
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "StatusBits1",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            DefaultValue = "0",
+            PdoMapping = false
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert
+        result.Should().Contain("[2100sub0]");
+        result.Should().Contain("ParameterName=Number of Elements");
+        result.Should().NotContain("[2100sub1]");
     }
 
     [Fact]

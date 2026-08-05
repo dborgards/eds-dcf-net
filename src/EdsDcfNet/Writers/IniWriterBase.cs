@@ -99,12 +99,19 @@ public abstract class IniWriterBase
     /// <summary>
     /// Writes the shared (EDS) fields of a <see cref="CanOpenObject"/>.
     /// DCF overrides <see cref="WriteObjectExtension"/> to append DCF-specific fields.
+    /// When <see cref="CanOpenObject.CompactSubObj"/> is non-zero, redundant
+    /// <c>[xxxsubN]</c> sections are omitted and compact <c>[xxxxName]</c> /
+    /// <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c> lists are emitted (CiA 306).
     /// </summary>
     protected void WriteObject(StringBuilder sb, CanOpenObject obj, Action<string, Action> writeSection)
     {
+        var compactMax = GetCompactMaxSubIndex(obj);
+        var useCompact = compactMax > 0;
+
         sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}]", obj.Index));
 
-        if (obj.SubNumber.HasValue && obj.SubNumber.Value > 0)
+        // CiA 306: SubNumber is not supported when CompactSubObj is used.
+        if (!useCompact && obj.SubNumber.HasValue && obj.SubNumber.Value > 0)
         {
             WriteKeyValue(sb, "SubNumber", obj.SubNumber.Value.ToString(CultureInfo.InvariantCulture));
         }
@@ -151,22 +158,34 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, "ObjFlags", ValueConverter.FormatInteger(obj.ObjFlags));
         }
 
-        if (obj.CompactSubObj.HasValue && obj.CompactSubObj.Value > 0)
+        if (useCompact)
         {
-            WriteKeyValue(sb, "CompactSubObj", obj.CompactSubObj.Value.ToString(CultureInfo.InvariantCulture));
+            WriteKeyValue(sb, "CompactSubObj", obj.CompactSubObj!.Value.ToString(CultureInfo.InvariantCulture));
         }
 
         WriteObjectExtension(sb, obj);
 
         sb.AppendLine();
 
+        var expandedSubIndexes = new HashSet<byte>();
         if (obj.SubObjects.Count > 0)
         {
             foreach (var subObjEntry in obj.SubObjects.OrderBy(s => s.Key))
             {
+                var subObj = subObjEntry.Value;
+                if (useCompact && !MustExpandCompactSubObject(obj, subObj, compactMax))
+                    continue;
+
+                expandedSubIndexes.Add(subObjEntry.Key);
                 var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", obj.Index, subObjEntry.Key);
-                writeSection(sectionName, () => WriteSubObject(sb, obj.Index, subObjEntry.Value));
+                writeSection(sectionName, () => WriteSubObject(sb, obj.Index, subObj));
             }
+        }
+
+        if (useCompact)
+        {
+            WriteCompactNameSection(sb, obj, compactMax, expandedSubIndexes, writeSection);
+            WriteCompactValueAndDenotationSections(sb, obj, compactMax, expandedSubIndexes, writeSection);
         }
 
         if (obj.ObjectLinks.Count > 0)
@@ -187,6 +206,127 @@ public abstract class IniWriterBase
                     sb.AppendLine();
                 });
         }
+    }
+
+    /// <summary>
+    /// Highest compact-listable sub-index for <paramref name="obj"/>, or 0 when
+    /// CompactSubObj is absent/zero. Caps at 254 per CiA 306.
+    /// </summary>
+    private static int GetCompactMaxSubIndex(CanOpenObject obj)
+    {
+        if (!obj.CompactSubObj.HasValue || obj.CompactSubObj.Value == 0)
+            return 0;
+        return Math.Min((int)obj.CompactSubObj.Value, 254);
+    }
+
+    /// <summary>
+    /// Returns whether a sub-object must be written as an expanded <c>[xxxsubN]</c>
+    /// section under CompactSubObj storage (non-template fields that compact lists
+    /// cannot represent).
+    /// </summary>
+    private static bool MustExpandCompactSubObject(CanOpenObject parent, CanOpenSubObject subObj, int compactMax)
+    {
+        if (subObj.SubIndex > compactMax)
+            return true;
+
+        if (subObj.SubIndex == 0)
+            return !MatchesCompactSub0Template(parent, subObj);
+
+        // 1..compactMax: expand only when fields cannot go in Name/Value/Denotation.
+        return !MatchesCompactElementTemplate(parent, subObj)
+               || HasNonCompactExclusiveFields(subObj);
+    }
+
+    private static bool MatchesCompactSub0Template(CanOpenObject parent, CanOpenSubObject subObj)
+    {
+        return subObj.ObjectType == CanOpenObjectType.Var
+               && subObj.DataType == 0x0005
+               && subObj.AccessType == AccessType.ReadOnly
+               && string.Equals(
+                   subObj.DefaultValue,
+                   parent.CompactSubObj!.Value.ToString(CultureInfo.InvariantCulture),
+                   StringComparison.Ordinal)
+               && !subObj.PdoMapping
+               && string.IsNullOrEmpty(subObj.LowLimit)
+               && string.IsNullOrEmpty(subObj.HighLimit)
+               && !HasNonCompactExclusiveFields(subObj)
+               && (string.IsNullOrEmpty(subObj.ParameterName)
+                   || subObj.ParameterName.Equals("NrOfObjects", StringComparison.Ordinal));
+    }
+
+    private static bool MatchesCompactElementTemplate(CanOpenObject parent, CanOpenSubObject subObj)
+    {
+        var expectedDataType = parent.DataType ?? 0;
+        return subObj.ObjectType == CanOpenObjectType.Var
+               && subObj.DataType == expectedDataType
+               && subObj.AccessType == parent.AccessType
+               && string.Equals(subObj.DefaultValue, parent.DefaultValue, StringComparison.Ordinal)
+               && subObj.PdoMapping == parent.PdoMapping
+               && string.IsNullOrEmpty(subObj.LowLimit)
+               && string.IsNullOrEmpty(subObj.HighLimit);
+    }
+
+    private static bool HasNonCompactExclusiveFields(CanOpenSubObject subObj)
+        => subObj.SrdoMapping
+           || !string.IsNullOrEmpty(subObj.InvertedSrad)
+           || !string.IsNullOrEmpty(subObj.ParamRefd);
+
+    private static void WriteCompactNameSection(
+        StringBuilder sb,
+        CanOpenObject obj,
+        int compactMax,
+        HashSet<byte> expandedSubIndexes,
+        Action<string, Action> writeSection)
+    {
+        var names = new SortedDictionary<byte, string>();
+        for (var i = 1; i <= compactMax; i++)
+        {
+            var subIndex = (byte)i;
+            if (expandedSubIndexes.Contains(subIndex))
+                continue;
+            if (!obj.SubObjects.TryGetValue(subIndex, out var subObj))
+                continue;
+
+            var defaultName = string.Concat(
+                obj.ParameterName,
+                subIndex.ToString(CultureInfo.InvariantCulture));
+            if (!string.IsNullOrEmpty(subObj.ParameterName)
+                && !subObj.ParameterName.Equals(defaultName, StringComparison.Ordinal))
+            {
+                names[subIndex] = subObj.ParameterName;
+            }
+        }
+
+        if (names.Count == 0)
+            return;
+
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Name", obj.Index);
+        writeSection(
+            sectionName,
+            () =>
+            {
+                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}Name]", obj.Index));
+                WriteKeyValue(sb, "NrOfEntries", names.Count.ToString(CultureInfo.InvariantCulture));
+                foreach (var entry in names)
+                {
+                    WriteKeyValue(sb, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
+                }
+
+                sb.AppendLine();
+            });
+    }
+
+    /// <summary>
+    /// Writes compact <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c> lists.
+    /// EDS: no-op. DCF: emits ParameterValue and Denotation for non-expanded subs.
+    /// </summary>
+    protected virtual void WriteCompactValueAndDenotationSections(
+        StringBuilder sb,
+        CanOpenObject obj,
+        int compactMax,
+        HashSet<byte> expandedSubIndexes,
+        Action<string, Action> writeSection)
+    {
     }
 
     /// <summary>
