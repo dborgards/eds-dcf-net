@@ -1803,6 +1803,23 @@ VendorKey=VendorData
     }
 
     [Fact]
+    public void ReadString_HexPrefixedSubEmptySuffix_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "[1000sub]" has a hex prefix + "sub" but an empty suffix
+        var content = BuildMinimalDcf(extraSections: @"
+[1000sub]
+VendorKey=EmptySuffix
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("1000sub");
+        result.AdditionalSections["1000sub"]["VendorKey"].Should().Be("EmptySuffix");
+    }
+
+    [Fact]
     public void ReadString_SectionStartingWithM_NotModule_PreservedInAdditionalSections()
     {
         // Arrange - "Manufacturing" starts with "M" but is NOT a module section (no digit after "M")

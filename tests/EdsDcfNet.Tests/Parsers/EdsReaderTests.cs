@@ -1914,6 +1914,38 @@ VendorKey=VendorData
     }
 
     [Fact]
+    public void ReadString_HexPrefixedSubEmptySuffix_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "[1000sub]" ends with "sub" and has no hex sub-index suffix
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x191
+PDOMapping=0
+
+[1000sub]
+VendorKey=EmptySuffix
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - empty suffix after "sub" must not be treated as a known sub-object
+        result.AdditionalSections.Should().ContainKey("1000sub");
+        result.AdditionalSections["1000sub"]["VendorKey"].Should().Be("EmptySuffix");
+    }
+
+    [Fact]
     public void ReadString_SectionStartingWithM_NotModule_PreservedInAdditionalSections()
     {
         // Arrange - "Manufacturing" starts with "M" but is NOT a module section
