@@ -364,11 +364,17 @@ function buildSpawnInvocation(target, forwardedArgs, command = "npm") {
 
   // Node rejects direct .cmd/.bat spawns without a shell (EINVAL / CVE-2024-27980).
   // Pre-escape every token because Node joins the array with spaces unescaped.
-  return {
-    file: escapeArgForCmd(target),
-    args: args.map(escapeArgForCmd),
-    shell: true,
-  };
+  // Only use cmd.exe escaping on Windows — elsewhere shell:true would invoke /bin/sh
+  // and the quoting would be wrong (e.g. an explicit path to a .cmd on Linux/macOS).
+  if (process.platform === "win32") {
+    return {
+      file: escapeArgForCmd(target),
+      args: args.map(escapeArgForCmd),
+      shell: true,
+    };
+  }
+
+  return { file: target, args, shell: false };
 }
 
 function forward(command, entryScriptPath = process.argv[1]) {

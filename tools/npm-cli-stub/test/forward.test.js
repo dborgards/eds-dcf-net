@@ -397,15 +397,44 @@ SET "NPM_CLI_JS=%~dp0\\node_modules\\npm\\bin\\npm-cli.js"
     assert.equal(fs.realpathSync(unwrapped.args[0]), fs.realpathSync(npxCli));
   });
 
-  it("falls back to shell:true with escaped args when unwrap is impossible", () => {
+  it("falls back to shell:true with escaped args on Windows when unwrap fails", () => {
     const opaque = path.join(root, "opaque.cmd");
     fs.writeFileSync(opaque, "@ECHO OFF\necho no js here\n");
 
     const args = ["run", "foo", "--", "a b", "x&y", "%PATH%"];
-    const invocation = buildSpawnInvocation(opaque, args, "npm");
-    assert.equal(invocation.shell, true);
-    assert.equal(invocation.file, escapeArgForCmd(opaque));
-    assert.deepEqual(invocation.args, args.map(escapeArgForCmd));
+    const original = Object.getOwnPropertyDescriptor(process, "platform");
+    Object.defineProperty(process, "platform", {
+      configurable: true,
+      value: "win32",
+    });
+    try {
+      const invocation = buildSpawnInvocation(opaque, args, "npm");
+      assert.equal(invocation.shell, true);
+      assert.equal(invocation.file, escapeArgForCmd(opaque));
+      assert.deepEqual(invocation.args, args.map(escapeArgForCmd));
+    } finally {
+      Object.defineProperty(process, "platform", original);
+    }
+  });
+
+  it("does not use cmd shell fallback when unwrap fails off Windows", () => {
+    const opaque = path.join(root, "opaque-posix.cmd");
+    fs.writeFileSync(opaque, "@ECHO OFF\necho no js here\n");
+
+    const args = ["run", "foo", "--", "a b", "x&y"];
+    const original = Object.getOwnPropertyDescriptor(process, "platform");
+    Object.defineProperty(process, "platform", {
+      configurable: true,
+      value: "linux",
+    });
+    try {
+      const invocation = buildSpawnInvocation(opaque, args, "npm");
+      assert.equal(invocation.shell, false);
+      assert.equal(invocation.file, opaque);
+      assert.deepEqual(invocation.args, args);
+    } finally {
+      Object.defineProperty(process, "platform", original);
+    }
   });
 
   it("keeps shell:false for non-wrapper targets", () => {
