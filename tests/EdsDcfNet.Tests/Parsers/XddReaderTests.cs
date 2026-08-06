@@ -1174,6 +1174,45 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ParseBaudRates_UnknownDefaultValue_StrictParsing_ThrowsEdsParseException()
+    {
+        // defaultValue is not mapped into DeviceInfo, but StrictParsing still validates vocabulary
+        var xdd = MinimalXdd.Replace(
+            @"defaultValue=""250 Kbps""",
+            @"defaultValue=""999 Kbps""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*Unknown baud-rate string '999 Kbps'*");
+    }
+
+    [Fact]
+    public void ParseBaudRates_UnknownDefaultValue_Lenient_Succeeds()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"defaultValue=""250 Kbps""",
+            @"defaultValue=""999 Kbps""");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DeviceInfo.SupportedBaudRates.BaudRate250.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate500.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseBaudRateString_WhitespaceOnly_IsTreatedAsEmpty()
+    {
+        var xdd = MinimalXdd.Replace(
+            "<supportedBaudRate value=\"500 Kbps\"/>",
+            "<supportedBaudRate value=\"   \"/>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
     public void ParseDeviceCommissioning_UnknownActualBaudRate_StrictParsing_ThrowsEdsParseException()
     {
         const string xdc = @"<?xml version=""1.0"" encoding=""utf-8""?>

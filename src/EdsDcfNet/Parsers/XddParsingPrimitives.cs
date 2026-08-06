@@ -148,6 +148,8 @@ internal static class XddParsingPrimitives
             return 0;
 
         value = value.Trim();
+        if (value.Length == 0)
+            return 0;
 
         if (value.Equals("10 Kbps", StringComparison.OrdinalIgnoreCase)) return 10;
         if (value.Equals("20 Kbps", StringComparison.OrdinalIgnoreCase)) return 20;
