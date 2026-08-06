@@ -142,7 +142,7 @@ Mechanisms (INI formats):
 
 For CiA 311 XML, round-trip behavior is guaranteed for the currently mapped schema subset used by `XddReader`/`XdcReader` and `XddWriter`/`XdcWriter`.
 
-`AdditionalSections` remains an **INI-shaped** `Dictionary<string, Dictionary<string, string>>`. Unknown `ProfileBody` child elements are captured as attribute-only key/value maps for in-memory inspection and XDC→EDS bridging; nested XML content is discarded, and `XddWriter`/`XdcWriter` rebuild a fixed ProfileBody (`ApplicationLayers` / `TransportLayers` / `NetworkManagement`) without re-emitting those entries. Do not treat `AdditionalSections` as an XDD/XDC vendor-extension round-trip store.
+`AdditionalSections` remains an **INI-shaped** `Dictionary<string, Dictionary<string, string>>`. Unknown children of the **CommunicationNetwork** `ProfileBody` are captured as attribute-only key/value maps for in-memory inspection and XDC→EDS bridging; nested XML content is discarded. Unknown children of the Device `ProfileBody` are not captured. `XddWriter`/`XdcWriter` rebuild a fixed CommunicationNetwork ProfileBody (`ApplicationLayers` / `TransportLayers` / `NetworkManagement`) without re-emitting those entries. Do not treat `AdditionalSections` as an XDD/XDC vendor-extension round-trip store.
 
 ## 8.5 CiA 311 XML Mapping
 

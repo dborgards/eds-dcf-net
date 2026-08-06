@@ -60,9 +60,10 @@ internal static class XddCommNetProfileParser
         if (networkMgmt != null)
             ParseNetworkManagement(networkMgmt, eds.DeviceInfo);
 
-        // Capture unknown ProfileBody children as INI-shaped AdditionalSections entries
-        // (attributes only). Nested element content is not preserved, and XddWriter does
-        // not re-emit these entries into ProfileBody — see architecture docs §8.4.
+        // Capture unknown CommunicationNetwork ProfileBody children as INI-shaped
+        // AdditionalSections entries (attributes only). Device ProfileBody unknowns are
+        // not captured. Nested element content is not preserved, and XddWriter does not
+        // re-emit these entries into ProfileBody — see architecture docs §8.4.
         var knownNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "ApplicationLayers",

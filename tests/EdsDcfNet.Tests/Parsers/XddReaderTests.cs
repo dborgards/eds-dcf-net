@@ -1902,10 +1902,10 @@ public class XddReaderTests
 
     #endregion
 
-    #region Unknown ProfileBody AdditionalSections contract (#415)
+    #region Unknown CommunicationNetwork ProfileBody AdditionalSections contract (#415)
 
     [Fact]
-    public void ReadString_UnknownProfileBodyChild_StoresAttributesOnly_DropsNestedContent()
+    public void ReadString_UnknownCommNetProfileBodyChild_StoresAttributesOnly_DropsNestedContent()
     {
         // Arrange — nested element content must not appear in INI-shaped AdditionalSections
         const string xdd = @"<?xml version=""1.0"" encoding=""utf-8""?>
@@ -1951,6 +1951,45 @@ public class XddReaderTests
             k.Contains("Nested", StringComparison.OrdinalIgnoreCase) ||
             k.Contains("should-not-be-preserved", StringComparison.OrdinalIgnoreCase));
         result.AdditionalSections["VendorExtension"].Values.Should().NotContain("should-not-be-preserved");
+    }
+
+    [Fact]
+    public void ReadString_UnknownDeviceProfileBodyChild_IsNotCapturedInAdditionalSections()
+    {
+        // Device ProfileBody unknowns are mapped selectively; they are not attribute-captured
+        const string xdd = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>Device</ProfileClassID></ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""t.xdd"" fileVersion=""1"">
+      <DeviceIdentity><vendorName>V</vendorName><vendorID>0x1</vendorID><productName>P</productName><productID>0x1</productID></DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+      <VendorDeviceExtension customKey=""deviceOnly""/>
+    </ProfileBody>
+  </ISO15745Profile>
+  <ISO15745Profile>
+    <ProfileHeader><ProfileClassID>CommunicationNetwork</ProfileClassID></ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""t.xdd"" fileVersion=""1"">
+      <ApplicationLayers>
+        <CANopenObjectList mandatoryObjects=""0"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" PDOmapping=""no""/>
+        </CANopenObjectList>
+      </ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""250 Kbps""/></PhysicalLayer></TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0""
+                                bootUpSlave=""false"" layerSettingServiceSlave=""false""
+                                groupMessaging=""false"" dynamicChannels=""0""/>
+        <CANopenMasterFeatures bootUpMaster=""false""/>
+      </NetworkManagement>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>";
+
+        var result = _reader.ReadString(xdd);
+
+        result.AdditionalSections.Should().NotContainKey("VendorDeviceExtension");
     }
 
     #endregion
