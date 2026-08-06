@@ -262,6 +262,51 @@ Node1Name=DecimalPresent
         result.Networks[0].Nodes[1].Present.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData("0x1")]
+    [InlineData("0X1")]
+    [InlineData("true")]
+    [InlineData("TRUE")]
+    [InlineData("yes")]
+    [InlineData("Yes")]
+    public void ReadString_NodePresentAlternateTrueTokens_ParsesAsPresent(string presentToken)
+    {
+        // Arrange
+        var content = $@"
+[Topology]
+Nodes=0x01
+Node1Present={presentToken}
+Node1Name=AltPresent
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.Networks[0].Nodes[1].Present.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("0x0")]
+    [InlineData("false")]
+    [InlineData("no")]
+    public void ReadString_NodePresentAlternateFalseTokens_ParsesAsNotPresent(string presentToken)
+    {
+        // Arrange
+        var content = $@"
+[Topology]
+Nodes=0x01
+Node1Present={presentToken}
+Node1Name=AltAbsent
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.Networks[0].Nodes[1].Present.Should().BeFalse();
+    }
+
     [Fact]
     public void ReadStream_ValidContent_ParsesCorrectly()
     {

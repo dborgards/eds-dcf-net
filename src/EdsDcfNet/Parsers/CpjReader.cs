@@ -167,8 +167,7 @@ public class CpjReader : IFileReader<NodelistProject>
             if (string.IsNullOrEmpty(presentValue))
                 continue;
 
-            var present = presentValue.Equals("0x01", StringComparison.OrdinalIgnoreCase) ||
-                          presentValue == "1";
+            var present = ValueConverter.ParsePresentFlag(presentValue);
 
             var node = new NetworkNode
             {

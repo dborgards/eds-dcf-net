@@ -99,6 +99,42 @@ public static class ValueConverter
     }
 
     /// <summary>
+    /// Parses a present/absent flag as used by CPJ <c>NodeNPresent</c> fields and similar
+    /// hex-flag or boolean tokens.
+    /// </summary>
+    /// <remarks>
+    /// <para>Recognized true tokens (case-insensitive where alphabetic):</para>
+    /// <list type="bullet">
+    /// <item><description><c>0x01</c>, <c>0x1</c> (writer emits <c>0x01</c>)</description></item>
+    /// <item><description><c>1</c>, <c>true</c>, <c>yes</c> (same as <see cref="ParseBoolean"/>)</description></item>
+    /// </list>
+    /// <para>Recognized false tokens include <c>0x00</c>, <c>0x0</c>, <c>0</c>, <c>false</c>,
+    /// <c>no</c>, and any other unrecognized value (lenient absent).</para>
+    /// </remarks>
+    /// <param name="value">String value to parse.</param>
+    /// <returns>
+    /// <see langword="true"/> if <paramref name="value"/> is a recognized present token;
+    /// otherwise <see langword="false"/>.
+    /// </returns>
+    public static bool ParsePresentFlag(string value)
+    {
+        value = value.Trim();
+
+        if (string.IsNullOrEmpty(value))
+            return false;
+
+        if (value.Equals("0x01", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("0x1", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (value.Equals("0x00", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("0x0", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return ParseBoolean(value);
+    }
+
+    /// <summary>
     /// Parses a byte value from string.
     /// </summary>
     public static byte ParseByte(string value)

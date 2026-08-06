@@ -216,6 +216,29 @@ public class ValueConverterTests
 
     #endregion
 
+    #region ParsePresentFlag Tests
+
+    [Theory]
+    [InlineData("0x01", true)]
+    [InlineData("0x1", true)]
+    [InlineData("0X1", true)]
+    [InlineData("1", true)]
+    [InlineData("true", true)]
+    [InlineData("yes", true)]
+    [InlineData("0x00", false)]
+    [InlineData("0x0", false)]
+    [InlineData("0", false)]
+    [InlineData("false", false)]
+    [InlineData("no", false)]
+    [InlineData("", false)]
+    [InlineData("random", false)]
+    public void ParsePresentFlag_KnownVocabulary_ParsesExpected(string input, bool expected)
+    {
+        ValueConverter.ParsePresentFlag(input).Should().Be(expected);
+    }
+
+    #endregion
+
     #region ParseByte Tests
 
     [Theory]
