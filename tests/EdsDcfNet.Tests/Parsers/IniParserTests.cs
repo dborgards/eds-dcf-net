@@ -334,6 +334,66 @@ CreatedBy=Test
     }
 
     [Fact]
+    public void ParseFile_DuplicateKey_StrictParsing_ThrowsEdsParseException()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, "[Section1]\nKey1=Value1\nKey1=Value2\n");
+
+            var act = () => IniParser.ParseFile(tempFile, strictParsing: true);
+
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*Duplicate key 'Key1'*");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void ParseStream_DuplicateKey_StrictParsing_ThrowsEdsParseException()
+    {
+        const string content = "[Section1]\nKey1=Value1\nKey1=Value2\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var act = () => IniParser.ParseStream(stream, strictParsing: true);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*Duplicate key 'Key1'*");
+    }
+
+    [Fact]
+    public void StrictParsingScope_Dispose_IsIdempotent()
+    {
+        // Cover Restorer early-return on second Dispose (codecov patch for StrictParsingScope)
+        var scope = StrictParsingScope.Enter(true);
+        StrictParsingScope.IsEnabled.Should().BeTrue();
+
+        scope.Dispose();
+        StrictParsingScope.IsEnabled.Should().BeFalse();
+
+        scope.Dispose();
+        StrictParsingScope.IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ParseString_StrictParsing_HonorsAmbientScopeWhenArgumentFalse()
+    {
+        // Covers strictParsing || IsEnabled when the argument is false but ambient scope is on
+        const string content = "[Section1]\nKey1=Value1\nKey1=Value2\n";
+
+        using (StrictParsingScope.Enter(true))
+        {
+            var act = () => IniParser.ParseString(content, strictParsing: false);
+
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*Duplicate key 'Key1'*");
+        }
+    }
+
+    [Fact]
     public void ParseString_SubObjectSyntax_ParsesCorrectly()
     {
         // Arrange
