@@ -131,12 +131,25 @@ internal static class XddParsingPrimitives
                value.Equals("1", StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Parses a CiA 311 baud-rate vocabulary string such as <c>250 Kbps</c>.
+    /// </summary>
+    /// <remarks>
+    /// Supported values (case-insensitive):
+    /// <c>10 Kbps</c>, <c>20 Kbps</c>, <c>50 Kbps</c>, <c>125 Kbps</c>,
+    /// <c>250 Kbps</c>, <c>500 Kbps</c>, <c>800 Kbps</c>, <c>1000 Kbps</c>.
+    /// Empty input returns <c>0</c>. Unknown non-empty values return <c>0</c> when
+    /// lenient, or throw <see cref="EdsParseException"/> when
+    /// <see cref="StrictParsingScope"/> is enabled.
+    /// </remarks>
     internal static ushort ParseBaudRateString(string value)
     {
         if (string.IsNullOrEmpty(value))
             return 0;
 
         value = value.Trim();
+        if (value.Length == 0)
+            return 0;
 
         if (value.Equals("10 Kbps", StringComparison.OrdinalIgnoreCase)) return 10;
         if (value.Equals("20 Kbps", StringComparison.OrdinalIgnoreCase)) return 20;
@@ -146,6 +159,15 @@ internal static class XddParsingPrimitives
         if (value.Equals("500 Kbps", StringComparison.OrdinalIgnoreCase)) return 500;
         if (value.Equals("800 Kbps", StringComparison.OrdinalIgnoreCase)) return 800;
         if (value.Equals("1000 Kbps", StringComparison.OrdinalIgnoreCase)) return 1000;
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Unknown baud-rate string '{0}'. Expected one of: 10 Kbps, 20 Kbps, 50 Kbps, 125 Kbps, 250 Kbps, 500 Kbps, 800 Kbps, 1000 Kbps.",
+                    value));
+        }
 
         return 0;
     }

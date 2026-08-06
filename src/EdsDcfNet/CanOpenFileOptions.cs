@@ -37,6 +37,7 @@ public sealed class CanOpenFileOptions
     /// <para>Currently enforced for:</para>
     /// <list type="bullet">
     /// <item><description>Duplicate keys within an INI section (default: last write wins)</description></item>
+    /// <item><description>Unknown XDD/XDC baud-rate strings on <c>supportedBaudRate</c>, <c>actualBaudRate</c>, and <c>baudRate/@defaultValue</c> (default: treat as 0 / ignore)</description></item>
     /// </list>
     /// Additional coercion sites may join this switch in follow-up work (see issue #428).
     /// </remarks>
