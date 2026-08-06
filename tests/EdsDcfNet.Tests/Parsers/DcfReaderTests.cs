@@ -1787,6 +1787,74 @@ VendorKey=VendorData
     }
 
     [Fact]
+    public void ReadString_HexPrefixedSubExtra_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "[1000subExtra]" has a hex prefix + "sub" but the suffix is not a hex sub-index
+        var content = BuildMinimalDcf(extraSections: @"
+[1000subExtra]
+VendorKey=VendorData
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - custom hex-prefixed "sub*" names must round-trip via AdditionalSections
+        result.AdditionalSections.Should().ContainKey("1000subExtra");
+        result.AdditionalSections["1000subExtra"]["VendorKey"].Should().Be("VendorData");
+    }
+
+    [Fact]
+    public void ReadString_HexPrefixedSubEmptySuffix_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "[1000sub]" has a hex prefix + "sub" but an empty suffix
+        var content = BuildMinimalDcf(extraSections: @"
+[1000sub]
+VendorKey=EmptySuffix
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("1000sub");
+        result.AdditionalSections["1000sub"]["VendorKey"].Should().Be("EmptySuffix");
+    }
+
+    [Fact]
+    public void ReadString_HexPrefixedSubWithWhitespace_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - HexNumber would accept " 1", but ParseSubObject only looks up "1000sub1"
+        var content = BuildMinimalDcf(extraSections: @"
+[1000sub 1]
+VendorKey=SpacedSuffix
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - must round-trip via AdditionalSections, not be swallowed as known
+        result.AdditionalSections.Should().ContainKey("1000sub 1");
+        result.AdditionalSections["1000sub 1"]["VendorKey"].Should().Be("SpacedSuffix");
+    }
+
+    [Fact]
+    public void ReadString_HexPrefixedSubIndexOverflow_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "10000" is hex digits but does not fit in ushort (covers TryParse false branch)
+        var content = BuildMinimalDcf(extraSections: @"
+[10000sub0]
+VendorKey=OverflowPrefix
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("10000sub0");
+        result.AdditionalSections["10000sub0"]["VendorKey"].Should().Be("OverflowPrefix");
+    }
+
+    [Fact]
     public void ReadString_SectionStartingWithM_NotModule_PreservedInAdditionalSections()
     {
         // Arrange - "Manufacturing" starts with "M" but is NOT a module section (no digit after "M")
