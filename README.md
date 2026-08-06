@@ -635,7 +635,7 @@ Rules for adding such an option:
 - ✅ Compact Storage (CompactSubObj, CompactPDO)
 - ✅ Object Links
 - ✅ Modular device concept
-- ✅ Hexadecimal, decimal, and octal numbers
+- ✅ Hexadecimal (`0x`), decimal, and octal (`0`+digit, e.g. `010` → 8 — not padded decimal)
 - ✅ $NODEID formula evaluation (e.g., $NODEID+0x200)
 - ✅ CANopen Safety (EN 50325-5) - SRDOMapping, InvertedSRAD
 - ✅ Comments and additional sections

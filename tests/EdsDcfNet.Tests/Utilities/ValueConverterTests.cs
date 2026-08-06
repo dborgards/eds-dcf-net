@@ -58,6 +58,33 @@ public class ValueConverterTests
         result.Should().Be(expected);
     }
 
+    /// <summary>
+    /// Locks the #411 leading-zero decision: keep C-style octal; hex needs 0x; plain decimal
+    /// has no leading zero. Zero-padded decimals are intentionally NOT treated as decimal.
+    /// </summary>
+    [Theory]
+    [InlineData("10", 10u)]      // plain decimal
+    [InlineData("010", 8u)]      // octal, not padded decimal 10
+    [InlineData("0x10", 16u)]    // hex
+    [InlineData("0X10", 16u)]
+    public void ParseInteger_LeadingZeroDecision_Matrix_ParsesExpected(string input, uint expected)
+    {
+        ValueConverter.ParseInteger(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("08")]
+    [InlineData("09")]
+    public void ParseInteger_PaddedDecimalLookingOctal_ThrowsEdsParseException(string input)
+    {
+        // "08"/"09" look like zero-padded decimals but are invalid octal under the current rule
+        var act = () => ValueConverter.ParseInteger(input);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*'{input}'*")
+            .WithMessage("*octal literal contains characters outside 0-7*");
+    }
+
     [Theory]
     [InlineData("  123  ", 123u)]
     [InlineData("  0xFF  ", 255u)]

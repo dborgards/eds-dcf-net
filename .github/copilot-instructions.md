@@ -43,7 +43,7 @@ EDS/DCF file → IniParser → EdsReader/DcfReader → Models → DcfWriter → 
 - **`IniParser`** — low-level INI section/key-value parsing (case-insensitive)
 - **`EdsReader`** / **`DcfReader`** — domain-specific parsers producing `ElectronicDataSheet` / `DeviceConfigurationFile`
 - **`DcfWriter`** — serializes `DeviceConfigurationFile` back to DCF format
-- **`ValueConverter`** — parses integers (decimal/hex `0x`/octal), booleans, `$NODEID` formulas, AccessType enum
+- **`ValueConverter`** — parses integers (decimal/hex `0x`/octal `0`+digit), booleans, `$NODEID` formulas, AccessType enum
 
 ### Key Models
 

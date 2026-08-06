@@ -504,6 +504,8 @@ public abstract class CanOpenReaderBase
 
     /// <summary>
     /// Checks if a section name matches the sub-object pattern: {HexIndex}sub{HexSubIndex}.
+    /// The suffix after <c>sub</c> must be a valid hex sub-index (and nothing else),
+    /// matching <see cref="ParseSubObject"/> section naming.
     /// </summary>
     protected static bool IsSubObjectSection(string sectionName)
     {
@@ -512,8 +514,38 @@ public abstract class CanOpenReaderBase
             return false;
 
         var prefix = sectionName[..subPos];
-        return ushort.TryParse(prefix, NumberStyles.HexNumber,
-            CultureInfo.InvariantCulture, out _);
+        var suffix = sectionName[(subPos + 3)..];
+        if (suffix.Length == 0)
+            return false;
+
+        // AllowHexSpecifier (not HexNumber): reject whitespace so names like
+        // "[1000sub 1]" are preserved in AdditionalSections rather than treated as known.
+        // Also reject an optional 0x prefix by requiring hex digits only first.
+        if (!IsHexDigitsOnly(prefix) || !IsHexDigitsOnly(suffix))
+            return false;
+
+        return ushort.TryParse(prefix, NumberStyles.AllowHexSpecifier,
+                   CultureInfo.InvariantCulture, out _)
+               && byte.TryParse(suffix, NumberStyles.AllowHexSpecifier,
+                   CultureInfo.InvariantCulture, out _);
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="value"/> is non-empty and
+    /// consists solely of hexadecimal digits (no whitespace, no <c>0x</c> prefix).
+    /// </summary>
+    private static bool IsHexDigitsOnly(string value)
+    {
+        foreach (var c in value)
+        {
+            var isHexDigit = (c >= '0' && c <= '9') ||
+                             (c >= 'a' && c <= 'f') ||
+                             (c >= 'A' && c <= 'F');
+            if (!isHexDigit)
+                return false;
+        }
+
+        return value.Length > 0;
     }
 
     /// <summary>

@@ -60,7 +60,10 @@ internal static class XddCommNetProfileParser
         if (networkMgmt != null)
             ParseNetworkManagement(networkMgmt, eds.DeviceInfo);
 
-        // Preserve unknown ProfileBody children in AdditionalSections for round-trip and XdcReader coverage
+        // Capture unknown CommunicationNetwork ProfileBody children as INI-shaped
+        // AdditionalSections entries (attributes only). Device ProfileBody unknowns are
+        // not captured. Nested element content is not preserved, and XddWriter does not
+        // re-emit these entries into ProfileBody — see architecture docs §8.4.
         var knownNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "ApplicationLayers",
@@ -282,6 +285,12 @@ internal static class XddCommNetProfileParser
             .FirstOrDefault(e => e.Name.LocalName == "baudRate");
         if (baudRate == null)
             return;
+
+        // defaultValue is not mapped into DeviceInfo (write-only on emit), but under
+        // StrictParsing it must still match the CiA 311 baud vocabulary.
+        var defaultValue = baudRate.Attribute("defaultValue")?.Value ?? string.Empty;
+        if (defaultValue.Length > 0)
+            ParseBaudRateString(defaultValue);
 
         foreach (var supported in baudRate.Elements()
             .Where(e => e.Name.LocalName == "supportedBaudRate"))

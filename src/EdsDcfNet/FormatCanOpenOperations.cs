@@ -123,37 +123,54 @@ public class FormatCanOpenOperations<TModel>
     /// Reads a file from disk.
     /// </summary>
     public TModel ReadFile(string filePath, CanOpenFileOptions? options = null)
-        => _readFile(filePath, CanOpenFileOptions.ResolveMaxInputSize(options));
+    {
+        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+            return _readFile(filePath, CanOpenFileOptions.ResolveMaxInputSize(options));
+    }
 
     /// <summary>
     /// Reads a file from disk asynchronously.
     /// </summary>
-    public Task<TModel> ReadFileAsync(
+    public async Task<TModel> ReadFileAsync(
         string filePath,
         CanOpenFileOptions? options = null,
         CancellationToken cancellationToken = default)
-        => _readFileAsync(filePath, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken);
+    {
+        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+            return await _readFileAsync(filePath, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken)
+                .ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Reads from a string.
     /// </summary>
     public TModel ReadString(string content, CanOpenFileOptions? options = null)
-        => _readString(content, CanOpenFileOptions.ResolveMaxInputSize(options));
+    {
+        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+            return _readString(content, CanOpenFileOptions.ResolveMaxInputSize(options));
+    }
 
     /// <summary>
     /// Reads from a stream. The stream is not disposed.
     /// </summary>
     public TModel ReadStream(Stream stream, CanOpenFileOptions? options = null)
-        => _readStream(stream, CanOpenFileOptions.ResolveMaxInputSize(options));
+    {
+        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+            return _readStream(stream, CanOpenFileOptions.ResolveMaxInputSize(options));
+    }
 
     /// <summary>
     /// Reads from a stream asynchronously. The stream is not disposed.
     /// </summary>
-    public Task<TModel> ReadStreamAsync(
+    public async Task<TModel> ReadStreamAsync(
         Stream stream,
         CanOpenFileOptions? options = null,
         CancellationToken cancellationToken = default)
-        => _readStreamAsync(stream, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken);
+    {
+        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+            return await _readStreamAsync(stream, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken)
+                .ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Writes to disk.
