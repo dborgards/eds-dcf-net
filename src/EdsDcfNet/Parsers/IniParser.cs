@@ -22,8 +22,9 @@ public static class IniParser
     private static readonly char[] LineEndChars = { '\r', '\n' };
     /// <summary>
     /// Default maximum input size (10 MB) used by parsing methods such as
-    /// <see cref="ParseFile"/>, <see cref="ParseFileAsync"/>, <see cref="ParseStream"/>,
-    /// <see cref="ParseStreamAsync"/>, and <see cref="ParseString"/> to guard against
+    /// <see cref="ParseFile(string, long)"/>, <see cref="ParseFileAsync"/>,
+    /// <see cref="ParseStream(Stream, long)"/>, <see cref="ParseStreamAsync"/>,
+    /// and <see cref="ParseString(string, long)"/> to guard against
     /// unbounded memory consumption.
     /// </summary>
     /// <remarks>
@@ -41,6 +42,21 @@ public static class IniParser
     /// Maximum file size in bytes before an <see cref="EdsParseException"/> is thrown.
     /// Defaults to <see cref="DefaultMaxInputSize"/> (10 MB).
     /// </param>
+    /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
+    /// <exception cref="EdsParseException">Thrown when the file exceeds the configured size limit.</exception>
+    public static Dictionary<string, Dictionary<string, string>> ParseFile(
+        string filePath,
+        long maxInputSize = DefaultMaxInputSize)
+        => ParseFile(filePath, maxInputSize, strictParsing: false);
+
+    /// <summary>
+    /// Parses an EDS/DCF file and returns sections with their key-value pairs.
+    /// </summary>
+    /// <param name="filePath">Path to the EDS/DCF file</param>
+    /// <param name="maxInputSize">
+    /// Maximum file size in bytes before an <see cref="EdsParseException"/> is thrown.
+    /// </param>
     /// <param name="strictParsing">
     /// When <see langword="true"/>, duplicate keys in a section throw
     /// <see cref="EdsParseException"/> instead of last-write-wins.
@@ -50,8 +66,8 @@ public static class IniParser
     /// <exception cref="EdsParseException">Thrown when the file exceeds the configured size limit.</exception>
     public static Dictionary<string, Dictionary<string, string>> ParseFile(
         string filePath,
-        long maxInputSize = DefaultMaxInputSize,
-        bool strictParsing = false)
+        long maxInputSize,
+        bool strictParsing)
     {
         using (StrictParsingScope.Enter(strictParsing || StrictParsingScope.IsEnabled))
         {
@@ -131,6 +147,20 @@ public static class IniParser
     /// This limit applies to parsed text content, not raw byte length.
     /// Defaults to <see cref="DefaultMaxInputSize"/> (10 MB).
     /// </param>
+    /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
+    public static Dictionary<string, Dictionary<string, string>> ParseStream(
+        Stream stream,
+        long maxInputSize = DefaultMaxInputSize)
+        => ParseStream(stream, maxInputSize, strictParsing: false);
+
+    /// <summary>
+    /// Parses EDS/DCF content from a readable stream.
+    /// </summary>
+    /// <param name="stream">Input stream containing INI content. The stream remains open after parsing.</param>
+    /// <param name="maxInputSize">
+    /// Maximum decoded content length in characters before an <see cref="EdsParseException"/> is thrown.
+    /// This limit applies to parsed text content, not raw byte length.
+    /// </param>
     /// <param name="strictParsing">
     /// When <see langword="true"/>, duplicate keys in a section throw
     /// <see cref="EdsParseException"/> instead of last-write-wins.
@@ -138,8 +168,8 @@ public static class IniParser
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     public static Dictionary<string, Dictionary<string, string>> ParseStream(
         Stream stream,
-        long maxInputSize = DefaultMaxInputSize,
-        bool strictParsing = false)
+        long maxInputSize,
+        bool strictParsing)
     {
         using (StrictParsingScope.Enter(strictParsing || StrictParsingScope.IsEnabled))
         {
@@ -183,6 +213,20 @@ public static class IniParser
     /// Maximum content length in characters before an <see cref="EdsParseException"/> is thrown.
     /// Defaults to <see cref="DefaultMaxInputSize"/> (10 MB).
     /// </param>
+    /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
+    /// <exception cref="EdsParseException">Thrown when the content length exceeds the configured size limit.</exception>
+    public static Dictionary<string, Dictionary<string, string>> ParseString(
+        string content,
+        long maxInputSize = DefaultMaxInputSize)
+        => ParseString(content, maxInputSize, strictParsing: false);
+
+    /// <summary>
+    /// Parses EDS/DCF content from a string.
+    /// </summary>
+    /// <param name="content">EDS/DCF file content as string</param>
+    /// <param name="maxInputSize">
+    /// Maximum content length in characters before an <see cref="EdsParseException"/> is thrown.
+    /// </param>
     /// <param name="strictParsing">
     /// When <see langword="true"/>, duplicate keys in a section throw
     /// <see cref="EdsParseException"/> instead of last-write-wins.
@@ -191,8 +235,8 @@ public static class IniParser
     /// <exception cref="EdsParseException">Thrown when the content length exceeds the configured size limit.</exception>
     public static Dictionary<string, Dictionary<string, string>> ParseString(
         string content,
-        long maxInputSize = DefaultMaxInputSize,
-        bool strictParsing = false)
+        long maxInputSize,
+        bool strictParsing)
     {
         using (StrictParsingScope.Enter(strictParsing || StrictParsingScope.IsEnabled))
         {
@@ -459,6 +503,7 @@ public static class IniParser
                     key,
                     currentSection,
                     lineNumber),
+                currentSection,
                 lineNumber);
         }
 

@@ -304,11 +304,14 @@ ParameterValue=20
 ";
 
         // Act
-        var act = () => IniParser.ParseString(content, strictParsing: true);
+        var act = () => IniParser.ParseString(content, IniParser.DefaultMaxInputSize, strictParsing: true);
 
         // Assert
-        act.Should().Throw<EdsParseException>()
-            .WithMessage("*Duplicate key 'NodeID'*");
+        var ex = act.Should().Throw<EdsParseException>()
+            .WithMessage("*Duplicate key 'NodeID'*")
+            .Which;
+        ex.SectionName.Should().Be("DeviceCommissioning");
+        ex.LineNumber.Should().Be(3);
     }
 
     [Fact]
@@ -341,10 +344,12 @@ CreatedBy=Test
         {
             File.WriteAllText(tempFile, "[Section1]\nKey1=Value1\nKey1=Value2\n");
 
-            var act = () => IniParser.ParseFile(tempFile, strictParsing: true);
+            var act = () => IniParser.ParseFile(tempFile, IniParser.DefaultMaxInputSize, strictParsing: true);
 
-            act.Should().Throw<EdsParseException>()
-                .WithMessage("*Duplicate key 'Key1'*");
+            var ex = act.Should().Throw<EdsParseException>()
+                .WithMessage("*Duplicate key 'Key1'*")
+                .Which;
+            ex.SectionName.Should().Be("Section1");
         }
         finally
         {
@@ -358,10 +363,12 @@ CreatedBy=Test
         const string content = "[Section1]\nKey1=Value1\nKey1=Value2\n";
         using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
 
-        var act = () => IniParser.ParseStream(stream, strictParsing: true);
+        var act = () => IniParser.ParseStream(stream, IniParser.DefaultMaxInputSize, strictParsing: true);
 
-        act.Should().Throw<EdsParseException>()
-            .WithMessage("*Duplicate key 'Key1'*");
+        var ex = act.Should().Throw<EdsParseException>()
+            .WithMessage("*Duplicate key 'Key1'*")
+            .Which;
+        ex.SectionName.Should().Be("Section1");
     }
 
     [Fact]
@@ -386,11 +393,23 @@ CreatedBy=Test
 
         using (StrictParsingScope.Enter(true))
         {
-            var act = () => IniParser.ParseString(content, strictParsing: false);
+            var act = () => IniParser.ParseString(content, IniParser.DefaultMaxInputSize, strictParsing: false);
 
             act.Should().Throw<EdsParseException>()
                 .WithMessage("*Duplicate key 'Key1'*");
         }
+    }
+
+    [Fact]
+    public void ParseString_TwoParameterOverload_RemainsCallable()
+    {
+        // Binary-compat: existing (string, long) overload must keep working for method groups / upgrades
+        Func<string, long, Dictionary<string, Dictionary<string, string>>> parse =
+            IniParser.ParseString;
+
+        var result = parse("[Section1]\nKey1=Value1\n", IniParser.DefaultMaxInputSize);
+
+        result["Section1"]["Key1"].Should().Be("Value1");
     }
 
     [Fact]
