@@ -1946,6 +1946,38 @@ VendorKey=EmptySuffix
     }
 
     [Fact]
+    public void ReadString_HexPrefixedSubWithWhitespace_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - HexNumber would accept " 1", but ParseSubObject only looks up "1000sub1"
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x191
+PDOMapping=0
+
+[1000sub 1]
+VendorKey=SpacedSuffix
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - must round-trip via AdditionalSections, not be swallowed as known
+        result.AdditionalSections.Should().ContainKey("1000sub 1");
+        result.AdditionalSections["1000sub 1"]["VendorKey"].Should().Be("SpacedSuffix");
+    }
+
+    [Fact]
     public void ReadString_SectionStartingWithM_NotModule_PreservedInAdditionalSections()
     {
         // Arrange - "Manufacturing" starts with "M" but is NOT a module section
