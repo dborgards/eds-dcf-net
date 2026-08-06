@@ -285,8 +285,8 @@ internal static class XddCommNetProfileParser
 
         // defaultValue is not mapped into DeviceInfo (write-only on emit), but under
         // StrictParsing it must still match the CiA 311 baud vocabulary.
-        var defaultValue = baudRate.Attribute("defaultValue")?.Value;
-        if (!string.IsNullOrEmpty(defaultValue))
+        var defaultValue = baudRate.Attribute("defaultValue")?.Value ?? string.Empty;
+        if (defaultValue.Length > 0)
             ParseBaudRateString(defaultValue);
 
         foreach (var supported in baudRate.Elements()
