@@ -1838,6 +1838,23 @@ VendorKey=SpacedSuffix
     }
 
     [Fact]
+    public void ReadString_HexPrefixedSubIndexOverflow_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "10000" is hex digits but does not fit in ushort (covers TryParse false branch)
+        var content = BuildMinimalDcf(extraSections: @"
+[10000sub0]
+VendorKey=OverflowPrefix
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("10000sub0");
+        result.AdditionalSections["10000sub0"]["VendorKey"].Should().Be("OverflowPrefix");
+    }
+
+    [Fact]
     public void ReadString_SectionStartingWithM_NotModule_PreservedInAdditionalSections()
     {
         // Arrange - "Manufacturing" starts with "M" but is NOT a module section (no digit after "M")
