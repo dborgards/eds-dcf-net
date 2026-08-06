@@ -3,6 +3,7 @@ namespace EdsDcfNet.Tests.Parsers;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
+using EdsDcfNet.Utilities;
 
 public class DcfReaderTests
 {
@@ -2473,9 +2474,9 @@ PDOMapping=0
     }
 
     [Fact]
-    public void ReadString_OctalNotation_ParsedCorrectly()
+    public void ReadString_OctalNotation_PreservedAndConvertsAsOctal()
     {
-        // Arrange – Octal notation (0755 style)
+        // Arrange – Octal notation (0755 style); model stores the raw literal
         var content = BuildMinimalDcf(extraSections: @"
 [ManufacturerObjects]
 SupportedObjects=1
@@ -2493,9 +2494,39 @@ PDOMapping=0
         // Act
         var result = _reader.ReadString(content);
 
-        // Assert
+        // Assert — raw string preserved; numeric conversion follows octal (#411 decision)
         var obj = result.ObjectDictionary.Objects[0x2000];
         obj.DefaultValue.Should().Be("0755");
+        ValueConverter.ParseInteger(obj.DefaultValue).Should().Be(493u); // 7*64 + 5*8 + 5
+    }
+
+    [Fact]
+    public void ReadString_PaddedLookingDefaultValue_ConvertsAsOctalNotDecimal()
+    {
+        // Arrange — "010" is a common padded-decimal pitfall; library treats it as octal 8
+        var content = BuildMinimalDcf(extraSections: @"
+[ManufacturerObjects]
+SupportedObjects=1
+1=0x2001
+
+[2001]
+ParameterName=Padded Looking Value
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=010
+PDOMapping=0
+");
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2001];
+        obj.DefaultValue.Should().Be("010");
+        ValueConverter.ParseInteger(obj.DefaultValue).Should().Be(8u);
+        ValueConverter.ParseInteger("0x10").Should().Be(16u);
+        ValueConverter.ParseInteger("10").Should().Be(10u);
     }
 
     #endregion
