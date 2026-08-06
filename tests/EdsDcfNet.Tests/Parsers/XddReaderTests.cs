@@ -1201,6 +1201,32 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ParseBaudRates_MissingDefaultValueAttribute_StillParsesSupportedRates()
+    {
+        // Covers Attribute("defaultValue")?.Value null path and Length == 0 skip
+        var xdd = MinimalXdd.Replace(
+            @"<baudRate defaultValue=""250 Kbps"">",
+            "<baudRate>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DeviceInfo.SupportedBaudRates.BaudRate250.Should().BeTrue();
+        result.DeviceInfo.SupportedBaudRates.BaudRate500.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseBaudRates_EmptyDefaultValue_StrictParsing_DoesNotThrow()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"defaultValue=""250 Kbps""",
+            @"defaultValue=""""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
     public void ParseBaudRateString_WhitespaceOnly_IsTreatedAsEmpty()
     {
         var xdd = MinimalXdd.Replace(
