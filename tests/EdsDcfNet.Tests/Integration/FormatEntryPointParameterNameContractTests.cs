@@ -47,12 +47,13 @@ public class FormatEntryPointParameterNameContractTests
 
     private static string FindSourceBaselinePath()
     {
-        // Walk up from bin/... to the test project Baselines folder.
+        // Walk up from bin/... to the test project root. Do not stop on a
+        // Baselines file alone: CopyToOutputDirectory places a copy under
+        // AppContext.BaseDirectory, which must not be treated as the source.
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
-            var candidate = Path.Combine(dir.FullName, "Baselines", "format-entry-point-parameter-names.txt");
-            if (File.Exists(candidate) || Directory.Exists(Path.Combine(dir.FullName, "Integration")))
+            if (Directory.Exists(Path.Combine(dir.FullName, "Integration")))
                 return Path.Combine(dir.FullName, "Baselines", "format-entry-point-parameter-names.txt");
             dir = dir.Parent;
         }
