@@ -184,6 +184,31 @@ public static class ValueConverter
     }
 
     /// <summary>
+    /// Parses a plain decimal <c>Unsigned8</c> (no hex, no CiA octal).
+    /// </summary>
+    /// <remarks>
+    /// Used for EDS/DCF <c>FileVersion</c> / <c>FileRevision</c> so zero-padded
+    /// values such as <c>010</c> match XDD <c>fileVersion</c> (<c>10</c>), rather than
+    /// CiA octal via <see cref="ParseByte"/> (<c>8</c>). Empty/whitespace → <c>0</c>.
+    /// </remarks>
+    public static byte ParseByteDecimalPlain(string value)
+    {
+        value = value.Trim();
+
+        if (string.IsNullOrEmpty(value))
+            return 0;
+
+        try
+        {
+            return byte.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+        {
+            throw new EdsParseException(BuildInvalidNumericLiteralMessage("byte", value, ex), ex);
+        }
+    }
+
+    /// <summary>
     /// Parses an <c>Unsigned8</c> that CiA 306 defines as an integer, while tolerating
     /// major/minor forms some tooling emits (dot or comma separator).
     /// </summary>

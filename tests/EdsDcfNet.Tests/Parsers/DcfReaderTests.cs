@@ -334,6 +334,86 @@ SupportedObjects=0
         ex.Message.Should().Contain(fileVersion);
     }
 
+    [Theory]
+    [InlineData("010", (byte)10)]
+    [InlineData("08", (byte)8)]
+    [InlineData("012", (byte)12)]
+    public void ReadString_FileInfo_FileVersionZeroPadded_StaysDecimal_CrossFormatWithXdd(
+        string fileVersion, byte expected)
+    {
+        // EDS/DCF FileVersion must match XDD fileVersion decimal policy (#467):
+        // "010" → 10, not CiA octal 8 via ParseByte.
+        var dcf = BuildMinimalDcf().Replace("FileVersion=1", $"FileVersion={fileVersion}");
+        var dcfResult = CanOpenFile.Dcf.ReadString(dcf);
+        dcfResult.FileInfo.FileVersion.Should().Be(expected);
+
+        var xdd = MinimalXddForFileVersion(fileVersion);
+        var xddResult = CanOpenFile.Xdd.ReadString(xdd);
+        xddResult.FileInfo.FileVersion.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("010", (byte)10)]
+    [InlineData("08", (byte)8)]
+    public void ReadString_FileInfo_FileVersionZeroPadded_StrictParsing_StaysDecimal(
+        string fileVersion, byte expected)
+    {
+        var content = BuildMinimalDcf().Replace("FileVersion=1", $"FileVersion={fileVersion}");
+
+        var result = CanOpenFile.Dcf.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
+
+        result.FileInfo.FileVersion.Should().Be(expected);
+    }
+
+    private static string MinimalXddForFileVersion(string fileVersion) =>
+        $@"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileHeader>
+      <ProfileClassID>Device</ProfileClassID>
+    </ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen""
+                 fileName=""test.xdd"" fileCreator=""TestCreator""
+                 fileCreationDate=""2025-01-15"" fileVersion=""{fileVersion}"">
+      <DeviceIdentity>
+        <vendorName>Test Vendor</vendorName>
+        <vendorID>0x00000100</vendorID>
+        <productName>Test Product</productName>
+        <productID>0x00001001</productID>
+      </DeviceIdentity>
+      <DeviceManager/>
+      <DeviceFunction/>
+    </ProfileBody>
+  </ISO15745Profile>
+  <ISO15745Profile>
+    <ProfileHeader>
+      <ProfileClassID>CommunicationNetwork</ProfileClassID>
+    </ProfileHeader>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen""
+                 fileName=""test.xdd"" fileCreator=""TestCreator""
+                 fileCreationDate=""2025-01-15"" fileVersion=""{fileVersion}"">
+      <ApplicationLayers>
+        <CANopenObjectList mandatoryObjects=""1"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" defaultValue=""0x00000000"" PDOmapping=""no""/>
+        </CANopenObjectList>
+      </ApplicationLayers>
+      <TransportLayers>
+        <PhysicalLayer>
+          <baudRate defaultValue=""250 Kbps"">
+            <supportedBaudRate value=""250 Kbps""/>
+          </baudRate>
+        </PhysicalLayer>
+      </TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0""
+                                bootUpSlave=""true"" layerSettingServiceSlave=""false""
+                                groupMessaging=""false"" dynamicChannels=""0""/>
+      </NetworkManagement>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>";
+
     [Fact]
     public void ReadString_FileInfo_FileVersionAtMaxValue_Parses255()
     {

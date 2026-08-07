@@ -325,6 +325,28 @@ public class ValueConverterTests
     }
 
     [Theory]
+    [InlineData("010", (byte)10)]
+    [InlineData("08", (byte)8)]
+    [InlineData("012", (byte)12)]
+    [InlineData("0", (byte)0)]
+    [InlineData("255", (byte)255)]
+    [InlineData("", (byte)0)]
+    public void ParseByteDecimalPlain_ZeroPaddedAndPlain_StaysDecimal(string input, byte expected)
+    {
+        ValueConverter.ParseByteDecimalPlain(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("0x0A")]
+    [InlineData("1.0")]
+    [InlineData("abc")]
+    public void ParseByteDecimalPlain_NonDecimal_ThrowsEdsParseException(string input)
+    {
+        var act = () => ValueConverter.ParseByteDecimalPlain(input);
+        act.Should().Throw<EdsParseException>();
+    }
+
+    [Theory]
     [InlineData("1.0", (byte)1)]
     [InlineData("1,0", (byte)1)]
     [InlineData("7.3", (byte)7)]
