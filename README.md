@@ -167,11 +167,11 @@ legacy static `Read*` / `Write*` overloads:
 | XDD | `CanOpenFile.Xdd` | `CanOpenFile.Xdd.ReadFile("device.xdd")` |
 | XDC | `CanOpenFile.Xdc` | `CanOpenFile.Xdc.ReadFile("device.xdc")` |
 
-These entry points accept `CanOpenFileOptions` (read limits) and `CanOpenWriteOptions`
-(pre-write validation) in one place. Legacy facade `Read*` / `Write*` overloads
-(path, stream, string, sync, async, and options-taking variants) remain for
-backward compatibility and are marked `[Obsolete]` (advisory); they will be
-removed in a future major release.
+These entry points accept `CanOpenFileOptions` (`MaxInputSize`, `StrictParsing`)
+and `CanOpenWriteOptions` (pre-write validation) in one place. Legacy facade
+`Read*` / `Write*` overloads (path, stream, string, sync, async, and options-taking
+variants) remain for backward compatibility and are marked `[Obsolete]` (advisory);
+they will be removed in a future major release.
 
 EDS-to-DCF conversion lives on the EDS entry point: `CanOpenFile.Eds.ConvertToDcf(...)`.
 The no-timestamp `CanOpenFile.EdsToDcf(...)` overload is obsolete and delegates
