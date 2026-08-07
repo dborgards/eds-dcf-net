@@ -6,7 +6,8 @@ using EdsDcfNet;
 
 /// <summary>
 /// Proves CI/local multi-TFM test hosts bind the intended library asset
-/// (net10.0 vs netstandard2.0), so #else runtime paths are actually executed.
+/// (net10.0 vs netstandard2.0 via the net48 host), so #else runtime paths
+/// are actually executed.
 /// </summary>
 public class TargetFrameworkBindingTests
 {
@@ -20,6 +21,7 @@ public class TargetFrameworkBindingTests
 #if NET10_0_OR_GREATER
         attribute!.FrameworkName.Should().StartWith(".NETCoreApp,Version=v10.");
 #else
+        // net48 host must bind the library's netstandard2.0 asset.
         attribute!.FrameworkName.Should().Be(".NETStandard,Version=v2.0");
 #endif
     }

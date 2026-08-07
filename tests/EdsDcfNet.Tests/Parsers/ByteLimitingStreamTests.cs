@@ -252,12 +252,14 @@ public class ByteLimitingStreamTests
             return bytesRead;
         }
 
+#if NETCOREAPP
         public override int Read(Span<byte> buffer)
         {
             var bytesRead = base.Read(buffer);
             TotalBytesServed += bytesRead;
             return bytesRead;
         }
+#endif
     }
 
     private static Stream OpenFile(string filePath, long maxBytes)
