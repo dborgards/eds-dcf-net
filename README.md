@@ -598,23 +598,21 @@ Set `CanOpenFileOptions.StrictParsing = true` so silent read coercions fail with
 `EdsParseException` instead of mapping to defaults. Default remains lenient.
 This applies to reads through the `CanOpenFile` format entry points (and legacy
 facade overloads that accept options). Direct `*Reader` APIs without options
-stay lenient.
+stay lenient (no public way to enable StrictParsing on those readers).
 
 Today this covers:
 
 - Duplicate keys within an INI section
 - Unknown XDD/XDC baud-rate strings (`supportedBaudRate`, `actualBaudRate`,
   `baudRate/@defaultValue`)
-- Unknown boolean tokens (`ValueConverter.ParseBoolean`) and CPJ
-  `NodeNPresent` tokens (`ParsePresentFlag`)
-- Unknown access-type tokens (EDS/DCF `ParseAccessType` and XDD
-  `ParseXddAccessType`) and unknown XDD/XDC XML booleans (`ParseXmlBool`)
-- Missing XDD/XDC `CANopenObject` `index` or missing/invalid `objectType`
-- Malformed XDD/XDC numeric attributes (`objFlags`, `subNumber`, `granularity`,
-  `nrOfRxPDO` / `nrOfTxPDO`, `dynamicChannels`, `pDOmappingIndex`,
-  `networkNumber`)
+- Unknown boolean tokens (`ValueConverter.ParseBoolean`)
+- Unknown access-type tokens (`ValueConverter.ParseAccessType`)
 - EDS/DCF `FileVersion` / `FileRevision` and XDD/XDC `fileVersion` major/minor
-  tooling forms (`1.0` / `1,0`); plain integers stay decimal (`010` → 10)
+  tooling forms (`1.0` / `1,0`)
+
+Residual lenient sites (tracked in #463–#467): XDD accessType/XML bools, missing
+XDD `index`/`objectType`, malformed XDD numeric attributes, CPJ `ParsePresentFlag`,
+and EDS/DCF vs XDD zero-padded `FileVersion` decimal alignment.
 
 ```csharp
 var eds = CanOpenFile.Eds.ReadFile(

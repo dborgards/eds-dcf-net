@@ -21,7 +21,8 @@ The library uses **exceptions** as its primary error mechanism:
 > **Compatibility note (AccessType):** By default, parsing of invalid or unknown
 > `AccessType` values is intentionally tolerant and falls back to `ReadOnly`
 > instead of failing. Set `CanOpenFileOptions.StrictParsing = true` on facade
-> reads to reject unknown tokens with `EdsParseException` (EDS/DCF and XDD/XDC).
+> reads to reject unknown EDS/DCF tokens via `ValueConverter.ParseAccessType`.
+> XDD/XDC `ParseXddAccessType` remains lenient until follow-up #463.
 
 ### Error Tolerance
 
@@ -42,10 +43,10 @@ flowchart TD
 - **Unknown INI sections**: Preserved in `AdditionalSections` (no warning, no error).
 - **Duplicate INI keys**: Last write wins by default. With `CanOpenFileOptions.StrictParsing = true` (or `IniParser` `strictParsing: true`), duplicates throw `EdsParseException`.
 - **XDD/XDC baud-rate strings**: Unknown `supportedBaudRate`, `actualBaudRate`, and `baudRate/@defaultValue` values map to `0` / are ignored by default. With `StrictParsing = true`, they throw `EdsParseException`.
-- **Boolean / access-type / Present tokens**: Lenient defaults unless `StrictParsing = true` (see `CanOpenFileOptions.StrictParsing` remarks).
-- **FileVersion / FileRevision**: Plain integers are decimal across EDS/DCF/XDD; major/minor tooling forms are accepted unless `StrictParsing = true`.
+- **Boolean / AccessType tokens**: Lenient defaults unless `StrictParsing = true` on facade reads (`ParseBoolean` / `ParseAccessType`). See residual StrictParsing follow-ups #463–#467 for XDD/CPJ gaps.
+- **FileVersion / FileRevision**: Major/minor tooling forms are accepted unless `StrictParsing = true`.
 - **CiA 311 XML**: Parsed against supported profile structures; unsupported XML nodes are not represented as generic passthrough data.
-- **Direct readers**: `EdsReader` / `DcfReader` / `XddReader` / etc. called without facade options do not enable StrictParsing unless the caller enters `StrictParsingScope`.
+- **Direct readers**: `EdsReader` / `DcfReader` / `XddReader` / etc. called without facade options remain lenient (no public StrictParsing switch on those types).
 
 ### Input Size Limits
 
