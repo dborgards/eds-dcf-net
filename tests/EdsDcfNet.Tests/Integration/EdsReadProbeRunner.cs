@@ -17,15 +17,20 @@ internal static class EdsReadProbeRunner
         }
 
         var repoRoot = FindRepoRoot();
-        var probeDllPath = GetProbeDllPath(repoRoot);
-        if (!File.Exists(probeDllPath))
+        var probeAssemblyPath = GetProbeAssemblyPath(repoRoot);
+#if NETFRAMEWORK
+        var probeLaunchPath = Path.ChangeExtension(probeAssemblyPath, ".exe");
+#else
+        var probeLaunchPath = probeAssemblyPath;
+#endif
+        if (!File.Exists(probeLaunchPath))
         {
-            throw new XunitException($"Probe host was not built: {probeDllPath}");
+            throw new XunitException($"Probe host was not built: {probeLaunchPath}");
         }
 
         using var process = new Process
         {
-            StartInfo = CreateStartInfo(mode, fixturePath, probeDllPath)
+            StartInfo = CreateStartInfo(mode, fixturePath, probeAssemblyPath)
         };
 
         if (!process.Start())
@@ -36,7 +41,13 @@ internal static class EdsReadProbeRunner
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();
 
+#if NETFRAMEWORK
+        using var timeoutCts = new CancellationTokenSource(
+            timeout.TotalMilliseconds > int.MaxValue ? int.MaxValue : (int)timeout.TotalMilliseconds);
+#else
         using var timeoutCts = new CancellationTokenSource(timeout);
+#endif
+
         try
         {
             await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
@@ -77,8 +88,20 @@ internal static class EdsReadProbeRunner
         return ParseProbeOutput(stdout);
     }
 
-    private static ProcessStartInfo CreateStartInfo(string mode, string fixturePath, string probeDllPath)
+    private static ProcessStartInfo CreateStartInfo(string mode, string fixturePath, string probeAssemblyPath)
     {
+#if NETFRAMEWORK
+        // net48 produces a Framework exe that must be launched directly (not via the dotnet host).
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = Path.ChangeExtension(probeAssemblyPath, ".exe"),
+            Arguments = string.Format(CultureInfo.InvariantCulture, "\"{0}\" \"{1}\"", mode, fixturePath),
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        return startInfo;
+#else
         var startInfo = new ProcessStartInfo
         {
             FileName = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet",
@@ -87,10 +110,11 @@ internal static class EdsReadProbeRunner
             UseShellExecute = false
         };
 
-        startInfo.ArgumentList.Add(probeDllPath);
+        startInfo.ArgumentList.Add(probeAssemblyPath);
         startInfo.ArgumentList.Add(mode);
         startInfo.ArgumentList.Add(fixturePath);
         return startInfo;
+#endif
     }
 
     private static ProbeResult ParseProbeOutput(string stdout)
@@ -99,16 +123,17 @@ internal static class EdsReadProbeRunner
         string? hasSub0 = null;
         string? hasSubFF = null;
 
-        foreach (var line in stdout.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var rawLine in stdout.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
         {
+            var line = rawLine.Trim();
             var separatorIndex = line.IndexOf('=');
             if (separatorIndex <= 0)
             {
                 continue;
             }
 
-            var key = line[..separatorIndex];
-            var value = line[(separatorIndex + 1)..];
+            var key = line.Substring(0, separatorIndex);
+            var value = line.Substring(separatorIndex + 1);
 
             switch (key)
             {
@@ -134,7 +159,7 @@ internal static class EdsReadProbeRunner
         return new ProbeResult(parsedSubNumber, parsedHasSub0, parsedHasSubFF);
     }
 
-    private static string GetProbeDllPath(string repoRoot)
+    private static string GetProbeAssemblyPath(string repoRoot)
     {
         var baseDirectoryInfo = new DirectoryInfo(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory));
         var targetFramework = baseDirectoryInfo.Name;
@@ -147,14 +172,18 @@ internal static class EdsReadProbeRunner
 
         var candidates = new[]
         {
-            BuildProbeDllPath(repoRoot, configuration, targetFramework),
+            BuildProbeDllPath(repoRoot, configuration!, targetFramework),
             BuildProbeDllPath(repoRoot, "Release", targetFramework),
             BuildProbeDllPath(repoRoot, "Debug", targetFramework)
         };
 
         foreach (var candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
         {
+#if NETFRAMEWORK
+            if (File.Exists(Path.ChangeExtension(candidate, ".exe")))
+#else
             if (File.Exists(candidate))
+#endif
             {
                 return candidate;
             }
@@ -197,7 +226,11 @@ internal static class EdsReadProbeRunner
         {
             if (!process.HasExited)
             {
+#if NETFRAMEWORK
+                process.Kill();
+#else
                 process.Kill(entireProcessTree: true);
+#endif
             }
         }
         catch (InvalidOperationException)

@@ -149,8 +149,9 @@ This project uses a **develop → main** integration model:
 - **Merge to `develop`** → `semantic-release.yml` runs (build + test + beta pre-release).
 - **Merge to `main`** → `semantic-release.yml` runs (build + test + stable release).
 - **Test TFMs:** `EdsDcfNet.Tests` / `EdsDcfNet.TestHost` multi-target `net10.0`
-  and `net8.0`. The `net8.0` host runs against the library’s `netstandard2.0`
+  and `net48`. The `net48` host runs against the library’s `netstandard2.0`
   asset so `#else` runtime paths are executed in CI (not only compile-checked).
+  Build/test CI uses `windows-latest` because `net48` requires .NET Framework.
 
 Direct commits to `main` or `develop` are not allowed; all changes go through PRs.
 

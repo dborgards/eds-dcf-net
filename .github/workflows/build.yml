@@ -27,7 +27,9 @@ on:
 jobs:
   build:
     if: github.event_name != 'workflow_run'
-    runs-on: ubuntu-latest
+    # windows-latest is required so the net48 test host can bind and execute the
+    # library's netstandard2.0 asset (net10.0 runs on the same job).
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -37,11 +39,9 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
       with:
-        # SDK 10 from global.json builds the library; net8.0 runs tests against the
-        # netstandard2.0 asset (see TargetFrameworks on EdsDcfNet.Tests).
+        # SDK 10 from global.json builds the library and runs net10.0 tests;
+        # net48 (preinstalled on windows-latest) exercises the netstandard2.0 asset.
         global-json-file: global.json
-        dotnet-version: |
-          8.0.x
 
     - name: Restore dependencies
       run: dotnet restore
@@ -95,7 +95,9 @@ jobs:
         # Wait for the Codecov webhook to post its own codecov/patch status
         # before we post ours, so the GitHub Actions status is always last
         # (required by the develop branch ruleset integration_id constraint).
-        for i in $(seq 1 24); do
+        # Portable loop (Git Bash on windows-latest may lack `seq`).
+        i=1
+        while [[ "$i" -le 24 ]]; do
           codecov_bot_status=$(gh api "repos/${{ github.repository }}/commits/${COMMIT_SHA}/statuses" \
             --jq '[.[] | select(.context == "codecov/patch" and (.creator.login == "codecov[bot]"))][0].state // empty' 2>/dev/null || true)
           if [[ -n "$codecov_bot_status" ]]; then
@@ -104,6 +106,7 @@ jobs:
           fi
           echo "Waiting for Codecov webhook... (attempt $i/24)"
           sleep 10
+          i=$((i + 1))
         done
 
         gh api "repos/${{ github.repository }}/statuses/${COMMIT_SHA}" \

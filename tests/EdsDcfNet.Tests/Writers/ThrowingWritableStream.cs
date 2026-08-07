@@ -35,6 +35,8 @@ internal sealed class ThrowingWritableStream : Stream
     public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         => Task.FromException(new InvalidOperationException("forced stream failure"));
 
+#if NETCOREAPP
     public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         => ValueTask.FromException(new InvalidOperationException("forced stream failure"));
+#endif
 }
