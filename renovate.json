@@ -13,7 +13,8 @@
       "matchManagers": [
         "nuget"
       ],
-      "rangeStrategy": "in-range-only"
+      "rangeStrategy": "bump",
+      "description": "Bump NuGet versions including exact/[bracket] pins (e.g. FluentAssertions [7.2.2])."
     }
   ]
 }
