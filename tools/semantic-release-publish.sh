@@ -75,11 +75,14 @@ generate_spdx_sbom() {
   echo "SPDX SBOM written to packages/sbom.spdx.json (derived from CycloneDX BOM)"
 }
 
+# Use -p: (not /p:): Git Bash on Windows converts bare /p:... args via MSYS
+# path munging, which turns the property into a second "project" and fails with
+# MSB1008 after the release workflow moved to windows-latest.
 dotnet pack src/EdsDcfNet/EdsDcfNet.csproj \
   --configuration Release \
   --no-restore \
   --output ./packages \
-  /p:PackageVersion="${next_version}"
+  -p:PackageVersion="${next_version}"
 
 dotnet nuget push "./packages/*.nupkg" \
   --api-key "${NUGET_API_KEY}" \
