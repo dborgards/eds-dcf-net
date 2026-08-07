@@ -1,6 +1,8 @@
 namespace EdsDcfNet.Tests.Parsers;
 
 using System.Xml.Linq;
+using EdsDcfNet;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Writers;
@@ -163,6 +165,41 @@ public class ApplicationProcessTests
         st.VarDeclarations[1].IsSigned.Should().BeTrue();
         st.VarDeclarations[1].InitialValue.Should().Be("0");
         st.VarDeclarations[1].Type!.SimpleTypeName.Should().Be("INT");
+    }
+
+    [Fact]
+    public void Parse_VarDeclaration_SignedUnknown_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = WrapInXdd(@"
+<ApplicationProcess>
+  <dataTypeList>
+    <struct name=""S"" uniqueID=""uid_s"">
+      <varDeclaration name=""Val"" uniqueID=""uid_v"" signed=""maybe""><INT/></varDeclaration>
+    </struct>
+  </dataTypeList>
+  <parameterList/>
+</ApplicationProcess>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*XML boolean*maybe*");
+    }
+
+    [Fact]
+    public void Parse_VarDeclaration_SignedUnknown_Lenient_StoresFalse()
+    {
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <dataTypeList>
+    <struct name=""S"" uniqueID=""uid_s"">
+      <varDeclaration name=""Val"" uniqueID=""uid_v"" signed=""maybe""><INT/></varDeclaration>
+    </struct>
+  </dataTypeList>
+  <parameterList/>
+</ApplicationProcess>");
+
+        result.ApplicationProcess!.DataTypeList!.Structs[0].VarDeclarations[0].IsSigned.Should().BeFalse();
     }
 
     [Fact]
