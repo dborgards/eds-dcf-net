@@ -72,8 +72,12 @@ jobs:
         override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
         fail_ci_if_error: true
 
+    # Same event gate as the Codecov upload step: feature-branch pushes never
+    # upload, so waiting for codecov[bot] would burn ~4 minutes for nothing.
+    # PRs and develop still wait so the Actions-posted status lands after the
+    # webhook (develop ruleset integration_id constraint).
     - name: Post codecov/patch status
-      if: always()
+      if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
       continue-on-error: true
       shell: bash
       env:
