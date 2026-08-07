@@ -1,0 +1,65 @@
+# One-shot: convert Code-Analyse issues #470 and #471 into General Discussions.
+# Prior series posts (#129, #397, …) live in Discussions; these were Issues only because
+# createDiscussion was forbidden for the Cursor app token.
+name: Convert Code-Analyse Issues to Discussions
+
+on:
+  push:
+    paths:
+      - ".github/workflows/convert-470-471-to-discussions.yml"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  discussions: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Convert issues #470 and #471 to General discussions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # General category (same as discussions #129 / #397)
+          CATEGORY_ID: DIC_kwDOQp8Z8M4C291A
+        run: |
+          set -euo pipefail
+
+          convert_issue() {
+            local number="$1"
+            local node_id result
+            echo "::group::Issue #${number}"
+
+            node_id="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${number}" --jq .node_id)"
+            echo "node_id=${node_id}"
+
+            result="$(gh api graphql -f query='
+              mutation($issueId: ID!, $categoryId: ID!) {
+                convertIssueToDiscussion(input: {issueId: $issueId, categoryId: $categoryId}) {
+                  discussion { number url title category { name } }
+                }
+              }
+            ' -f issueId="${node_id}" -f categoryId="${CATEGORY_ID}")"
+
+            printf '%s\n' "${result}" | tee "/tmp/convert-${number}.json" >/dev/null
+            RESULT_JSON="${result}" python3 -c '
+          import json, os, sys
+          d = json.loads(os.environ["RESULT_JSON"])
+          if d.get("errors"):
+              raise SystemExit("GraphQL errors: " + json.dumps(d["errors"], indent=2))
+          payload = d.get("data", {}).get("convertIssueToDiscussion")
+          if not payload or not payload.get("discussion"):
+              raise SystemExit("Unexpected response: " + json.dumps(d, indent=2))
+          disc = payload["discussion"]
+          print(
+              "Converted -> Discussion #{}: {} [{}]".format(
+                  disc["number"], disc["url"], disc["category"]["name"]
+              )
+          )
+          '
+            echo "::endgroup::"
+          }
+
+          convert_issue 470
+          convert_issue 471
+          echo "Both issues converted to General discussions."
