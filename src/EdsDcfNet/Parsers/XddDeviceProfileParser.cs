@@ -18,8 +18,10 @@ internal static class XddDeviceProfileParser
         fileInfo.ModifiedBy = profileBody.Attribute("fileModifiedBy")?.Value ?? string.Empty;
 
         // fileVersion is a string like "1.0", "1,0", or "1" — map to Unsigned8 FileVersion.
-        // Lenient: take major from major/minor forms (same as EDS/DCF FileInfo).
+        // Lenient: accept major/minor tooling forms; plain decimals via NumberStyles.None
+        // (historical XDD path, so "010" stays decimal 10 rather than CiA octal).
         // StrictParsing: require a plain integer via ParseByte.
+        // Invalid tokens throw in both modes (with ProfileBody attribution).
         var fileVersionStr = profileBody.Attribute("fileVersion")?.Value ?? string.Empty;
         if (!string.IsNullOrEmpty(fileVersionStr))
         {
@@ -33,14 +35,20 @@ internal static class XddDeviceProfileParser
                 else if (ValueConverter.TrySplitMajorMinorDecimal(trimmed, out _))
                 {
                     // Reuse ParseByteAllowingMajorMinor so leading-zero majors stay decimal
-                    // (e.g. "012.5" → 12), matching plain XDD TryParse and EDS/DCF policy.
+                    // (e.g. "012.5" → 12), matching EDS/DCF FileInfo policy.
                     fileInfo.FileVersion = ValueConverter.ParseByteAllowingMajorMinor(trimmed);
                 }
                 else if (byte.TryParse(trimmed, NumberStyles.None, CultureInfo.InvariantCulture, out var ver))
                 {
-                    // Preserve historical XDD lenient behavior for plain decimals only;
-                    // hex/octal/invalid tokens keep the model default rather than throwing.
                     fileInfo.FileVersion = ver;
+                }
+                else
+                {
+                    throw new EdsParseException(
+                        string.Format(
+                            CultureInfo.InvariantCulture,
+                            "Invalid byte value: '{0}'.",
+                            trimmed));
                 }
             }
             catch (EdsParseException ex)

@@ -1421,6 +1421,23 @@ public class XddReaderTests
         ex.Message.Should().Contain(fileVersion);
     }
 
+    [Theory]
+    [InlineData("NaN")]
+    [InlineData("1.x")]
+    [InlineData("abc")]
+    public void FileInfo_InvalidFileVersion_ThrowsEdsParseExceptionWithAttribution(string fileVersion)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"fileVersion=""1""",
+            $@"fileVersion=""{fileVersion}""");
+
+        var act = () => _reader.ReadString(xdd);
+
+        var ex = act.Should().Throw<EdsParseException>().Which;
+        ex.Message.Should().Contain("fileVersion");
+        ex.Message.Should().Contain(fileVersion);
+    }
+
     [Fact]
     public void ParseNetworkManagement_InvalidNumericValues_AreIgnored_BooleanOnesAreAccepted()
     {
