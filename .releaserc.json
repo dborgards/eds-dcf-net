@@ -100,7 +100,7 @@
           },
           {
             "path": "packages/sbom.spdx.json",
-            "label": "SPDX SBOM (GitHub Dependency Graph)"
+            "label": "SPDX SBOM (derived from CycloneDX)"
           }
         ],
         "successComment": false,
