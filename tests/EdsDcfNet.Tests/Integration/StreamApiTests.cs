@@ -15,7 +15,7 @@ public class StreamApiTests
         var edsContent = File.ReadAllText(FixturePath);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(edsContent));
 
-        var eds = CanOpenFile.ReadEds(stream);
+        var eds = CanOpenFile.Eds.ReadStream(stream);
 
         eds.Should().NotBeNull();
         eds.DeviceInfo.Should().NotBeNull();
@@ -28,7 +28,7 @@ public class StreamApiTests
         var edsContent = File.ReadAllText(FixturePath);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(edsContent));
 
-        var eds = await CanOpenFile.ReadEdsAsync(stream);
+        var eds = await CanOpenFile.Eds.ReadStreamAsync(stream);
 
         eds.Should().NotBeNull();
         eds.DeviceInfo.Should().NotBeNull();
@@ -37,28 +37,28 @@ public class StreamApiTests
     [Fact]
     public void WriteEds_Stream_ProducesValidContent()
     {
-        var eds = CanOpenFile.ReadEds(FixturePath);
+        var eds = CanOpenFile.Eds.ReadFile(FixturePath);
         using var stream = new MemoryStream();
 
-        CanOpenFile.WriteEds(eds, stream);
+        CanOpenFile.Eds.WriteStream(eds, stream);
 
         stream.Length.Should().BeGreaterThan(0);
         stream.Position = 0;
-        var roundTrip = CanOpenFile.ReadEds(stream);
+        var roundTrip = CanOpenFile.Eds.ReadStream(stream);
         roundTrip.DeviceInfo.ProductName.Should().Be(eds.DeviceInfo.ProductName);
     }
 
     [Fact]
     public async Task WriteEdsAsync_Stream_ProducesValidContent()
     {
-        var eds = CanOpenFile.ReadEds(FixturePath);
+        var eds = CanOpenFile.Eds.ReadFile(FixturePath);
         using var stream = new MemoryStream();
 
-        await CanOpenFile.WriteEdsAsync(eds, stream);
+        await CanOpenFile.Eds.WriteStreamAsync(eds, stream);
 
         stream.Length.Should().BeGreaterThan(0);
         stream.Position = 0;
-        var roundTrip = CanOpenFile.ReadEds(stream);
+        var roundTrip = CanOpenFile.Eds.ReadStream(stream);
         roundTrip.DeviceInfo.ProductName.Should().Be(eds.DeviceInfo.ProductName);
     }
 
@@ -68,7 +68,7 @@ public class StreamApiTests
         var dcfContent = File.ReadAllText(DcfFixturePath);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(dcfContent));
 
-        var dcf = CanOpenFile.ReadDcf(stream);
+        var dcf = CanOpenFile.Dcf.ReadStream(stream);
 
         dcf.Should().NotBeNull();
         dcf.DeviceCommissioning.Should().NotBeNull();
@@ -80,7 +80,7 @@ public class StreamApiTests
         var dcfContent = File.ReadAllText(DcfFixturePath);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(dcfContent));
 
-        var dcf = await CanOpenFile.ReadDcfAsync(stream);
+        var dcf = await CanOpenFile.Dcf.ReadStreamAsync(stream);
 
         dcf.Should().NotBeNull();
         dcf.DeviceCommissioning.Should().NotBeNull();
@@ -89,28 +89,28 @@ public class StreamApiTests
     [Fact]
     public void WriteDcf_Stream_ProducesValidContent()
     {
-        var dcf = CanOpenFile.ReadDcf(DcfFixturePath);
+        var dcf = CanOpenFile.Dcf.ReadFile(DcfFixturePath);
         using var stream = new MemoryStream();
 
-        CanOpenFile.WriteDcf(dcf, stream);
+        CanOpenFile.Dcf.WriteStream(dcf, stream);
 
         stream.Length.Should().BeGreaterThan(0);
         stream.Position = 0;
-        var roundTrip = CanOpenFile.ReadDcf(stream);
+        var roundTrip = CanOpenFile.Dcf.ReadStream(stream);
         roundTrip.DeviceCommissioning.NodeId.Should().Be(dcf.DeviceCommissioning.NodeId);
     }
 
     [Fact]
     public async Task WriteDcfAsync_Stream_ProducesValidContent()
     {
-        var dcf = CanOpenFile.ReadDcf(DcfFixturePath);
+        var dcf = CanOpenFile.Dcf.ReadFile(DcfFixturePath);
         using var stream = new MemoryStream();
 
-        await CanOpenFile.WriteDcfAsync(dcf, stream);
+        await CanOpenFile.Dcf.WriteStreamAsync(dcf, stream);
 
         stream.Length.Should().BeGreaterThan(0);
         stream.Position = 0;
-        var roundTrip = CanOpenFile.ReadDcf(stream);
+        var roundTrip = CanOpenFile.Dcf.ReadStream(stream);
         roundTrip.DeviceCommissioning.NodeId.Should().Be(dcf.DeviceCommissioning.NodeId);
     }
 
@@ -120,7 +120,7 @@ public class StreamApiTests
         var edsContent = File.ReadAllText(FixturePath);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(edsContent));
 
-        CanOpenFile.ReadEds(stream);
+        CanOpenFile.Eds.ReadStream(stream);
 
         stream.CanRead.Should().BeTrue("the stream should remain open after reading");
     }
@@ -128,10 +128,10 @@ public class StreamApiTests
     [Fact]
     public void WriteEds_Stream_LeavesStreamOpen()
     {
-        var eds = CanOpenFile.ReadEds(FixturePath);
+        var eds = CanOpenFile.Eds.ReadFile(FixturePath);
         using var stream = new MemoryStream();
 
-        CanOpenFile.WriteEds(eds, stream);
+        CanOpenFile.Eds.WriteStream(eds, stream);
 
         stream.CanWrite.Should().BeTrue("the stream should remain open after writing");
     }
@@ -139,12 +139,12 @@ public class StreamApiTests
     [Fact]
     public void EdsRoundTrip_ViaStream_PreservesObjectDictionary()
     {
-        var original = CanOpenFile.ReadEds(FixturePath);
+        var original = CanOpenFile.Eds.ReadFile(FixturePath);
         using var stream = new MemoryStream();
 
-        CanOpenFile.WriteEds(original, stream);
+        CanOpenFile.Eds.WriteStream(original, stream);
         stream.Position = 0;
-        var restored = CanOpenFile.ReadEds(stream);
+        var restored = CanOpenFile.Eds.ReadStream(stream);
 
         restored.ObjectDictionary.Objects.Count.Should().Be(original.ObjectDictionary.Objects.Count);
     }
@@ -152,12 +152,12 @@ public class StreamApiTests
     [Fact]
     public void DcfRoundTrip_ViaStream_PreservesCommissioning()
     {
-        var original = CanOpenFile.ReadDcf(DcfFixturePath);
+        var original = CanOpenFile.Dcf.ReadFile(DcfFixturePath);
         using var stream = new MemoryStream();
 
-        CanOpenFile.WriteDcf(original, stream);
+        CanOpenFile.Dcf.WriteStream(original, stream);
         stream.Position = 0;
-        var restored = CanOpenFile.ReadDcf(stream);
+        var restored = CanOpenFile.Dcf.ReadStream(stream);
 
         restored.DeviceCommissioning.Baudrate.Should().Be(original.DeviceCommissioning.Baudrate);
         restored.DeviceCommissioning.NodeName.Should().Be(original.DeviceCommissioning.NodeName);
@@ -169,7 +169,7 @@ public class StreamApiTests
         var cpjContent = "[Topology]\nNetName=TestNet\nNodes=0\n";
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(cpjContent));
 
-        var cpj = CanOpenFile.ReadCpj(stream);
+        var cpj = CanOpenFile.Cpj.ReadStream(stream);
 
         cpj.Should().NotBeNull();
     }
@@ -177,15 +177,15 @@ public class StreamApiTests
     [Fact]
     public void WriteCpj_Stream_RoundTripsAndLeavesStreamOpen()
     {
-        var cpjContent = CanOpenFile.WriteCpjToString(CanOpenFile.ReadCpjFromString("[Topology]\nNetName=TestNet\nNodes=0\n"));
-        var cpj = CanOpenFile.ReadCpjFromString(cpjContent);
+        var cpjContent = CanOpenFile.Cpj.WriteToString(CanOpenFile.Cpj.ReadString("[Topology]\nNetName=TestNet\nNodes=0\n"));
+        var cpj = CanOpenFile.Cpj.ReadString(cpjContent);
         using var stream = new MemoryStream();
 
-        CanOpenFile.WriteCpj(cpj, stream);
+        CanOpenFile.Cpj.WriteStream(cpj, stream);
 
         stream.Length.Should().BeGreaterThan(0);
         stream.Position = 0;
-        var parsed = CanOpenFile.ReadCpj(stream);
+        var parsed = CanOpenFile.Cpj.ReadStream(stream);
         parsed.Networks.Should().ContainSingle();
         parsed.Networks[0].NetName.Should().Be("TestNet");
         stream.CanRead.Should().BeTrue();
