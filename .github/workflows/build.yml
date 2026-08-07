@@ -60,6 +60,14 @@ jobs:
       shell: bash
       run: bash tools/enforce-coverage-threshold.sh .
 
+    # Timestamp before upload so the wait loop can ignore stale Codecov
+    # statuses/check-runs left on the same SHA from a previous workflow attempt.
+    - name: Record Codecov wait baseline
+      id: codecov_baseline
+      if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
+      shell: bash
+      run: echo "after=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
     - name: Upload coverage reports to Codecov
       if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
@@ -84,6 +92,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        CODECOV_AFTER: ${{ steps.codecov_baseline.outputs.after }}
       run: |
         outcome="${{ steps.coverage_gate.outcome }}"
         if [[ "$outcome" == "success" ]]; then
@@ -102,6 +111,9 @@ jobs:
         # Codecov may report as a commit status (codecov[bot], typical on develop
         # pushes) or as a Check Run (Codecov GitHub App, typical on PRs). Poll both;
         # looking only at statuses misses PR check-runs and burns the full timeout.
+        # Only accept reports created after CODECOV_AFTER (upload start) so a
+        # workflow re-run on the same SHA does not treat the previous attempt's
+        # completed codecov/patch as done before this upload finishes.
         # Portable loop (Git Bash on windows-latest may lack `seq`).
         # Required by the develop branch ruleset integration_id constraint: our
         # Actions status must be posted after Codecov's report.
@@ -109,13 +121,15 @@ jobs:
           i=1
           while [[ "$i" -le 24 ]]; do
             codecov_bot_status=$(gh api "repos/${{ github.repository }}/commits/${COMMIT_SHA}/statuses" \
-              --jq '[.[] | select(.context == "codecov/patch" and (.creator.login == "codecov[bot]"))][0].state // empty' 2>/dev/null || true)
+              --jq --arg after "${CODECOV_AFTER}" \
+              '[.[] | select(.context == "codecov/patch" and (.creator.login == "codecov[bot]") and (.created_at // "") >= $after)][0].state // empty' 2>/dev/null || true)
             if [[ -n "$codecov_bot_status" ]]; then
               echo "Codecov webhook status detected (${codecov_bot_status}) after ~$((i * 10))s"
               break
             fi
             codecov_check=$(gh api "repos/${{ github.repository }}/commits/${COMMIT_SHA}/check-runs" \
-              --jq '[.check_runs[] | select(.name == "codecov/patch" and .app.slug == "codecov" and .status == "completed")][0].conclusion // empty' 2>/dev/null || true)
+              --jq --arg after "${CODECOV_AFTER}" \
+              '[.check_runs[] | select(.name == "codecov/patch" and .app.slug == "codecov" and .status == "completed" and (.completed_at // "") >= $after)][0].conclusion // empty' 2>/dev/null || true)
             if [[ -n "$codecov_check" ]]; then
               echo "Codecov check run detected (${codecov_check}) after ~$((i * 10))s"
               break
