@@ -153,7 +153,7 @@ public class FormatEntryPointParameterNameContractTests
                 return $"IReadOnlyList<{args}>";
 
             var name = type.Name;
-            var tick = name.IndexOf('`', StringComparison.Ordinal);
+            var tick = name.IndexOf('`');
             if (tick >= 0)
                 name = name[..tick];
             return $"{name}<{args}>";
@@ -183,5 +183,5 @@ public class FormatEntryPointParameterNameContractTests
     }
 
     private static string NormalizeNewlines(string text)
-        => text.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd() + "\n";
+        => text.Replace("\r\n", "\n").TrimEnd() + "\n";
 }
