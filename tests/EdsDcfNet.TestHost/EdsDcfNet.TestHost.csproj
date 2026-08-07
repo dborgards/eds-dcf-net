@@ -2,14 +2,10 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <!-- Keep TFMs aligned with EdsDcfNet.Tests so EdsReadProbeRunner can resolve the host. -->
-    <TargetFrameworks>net10.0;net48</TargetFrameworks>
+    <!-- Keep TFMs aligned with EdsDcfNet.Tests so EdsReadProbeRunner can resolve the host DLL. -->
+    <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\EdsDcfNet\EdsDcfNet.csproj" />
