@@ -267,6 +267,20 @@ public class ValueConverterTests
         ValueConverter.ParsePresentFlag(input).Should().Be(expected);
     }
 
+    [Theory]
+    [InlineData("random", false)]
+    [InlineData("0x02", false)]
+    [InlineData("present", false)]
+    [InlineData("1", true)]
+    [InlineData("0x01", true)]
+    public void ParsePresentFlag_UnknownOrKnown_StrictParsing_RemainsLenient(string input, bool expected)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            ValueConverter.ParsePresentFlag(input).Should().Be(expected);
+        }
+    }
+
     #endregion
 
     #region ParseByte Tests
@@ -471,16 +485,26 @@ public class ValueConverterTests
 
     [Theory]
     [InlineData("invalid")]
-    [InlineData("")]
-    [InlineData(null)]
     [InlineData("read")]
-    public void ParseAccessType_UnknownToken_StrictParsing_ThrowsEdsParseException(string? input)
+    public void ParseAccessType_UnknownToken_StrictParsing_ThrowsEdsParseException(string input)
     {
         using (StrictParsingScope.Enter(true))
         {
-            var act = () => ValueConverter.ParseAccessType(input!);
+            var act = () => ValueConverter.ParseAccessType(input);
             act.Should().Throw<EdsParseException>()
                 .WithMessage("*Unknown access type token*");
+        }
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void ParseAccessType_EmptyOrNull_StrictParsing_ReturnsReadOnly(string? input)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            ValueConverter.ParseAccessType(input!).Should().Be(AccessType.ReadOnly);
         }
     }
 

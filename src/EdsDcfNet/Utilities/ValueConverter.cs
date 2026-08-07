@@ -127,7 +127,9 @@ public static class ValueConverter
     /// <item><description><c>1</c>, <c>true</c>, <c>yes</c> (same as <see cref="ParseBoolean"/>)</description></item>
     /// </list>
     /// <para>Recognized false tokens include <c>0x00</c>, <c>0x0</c>, <c>0</c>, <c>false</c>,
-    /// <c>no</c>, and any other unrecognized value (lenient absent).</para>
+    /// <c>no</c>, and any other unrecognized value (lenient absent). This remains lenient
+    /// even when <see cref="CanOpenFileOptions.StrictParsing"/> is enabled; strict
+    /// <c>NodeNPresent</c> handling is deferred (see issue #416).</para>
     /// </remarks>
     /// <param name="value">String value to parse.</param>
     /// <returns>
@@ -149,7 +151,11 @@ public static class ValueConverter
             value.Equals("0x0", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        return ParseBoolean(value);
+        // Always lenient for CPJ NodeNPresent (#416 deferred); do not inherit ParseBoolean strictness.
+        using (StrictParsingScope.Enter(false))
+        {
+            return ParseBoolean(value);
+        }
     }
 
     /// <summary>
@@ -205,21 +211,27 @@ public static class ValueConverter
     /// This parser is intentionally lenient to tolerate real-world EDS/DCF files:
     /// recognized tokens are <c>"ro"</c>, <c>"wo"</c>, <c>"rw"</c>, <c>"rwr"</c>,
     /// <c>"rww"</c>, and <c>"const"</c> (case-insensitive, surrounding whitespace ignored).
-    /// Any unrecognized value — including typos and <see langword="null"/> — silently maps to
-    /// <see cref="AccessType.ReadOnly"/> without raising an error when lenient. With
-    /// <see cref="CanOpenFileOptions.StrictParsing"/> enabled (via
-    /// <see cref="StrictParsingScope"/>), unrecognized tokens throw
+    /// Empty, whitespace-only, and <see langword="null"/> inputs always map to
+    /// <see cref="AccessType.ReadOnly"/> (absent field, not an unknown token). Any other
+    /// unrecognized value silently maps to <see cref="AccessType.ReadOnly"/> when lenient.
+    /// With <see cref="CanOpenFileOptions.StrictParsing"/> enabled (via
+    /// <see cref="StrictParsingScope"/>), non-empty unrecognized tokens throw
     /// <see cref="EdsParseException"/>. Note that lenient mode can change round-trip
     /// output: an unknown access type in the source file is written back as <c>"ro"</c>.
     /// </remarks>
     /// <param name="value">String value to parse.</param>
     /// <returns>
     /// The parsed <see cref="AccessType"/>, or <see cref="AccessType.ReadOnly"/> if
-    /// <paramref name="value"/> is not a recognized access type token (lenient mode).
+    /// <paramref name="value"/> is empty/absent or not a recognized access type token
+    /// (lenient mode).
     /// </returns>
     public static AccessType ParseAccessType(string value)
     {
         var token = value?.Trim().ToLowerInvariant();
+        // Missing AccessType/Dir keys yield "" from IniParser.GetValue; treat as absent default.
+        if (string.IsNullOrEmpty(token))
+            return AccessType.ReadOnly;
+
         return token switch
         {
             "ro" => AccessType.ReadOnly,
@@ -232,7 +244,7 @@ public static class ValueConverter
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "Unknown access type token '{0}'. Expected one of: ro, wo, rw, rwr, rww, const.",
-                    value ?? string.Empty)),
+                    value)),
             _ => AccessType.ReadOnly
         };
     }
