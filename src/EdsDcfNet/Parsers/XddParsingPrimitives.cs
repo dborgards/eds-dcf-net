@@ -7,6 +7,13 @@ using EdsDcfNet.Models;
 
 internal static class XddParsingPrimitives
 {
+    /// <summary>
+    /// Styles for XSD unsigned integer-derived attributes after whitespace collapse.
+    /// Optional leading sign is schema-valid (<c>+n</c>, <c>-0</c>); out-of-range
+    /// negatives still fail <c>TryParse</c> for the target unsigned type.
+    /// </summary>
+    internal const NumberStyles UnsignedXsdIntegerStyles = NumberStyles.AllowLeadingSign;
+
     internal static string GetXsiType(XElement element)
     {
         foreach (var attr in element.Attributes())
@@ -222,6 +229,40 @@ internal static class XddParsingPrimitives
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// When <paramref name="raw"/> is non-empty and <paramref name="parsed"/> is
+    /// <see langword="false"/>, either ignore (lenient) or throw
+    /// <see cref="EdsParseException"/> (strict) with attribute context.
+    /// </summary>
+    internal static void RejectFailedNumericAttribute(string? raw, bool parsed, string attributeName)
+    {
+        if (string.IsNullOrEmpty(raw) || parsed)
+            return;
+
+        if (!StrictParsingScope.IsEnabled)
+            return;
+
+        throw new EdsParseException(
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "Invalid {0} '{1}'. Value cannot be parsed as an unsigned integer.",
+                attributeName,
+                raw));
+    }
+
+    /// <summary>
+    /// Returns the trimmed attribute value, or <see langword="null"/> when absent.
+    /// Collapses XML Schema surrounding whitespace for integer-derived types.
+    /// </summary>
+    internal static string? GetTrimmedAttributeValue(XElement element, string localName)
+    {
+        var attr = element.Attribute(localName);
+        if (attr == null)
+            return null;
+
+        return attr.Value.Trim();
     }
 
     internal static string ConvertXsdDateToEds(string xsdDate)
