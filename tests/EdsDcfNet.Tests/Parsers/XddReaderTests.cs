@@ -1422,6 +1422,23 @@ public class XddReaderTests
     }
 
     [Theory]
+    [InlineData("010", (byte)10)]
+    [InlineData("08", (byte)8)]
+    [InlineData("012", (byte)12)]
+    public void FileInfo_FileVersionZeroPadded_StrictParsing_StaysDecimal(string fileVersion, byte expected)
+    {
+        // Strict mode must reject major/minor without switching plain XDD decimals onto
+        // ParseByte/CiA octal ("010" → 10, not 8; "08" remains a valid decimal integer).
+        var xdd = MinimalXdd.Replace(
+            @"fileVersion=""1""",
+            $@"fileVersion=""{fileVersion}""");
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.FileInfo.FileVersion.Should().Be(expected);
+    }
+
+    [Theory]
     [InlineData("NaN")]
     [InlineData("1.x")]
     [InlineData("abc")]

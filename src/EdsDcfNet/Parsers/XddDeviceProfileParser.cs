@@ -18,25 +18,29 @@ internal static class XddDeviceProfileParser
         fileInfo.ModifiedBy = profileBody.Attribute("fileModifiedBy")?.Value ?? string.Empty;
 
         // fileVersion is a string like "1.0", "1,0", or "1" — map to Unsigned8 FileVersion.
-        // Lenient: accept major/minor tooling forms; plain decimals via NumberStyles.None
-        // (historical XDD path, so "010" stays decimal 10 rather than CiA octal).
-        // StrictParsing: require a plain integer via ParseByte.
-        // Invalid tokens throw in both modes (with ProfileBody attribution).
+        // Plain values always use NumberStyles.None (historical XDD decimal path), so
+        // zero-padded tokens like "010" stay decimal 10 in both modes — never CiA octal
+        // via ParseByte. Lenient: also accept major/minor tooling forms. StrictParsing:
+        // reject major/minor only. Invalid tokens throw in both modes (ProfileBody attribution).
         // Trim before the empty check so whitespace-only attributes match missing/empty
-        // and keep the model default (1), rather than ParseByte("") → 0 or throwing.
+        // and keep the model default (1).
         var fileVersionStr = (profileBody.Attribute("fileVersion")?.Value ?? string.Empty).Trim();
         if (!string.IsNullOrEmpty(fileVersionStr))
         {
             try
             {
-                if (StrictParsingScope.IsEnabled)
+                if (ValueConverter.TrySplitMajorMinorDecimal(fileVersionStr, out _))
                 {
-                    fileInfo.FileVersion = ValueConverter.ParseByte(fileVersionStr);
-                }
-                else if (ValueConverter.TrySplitMajorMinorDecimal(fileVersionStr, out _))
-                {
-                    // Reuse ParseByteAllowingMajorMinor so leading-zero majors stay decimal
-                    // (e.g. "012.5" → 12), matching EDS/DCF FileInfo policy.
+                    if (StrictParsingScope.IsEnabled)
+                    {
+                        throw new EdsParseException(
+                            string.Format(
+                                CultureInfo.InvariantCulture,
+                                "Invalid byte value: '{0}'.",
+                                fileVersionStr));
+                    }
+
+                    // Leading-zero majors stay decimal (e.g. "012.5" → 12).
                     fileInfo.FileVersion = ValueConverter.ParseByteAllowingMajorMinor(fileVersionStr);
                 }
                 else if (byte.TryParse(fileVersionStr, NumberStyles.None, CultureInfo.InvariantCulture, out var ver))
