@@ -1003,14 +1003,15 @@ public class XddReaderTests
     [Fact]
     public void ParseDeviceIdentity_NoDeviceIdentityElement_ReturnsEmptyDeviceInfo()
     {
-        // ProfileBody_Device_CANopen without DeviceIdentity → DeviceInfo defaults
+        // ProfileBody_Device_CANopen without DeviceIdentity → DeviceInfo defaults.
+        // Use a verbatim needle so CRLF checkouts (Windows CI) still match MinimalXdd.
         var xdd = MinimalXdd.Replace(
-            "<DeviceIdentity>" +
-            "\n        <vendorName>Test Vendor</vendorName>" +
-            "\n        <vendorID>0x00000100</vendorID>" +
-            "\n        <productName>Test Product</productName>" +
-            "\n        <productID>0x00001001</productID>" +
-            "\n      </DeviceIdentity>",
+            @"<DeviceIdentity>
+        <vendorName>Test Vendor</vendorName>
+        <vendorID>0x00000100</vendorID>
+        <productName>Test Product</productName>
+        <productID>0x00001001</productID>
+      </DeviceIdentity>",
             "<!-- no DeviceIdentity -->");
 
         var result = _reader.ReadString(xdd);
