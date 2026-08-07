@@ -47,8 +47,9 @@ public sealed class CanOpenFileOptions
     /// section/key (or <c>ProfileBody fileVersion</c>) attribution in both modes.
     /// </description></item>
     /// <item><description>
-    /// XDD/XDC <c>CANopenObject</c> / <c>CANopenSubObject</c> missing <c>index</c>
-    /// (default: treat as <c>0x0000</c>)
+    /// XDD/XDC <c>CANopenObject</c> missing <c>index</c>
+    /// (default: treat as <c>0x0000</c>). Sub-objects use <c>subIndex</c>, which
+    /// remains lenient (missing → <c>00</c>) in both modes.
     /// </description></item>
     /// <item><description>
     /// XDD/XDC <c>CANopenObject</c> / <c>CANopenSubObject</c> missing or invalid

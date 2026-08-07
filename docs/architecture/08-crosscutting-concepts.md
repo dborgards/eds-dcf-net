@@ -39,7 +39,7 @@ flowchart TD
 - **Unknown INI sections**: Preserved in `AdditionalSections` (no warning, no error).
 - **Duplicate INI keys**: Last write wins by default. With `CanOpenFileOptions.StrictParsing = true` (or `IniParser` `strictParsing: true`), duplicates throw `EdsParseException`.
 - **XDD/XDC baud-rate strings**: Unknown `supportedBaudRate`, `actualBaudRate`, and `baudRate/@defaultValue` values map to `0` / are ignored by default. With `StrictParsing = true`, they throw `EdsParseException`.
-- **XDD/XDC OD `index` / `objectType`**: Missing `index` defaults to `0x0000` and missing/invalid `objectType` defaults to `0x7` (VAR). With `StrictParsing = true`, both throw `EdsParseException`. Present `objectType` values are trimmed and accept schema-valid `xsd:unsignedByte` lexical forms (optional leading sign).
+- **XDD/XDC OD `index` / `objectType`**: Missing `CANopenObject` `index` defaults to `0x0000` and missing/invalid `objectType` (on objects or sub-objects) defaults to `0x7` (VAR). With `StrictParsing = true`, both throw `EdsParseException`. Present `objectType` values are trimmed and accept schema-valid `xsd:unsignedByte` lexical forms (optional leading sign). Missing `CANopenSubObject` `subIndex` remains lenient (`00`) in both modes.
 - **CiA 311 XML**: Parsed against supported profile structures; unsupported XML nodes are not represented as generic passthrough data.
 
 ### Input Size Limits
