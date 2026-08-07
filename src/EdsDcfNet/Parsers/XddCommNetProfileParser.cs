@@ -213,14 +213,10 @@ internal static class XddCommNetProfileParser
     /// </summary>
     private static byte ParseObjectTypeAttribute(XElement elem, string elementName)
     {
-        var objTypeStr = elem.Attribute("objectType")?.Value?.Trim();
-        if (!string.IsNullOrEmpty(objTypeStr) &&
-            byte.TryParse(objTypeStr, NumberStyles.None, CultureInfo.InvariantCulture, out var objType))
-            return objType;
-
-        if (StrictParsingScope.IsEnabled)
+        var attr = elem.Attribute("objectType");
+        if (attr == null)
         {
-            if (string.IsNullOrEmpty(objTypeStr))
+            if (StrictParsingScope.IsEnabled)
             {
                 throw new EdsParseException(
                     string.Format(
@@ -229,6 +225,15 @@ internal static class XddCommNetProfileParser
                         elementName));
             }
 
+            return 0x7;
+        }
+
+        var objTypeStr = attr.Value.Trim();
+        if (byte.TryParse(objTypeStr, NumberStyles.None, CultureInfo.InvariantCulture, out var objType))
+            return objType;
+
+        if (StrictParsingScope.IsEnabled)
+        {
             throw new EdsParseException(
                 string.Format(
                     CultureInfo.InvariantCulture,
