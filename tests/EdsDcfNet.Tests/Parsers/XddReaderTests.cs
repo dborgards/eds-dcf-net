@@ -1853,6 +1853,43 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ParseCanOpenObject_ObjectTypeWithLeadingPlus_StrictParsing_Parses()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"objectType=""7""",
+            @"objectType=""+9""");
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.ObjectDictionary.Objects[0x1000].ObjectType.Should().Be(9);
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_ObjectTypeNegativeZero_StrictParsing_ParsesAsZero()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"objectType=""7""",
+            @"objectType=""-0""");
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.ObjectDictionary.Objects[0x1000].ObjectType.Should().Be(0);
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_ObjectTypeNegativeOutOfRange_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"objectType=""7""",
+            @"objectType=""-1""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*Invalid objectType*-1*");
+    }
+
+    [Fact]
     public void ParseCanOpenObject_WhitespaceOnlyObjectType_StrictParsing_ThrowsInvalidNotMissing()
     {
         var xdd = MinimalXdd.Replace(

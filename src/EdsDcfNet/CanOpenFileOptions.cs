@@ -46,6 +46,15 @@ public sealed class CanOpenFileOptions
     /// strict: require a plain <c>Unsigned8</c> integer). Malformed tokens throw with
     /// section/key (or <c>ProfileBody fileVersion</c>) attribution in both modes.
     /// </description></item>
+    /// <item><description>
+    /// XDD/XDC <c>CANopenObject</c> / <c>CANopenSubObject</c> missing <c>index</c>
+    /// (default: treat as <c>0x0000</c>)
+    /// </description></item>
+    /// <item><description>
+    /// XDD/XDC <c>CANopenObject</c> / <c>CANopenSubObject</c> missing or invalid
+    /// <c>objectType</c> (default: <c>0x7</c> VAR). Schema-valid <c>xsd:unsignedByte</c>
+    /// lexical forms (optional leading sign, surrounding whitespace) are accepted after trim.
+    /// </description></item>
     /// </list>
     /// Related coercion sites may still be lenient-only (see issue #428 for deferred items).
     /// </remarks>

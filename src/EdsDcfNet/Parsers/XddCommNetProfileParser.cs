@@ -210,6 +210,8 @@ internal static class XddCommNetProfileParser
     /// Reads <c>objectType</c>. Lenient: missing/invalid → <c>0x7</c> (VAR).
     /// Strict: missing or non-parsable values throw <see cref="EdsParseException"/>.
     /// Surrounding whitespace is trimmed (XML Schema integer whitespace collapse).
+    /// Optional leading sign is accepted (<c>+9</c>, <c>-0</c>); out-of-range
+    /// negatives such as <c>-1</c> remain invalid for <c>xsd:unsignedByte</c>.
     /// </summary>
     private static byte ParseObjectTypeAttribute(XElement elem, string elementName)
     {
@@ -229,7 +231,8 @@ internal static class XddCommNetProfileParser
         }
 
         var objTypeStr = attr.Value.Trim();
-        if (byte.TryParse(objTypeStr, NumberStyles.None, CultureInfo.InvariantCulture, out var objType))
+        // AllowLeadingSign matches xsd:unsignedByte lexical forms (+9, -0) after trim.
+        if (byte.TryParse(objTypeStr, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var objType))
             return objType;
 
         if (StrictParsingScope.IsEnabled)
