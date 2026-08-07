@@ -170,6 +170,12 @@ XDC writer behavior:
 - NodeId `0` means "commissioning not configured" and omits the XML `deviceCommissioning` element.
 - NodeId `1..127` emits a valid `deviceCommissioning` element.
 - Out-of-range NodeId values cause an `XdcWriteException`.
+- CiA 311 `deviceCommissioning` attributes are limited to `nodeID`, `nodeName`,
+  `actualBaudRate`, `networkNumber`, `networkName`, and `CANopenManager`.
+  DCF-only fields `LSS_SerialNumber`, `NodeRefd`, and `NetRefd`
+  (`DeviceCommissioning.LssSerialNumber` / `NodeRefd` / `NetRefd`) have no
+  schema equivalent and are intentionally omitted on XDC write (including
+  DCF→XDC conversion). Use DCF/CPJ when those values must be preserved.
 
 ## 8.6 Modular Devices (CiA DS 306)
 

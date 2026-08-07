@@ -133,6 +133,28 @@ public class XdcWriterTests
     }
 
     [Fact]
+    public void GenerateString_DeviceCommissioning_DcfOnlyFields_AreIntentionallyOmitted()
+    {
+        // CiA 311 deviceCommissioning has no LSS_SerialNumber / NodeRefd / NetRefd attributes.
+        var dcf = CreateSampleDcf();
+        dcf.DeviceCommissioning.LssSerialNumber = 0x12345678;
+        dcf.DeviceCommissioning.NodeRefd = "N1.A2";
+        dcf.DeviceCommissioning.NetRefd = "NET.1";
+
+        var result = _writer.GenerateString(dcf);
+        var deviceCommissioning = GetSingleElement(XDocument.Parse(result), "deviceCommissioning");
+
+        deviceCommissioning.Attributes().Select(a => a.Name.LocalName).Should().BeEquivalentTo(
+            new[] { "nodeID", "nodeName", "actualBaudRate", "networkNumber", "networkName", "CANopenManager" });
+        result.Should().NotContain("LSS_SerialNumber");
+        result.Should().NotContain("NodeRefd");
+        result.Should().NotContain("NetRefd");
+        result.Should().NotContain("12345678");
+        result.Should().NotContain("N1.A2");
+        result.Should().NotContain("NET.1");
+    }
+
+    [Fact]
     public void GenerateString_DeviceCommissioning_OptionalFieldsOmitted_AndManagerTrue()
     {
         // Arrange
