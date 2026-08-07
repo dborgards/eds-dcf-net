@@ -1390,16 +1390,19 @@ public class XddReaderTests
         result.FileInfo.FileVersion.Should().Be(4);
     }
 
-    [Fact]
-    public void FileInfo_FileVersionWithLeadingZeroMajor_UsesMajorComponent()
+    [Theory]
+    [InlineData("07.3", (byte)7)]
+    [InlineData("012.5", (byte)12)]
+    [InlineData("010.0", (byte)10)]
+    public void FileInfo_FileVersionWithLeadingZeroMajor_UsesMajorComponent(string fileVersion, byte expected)
     {
         var xdd = MinimalXdd.Replace(
             @"fileVersion=""1""",
-            @"fileVersion=""07.3""");
+            $@"fileVersion=""{fileVersion}""");
 
         var result = _reader.ReadString(xdd);
 
-        result.FileInfo.FileVersion.Should().Be(7);
+        result.FileInfo.FileVersion.Should().Be(expected);
     }
 
     [Theory]

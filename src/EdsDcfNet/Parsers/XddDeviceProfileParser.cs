@@ -30,9 +30,11 @@ internal static class XddDeviceProfileParser
                 {
                     fileInfo.FileVersion = ValueConverter.ParseByte(trimmed);
                 }
-                else if (ValueConverter.TrySplitMajorMinorDecimal(trimmed, out var major))
+                else if (ValueConverter.TrySplitMajorMinorDecimal(trimmed, out _))
                 {
-                    fileInfo.FileVersion = ValueConverter.ParseByte(major);
+                    // Reuse ParseByteAllowingMajorMinor so leading-zero majors stay decimal
+                    // (e.g. "012.5" → 12), matching plain XDD TryParse and EDS/DCF policy.
+                    fileInfo.FileVersion = ValueConverter.ParseByteAllowingMajorMinor(trimmed);
                 }
                 else if (byte.TryParse(trimmed, NumberStyles.None, CultureInfo.InvariantCulture, out var ver))
                 {

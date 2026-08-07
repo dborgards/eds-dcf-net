@@ -164,7 +164,8 @@ public static class ValueConverter
     /// <remarks>
     /// When <paramref name="value"/> matches <c>major.minor</c> or <c>major,minor</c>
     /// with both sides non-empty unsigned decimal digit runs and a single separator,
-    /// only the major component is parsed (same policy as XDD <c>fileVersion</c>).
+    /// only the major component is parsed as decimal (same policy as XDD <c>fileVersion</c>),
+    /// including leading-zero majors such as <c>07.3</c> → 7 or <c>012.5</c> → 12.
     /// Hex (<c>0x…</c>) literals and pure octal literals (no separator) are never
     /// treated as major/minor forms. All other inputs are delegated to <see cref="ParseByte"/>.
     /// </remarks>
@@ -179,7 +180,18 @@ public static class ValueConverter
             return 0;
 
         if (TrySplitMajorMinorDecimal(value, out var major))
-            return ParseByte(major);
+        {
+            // Major/minor forms are tooling-style decimal versions (e.g. "012.5" → 12),
+            // not CiA octal literals. ParseByte would treat a leading-zero major as octal.
+            try
+            {
+                return byte.Parse(major, NumberStyles.None, CultureInfo.InvariantCulture);
+            }
+            catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+            {
+                throw new EdsParseException(BuildInvalidNumericLiteralMessage("byte", value, ex), ex);
+            }
+        }
 
         return ParseByte(value);
     }
