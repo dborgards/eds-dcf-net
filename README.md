@@ -592,6 +592,20 @@ var xdd = CanOpenFile.Xdd.ReadFile(
     new CanOpenFileOptions { MaxInputSize = 50L * 1024 * 1024 });
 ```
 
+### Strict parsing (opt-in)
+
+Set `CanOpenFileOptions.StrictParsing = true` so silent read coercions fail with
+`EdsParseException` instead of mapping to defaults. Default remains lenient.
+Today this covers duplicate INI keys, unknown XDD/XDC baud-rate strings, unknown
+boolean tokens (`ValueConverter.ParseBoolean`), and unknown access-type tokens
+(`ValueConverter.ParseAccessType`).
+
+```csharp
+var eds = CanOpenFile.Eds.ReadFile(
+    "device.eds",
+    new CanOpenFileOptions { StrictParsing = true });
+```
+
 Guidance:
 - Keep the default whenever possible.
 - Increase limits only for trusted sources and known use cases.

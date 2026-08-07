@@ -2,6 +2,7 @@ namespace EdsDcfNet.Tests.Utilities;
 
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 using EdsDcfNet.Utilities;
 using FluentAssertions;
 using Xunit;
@@ -214,6 +215,35 @@ public class ValueConverterTests
         result.Should().Be(expected);
     }
 
+    [Theory]
+    [InlineData("2")]
+    [InlineData("random")]
+    [InlineData("yeah")]
+    public void ParseBoolean_UnknownToken_StrictParsing_ThrowsEdsParseException(string input)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            var act = () => ValueConverter.ParseBoolean(input);
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*Unknown boolean token*");
+        }
+    }
+
+    [Theory]
+    [InlineData("0", false)]
+    [InlineData("false", false)]
+    [InlineData("no", false)]
+    [InlineData("1", true)]
+    [InlineData("true", true)]
+    [InlineData("yes", true)]
+    public void ParseBoolean_KnownTokens_StrictParsing_Parses(string input, bool expected)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            ValueConverter.ParseBoolean(input).Should().Be(expected);
+        }
+    }
+
     #endregion
 
     #region ParsePresentFlag Tests
@@ -235,6 +265,20 @@ public class ValueConverterTests
     public void ParsePresentFlag_KnownVocabulary_ParsesExpected(string input, bool expected)
     {
         ValueConverter.ParsePresentFlag(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("random", false)]
+    [InlineData("0x02", false)]
+    [InlineData("present", false)]
+    [InlineData("1", true)]
+    [InlineData("0x01", true)]
+    public void ParsePresentFlag_UnknownOrKnown_StrictParsing_RemainsLenient(string input, bool expected)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            ValueConverter.ParsePresentFlag(input).Should().Be(expected);
+        }
     }
 
     #endregion
@@ -476,6 +520,43 @@ public class ValueConverterTests
 
         // Assert
         result.Should().Be(AccessType.ReadOnly);
+    }
+
+    [Theory]
+    [InlineData("invalid")]
+    [InlineData("read")]
+    public void ParseAccessType_UnknownToken_StrictParsing_ThrowsEdsParseException(string input)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            var act = () => ValueConverter.ParseAccessType(input);
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*Unknown access type token*");
+        }
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void ParseAccessType_EmptyOrNull_StrictParsing_ReturnsReadOnly(string? input)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            ValueConverter.ParseAccessType(input!).Should().Be(AccessType.ReadOnly);
+        }
+    }
+
+    [Theory]
+    [InlineData("ro", AccessType.ReadOnly)]
+    [InlineData("rw", AccessType.ReadWrite)]
+    [InlineData("const", AccessType.Constant)]
+    public void ParseAccessType_KnownTokens_StrictParsing_Parses(string input, AccessType expected)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            ValueConverter.ParseAccessType(input).Should().Be(expected);
+        }
     }
 
     #endregion
