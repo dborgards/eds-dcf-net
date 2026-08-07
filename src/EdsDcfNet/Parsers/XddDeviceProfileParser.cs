@@ -22,23 +22,24 @@ internal static class XddDeviceProfileParser
         // (historical XDD path, so "010" stays decimal 10 rather than CiA octal).
         // StrictParsing: require a plain integer via ParseByte.
         // Invalid tokens throw in both modes (with ProfileBody attribution).
-        var fileVersionStr = profileBody.Attribute("fileVersion")?.Value ?? string.Empty;
+        // Trim before the empty check so whitespace-only attributes match missing/empty
+        // and keep the model default (1), rather than ParseByte("") → 0 or throwing.
+        var fileVersionStr = (profileBody.Attribute("fileVersion")?.Value ?? string.Empty).Trim();
         if (!string.IsNullOrEmpty(fileVersionStr))
         {
-            var trimmed = fileVersionStr.Trim();
             try
             {
                 if (StrictParsingScope.IsEnabled)
                 {
-                    fileInfo.FileVersion = ValueConverter.ParseByte(trimmed);
+                    fileInfo.FileVersion = ValueConverter.ParseByte(fileVersionStr);
                 }
-                else if (ValueConverter.TrySplitMajorMinorDecimal(trimmed, out _))
+                else if (ValueConverter.TrySplitMajorMinorDecimal(fileVersionStr, out _))
                 {
                     // Reuse ParseByteAllowingMajorMinor so leading-zero majors stay decimal
                     // (e.g. "012.5" → 12), matching EDS/DCF FileInfo policy.
-                    fileInfo.FileVersion = ValueConverter.ParseByteAllowingMajorMinor(trimmed);
+                    fileInfo.FileVersion = ValueConverter.ParseByteAllowingMajorMinor(fileVersionStr);
                 }
-                else if (byte.TryParse(trimmed, NumberStyles.None, CultureInfo.InvariantCulture, out var ver))
+                else if (byte.TryParse(fileVersionStr, NumberStyles.None, CultureInfo.InvariantCulture, out var ver))
                 {
                     fileInfo.FileVersion = ver;
                 }
@@ -48,7 +49,7 @@ internal static class XddDeviceProfileParser
                         string.Format(
                             CultureInfo.InvariantCulture,
                             "Invalid byte value: '{0}'.",
-                            trimmed));
+                            fileVersionStr));
                 }
             }
             catch (EdsParseException ex)
