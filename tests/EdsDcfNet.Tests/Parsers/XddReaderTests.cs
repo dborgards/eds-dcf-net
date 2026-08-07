@@ -2474,6 +2474,85 @@ public class XddReaderTests
 
     #endregion
 
+    #region Duplicate ProfileBody StrictParsing (#486)
+
+    [Fact]
+    public void ReadString_DuplicateDeviceProfileBody_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ISO15745ProfileContainer>",
+            @"  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""dup.xdd"" fileVersion=""2"">
+      <DeviceIdentity>
+        <vendorName>Other</vendorName>
+        <vendorID>0x2</vendorID>
+        <productName>Other</productName>
+        <productID>0x2</productID>
+      </DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*more than one*ProfileBody_Device_CANopen*");
+    }
+
+    [Fact]
+    public void ReadString_DuplicateCommNetProfileBody_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ISO15745ProfileContainer>",
+            @"  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""dup.xdd"" fileVersion=""2"">
+      <ApplicationLayers>
+        <CANopenObjectList mandatoryObjects=""0"" optionalObjects=""0"" manufacturerObjects=""0""/>
+      </ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""125 Kbps""/></PhysicalLayer></TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0""
+                                bootUpSlave=""false"" layerSettingServiceSlave=""false""
+                                groupMessaging=""false"" dynamicChannels=""0""/>
+        <CANopenMasterFeatures bootUpMaster=""false""/>
+      </NetworkManagement>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*more than one*ProfileBody_CommunicationNetwork_CANopen*");
+    }
+
+    [Fact]
+    public void ReadString_DuplicateDeviceProfileBody_Lenient_LastWins()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ISO15745ProfileContainer>",
+            @"  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""dup.xdd"" fileVersion=""2"">
+      <DeviceIdentity>
+        <vendorName>Other Vendor</vendorName>
+        <vendorID>0x2</vendorID>
+        <productName>Other Product</productName>
+        <productID>0x2</productID>
+      </DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DeviceInfo.VendorName.Should().Be("Other Vendor");
+        result.DeviceInfo.ProductName.Should().Be("Other Product");
+    }
+
+    #endregion
+
     private sealed class NonSeekableReadStream : Stream
     {
         private readonly MemoryStream _inner;
