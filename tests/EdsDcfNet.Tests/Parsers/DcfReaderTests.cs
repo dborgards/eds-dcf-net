@@ -293,6 +293,7 @@ SupportedObjects=0
     [InlineData("1.0", (byte)1)]
     [InlineData("1,0", (byte)1)]
     [InlineData("7.3", (byte)7)]
+    [InlineData("07.3", (byte)7)]
     [InlineData("12,5", (byte)12)]
     [InlineData("255.0", (byte)255)]
     public void ReadString_FileInfo_MajorMinorFileVersion_UsesMajorComponent(string fileVersion, byte expected)

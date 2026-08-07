@@ -165,8 +165,8 @@ public static class ValueConverter
     /// When <paramref name="value"/> matches <c>major.minor</c> or <c>major,minor</c>
     /// with both sides non-empty unsigned decimal digit runs and a single separator,
     /// only the major component is parsed (same policy as XDD <c>fileVersion</c>).
-    /// Hex (<c>0x…</c>) and octal (leading-zero) literals are never treated as
-    /// major/minor forms. All other inputs are delegated to <see cref="ParseByte"/>.
+    /// Hex (<c>0x…</c>) literals and pure octal literals (no separator) are never
+    /// treated as major/minor forms. All other inputs are delegated to <see cref="ParseByte"/>.
     /// </remarks>
     /// <param name="value">String value to parse.</param>
     /// <returns>The parsed byte (major component when a major/minor form is recognized).</returns>
@@ -195,11 +195,10 @@ public static class ValueConverter
     {
         major = string.Empty;
 
-        // Hex / octal shapes are numeric literals, not dotted version strings.
+        // Hex shapes are numeric literals, not dotted version strings.
+        // Pure octals (e.g. "010") have no separator and fall through below;
+        // do not reject leading-zero majors like "07.3" before looking for '.' / ','.
         if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
             return false;
 
         var separatorIndex = -1;

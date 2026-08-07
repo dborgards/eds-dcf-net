@@ -284,6 +284,8 @@ public class ValueConverterTests
     [InlineData("1.0", (byte)1)]
     [InlineData("1,0", (byte)1)]
     [InlineData("7.3", (byte)7)]
+    [InlineData("07.3", (byte)7)]
+    [InlineData("07,3", (byte)7)]
     [InlineData("12,5", (byte)12)]
     [InlineData("255.1", (byte)255)]
     [InlineData(" 2.0 ", (byte)2)]

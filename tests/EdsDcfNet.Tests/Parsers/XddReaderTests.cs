@@ -1390,6 +1390,18 @@ public class XddReaderTests
         result.FileInfo.FileVersion.Should().Be(4);
     }
 
+    [Fact]
+    public void FileInfo_FileVersionWithLeadingZeroMajor_UsesMajorComponent()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"fileVersion=""1""",
+            @"fileVersion=""07.3""");
+
+        var result = _reader.ReadString(xdd);
+
+        result.FileInfo.FileVersion.Should().Be(7);
+    }
+
     [Theory]
     [InlineData("7.3")]
     [InlineData("1,0")]
