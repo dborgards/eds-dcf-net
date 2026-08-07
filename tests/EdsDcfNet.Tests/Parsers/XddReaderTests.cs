@@ -1879,6 +1879,50 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ParseDummyUsage_InvalidHexSuffix_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = File.ReadAllText("Fixtures/sample_device.xdd")
+            .Replace(@"<dummy entry=""Dummy0005=1""/>", @"<dummy entry=""DummyGGGG=1""/>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*dummyUsage*DummyGGGG=1*");
+    }
+
+    [Fact]
+    public void ParseDummyUsage_EntryWithoutEquals_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dummyUsage>
+            <dummy entry=""InvalidEntryNoEquals""/>
+          </dummyUsage>
+        </ApplicationLayers>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*dummyUsage*InvalidEntryNoEquals*");
+    }
+
+    [Fact]
+    public void ParseDummyUsage_ShortDummyKey_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dummyUsage>
+            <dummy entry=""Dummy1=1""/>
+          </dummyUsage>
+        </ApplicationLayers>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*dummyUsage*Dummy1=1*");
+    }
+
+    [Fact]
     public void ParseHexDataType_WithPrefix_ParsedCorrectly()
     {
         var xdd = MinimalXdd.Replace(@"dataType=""0007""", @"dataType=""0x0007""");

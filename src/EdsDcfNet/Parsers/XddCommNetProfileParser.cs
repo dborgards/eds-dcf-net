@@ -288,21 +288,42 @@ internal static class XddCommNetProfileParser
             // Format: "DummyXXXX=0" or "DummyXXXX=1"
             var eqIdx = entry.IndexOf('=');
             if (eqIdx < 0)
+            {
+                RejectMalformedDummyUsageEntry(entry);
                 continue;
+            }
 
             var keyPart = entry[..eqIdx].Trim();
             var valPart = entry[(eqIdx + 1)..].Trim();
 
             // keyPart must start with "Dummy" followed by 4 hex digits
             if (!keyPart.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase) || keyPart.Length < 9)
+            {
+                RejectMalformedDummyUsageEntry(entry);
                 continue;
+            }
 
             var hexPart = keyPart[5..];
             if (!ushort.TryParse(hexPart, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var dummyIndex))
+            {
+                RejectMalformedDummyUsageEntry(entry);
                 continue;
+            }
 
             dict.DummyUsage[dummyIndex] = valPart == "1";
         }
+    }
+
+    private static void RejectMalformedDummyUsageEntry(string entry)
+    {
+        if (!StrictParsingScope.IsEnabled)
+            return;
+
+        throw new EdsParseException(
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "Invalid dummyUsage entry '{0}'. Expected DummyXXXX=0|1 with a hexadecimal index.",
+                entry));
     }
 
     private static DynamicChannels? ParseDynamicChannels(XElement dynChannels)

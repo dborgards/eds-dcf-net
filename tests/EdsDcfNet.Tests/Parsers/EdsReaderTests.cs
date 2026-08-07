@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Parsers;
 
+using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
@@ -2221,6 +2222,47 @@ SupportedObjects=0
         var result = _reader.ReadString(content);
 
         // Assert - only the valid DummyXXXX entry is in DummyUsage; the other key is ignored
+        result.ObjectDictionary.DummyUsage.Should().ContainKey(0x0002);
+        result.ObjectDictionary.DummyUsage.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void ReadString_DummyUsage_InvalidHexKey_StrictParsing_ThrowsEdsParseException()
+    {
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[DummyUsage]
+DummyZZZZ=1
+";
+
+        var act = () => CanOpenFile.Eds.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*DummyUsage*DummyZZZZ*");
+    }
+
+    [Fact]
+    public void ReadString_DummyUsage_InvalidHexKey_Lenient_IsSkipped()
+    {
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[DummyUsage]
+Dummy0002=1
+DummyZZZZ=1
+";
+
+        var result = CanOpenFile.Eds.ReadString(content);
+
         result.ObjectDictionary.DummyUsage.Should().ContainKey(0x0002);
         result.ObjectDictionary.DummyUsage.Should().HaveCount(1);
     }
