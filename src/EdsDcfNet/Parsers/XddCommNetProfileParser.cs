@@ -126,7 +126,7 @@ internal static class XddCommNetProfileParser
         var pdoMappingStr = elem.Attribute("PDOmapping")?.Value;
         obj.PdoMappingMode = ParseXddPdoMapping(pdoMappingStr);
 
-        var objFlagsStr = elem.Attribute("objFlags")?.Value;
+        var objFlagsStr = elem.Attribute("objFlags")?.Value?.Trim();
         if (!string.IsNullOrEmpty(objFlagsStr))
         {
             var objFlagsParsed = uint.TryParse(objFlagsStr, NumberStyles.None, CultureInfo.InvariantCulture, out var flags);
@@ -135,7 +135,7 @@ internal static class XddCommNetProfileParser
             RejectFailedNumericAttribute(objFlagsStr, objFlagsParsed, "objFlags");
         }
 
-        var subNumberStr = elem.Attribute("subNumber")?.Value;
+        var subNumberStr = elem.Attribute("subNumber")?.Value?.Trim();
         if (!string.IsNullOrEmpty(subNumberStr))
         {
             var subNumberParsed = byte.TryParse(subNumberStr, NumberStyles.None, CultureInfo.InvariantCulture, out var subNum);
@@ -271,7 +271,7 @@ internal static class XddCommNetProfileParser
             if (!string.IsNullOrEmpty(endIdx) && !string.IsNullOrEmpty(seg.Range))
                 seg.Range = seg.Range + "-" + endIdx;
 
-            var ppOffsetStr = chanElem.Attribute("pDOmappingIndex")?.Value;
+            var ppOffsetStr = chanElem.Attribute("pDOmappingIndex")?.Value?.Trim();
             if (!string.IsNullOrEmpty(ppOffsetStr))
             {
                 var ppOffsetParsed = uint.TryParse(ppOffsetStr, NumberStyles.None, CultureInfo.InvariantCulture, out var ppOffset);
@@ -319,7 +319,7 @@ internal static class XddCommNetProfileParser
             .FirstOrDefault(e => e.Name.LocalName == "CANopenGeneralFeatures");
         if (generalFeatures != null)
         {
-            var granStr = generalFeatures.Attribute("granularity")?.Value;
+            var granStr = generalFeatures.Attribute("granularity")?.Value?.Trim();
             if (!string.IsNullOrEmpty(granStr))
             {
                 var granParsed = byte.TryParse(granStr, NumberStyles.None, CultureInfo.InvariantCulture, out var gran);
@@ -328,7 +328,7 @@ internal static class XddCommNetProfileParser
                 RejectFailedNumericAttribute(granStr, granParsed, "granularity");
             }
 
-            var rxPdoStr = generalFeatures.Attribute("nrOfRxPDO")?.Value;
+            var rxPdoStr = generalFeatures.Attribute("nrOfRxPDO")?.Value?.Trim();
             if (!string.IsNullOrEmpty(rxPdoStr))
             {
                 var rxPdoParsed = ushort.TryParse(rxPdoStr, NumberStyles.None, CultureInfo.InvariantCulture, out var rxPdo);
@@ -337,7 +337,7 @@ internal static class XddCommNetProfileParser
                 RejectFailedNumericAttribute(rxPdoStr, rxPdoParsed, "nrOfRxPDO");
             }
 
-            var txPdoStr = generalFeatures.Attribute("nrOfTxPDO")?.Value;
+            var txPdoStr = generalFeatures.Attribute("nrOfTxPDO")?.Value?.Trim();
             if (!string.IsNullOrEmpty(txPdoStr))
             {
                 var txPdoParsed = ushort.TryParse(txPdoStr, NumberStyles.None, CultureInfo.InvariantCulture, out var txPdo);
@@ -355,7 +355,7 @@ internal static class XddCommNetProfileParser
             if (generalFeatures.Attribute("layerSettingServiceSlave")?.Value is string lssStr)
                 deviceInfo.LssSupported = ParseXmlBool(lssStr);
 
-            var dynChanStr = generalFeatures.Attribute("dynamicChannels")?.Value;
+            var dynChanStr = generalFeatures.Attribute("dynamicChannels")?.Value?.Trim();
             if (!string.IsNullOrEmpty(dynChanStr))
             {
                 var dynChanParsed = byte.TryParse(dynChanStr, NumberStyles.None, CultureInfo.InvariantCulture, out var dynChan);
@@ -421,7 +421,7 @@ internal static class XddCommNetProfileParser
         var baudrateStr = dcElem.Attribute("actualBaudRate")?.Value ?? string.Empty;
         dc.Baudrate = ParseBaudRateString(baudrateStr);
 
-        var netNumberStr = dcElem.Attribute("networkNumber")?.Value ?? string.Empty;
+        var netNumberStr = (dcElem.Attribute("networkNumber")?.Value ?? string.Empty).Trim();
         if (!string.IsNullOrEmpty(netNumberStr))
         {
             var netNumberParsed = uint.TryParse(netNumberStr, NumberStyles.None, CultureInfo.InvariantCulture, out var netNum);
