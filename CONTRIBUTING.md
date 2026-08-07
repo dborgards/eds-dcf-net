@@ -238,6 +238,11 @@ linked, already-reviewed PR series:
    the obsolete APIs in the same PR series, or suppress with a justification
    comment and a tracking issue. Otherwise CS0618 breaks
    `TreatWarningsAsErrors` builds (the #322 incident).
+   `EdsDcfNet.Tests` does **not** suppress CS0618 project-wide; only the
+   dedicated facade/compat suites listed in `.editorconfig` (see issue
+   [#426](https://github.com/dborgards/eds-dcf-net/issues/426)) may call
+   obsolete `CanOpenFile.*` APIs. New tests must use
+   `CanOpenFile.{Eds|Dcf|Cpj|Xdd|Xdc}`.
 3. **Consumer impact** — obsolete warnings are **errors** for
    warnings-as-errors consumers. Prefer advisory deprecation
    (`[Obsolete(..., error: false)]`) until a major release, unless the break

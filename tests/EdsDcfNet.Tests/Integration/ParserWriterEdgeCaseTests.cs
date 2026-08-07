@@ -24,7 +24,7 @@ public class ParserWriterEdgeCaseTests
             ("VendorNumber", "0xGGG"));
 
         // Act
-        var act = () => CanOpenFile.ReadDcfFromString(content);
+        var act = () => CanOpenFile.Dcf.ReadString(content);
 
         // Assert
         act.Should().Throw<EdsParseException>()
@@ -43,7 +43,7 @@ public class ParserWriterEdgeCaseTests
             File.WriteAllText(tempFile, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
 
             // Act
-            var result = CanOpenFile.ReadDcf(tempFile);
+            var result = CanOpenFile.Dcf.ReadFile(tempFile);
 
             // Assert
             result.FileInfo.FileName.Should().Be("edgecase.dcf");
@@ -94,7 +94,7 @@ public class ParserWriterEdgeCaseTests
             "PDOMapping=0");
 
         // Act
-        var result = CanOpenFile.ReadDcfFromString(content);
+        var result = CanOpenFile.Dcf.ReadString(content);
 
         // Assert
         result.DeviceCommissioning.NodeId.Should().Be(7);
@@ -123,8 +123,8 @@ public class ParserWriterEdgeCaseTests
         }
 
         // Act
-        var written = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(written);
+        var written = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(written);
 
         // Assert
         roundTripped.ObjectDictionary.Objects.Count.Should().Be(original.ObjectDictionary.Objects.Count);
@@ -142,8 +142,8 @@ public class ParserWriterEdgeCaseTests
         original.ObjectDictionary.Objects[0x1000].ParameterName = "Temperaturfühler °C";
 
         // Act
-        var written = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(written);
+        var written = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(written);
 
         // Assert
         roundTripped.FileInfo.Description.Should().Be("Gerät über CANopen");
@@ -164,7 +164,7 @@ public class ParserWriterEdgeCaseTests
             ("Baudrate", ushort.MaxValue.ToString(CultureInfo.InvariantCulture)));
 
         // Act
-        var result = CanOpenFile.ReadDcfFromString(content);
+        var result = CanOpenFile.Dcf.ReadString(content);
 
         // Assert
         result.FileInfo.FileVersion.Should().Be(byte.MaxValue);
@@ -182,7 +182,7 @@ public class ParserWriterEdgeCaseTests
             ("NodeID", "-1"));
 
         // Act
-        var act = () => CanOpenFile.ReadDcfFromString(content);
+        var act = () => CanOpenFile.Dcf.ReadString(content);
 
         // Assert
         act.Should().Throw<EdsParseException>()

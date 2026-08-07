@@ -37,11 +37,11 @@ public class XddXdcIntegrationTests
     public void CanOpenFile_ReadXdd_WriteXdd_ReadXdd_RoundTripPreservesSemantics()
     {
         // Arrange
-        var original = CanOpenFile.ReadXdd("Fixtures/sample_device.xdd");
+        var original = CanOpenFile.Xdd.ReadFile("Fixtures/sample_device.xdd");
 
         // Act
-        var written = CanOpenFile.WriteXddToString(original);
-        var roundTripped = CanOpenFile.ReadXddFromString(written);
+        var written = CanOpenFile.Xdd.WriteToString(original);
+        var roundTripped = CanOpenFile.Xdd.ReadString(written);
 
         // Assert
         roundTripped.DeviceInfo.VendorName.Should().Be(original.DeviceInfo.VendorName);
@@ -62,13 +62,13 @@ public class XddXdcIntegrationTests
     [Fact]
     public void CanOpenFile_ReadXdd_WriteXddWithValidated_ReadXdd_RoundTripPreservesSemantics()
     {
-        var original = CanOpenFile.ReadXdd("Fixtures/sample_device.xdd");
+        var original = CanOpenFile.Xdd.ReadFile("Fixtures/sample_device.xdd");
 
         original.ApplicationProcess.Should().NotBeNull(
             "sample_device.xdd includes an ApplicationProcess graph to exercise Validated writes");
 
-        var written = CanOpenFile.WriteXddToString(original, CanOpenWriteOptions.Validated);
-        var roundTripped = CanOpenFile.ReadXddFromString(written);
+        var written = CanOpenFile.Xdd.WriteToString(original, CanOpenWriteOptions.Validated);
+        var roundTripped = CanOpenFile.Xdd.ReadString(written);
 
         roundTripped.DeviceInfo.ProductName.Should().Be(original.DeviceInfo.ProductName);
         roundTripped.ApplicationProcess.Should().NotBeNull();
@@ -102,11 +102,11 @@ public class XddXdcIntegrationTests
     public void CanOpenFile_ReadXdc_WriteXdc_ReadXdc_RoundTripPreservesSemantics()
     {
         // Arrange
-        var original = CanOpenFile.ReadXdc("Fixtures/minimal.xdc");
+        var original = CanOpenFile.Xdc.ReadFile("Fixtures/minimal.xdc");
 
         // Act
-        var written = CanOpenFile.WriteXdcToString(original);
-        var roundTripped = CanOpenFile.ReadXdcFromString(written);
+        var written = CanOpenFile.Xdc.WriteToString(original);
+        var roundTripped = CanOpenFile.Xdc.ReadString(written);
 
         // Assert
         roundTripped.DeviceCommissioning.NodeId.Should().Be(original.DeviceCommissioning.NodeId);
@@ -118,10 +118,10 @@ public class XddXdcIntegrationTests
     [Fact]
     public void CanOpenFile_ReadXdc_WriteXdcWithValidated_ReadXdc_RoundTripPreservesSemantics()
     {
-        var original = CanOpenFile.ReadXdc("Fixtures/minimal.xdc");
+        var original = CanOpenFile.Xdc.ReadFile("Fixtures/minimal.xdc");
 
-        var written = CanOpenFile.WriteXdcToString(original, CanOpenWriteOptions.Validated);
-        var roundTripped = CanOpenFile.ReadXdcFromString(written);
+        var written = CanOpenFile.Xdc.WriteToString(original, CanOpenWriteOptions.Validated);
+        var roundTripped = CanOpenFile.Xdc.ReadString(written);
 
         roundTripped.DeviceCommissioning.NodeId.Should().Be(original.DeviceCommissioning.NodeId);
         roundTripped.DeviceCommissioning.Baudrate.Should().Be(original.DeviceCommissioning.Baudrate);
@@ -162,7 +162,7 @@ public class XddXdcIntegrationTests
         var fromXdd = _xddReader.ReadFile("Fixtures/sample_device.xdd");
 
         // Act — convert to DCF (using EdsToDcf path), write, read back
-        var dcf = CanOpenFile.EdsToDcf(fromXdd, nodeId: 5, baudrate: 500, nodeName: "TestNode");
+        var dcf = CanOpenFile.Eds.ConvertToDcf(fromXdd, nodeId: 5, baudrate: 500, nodeName: "TestNode");
         var dcfContent = _dcfWriter.GenerateString(dcf);
         var fromDcf = new DcfReader().ReadString(dcfContent);
 

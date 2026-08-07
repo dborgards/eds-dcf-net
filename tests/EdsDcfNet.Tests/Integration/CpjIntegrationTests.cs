@@ -25,7 +25,7 @@ EDSBaseName=/config/
 ";
 
         // Act
-        var result = CanOpenFile.ReadCpjFromString(content);
+        var result = CanOpenFile.Cpj.ReadString(content);
 
         // Assert
         result.Should().NotBeNull();
@@ -50,7 +50,7 @@ EDSBaseName=/config/
         });
 
         // Act
-        var result = CanOpenFile.WriteCpjToString(project);
+        var result = CanOpenFile.Cpj.WriteToString(project);
 
         // Assert
         result.Should().Contain("[Topology]");
@@ -79,8 +79,8 @@ EDSBaseName=/config/
         try
         {
             // Act
-            CanOpenFile.WriteCpj(project, tempFile);
-            var result = CanOpenFile.ReadCpj(tempFile);
+            CanOpenFile.Cpj.WriteFile(project, tempFile);
+            var result = CanOpenFile.Cpj.ReadFile(tempFile);
 
             // Assert
             result.Networks.Should().HaveCount(1);
@@ -99,7 +99,7 @@ EDSBaseName=/config/
     public void ReadCpj_NonExistentFile_ThrowsFileNotFoundException()
     {
         // Act
-        var act = () => CanOpenFile.ReadCpj("NonExistent.cpj");
+        var act = () => CanOpenFile.Cpj.ReadFile("NonExistent.cpj");
 
         // Assert
         act.Should().Throw<FileNotFoundException>();

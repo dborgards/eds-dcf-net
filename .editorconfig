@@ -31,3 +31,21 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+
+# Obsolete CanOpenFile facade / parser-shim compat suites (#426).
+# New tests must use CanOpenFile.{Eds|Dcf|Cpj|Xdd|Xdc}; do not expand this list casually.
+[tests/EdsDcfNet.Tests/Integration/CanOpenFileTests.cs]
+dotnet_diagnostic.CS0618.severity = none
+
+[tests/EdsDcfNet.Tests/Integration/FormatCanOpenOperationsTests.cs]
+dotnet_diagnostic.CS0618.severity = none
+
+[tests/EdsDcfNet.Tests/Integration/EdsCanOpenOperationsTests.cs]
+dotnet_diagnostic.CS0618.severity = none
+
+[tests/EdsDcfNet.Tests/Integration/FormatCanOpenOperationsAsyncValidationTests.cs]
+dotnet_diagnostic.CS0618.severity = none
+
+[tests/EdsDcfNet.Tests/Parsers/CanOpenReaderBaseCompatTests.cs]
+dotnet_diagnostic.CS0618.severity = none

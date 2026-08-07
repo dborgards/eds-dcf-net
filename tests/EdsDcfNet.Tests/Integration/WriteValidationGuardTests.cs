@@ -46,7 +46,7 @@ public class WriteValidationGuardTests
             DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
         };
 
-        var act = () => CanOpenFile.WriteDcfToString(dcf, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Validated);
 
         var exception = act.Should().Throw<ModelValidationException>().Which;
         exception.Issues.Should().ContainSingle();
@@ -90,7 +90,7 @@ public class WriteValidationGuardTests
             ObjectType = 0x7
         };
 
-        var act = () => CanOpenFile.WriteEdsToString(eds, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
 
         act.Should().Throw<ModelValidationException>();
     }
@@ -107,7 +107,7 @@ public class WriteValidationGuardTests
         };
 
         using var stream = new MemoryStream();
-        var act = () => CanOpenFile.WriteEdsAsync(eds, stream, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Eds.WriteStreamAsync(eds, stream, CanOpenWriteOptions.Validated);
 
         await act.Should().ThrowAsync<ModelValidationException>();
     }
@@ -121,7 +121,7 @@ public class WriteValidationGuardTests
         };
 
         using var stream = new MemoryStream();
-        var act = () => CanOpenFile.WriteDcfAsync(dcf, stream, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Dcf.WriteStreamAsync(dcf, stream, CanOpenWriteOptions.Validated);
 
         await act.Should().ThrowAsync<ModelValidationException>();
     }
@@ -137,7 +137,7 @@ public class WriteValidationGuardTests
             ObjectType = 0x7
         };
 
-        var act = () => CanOpenFile.WriteXddToString(xdd, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Xdd.WriteToString(xdd, CanOpenWriteOptions.Validated);
 
         act.Should().Throw<ModelValidationException>();
     }
@@ -150,7 +150,7 @@ public class WriteValidationGuardTests
             DeviceCommissioning = new DeviceCommissioning { NodeId = 200, Baudrate = 250 }
         };
 
-        var act = () => CanOpenFile.WriteXdcToString(xdc, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Xdc.WriteToString(xdc, CanOpenWriteOptions.Validated);
 
         act.Should().Throw<ModelValidationException>();
     }
@@ -165,7 +165,7 @@ public class WriteValidationGuardTests
 
         using var stream = new MemoryStream();
 
-        var act = () => CanOpenFile.WriteDcf(dcf, stream, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Dcf.WriteStream(dcf, stream, CanOpenWriteOptions.Validated);
 
         act.Should().Throw<ModelValidationException>();
     }
@@ -180,7 +180,7 @@ public class WriteValidationGuardTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            var act = () => CanOpenFile.WriteCpj(cpj, tempFile, CanOpenWriteOptions.Validated);
+            var act = () => CanOpenFile.Cpj.WriteFile(cpj, tempFile, CanOpenWriteOptions.Validated);
 
             act.Should().Throw<ModelValidationException>();
         }
@@ -226,7 +226,7 @@ public class WriteValidationGuardTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            var act = () => CanOpenFile.WriteEds(eds, tempFile, CanOpenWriteOptions.Validated);
+            var act = () => CanOpenFile.Eds.WriteFile(eds, tempFile, CanOpenWriteOptions.Validated);
 
             act.Should().NotThrow();
             File.Exists(tempFile).Should().BeTrue();
@@ -243,7 +243,7 @@ public class WriteValidationGuardTests
     {
         var eds = ValidCanOpenModelBuilder.CreateValidEds();
 
-        var content = CanOpenFile.WriteEdsToString(eds, CanOpenWriteOptions.Validated);
+        var content = CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
 
         content.Should().Contain("[FileInfo]");
     }
@@ -255,7 +255,7 @@ public class WriteValidationGuardTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            var act = () => CanOpenFile.WriteDcf(dcf, tempFile, CanOpenWriteOptions.Validated);
+            var act = () => CanOpenFile.Dcf.WriteFile(dcf, tempFile, CanOpenWriteOptions.Validated);
 
             act.Should().NotThrow();
         }
@@ -269,7 +269,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteDcfToString_WithValidatedOptions_ValidModel_ReturnsContent()
     {
-        var content = CanOpenFile.WriteDcfToString(ValidCanOpenModelBuilder.CreateValidDcf(), CanOpenWriteOptions.Validated);
+        var content = CanOpenFile.Dcf.WriteToString(ValidCanOpenModelBuilder.CreateValidDcf(), CanOpenWriteOptions.Validated);
 
         content.Should().Contain("[DeviceCommissioning]");
     }
@@ -280,7 +280,7 @@ public class WriteValidationGuardTests
         var cpj = ValidCanOpenModelBuilder.CreateValidCpj();
         using var stream = new MemoryStream();
 
-        var act = () => CanOpenFile.WriteCpj(cpj, stream, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Cpj.WriteStream(cpj, stream, CanOpenWriteOptions.Validated);
 
         act.Should().NotThrow();
         stream.Length.Should().BeGreaterThan(0);
@@ -289,7 +289,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteCpjToString_WithValidatedOptions_ValidModel_ReturnsContent()
     {
-        var content = CanOpenFile.WriteCpjToString(ValidCanOpenModelBuilder.CreateValidCpj(), CanOpenWriteOptions.Validated);
+        var content = CanOpenFile.Cpj.WriteToString(ValidCanOpenModelBuilder.CreateValidCpj(), CanOpenWriteOptions.Validated);
 
         content.Should().Contain("[Topology]");
     }
@@ -301,7 +301,7 @@ public class WriteValidationGuardTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            var act = () => CanOpenFile.WriteXdd(xdd, tempFile, CanOpenWriteOptions.Validated);
+            var act = () => CanOpenFile.Xdd.WriteFile(xdd, tempFile, CanOpenWriteOptions.Validated);
 
             act.Should().NotThrow();
         }
@@ -315,7 +315,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteXddToString_WithValidatedOptions_ValidModel_ReturnsContent()
     {
-        var content = CanOpenFile.WriteXddToString(ValidCanOpenModelBuilder.CreateValidEds(), CanOpenWriteOptions.Validated);
+        var content = CanOpenFile.Xdd.WriteToString(ValidCanOpenModelBuilder.CreateValidEds(), CanOpenWriteOptions.Validated);
 
         content.Should().Contain("ISO15745ProfileContainer");
     }
@@ -327,7 +327,7 @@ public class WriteValidationGuardTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            var act = () => CanOpenFile.WriteXdc(xdc, tempFile, CanOpenWriteOptions.Validated);
+            var act = () => CanOpenFile.Xdc.WriteFile(xdc, tempFile, CanOpenWriteOptions.Validated);
 
             act.Should().NotThrow();
         }
@@ -341,7 +341,7 @@ public class WriteValidationGuardTests
     [Fact]
     public void WriteXdcToString_WithValidatedOptions_ValidModel_ReturnsContent()
     {
-        var content = CanOpenFile.WriteXdcToString(ValidCanOpenModelBuilder.CreateValidDcf(), CanOpenWriteOptions.Validated);
+        var content = CanOpenFile.Xdc.WriteToString(ValidCanOpenModelBuilder.CreateValidDcf(), CanOpenWriteOptions.Validated);
 
         content.Should().Contain("ISO15745ProfileContainer");
     }
@@ -363,7 +363,7 @@ public class WriteValidationGuardTests
             ObjectType = 0x7
         };
 
-        var act = () => CanOpenFile.WriteDcfToString(dcf, CanOpenWriteOptions.Default);
+        var act = () => CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Default);
 
         act.Should().NotThrow();
     }
@@ -379,7 +379,7 @@ public class WriteValidationGuardTests
             ObjectType = 0x7
         };
 
-        var act = () => CanOpenFile.WriteEdsToString(eds, CanOpenWriteOptions.Default);
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Default);
 
         act.Should().NotThrow();
     }
@@ -391,7 +391,7 @@ public class WriteValidationGuardTests
         cpj.Networks.Add(new NetworkTopology());
         cpj.Networks[0].Nodes[0] = new NetworkNode { NodeId = 0, Present = true };
 
-        var act = () => CanOpenFile.WriteCpjToString(cpj, CanOpenWriteOptions.Default);
+        var act = () => CanOpenFile.Cpj.WriteToString(cpj, CanOpenWriteOptions.Default);
 
         act.Should().NotThrow();
     }
@@ -402,7 +402,7 @@ public class WriteValidationGuardTests
         var xdd = ValidCanOpenModelBuilder.CreateValidEds();
         using var stream = new MemoryStream();
 
-        var act = () => CanOpenFile.WriteXdd(xdd, stream, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Xdd.WriteStream(xdd, stream, CanOpenWriteOptions.Validated);
 
         act.Should().NotThrow();
         stream.Length.Should().BeGreaterThan(0);
@@ -420,7 +420,7 @@ public class WriteValidationGuardTests
         };
         using var stream = new MemoryStream();
 
-        var act = () => CanOpenFile.WriteXdd(xdd, stream, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Xdd.WriteStream(xdd, stream, CanOpenWriteOptions.Validated);
 
         act.Should().Throw<ModelValidationException>();
     }
@@ -431,7 +431,7 @@ public class WriteValidationGuardTests
         var xdc = ValidCanOpenModelBuilder.CreateValidDcf();
         using var stream = new MemoryStream();
 
-        var act = () => CanOpenFile.WriteXdc(xdc, stream, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Xdc.WriteStream(xdc, stream, CanOpenWriteOptions.Validated);
 
         act.Should().NotThrow();
         stream.Length.Should().BeGreaterThan(0);
@@ -446,7 +446,7 @@ public class WriteValidationGuardTests
         };
         using var stream = new MemoryStream();
 
-        var act = () => CanOpenFile.WriteXdc(xdc, stream, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Xdc.WriteStream(xdc, stream, CanOpenWriteOptions.Validated);
 
         act.Should().Throw<ModelValidationException>();
     }
@@ -457,7 +457,7 @@ public class WriteValidationGuardTests
         var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
         using var stream = new MemoryStream();
 
-        var act = () => CanOpenFile.WriteDcf(dcf, stream, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Dcf.WriteStream(dcf, stream, CanOpenWriteOptions.Validated);
 
         act.Should().NotThrow();
         stream.Length.Should().BeGreaterThan(0);
@@ -479,7 +479,7 @@ public class WriteValidationGuardTests
 
         using var stream = new MemoryStream();
 
-        var act = () => CanOpenFile.WriteEds(eds, stream, CanOpenWriteOptions.Validated);
+        var act = () => CanOpenFile.Eds.WriteStream(eds, stream, CanOpenWriteOptions.Validated);
 
         act.Should().NotThrow();
     }
