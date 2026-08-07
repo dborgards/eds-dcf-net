@@ -1517,6 +1517,8 @@ public class XddReaderTests
     [InlineData("rwr", AccessType.ReadWriteInput)]
     [InlineData("RWW", AccessType.ReadWriteOutput)]
     [InlineData("const", AccessType.Constant)]
+    [InlineData("wo", AccessType.WriteOnly)]
+    [InlineData("rw", AccessType.ReadWrite)]
     public void ParseXddAccessType_KnownTokens_IncludingRwrRww_Parses(string accessType, AccessType expected)
     {
         var xdd = MinimalXdd.Replace(
@@ -1526,6 +1528,19 @@ public class XddReaderTests
         var result = _reader.ReadString(xdd);
 
         result.ObjectDictionary.Objects[0x1000].AccessType.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ParseXddAccessType_EmptyOrWhitespace_ReturnsReadOnly(string accessType)
+    {
+        XddParsingPrimitives.ParseXddAccessType(accessType).Should().Be(AccessType.ReadOnly);
+
+        using (StrictParsingScope.Enter(true))
+        {
+            XddParsingPrimitives.ParseXddAccessType(accessType).Should().Be(AccessType.ReadOnly);
+        }
     }
 
     [Fact]
@@ -1562,6 +1577,8 @@ public class XddReaderTests
     [InlineData("0", false)]
     [InlineData("true", true)]
     [InlineData("1", true)]
+    [InlineData("FALSE", false)]
+    [InlineData("TRUE", true)]
     public void ParseXmlBool_KnownTokens_StrictParsing_Parses(string token, bool expected)
     {
         var xdd = MinimalXdd.Replace(
@@ -1571,6 +1588,25 @@ public class XddReaderTests
         var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
 
         result.DeviceInfo.SimpleBootUpSlave.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ParseXmlBool_EmptyOrWhitespace_ReturnsFalse(string token)
+    {
+        XddParsingPrimitives.ParseXmlBool(token).Should().BeFalse();
+
+        using (StrictParsingScope.Enter(true))
+        {
+            XddParsingPrimitives.ParseXmlBool(token).Should().BeFalse();
+        }
+    }
+
+    [Fact]
+    public void ParseXmlBool_Unknown_Lenient_ReturnsFalse()
+    {
+        XddParsingPrimitives.ParseXmlBool("maybe").Should().BeFalse();
     }
 
     [Fact]
