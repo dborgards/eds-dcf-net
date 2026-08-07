@@ -1,6 +1,6 @@
-# One-shot: convert Code-Analyse issues #470 and #471 into General Discussions.
-# Prior series posts (#129, #397, …) live in Discussions; these were Issues only because
-# createDiscussion was forbidden for the Cursor app token.
+# One-shot: republish Code-Analyse issues #470 and #471 as General Discussions,
+# then close the Issues. Native "convert issue → discussion" is not exposed in
+# the public GraphQL API; createDiscussion works with GITHUB_TOKEN + discussions:write.
 name: Convert Code-Analyse Issues to Discussions
 
 on:
@@ -17,49 +17,122 @@ jobs:
   convert:
     runs-on: ubuntu-latest
     steps:
-      - name: Convert issues #470 and #471 to General discussions
+      - name: Republish #470 and #471 as General discussions and close issues
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           # General category (same as discussions #129 / #397)
           CATEGORY_ID: DIC_kwDOQp8Z8M4C291A
+          REPO_ID: R_kgDOQp8Z8A
         run: |
           set -euo pipefail
+          python3 <<'PY'
+          import json, os, subprocess, urllib.request
 
-          convert_issue() {
-            local number="$1"
-            local node_id result
-            echo "::group::Issue #${number}"
+          token = os.environ["GH_TOKEN"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          repo_id = os.environ["REPO_ID"]
+          category_id = os.environ["CATEGORY_ID"]
 
-            node_id="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${number}" --jq .node_id)"
-            echo "node_id=${node_id}"
-
-            result="$(gh api graphql -f query='
-              mutation($issueId: ID!, $categoryId: ID!) {
-                convertIssueToDiscussion(input: {issueId: $issueId, categoryId: $categoryId}) {
-                  discussion { number url title category { name } }
-                }
-              }
-            ' -f issueId="${node_id}" -f categoryId="${CATEGORY_ID}")"
-
-            printf '%s\n' "${result}" | tee "/tmp/convert-${number}.json" >/dev/null
-            RESULT_JSON="${result}" python3 -c '
-          import json, os, sys
-          d = json.loads(os.environ["RESULT_JSON"])
-          if d.get("errors"):
-              raise SystemExit("GraphQL errors: " + json.dumps(d["errors"], indent=2))
-          payload = d.get("data", {}).get("convertIssueToDiscussion")
-          if not payload or not payload.get("discussion"):
-              raise SystemExit("Unexpected response: " + json.dumps(d, indent=2))
-          disc = payload["discussion"]
-          print(
-              "Converted -> Discussion #{}: {} [{}]".format(
-                  disc["number"], disc["url"], disc["category"]["name"]
+          def gh_rest(method, path, data=None):
+              req = urllib.request.Request(
+                  f"https://api.github.com{path}",
+                  data=None if data is None else json.dumps(data).encode(),
+                  method=method,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "eds-dcf-net-convert-workflow",
+                  },
               )
-          )
-          '
-            echo "::endgroup::"
-          }
+              with urllib.request.urlopen(req) as resp:
+                  body = resp.read().decode()
+                  return json.loads(body) if body else {}
 
-          convert_issue 470
-          convert_issue 471
-          echo "Both issues converted to General discussions."
+          def gh_graphql(query, variables):
+              req = urllib.request.Request(
+                  "https://api.github.com/graphql",
+                  data=json.dumps({"query": query, "variables": variables}).encode(),
+                  method="POST",
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "Content-Type": "application/json",
+                      "User-Agent": "eds-dcf-net-convert-workflow",
+                  },
+              )
+              with urllib.request.urlopen(req) as resp:
+                  payload = json.loads(resp.read().decode())
+              if payload.get("errors"):
+                  raise SystemExit("GraphQL errors:\n" + json.dumps(payload["errors"], indent=2))
+              return payload["data"]
+
+          CREATE = """
+          mutation($repoId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+            createDiscussion(input: {
+              repositoryId: $repoId
+              categoryId: $categoryId
+              title: $title
+              body: $body
+            }) {
+              discussion { number url title category { name } }
+            }
+          }
+          """
+
+          for number in (470, 471):
+              print(f"::group::Issue #{number}")
+              issue = gh_rest("GET", f"/repos/{repo}/issues/{number}")
+              if issue.get("state") == "closed":
+                  print(f"Issue #{number} already closed — skipping create (idempotent).")
+                  print("::endgroup::")
+                  continue
+
+              title = issue["title"]
+              body = issue.get("body") or ""
+              issue_url = issue["html_url"]
+              body = (
+                  f"{body}\n\n---\n"
+                  f"_Moved from {issue_url} "
+                  f"(was opened as an Issue by mistake; Code-Analyse posts belong in Discussions)._\n"
+              )
+
+              data = gh_graphql(
+                  CREATE,
+                  {
+                      "repoId": repo_id,
+                      "categoryId": category_id,
+                      "title": title,
+                      "body": body,
+                  },
+              )
+              disc = data["createDiscussion"]["discussion"]
+              disc_url = disc["url"]
+              print(
+                  f"Created Discussion #{disc['number']}: {disc_url} "
+                  f"[{disc['category']['name']}]"
+              )
+
+              # Close via gh for a tidy close comment
+              subprocess.run(
+                  [
+                      "gh",
+                      "issue",
+                      "close",
+                      str(number),
+                      "--repo",
+                      repo,
+                      "--comment",
+                      (
+                          f"Moved to Discussion {disc_url} (General). "
+                          "Code-Analyse posts belong in Discussions, not Issues."
+                      ),
+                  ],
+                  check=True,
+              )
+              print(f"Closed issue #{number} → {disc_url}")
+              print("::endgroup::")
+
+          print("Done.")
+          PY
