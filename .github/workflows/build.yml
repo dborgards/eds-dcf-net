@@ -72,10 +72,11 @@ jobs:
         override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
         fail_ci_if_error: true
 
-    # Same event gate as the Codecov upload step: feature-branch pushes never
-    # upload, so waiting for codecov[bot] would burn ~4 minutes for nothing.
-    # PRs and develop still wait so the Actions-posted status lands after the
-    # webhook (develop ruleset integration_id constraint).
+    # Same event gate as the Codecov upload step (PR/develop). Feature-branch
+    # pushes never upload, so waiting for codecov[bot] would burn ~4 minutes.
+    # Still run when coverage_files is empty so a gate failure with no Cobertura
+    # reports can post failure (avoids a pending required check); the wait loop
+    # below is skipped in that case because upload did not run.
     - name: Post codecov/patch status
       if: always() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
       continue-on-error: true
@@ -96,22 +97,26 @@ jobs:
           exit 0
         fi
 
-        # Wait for the Codecov webhook to post its own codecov/patch status
-        # before we post ours, so the GitHub Actions status is always last
-        # (required by the develop branch ruleset integration_id constraint).
+        # Wait for the Codecov webhook only when upload ran (coverage files
+        # present). With no files, codecov[bot] never posts; waiting wastes ~4m.
         # Portable loop (Git Bash on windows-latest may lack `seq`).
-        i=1
-        while [[ "$i" -le 24 ]]; do
-          codecov_bot_status=$(gh api "repos/${{ github.repository }}/commits/${COMMIT_SHA}/statuses" \
-            --jq '[.[] | select(.context == "codecov/patch" and (.creator.login == "codecov[bot]"))][0].state // empty' 2>/dev/null || true)
-          if [[ -n "$codecov_bot_status" ]]; then
-            echo "Codecov webhook status detected (${codecov_bot_status}) after ~$((i * 10))s"
-            break
-          fi
-          echo "Waiting for Codecov webhook... (attempt $i/24)"
-          sleep 10
-          i=$((i + 1))
-        done
+        # Required by the develop branch ruleset integration_id constraint.
+        if [[ -n "${{ steps.coverage_gate.outputs.coverage_files }}" ]]; then
+          i=1
+          while [[ "$i" -le 24 ]]; do
+            codecov_bot_status=$(gh api "repos/${{ github.repository }}/commits/${COMMIT_SHA}/statuses" \
+              --jq '[.[] | select(.context == "codecov/patch" and (.creator.login == "codecov[bot]"))][0].state // empty' 2>/dev/null || true)
+            if [[ -n "$codecov_bot_status" ]]; then
+              echo "Codecov webhook status detected (${codecov_bot_status}) after ~$((i * 10))s"
+              break
+            fi
+            echo "Waiting for Codecov webhook... (attempt $i/24)"
+            sleep 10
+            i=$((i + 1))
+          done
+        else
+          echo "No coverage files uploaded; skipping Codecov webhook wait."
+        fi
 
         gh api "repos/${{ github.repository }}/statuses/${COMMIT_SHA}" \
           --method POST \
