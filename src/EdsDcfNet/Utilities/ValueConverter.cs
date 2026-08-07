@@ -3,6 +3,7 @@ namespace EdsDcfNet.Utilities;
 using System.Globalization;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 
 /// <summary>
 /// Utility class for converting string values from EDS/DCF files to typed values.
@@ -93,9 +94,26 @@ public static class ValueConverter
         if (string.IsNullOrEmpty(value))
             return false;
 
-        return value == "1" ||
-               value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-               value.Equals("yes", StringComparison.OrdinalIgnoreCase);
+        if (value == "1" ||
+            value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("yes", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (value == "0" ||
+            value.Equals("false", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("no", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Unknown boolean token '{0}'. Expected one of: 0, 1, true, false, yes, no.",
+                    value));
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -188,19 +206,21 @@ public static class ValueConverter
     /// recognized tokens are <c>"ro"</c>, <c>"wo"</c>, <c>"rw"</c>, <c>"rwr"</c>,
     /// <c>"rww"</c>, and <c>"const"</c> (case-insensitive, surrounding whitespace ignored).
     /// Any unrecognized value — including typos and <see langword="null"/> — silently maps to
-    /// <see cref="AccessType.ReadOnly"/> without raising an error. Unlike the numeric parsers
-    /// in this class, malformed input is not reported via <see cref="EdsParseException"/>.
-    /// Note that this can change round-trip output: an unknown access type in the source file
-    /// is written back as <c>"ro"</c>.
+    /// <see cref="AccessType.ReadOnly"/> without raising an error when lenient. With
+    /// <see cref="CanOpenFileOptions.StrictParsing"/> enabled (via
+    /// <see cref="StrictParsingScope"/>), unrecognized tokens throw
+    /// <see cref="EdsParseException"/>. Note that lenient mode can change round-trip
+    /// output: an unknown access type in the source file is written back as <c>"ro"</c>.
     /// </remarks>
     /// <param name="value">String value to parse.</param>
     /// <returns>
     /// The parsed <see cref="AccessType"/>, or <see cref="AccessType.ReadOnly"/> if
-    /// <paramref name="value"/> is not a recognized access type token.
+    /// <paramref name="value"/> is not a recognized access type token (lenient mode).
     /// </returns>
     public static AccessType ParseAccessType(string value)
     {
-        return value?.Trim().ToLowerInvariant() switch
+        var token = value?.Trim().ToLowerInvariant();
+        return token switch
         {
             "ro" => AccessType.ReadOnly,
             "wo" => AccessType.WriteOnly,
@@ -208,6 +228,11 @@ public static class ValueConverter
             "rwr" => AccessType.ReadWriteInput,
             "rww" => AccessType.ReadWriteOutput,
             "const" => AccessType.Constant,
+            _ when StrictParsingScope.IsEnabled => throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Unknown access type token '{0}'. Expected one of: ro, wo, rw, rwr, rww, const.",
+                    value ?? string.Empty)),
             _ => AccessType.ReadOnly
         };
     }

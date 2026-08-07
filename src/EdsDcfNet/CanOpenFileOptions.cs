@@ -38,8 +38,10 @@ public sealed class CanOpenFileOptions
     /// <list type="bullet">
     /// <item><description>Duplicate keys within an INI section (default: last write wins)</description></item>
     /// <item><description>Unknown XDD/XDC baud-rate strings on <c>supportedBaudRate</c>, <c>actualBaudRate</c>, and <c>baudRate/@defaultValue</c> (default: treat as 0 / ignore)</description></item>
+    /// <item><description>Unknown boolean tokens in <c>ValueConverter.ParseBoolean</c> (default: treat as <see langword="false"/>)</description></item>
+    /// <item><description>Unknown access-type tokens in <c>ValueConverter.ParseAccessType</c> (default: <c>ro</c>)</description></item>
     /// </list>
-    /// Additional coercion sites may join this switch in follow-up work (see issue #428).
+    /// Related coercion sites may still be lenient-only (see issue #428 for deferred items).
     /// </remarks>
     public bool StrictParsing { get; init; }
 

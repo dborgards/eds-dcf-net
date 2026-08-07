@@ -2,6 +2,7 @@ namespace EdsDcfNet.Tests.Utilities;
 
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 using EdsDcfNet.Utilities;
 using FluentAssertions;
 using Xunit;
@@ -212,6 +213,35 @@ public class ValueConverterTests
 
         // Assert
         result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("2")]
+    [InlineData("random")]
+    [InlineData("yeah")]
+    public void ParseBoolean_UnknownToken_StrictParsing_ThrowsEdsParseException(string input)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            var act = () => ValueConverter.ParseBoolean(input);
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*Unknown boolean token*");
+        }
+    }
+
+    [Theory]
+    [InlineData("0", false)]
+    [InlineData("false", false)]
+    [InlineData("no", false)]
+    [InlineData("1", true)]
+    [InlineData("true", true)]
+    [InlineData("yes", true)]
+    public void ParseBoolean_KnownTokens_StrictParsing_Parses(string input, bool expected)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            ValueConverter.ParseBoolean(input).Should().Be(expected);
+        }
     }
 
     #endregion
@@ -437,6 +467,33 @@ public class ValueConverterTests
 
         // Assert
         result.Should().Be(AccessType.ReadOnly);
+    }
+
+    [Theory]
+    [InlineData("invalid")]
+    [InlineData("")]
+    [InlineData(null)]
+    [InlineData("read")]
+    public void ParseAccessType_UnknownToken_StrictParsing_ThrowsEdsParseException(string? input)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            var act = () => ValueConverter.ParseAccessType(input!);
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*Unknown access type token*");
+        }
+    }
+
+    [Theory]
+    [InlineData("ro", AccessType.ReadOnly)]
+    [InlineData("rw", AccessType.ReadWrite)]
+    [InlineData("const", AccessType.Constant)]
+    public void ParseAccessType_KnownTokens_StrictParsing_Parses(string input, AccessType expected)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            ValueConverter.ParseAccessType(input).Should().Be(expected);
+        }
     }
 
     #endregion
