@@ -484,6 +484,44 @@ public class EdsWriterTests
     }
 
     [Fact]
+    public void GenerateString_SubObjectsWithoutSubNumber_EmitsHighestSubIndex()
+    {
+        var eds = CreateMinimalEds();
+        var obj = new CanOpenObject
+        {
+            Index = 0x2000,
+            ParameterName = "Array Without SubNumber",
+            ObjectType = 0x8,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadWrite,
+        };
+        obj.SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1, ParameterName = "Elem1", ObjectType = 0x7,
+            DataType = 0x0007, AccessType = AccessType.ReadWrite,
+        };
+        obj.SubObjects[2] = new CanOpenSubObject
+        {
+            SubIndex = 2, ParameterName = "Elem2", ObjectType = 0x7,
+            DataType = 0x0007, AccessType = AccessType.ReadWrite,
+        };
+        obj.SubObjects[3] = new CanOpenSubObject
+        {
+            SubIndex = 3, ParameterName = "Elem3", ObjectType = 0x7,
+            DataType = 0x0007, AccessType = AccessType.ReadWrite,
+        };
+        eds.ObjectDictionary.Objects[0x2000] = obj;
+        eds.ObjectDictionary.ManufacturerObjects.Add(0x2000);
+
+        var result = _writer.GenerateString(eds);
+
+        result.Should().Contain("SubNumber=3");
+        result.Should().Contain("[2000sub1]");
+        result.Should().Contain("[2000sub2]");
+        result.Should().Contain("[2000sub3]");
+    }
+
+    [Fact]
     public void GenerateString_CompactSubObj_SubNumberCoversHighestExpandedSubIndex()
     {
         // Arrange — several sub-objects above the compact range: SubNumber must stay high

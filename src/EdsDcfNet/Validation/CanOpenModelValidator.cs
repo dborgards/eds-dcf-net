@@ -347,6 +347,15 @@ public static class CanOpenModelValidator
                     obj.SubNumber.Value)));
         }
 
+        if (obj.SubObjects.Count > 0 &&
+            (!obj.SubNumber.HasValue || obj.SubNumber.Value == 0) &&
+            !hasCompactSubObjects)
+        {
+            issues.Add(new ValidationIssue(
+                objectPath + ".SubNumber",
+                "Sub-objects are defined but SubNumber is missing or zero."));
+        }
+
         foreach (var subObject in obj.SubObjects)
         {
             ValidateMaxLength(

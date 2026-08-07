@@ -224,11 +224,27 @@ public abstract class IniWriterBase
     /// <summary>
     /// Chooses the SubNumber to emit. Under compact storage this is usually omitted,
     /// except when expanded sub-objects above the compact range must remain reachable.
+    /// When not using compact storage and <see cref="CanOpenObject.SubNumber"/> is
+    /// unset or zero, falls back to the highest present sub-index so CiA 306
+    /// <c>SubNumber</c> is still emitted for ARRAY/RECORD objects.
     /// </summary>
     private static byte ResolveSubNumberForWrite(CanOpenObject obj, int compactMax, bool useCompact)
     {
         if (!useCompact)
-            return obj.SubNumber.GetValueOrDefault();
+        {
+            var fromModel = obj.SubNumber.GetValueOrDefault();
+            if (fromModel > 0)
+                return fromModel;
+
+            byte maxSubIndex = 0;
+            foreach (var key in obj.SubObjects.Keys)
+            {
+                if (key > maxSubIndex)
+                    maxSubIndex = key;
+            }
+
+            return maxSubIndex;
+        }
 
         byte maxExpandedBeyondCompact = 0;
         var hasBeyond = false;
@@ -244,8 +260,8 @@ public abstract class IniWriterBase
         if (!hasBeyond)
             return 0;
 
-        var fromModel = obj.SubNumber.GetValueOrDefault();
-        return fromModel > maxExpandedBeyondCompact ? fromModel : maxExpandedBeyondCompact;
+        var compactFromModel = obj.SubNumber.GetValueOrDefault();
+        return compactFromModel > maxExpandedBeyondCompact ? compactFromModel : maxExpandedBeyondCompact;
     }
 
     /// <summary>
