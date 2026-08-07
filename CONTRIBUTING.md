@@ -87,6 +87,19 @@ while the core library project additionally pins the analyzer package version vi
 - To update the SDK baseline, submit one PR that updates `global.json` and
   briefly notes the change in the PR description.
 
+## Dependency update ownership
+
+| Ecosystem | Version updates | Base branch |
+|---|---|---|
+| NuGet | **Renovate** ([`renovate.json`](renovate.json)) | `develop` |
+| npm | **Renovate** | `develop` |
+| GitHub Actions | **Renovate** | `develop` |
+
+Dependabot **version** updates are disabled (no `.github/dependabot.yml`) so the
+two bots cannot open conflicting lockfile PRs. GitHub Dependabot **security**
+alerts may still open PRs when enabled in repository settings; prefer merging
+those into `develop` like other dependency work.
+
 ## Boundary & regression test guide
 
 Edge-case regressions in conversion/validation code have historically been
