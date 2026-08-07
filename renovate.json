@@ -9,10 +9,11 @@
   "semanticCommitType": "chore",
   "packageRules": [
     {
+      "description": "Bump NuGet versions including exact/[bracket] pins (e.g. FluentAssertions [7.2.2]).",
       "matchManagers": [
         "nuget"
       ],
-      "rangeStrategy": "in-range-only"
+      "rangeStrategy": "bump"
     }
   ]
 }
