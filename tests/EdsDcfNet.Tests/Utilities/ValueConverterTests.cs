@@ -268,12 +268,26 @@ public class ValueConverterTests
     }
 
     [Theory]
-    [InlineData("random", false)]
-    [InlineData("0x02", false)]
-    [InlineData("present", false)]
+    [InlineData("random")]
+    [InlineData("0x02")]
+    [InlineData("present")]
+    public void ParsePresentFlag_UnknownToken_StrictParsing_ThrowsEdsParseException(string input)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            var act = () => ValueConverter.ParsePresentFlag(input);
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*boolean*" + input + "*");
+        }
+    }
+
+    [Theory]
     [InlineData("1", true)]
     [InlineData("0x01", true)]
-    public void ParsePresentFlag_UnknownOrKnown_StrictParsing_RemainsLenient(string input, bool expected)
+    [InlineData("0", false)]
+    [InlineData("0x00", false)]
+    [InlineData("false", false)]
+    public void ParsePresentFlag_KnownTokens_StrictParsing_Parses(string input, bool expected)
     {
         using (StrictParsingScope.Enter(true))
         {

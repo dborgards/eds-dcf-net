@@ -102,16 +102,9 @@ internal static class XddCommNetProfileParser
     {
         var obj = new CanOpenObject();
 
-        var indexStr = elem.Attribute("index")?.Value ?? "0000";
-        obj.Index = ParseHexIndex(indexStr);
+        obj.Index = ParseRequiredHexIndexAttribute(elem, "CANopenObject");
         obj.ParameterName = elem.Attribute("name")?.Value ?? string.Empty;
-
-        var objTypeStr = elem.Attribute("objectType")?.Value;
-        if (!string.IsNullOrEmpty(objTypeStr) &&
-            byte.TryParse(objTypeStr, NumberStyles.None, CultureInfo.InvariantCulture, out var objType))
-            obj.ObjectType = objType;
-        else
-            obj.ObjectType = 0x7;
+        obj.ObjectType = ParseObjectTypeAttribute(elem, "CANopenObject");
 
         if (elem.Attribute("dataType")?.Value is string dataTypeStr)
             obj.DataType = ParseHexDataType(dataTypeStr);
@@ -126,15 +119,23 @@ internal static class XddCommNetProfileParser
         var pdoMappingStr = elem.Attribute("PDOmapping")?.Value;
         obj.PdoMappingMode = ParseXddPdoMapping(pdoMappingStr);
 
-        var objFlagsStr = elem.Attribute("objFlags")?.Value;
-        if (!string.IsNullOrEmpty(objFlagsStr) &&
-            uint.TryParse(objFlagsStr, NumberStyles.None, CultureInfo.InvariantCulture, out var flags))
-            obj.ObjFlags = flags;
+        var objFlagsStr = GetTrimmedAttributeValue(elem, "objFlags");
+        if (!string.IsNullOrEmpty(objFlagsStr))
+        {
+            var objFlagsParsed = uint.TryParse(objFlagsStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var flags);
+            if (objFlagsParsed)
+                obj.ObjFlags = flags;
+            RejectFailedNumericAttribute(objFlagsStr, objFlagsParsed, "objFlags");
+        }
 
-        var subNumberStr = elem.Attribute("subNumber")?.Value;
-        if (!string.IsNullOrEmpty(subNumberStr) &&
-            byte.TryParse(subNumberStr, NumberStyles.None, CultureInfo.InvariantCulture, out var subNum))
-            obj.SubNumber = subNum;
+        var subNumberStr = GetTrimmedAttributeValue(elem, "subNumber");
+        if (!string.IsNullOrEmpty(subNumberStr))
+        {
+            var subNumberParsed = byte.TryParse(subNumberStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var subNum);
+            if (subNumberParsed)
+                obj.SubNumber = subNum;
+            RejectFailedNumericAttribute(subNumberStr, subNumberParsed, "subNumber");
+        }
 
         if (includeActualValues)
         {
@@ -162,13 +163,7 @@ internal static class XddCommNetProfileParser
         var subIndexStr = elem.Attribute("subIndex")?.Value ?? "00";
         subObj.SubIndex = ParseHexSubIndex(subIndexStr);
         subObj.ParameterName = elem.Attribute("name")?.Value ?? string.Empty;
-
-        var objTypeStr = elem.Attribute("objectType")?.Value;
-        if (!string.IsNullOrEmpty(objTypeStr) &&
-            byte.TryParse(objTypeStr, NumberStyles.None, CultureInfo.InvariantCulture, out var objType))
-            subObj.ObjectType = objType;
-        else
-            subObj.ObjectType = 0x7;
+        subObj.ObjectType = ParseObjectTypeAttribute(elem, "CANopenSubObject");
 
         if (elem.Attribute("dataType")?.Value is string dataTypeStr)
             subObj.DataType = ParseHexDataType(dataTypeStr);
@@ -193,6 +188,72 @@ internal static class XddCommNetProfileParser
         }
 
         return subObj;
+    }
+
+    /// <summary>
+    /// Reads <c>index</c> from a <c>CANopenObject</c>. Lenient: missing → <c>0000</c>.
+    /// Strict: missing attribute throws <see cref="EdsParseException"/>.
+    /// </summary>
+    private static ushort ParseRequiredHexIndexAttribute(XElement elem, string elementName)
+    {
+        var attr = elem.Attribute("index");
+        if (attr == null)
+        {
+            if (StrictParsingScope.IsEnabled)
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0} is missing required attribute 'index'.",
+                        elementName));
+            }
+
+            return ParseHexIndex("0000");
+        }
+
+        return ParseHexIndex(attr.Value);
+    }
+
+    /// <summary>
+    /// Reads <c>objectType</c>. Lenient: missing/invalid → <c>0x7</c> (VAR).
+    /// Strict: missing or non-parsable values throw <see cref="EdsParseException"/>.
+    /// Surrounding whitespace is trimmed (XML Schema integer whitespace collapse).
+    /// Optional leading sign is accepted (<c>+9</c>, <c>-0</c>); out-of-range
+    /// negatives such as <c>-1</c> remain invalid for <c>xsd:unsignedByte</c>.
+    /// </summary>
+    private static byte ParseObjectTypeAttribute(XElement elem, string elementName)
+    {
+        var attr = elem.Attribute("objectType");
+        if (attr == null)
+        {
+            if (StrictParsingScope.IsEnabled)
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0} is missing required attribute 'objectType'.",
+                        elementName));
+            }
+
+            return 0x7;
+        }
+
+        var objTypeStr = attr.Value.Trim();
+        // AllowLeadingSign matches xsd:unsignedByte lexical forms (+9, -0) after trim.
+        if (byte.TryParse(objTypeStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var objType))
+            return objType;
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Invalid objectType '{0}' on {1}. Expected an Unsigned8 decimal integer.",
+                    objTypeStr,
+                    elementName));
+        }
+
+        return 0x7;
     }
 
     private static void ClassifyObject(
@@ -263,10 +324,14 @@ internal static class XddCommNetProfileParser
             if (!string.IsNullOrEmpty(endIdx) && !string.IsNullOrEmpty(seg.Range))
                 seg.Range = seg.Range + "-" + endIdx;
 
-            var ppOffsetStr = chanElem.Attribute("pDOmappingIndex")?.Value;
-            if (!string.IsNullOrEmpty(ppOffsetStr) &&
-                uint.TryParse(ppOffsetStr, NumberStyles.None, CultureInfo.InvariantCulture, out var ppOffset))
-                seg.PPOffset = ppOffset;
+            var ppOffsetStr = GetTrimmedAttributeValue(chanElem, "pDOmappingIndex");
+            if (!string.IsNullOrEmpty(ppOffsetStr))
+            {
+                var ppOffsetParsed = uint.TryParse(ppOffsetStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var ppOffset);
+                if (ppOffsetParsed)
+                    seg.PPOffset = ppOffset;
+                RejectFailedNumericAttribute(ppOffsetStr, ppOffsetParsed, "pDOmappingIndex");
+            }
 
             result.Segments.Add(seg);
         }
@@ -307,20 +372,32 @@ internal static class XddCommNetProfileParser
             .FirstOrDefault(e => e.Name.LocalName == "CANopenGeneralFeatures");
         if (generalFeatures != null)
         {
-            var granStr = generalFeatures.Attribute("granularity")?.Value;
-            if (!string.IsNullOrEmpty(granStr) &&
-                byte.TryParse(granStr, NumberStyles.None, CultureInfo.InvariantCulture, out var gran))
-                deviceInfo.Granularity = gran;
+            var granStr = GetTrimmedAttributeValue(generalFeatures, "granularity");
+            if (!string.IsNullOrEmpty(granStr))
+            {
+                var granParsed = byte.TryParse(granStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var gran);
+                if (granParsed)
+                    deviceInfo.Granularity = gran;
+                RejectFailedNumericAttribute(granStr, granParsed, "granularity");
+            }
 
-            var rxPdoStr = generalFeatures.Attribute("nrOfRxPDO")?.Value;
-            if (!string.IsNullOrEmpty(rxPdoStr) &&
-                ushort.TryParse(rxPdoStr, NumberStyles.None, CultureInfo.InvariantCulture, out var rxPdo))
-                deviceInfo.NrOfRxPdo = rxPdo;
+            var rxPdoStr = GetTrimmedAttributeValue(generalFeatures, "nrOfRxPDO");
+            if (!string.IsNullOrEmpty(rxPdoStr))
+            {
+                var rxPdoParsed = ushort.TryParse(rxPdoStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var rxPdo);
+                if (rxPdoParsed)
+                    deviceInfo.NrOfRxPdo = rxPdo;
+                RejectFailedNumericAttribute(rxPdoStr, rxPdoParsed, "nrOfRxPDO");
+            }
 
-            var txPdoStr = generalFeatures.Attribute("nrOfTxPDO")?.Value;
-            if (!string.IsNullOrEmpty(txPdoStr) &&
-                ushort.TryParse(txPdoStr, NumberStyles.None, CultureInfo.InvariantCulture, out var txPdo))
-                deviceInfo.NrOfTxPdo = txPdo;
+            var txPdoStr = GetTrimmedAttributeValue(generalFeatures, "nrOfTxPDO");
+            if (!string.IsNullOrEmpty(txPdoStr))
+            {
+                var txPdoParsed = ushort.TryParse(txPdoStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var txPdo);
+                if (txPdoParsed)
+                    deviceInfo.NrOfTxPdo = txPdo;
+                RejectFailedNumericAttribute(txPdoStr, txPdoParsed, "nrOfTxPDO");
+            }
 
             if (generalFeatures.Attribute("bootUpSlave")?.Value is string bootUpSlaveStr)
                 deviceInfo.SimpleBootUpSlave = ParseXmlBool(bootUpSlaveStr);
@@ -331,10 +408,14 @@ internal static class XddCommNetProfileParser
             if (generalFeatures.Attribute("layerSettingServiceSlave")?.Value is string lssStr)
                 deviceInfo.LssSupported = ParseXmlBool(lssStr);
 
-            var dynChanStr = generalFeatures.Attribute("dynamicChannels")?.Value;
-            if (!string.IsNullOrEmpty(dynChanStr) &&
-                byte.TryParse(dynChanStr, NumberStyles.None, CultureInfo.InvariantCulture, out var dynChan))
-                deviceInfo.DynamicChannelsSupported = dynChan;
+            var dynChanStr = GetTrimmedAttributeValue(generalFeatures, "dynamicChannels");
+            if (!string.IsNullOrEmpty(dynChanStr))
+            {
+                var dynChanParsed = byte.TryParse(dynChanStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var dynChan);
+                if (dynChanParsed)
+                    deviceInfo.DynamicChannelsSupported = dynChan;
+                RejectFailedNumericAttribute(dynChanStr, dynChanParsed, "dynamicChannels");
+            }
         }
 
         var masterFeatures = networkMgmt.Elements()
@@ -393,10 +474,14 @@ internal static class XddCommNetProfileParser
         var baudrateStr = dcElem.Attribute("actualBaudRate")?.Value ?? string.Empty;
         dc.Baudrate = ParseBaudRateString(baudrateStr);
 
-        var netNumberStr = dcElem.Attribute("networkNumber")?.Value ?? string.Empty;
-        if (!string.IsNullOrEmpty(netNumberStr) &&
-            uint.TryParse(netNumberStr, NumberStyles.None, CultureInfo.InvariantCulture, out var netNum))
-            dc.NetNumber = netNum;
+        var netNumberStr = GetTrimmedAttributeValue(dcElem, "networkNumber") ?? string.Empty;
+        if (!string.IsNullOrEmpty(netNumberStr))
+        {
+            var netNumberParsed = uint.TryParse(netNumberStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var netNum);
+            if (netNumberParsed)
+                dc.NetNumber = netNum;
+            RejectFailedNumericAttribute(netNumberStr, netNumberParsed, "networkNumber");
+        }
 
         dc.NetworkName = dcElem.Attribute("networkName")?.Value ?? string.Empty;
 
