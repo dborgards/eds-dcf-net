@@ -56,6 +56,7 @@ jobs:
 
       # Shared gate with build.yml — see tools/enforce-coverage-threshold.sh.
       - name: Enforce coverage threshold
+        id: coverage_gate
         shell: bash
         run: bash tools/enforce-coverage-threshold.sh .
 
@@ -63,7 +64,8 @@ jobs:
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: '**/coverage.cobertura.xml'
+          files: ${{ steps.coverage_gate.outputs.coverage_files }}
+          disable_search: true
           fail_ci_if_error: true
 
       - name: Semantic Release
