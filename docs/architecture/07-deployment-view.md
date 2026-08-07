@@ -96,6 +96,15 @@ flowchart LR
     style SR fill:#9B59B6,color:#fff
 ```
 
+### Coverage gate
+
+PR (`build.yml`) and release (`semantic-release.yml`) both run
+`tools/enforce-coverage-threshold.sh` after `dotnet test` with XPlat Code Coverage.
+The script finds every `coverage.cobertura.xml`, sums Cobertura `lines-covered` /
+`lines-valid`, and fails if the weighted line percentage is below
+`COVERAGE_MIN_PERCENT` (95.0). Using one script avoids PR/release gate drift when
+multiple Cobertura files exist.
+
 ### Release Rules
 
 | Commit Type    | Release Impact     |
