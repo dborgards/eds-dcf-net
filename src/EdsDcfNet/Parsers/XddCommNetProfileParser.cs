@@ -102,16 +102,9 @@ internal static class XddCommNetProfileParser
     {
         var obj = new CanOpenObject();
 
-        var indexStr = elem.Attribute("index")?.Value ?? "0000";
-        obj.Index = ParseHexIndex(indexStr);
+        obj.Index = ParseRequiredHexIndexAttribute(elem, "CANopenObject");
         obj.ParameterName = elem.Attribute("name")?.Value ?? string.Empty;
-
-        var objTypeStr = elem.Attribute("objectType")?.Value;
-        if (!string.IsNullOrEmpty(objTypeStr) &&
-            byte.TryParse(objTypeStr, NumberStyles.None, CultureInfo.InvariantCulture, out var objType))
-            obj.ObjectType = objType;
-        else
-            obj.ObjectType = 0x7;
+        obj.ObjectType = ParseObjectTypeAttribute(elem, "CANopenObject");
 
         if (elem.Attribute("dataType")?.Value is string dataTypeStr)
             obj.DataType = ParseHexDataType(dataTypeStr);
@@ -162,13 +155,7 @@ internal static class XddCommNetProfileParser
         var subIndexStr = elem.Attribute("subIndex")?.Value ?? "00";
         subObj.SubIndex = ParseHexSubIndex(subIndexStr);
         subObj.ParameterName = elem.Attribute("name")?.Value ?? string.Empty;
-
-        var objTypeStr = elem.Attribute("objectType")?.Value;
-        if (!string.IsNullOrEmpty(objTypeStr) &&
-            byte.TryParse(objTypeStr, NumberStyles.None, CultureInfo.InvariantCulture, out var objType))
-            subObj.ObjectType = objType;
-        else
-            subObj.ObjectType = 0x7;
+        subObj.ObjectType = ParseObjectTypeAttribute(elem, "CANopenSubObject");
 
         if (elem.Attribute("dataType")?.Value is string dataTypeStr)
             subObj.DataType = ParseHexDataType(dataTypeStr);
@@ -193,6 +180,63 @@ internal static class XddCommNetProfileParser
         }
 
         return subObj;
+    }
+
+    /// <summary>
+    /// Reads <c>index</c> from a <c>CANopenObject</c>. Lenient: missing → <c>0000</c>.
+    /// Strict: missing attribute throws <see cref="EdsParseException"/>.
+    /// </summary>
+    private static ushort ParseRequiredHexIndexAttribute(XElement elem, string elementName)
+    {
+        var attr = elem.Attribute("index");
+        if (attr == null)
+        {
+            if (StrictParsingScope.IsEnabled)
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0} is missing required attribute 'index'.",
+                        elementName));
+            }
+
+            return ParseHexIndex("0000");
+        }
+
+        return ParseHexIndex(attr.Value);
+    }
+
+    /// <summary>
+    /// Reads <c>objectType</c>. Lenient: missing/invalid → <c>0x7</c> (VAR).
+    /// Strict: missing or non-parsable values throw <see cref="EdsParseException"/>.
+    /// </summary>
+    private static byte ParseObjectTypeAttribute(XElement elem, string elementName)
+    {
+        var objTypeStr = elem.Attribute("objectType")?.Value;
+        if (!string.IsNullOrEmpty(objTypeStr) &&
+            byte.TryParse(objTypeStr, NumberStyles.None, CultureInfo.InvariantCulture, out var objType))
+            return objType;
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            if (string.IsNullOrEmpty(objTypeStr))
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0} is missing required attribute 'objectType'.",
+                        elementName));
+            }
+
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Invalid objectType '{0}' on {1}. Expected an Unsigned8 decimal integer.",
+                    objTypeStr,
+                    elementName));
+        }
+
+        return 0x7;
     }
 
     private static void ClassifyObject(
