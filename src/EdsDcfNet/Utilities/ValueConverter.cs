@@ -129,9 +129,11 @@ public static class ValueConverter
     /// <item><description><c>1</c>, <c>true</c>, <c>yes</c> (same as <see cref="ParseBoolean"/>)</description></item>
     /// </list>
     /// <para>Recognized false tokens include <c>0x00</c>, <c>0x0</c>, <c>0</c>, <c>false</c>,
-    /// <c>no</c>, and any other unrecognized value (lenient absent). This remains lenient
-    /// even when <see cref="CanOpenFileOptions.StrictParsing"/> is enabled; strict
-    /// <c>NodeNPresent</c> handling is deferred (see issue #416).</para>
+    /// and <c>no</c>. Empty/whitespace maps to <see langword="false"/>. Unrecognized
+    /// non-empty tokens map to <see langword="false"/> when lenient. With
+    /// <see cref="CanOpenFileOptions.StrictParsing"/> enabled (via
+    /// <see cref="StrictParsingScope"/>), unrecognized non-empty tokens throw
+    /// <see cref="EdsParseException"/>.</para>
     /// </remarks>
     /// <param name="value">String value to parse.</param>
     /// <returns>
@@ -153,11 +155,7 @@ public static class ValueConverter
             value.Equals("0x0", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        // Always lenient for CPJ NodeNPresent (#416 deferred); do not inherit ParseBoolean strictness.
-        using (StrictParsingScope.Enter(false))
-        {
-            return ParseBoolean(value);
-        }
+        return ParseBoolean(value);
     }
 
     /// <summary>
@@ -176,6 +174,31 @@ public static class ValueConverter
                 value,
                 decimalParser: static v => byte.Parse(v, CultureInfo.InvariantCulture),
                 parser: static (v, numberBase) => Convert.ToByte(v, (int)numberBase));
+        }
+        catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+        {
+            throw new EdsParseException(BuildInvalidNumericLiteralMessage("byte", value, ex), ex);
+        }
+    }
+
+    /// <summary>
+    /// Parses a plain decimal <c>Unsigned8</c> (no hex, no CiA octal).
+    /// </summary>
+    /// <remarks>
+    /// Used for EDS/DCF <c>FileVersion</c> / <c>FileRevision</c> so zero-padded
+    /// values such as <c>010</c> match XDD <c>fileVersion</c> (<c>10</c>), rather than
+    /// CiA octal via <see cref="ParseByte"/> (<c>8</c>). Empty/whitespace → <c>0</c>.
+    /// </remarks>
+    public static byte ParseByteDecimalPlain(string value)
+    {
+        value = value.Trim();
+
+        if (string.IsNullOrEmpty(value))
+            return 0;
+
+        try
+        {
+            return byte.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture);
         }
         catch (Exception ex) when (ex is FormatException || ex is OverflowException)
         {

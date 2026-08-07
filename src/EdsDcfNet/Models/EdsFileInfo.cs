@@ -15,10 +15,10 @@ public class EdsFileInfo
     /// Actual file version (CiA 306 <c>Unsigned8</c> integer).
     /// </summary>
     /// <remarks>
-    /// On read, EDS/DCF parsers accept plain integers and — unless
+    /// On read, EDS/DCF parsers accept plain <em>decimal</em> integers (zero-padded
+    /// <c>010</c> → 10, matching XDD <c>fileVersion</c>; not CiA octal) and — unless
     /// <see cref="CanOpenFileOptions.StrictParsing"/> is enabled — major/minor
-    /// tooling forms such as <c>1.0</c> or <c>1,0</c> (major component only),
-    /// matching XDD <c>fileVersion</c> handling.
+    /// tooling forms such as <c>1.0</c> or <c>1,0</c> (major component only).
     /// </remarks>
     public byte FileVersion { get; set; } = 1;
 

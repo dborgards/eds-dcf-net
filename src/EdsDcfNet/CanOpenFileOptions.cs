@@ -47,18 +47,36 @@ public sealed class CanOpenFileOptions
     /// <item><description>Unknown boolean tokens in <c>ValueConverter.ParseBoolean</c> (default: treat as <see langword="false"/>)</description></item>
     /// <item><description>Unknown access-type tokens in <c>ValueConverter.ParseAccessType</c> (default: <c>ro</c>)</description></item>
     /// <item><description>
+    /// Unknown XDD/XDC access-type tokens in <c>ParseXddAccessType</c> (default: <c>ro</c>)
+    /// and unknown XML boolean tokens in <c>ParseXmlBool</c> (default: <see langword="false"/>)
+    /// </description></item>
+    /// <item><description>
     /// EDS/DCF <c>[FileInfo] FileVersion</c> / <c>FileRevision</c> and XDD/XDC <c>fileVersion</c>
     /// major/minor tooling forms such as <c>1.0</c> / <c>1,0</c> (default: accept major component;
     /// strict: require a plain <c>Unsigned8</c> integer). Malformed tokens throw with
     /// section/key (or <c>ProfileBody fileVersion</c>) attribution in both modes.
+    /// Zero-padded values such as <c>010</c> parse as decimal <c>10</c> (aligned across EDS/DCF/XDD).
+    /// </description></item>
+    /// <item><description>
+    /// XDD/XDC <c>CANopenObject</c> missing <c>index</c>
+    /// (default: treat as <c>0x0000</c>). Sub-objects use <c>subIndex</c>, which
+    /// remains lenient (missing → <c>00</c>) in both modes.
+    /// </description></item>
+    /// <item><description>
+    /// XDD/XDC <c>CANopenObject</c> / <c>CANopenSubObject</c> missing or invalid
+    /// <c>objectType</c> (default: <c>0x7</c> VAR). Schema-valid <c>xsd:unsignedByte</c>
+    /// lexical forms (optional leading sign, surrounding whitespace) are accepted after trim.
+    /// </description></item>
+    /// <item><description>
+    /// Malformed XDD/XDC unsigned numeric attributes such as <c>objFlags</c>, <c>subNumber</c>,
+    /// <c>pDOmappingIndex</c>, general-feature counts, and <c>networkNumber</c>
+    /// (default: ignore / leave unset; surrounding whitespace and optional leading sign are accepted)
+    /// </description></item>
+    /// <item><description>
+    /// Unknown CPJ <c>NodeNPresent</c> tokens in <c>ValueConverter.ParsePresentFlag</c>
+    /// (default: treat as not present / <see langword="false"/>)
     /// </description></item>
     /// </list>
-    /// <para>
-    /// Residual lenient sites (tracked separately): XDD <c>ParseXddAccessType</c> /
-    /// <c>ParseXmlBool</c> (#463), missing XDD <c>index</c>/<c>objectType</c> (#464),
-    /// malformed XDD numeric attributes (#465), CPJ <c>ParsePresentFlag</c> (#466),
-    /// and EDS/DCF vs XDD zero-padded <c>FileVersion</c> decimal alignment (#467).
-    /// </para>
     /// </remarks>
     public bool StrictParsing { get; init; }
 

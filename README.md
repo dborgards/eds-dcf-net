@@ -605,14 +605,18 @@ Today this covers:
 - Duplicate keys within an INI section
 - Unknown XDD/XDC baud-rate strings (`supportedBaudRate`, `actualBaudRate`,
   `baudRate/@defaultValue`)
-- Unknown boolean tokens (`ValueConverter.ParseBoolean`)
-- Unknown access-type tokens (`ValueConverter.ParseAccessType`)
+- Unknown boolean tokens (`ValueConverter.ParseBoolean`) and CPJ present-flag
+  tokens (`ValueConverter.ParsePresentFlag`)
+- Unknown access-type tokens (`ValueConverter.ParseAccessType` and XDD
+  `ParseXddAccessType`) and unknown XDD XML bools (`ParseXmlBool`)
 - EDS/DCF `FileVersion` / `FileRevision` and XDD/XDC `fileVersion` major/minor
-  tooling forms (`1.0` / `1,0`)
-
-Residual lenient sites (tracked in #463–#467): XDD accessType/XML bools, missing
-XDD `index`/`objectType`, malformed XDD numeric attributes, CPJ `ParsePresentFlag`,
-and EDS/DCF vs XDD zero-padded `FileVersion` decimal alignment.
+  tooling forms (`1.0` / `1,0`); zero-padded values such as `010` parse as
+  decimal `10` across EDS/DCF/XDD
+- Missing XDD/XDC `index` on `CANopenObject`, and missing or invalid
+  `objectType` (schema-valid unsignedByte forms such as `+9` / `-0` are
+  accepted after trim; missing `CANopenSubObject` `subIndex` stays lenient)
+- Malformed XDD/XDC unsigned numeric attributes (`objFlags`, `subNumber`,
+  `pDOmappingIndex`, general-feature counts, `networkNumber`)
 
 ```csharp
 var eds = CanOpenFile.Eds.ReadFile(
