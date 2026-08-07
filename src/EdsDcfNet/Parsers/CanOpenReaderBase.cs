@@ -129,6 +129,7 @@ public abstract class CanOpenReaderBase
         // CiA 306 defines FileVersion/FileRevision as Unsigned8 integers. Lenient mode
         // also accepts major/minor tooling forms (e.g. Polarion "1,0" / "1.0"); StrictParsing
         // requires a plain integer and always attributes failures to this section/key.
+        // Plain integers are decimal (aligned with XDD fileVersion): "010" → 10, not octal 8.
         fileInfo.FileVersion = SectionNumericParser.ParseUnsigned8(
             "FileInfo",
             "FileVersion",

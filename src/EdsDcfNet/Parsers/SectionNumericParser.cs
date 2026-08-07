@@ -17,10 +17,13 @@ internal static class SectionNumericParser
     /// <param name="keyName">INI key name (e.g. <c>FileVersion</c>).</param>
     /// <param name="value">Raw field value.</param>
     /// <param name="allowMajorMinorVersionForm">
-    /// When <see langword="true"/> and <see cref="StrictParsingScope"/> is not enabled,
-    /// accepts major/minor forms such as <c>1.0</c> / <c>1,0</c> via
-    /// <see cref="ValueConverter.ParseByteAllowingMajorMinor"/>. Under strict parsing,
-    /// only integer forms accepted by <see cref="ValueConverter.ParseByte"/> are allowed.
+    /// When <see langword="true"/>, parses as a version field: plain integers use
+    /// decimal <see cref="ValueConverter.ParseByteDecimalPlain"/> (aligned with XDD
+    /// <c>fileVersion</c>; zero-padded <c>010</c> → 10, not CiA octal 8). When
+    /// <see cref="StrictParsingScope"/> is not enabled, also accepts major/minor forms
+    /// such as <c>1.0</c> / <c>1,0</c> via <see cref="ValueConverter.ParseByteAllowingMajorMinor"/>.
+    /// Under strict parsing, major/minor forms are rejected. When
+    /// <see langword="false"/>, uses <see cref="ValueConverter.ParseByte"/> (decimal/hex/octal).
     /// </param>
     internal static byte ParseUnsigned8(
         string sectionName,
@@ -30,10 +33,16 @@ internal static class SectionNumericParser
     {
         try
         {
-            if (allowMajorMinorVersionForm && !StrictParsingScope.IsEnabled)
+            if (!allowMajorMinorVersionForm)
+                return ValueConverter.ParseByte(value);
+
+            // FileVersion/FileRevision: decimal plain integers like XDD fileVersion.
+            // Do not route through ParseByte (CiA octal for 0+digit).
+            if (!StrictParsingScope.IsEnabled &&
+                ValueConverter.TrySplitMajorMinorDecimal(value.Trim(), out _))
                 return ValueConverter.ParseByteAllowingMajorMinor(value);
 
-            return ValueConverter.ParseByte(value);
+            return ValueConverter.ParseByteDecimalPlain(value);
         }
         catch (EdsParseException ex)
         {

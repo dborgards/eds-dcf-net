@@ -18,7 +18,11 @@ The library uses **exceptions** as its primary error mechanism:
 
 > **Note:** `CanOpenFile.Eds.ConvertToDcf` (and the obsolete `CanOpenFile.EdsToDcf` facade that delegates to it), DCF parsing, and XDC writing enforce CANopen Node-ID constraints for explicit commissioning data. EDS-to-DCF conversion and DCF parsing require `1..127`; XDC writing emits commissioning only when a configured NodeId is present and valid and throws `XdcWriteException` for out-of-range values.
 
-> **Compatibility note (AccessType):** Parsing of invalid or unknown `AccessType` values is intentionally tolerant and falls back to `ReadOnly` instead of failing. This is a deliberate trade-off to maximize interoperability with non-compliant manufacturer EDS/DCF files.
+> **Compatibility note (AccessType):** By default, parsing of invalid or unknown
+> `AccessType` values is intentionally tolerant and falls back to `ReadOnly`
+> instead of failing. Set `CanOpenFileOptions.StrictParsing = true` on facade
+> reads to reject unknown EDS/DCF tokens via `ValueConverter.ParseAccessType`
+> and unknown XDD/XDC tokens via `ParseXddAccessType`.
 
 ### Error Tolerance
 
@@ -39,7 +43,12 @@ flowchart TD
 - **Unknown INI sections**: Preserved in `AdditionalSections` (no warning, no error).
 - **Duplicate INI keys**: Last write wins by default. With `CanOpenFileOptions.StrictParsing = true` (or `IniParser` `strictParsing: true`), duplicates throw `EdsParseException`.
 - **XDD/XDC baud-rate strings**: Unknown `supportedBaudRate`, `actualBaudRate`, and `baudRate/@defaultValue` values map to `0` / are ignored by default. With `StrictParsing = true`, they throw `EdsParseException`.
+- **Boolean / AccessType / present-flag tokens**: Lenient defaults unless `StrictParsing = true` on facade reads (`ParseBoolean` / `ParseAccessType` / `ParsePresentFlag`, plus XDD `ParseXddAccessType` / `ParseXmlBool`).
+- **FileVersion / FileRevision**: Major/minor tooling forms are accepted unless `StrictParsing = true`. Zero-padded values such as `010` parse as decimal `10` (aligned with XDD `fileVersion`).
+- **XDD/XDC OD `index` / `objectType`**: Missing `CANopenObject` `index` defaults to `0x0000` and missing/invalid `objectType` (on objects or sub-objects) defaults to `0x7` (VAR). With `StrictParsing = true`, both throw `EdsParseException`. Present `objectType` values are trimmed and accept schema-valid `xsd:unsignedByte` lexical forms (optional leading sign). Missing `CANopenSubObject` `subIndex` remains lenient (`00`) in both modes.
+- **XDD/XDC unsigned numeric attributes**: Malformed `objFlags`, `subNumber`, `pDOmappingIndex`, general-feature counts, and `networkNumber` are ignored by default. With `StrictParsing = true`, they throw `EdsParseException` (whitespace and optional leading sign accepted after trim).
 - **CiA 311 XML**: Parsed against supported profile structures; unsupported XML nodes are not represented as generic passthrough data.
+- **Direct readers**: `EdsReader` / `DcfReader` / `XddReader` / etc. called without facade options remain lenient (no public StrictParsing switch on those types).
 
 ### Input Size Limits
 
@@ -103,14 +112,19 @@ flowchart TD
 | `08` / `09` | invalid octal | parse error (`EdsParseException`) |
 | `0x10` | hexadecimal | 16 |
 
-**Decision (current major line):** keep automatic octal for `0`+digit. Hexadecimal
-requires an explicit `0x` / `0X` prefix. Zero-padded *decimal* values in real EDS/DCF
-files (for example `DefaultValue=010` meaning ten) are therefore misread unless authors
-use unpadded decimal (`10`) or hex (`0x0A`).
+**Decision (current major line):** keep automatic octal for `0`+digit on object-dictionary
+and general numeric fields. Hexadecimal requires an explicit `0x` / `0X` prefix.
+Zero-padded *decimal* values in real EDS/DCF files (for example `DefaultValue=010`
+meaning ten) are therefore misread unless authors use unpadded decimal (`10`) or
+hex (`0x0A`).
 
-Changing the default to “leading zeros are decimal” would be a **breaking** behavior
-change for callers that rely on C-style octal; that switch is deferred to a planned
-major release or an opt-in parse mode (see issue #428), not done as a silent patch.
+**Exception — `FileVersion` / `FileRevision`:** these metadata fields use plain
+decimal parsing (aligned with XDD `fileVersion`), so `FileVersion=010` → `10` on
+EDS, DCF, and XDD alike. General OD values still follow the octal rule above.
+
+Changing the default OD rule to “leading zeros are decimal” would be a **breaking**
+behavior change for callers that rely on C-style octal; that switch is deferred to a
+planned major release or a dedicated opt-in, not done as a silent patch.
 
 ### $NODEID Formula
 
