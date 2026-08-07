@@ -104,14 +104,19 @@ flowchart TD
 | `08` / `09` | invalid octal | parse error (`EdsParseException`) |
 | `0x10` | hexadecimal | 16 |
 
-**Decision (current major line):** keep automatic octal for `0`+digit. Hexadecimal
-requires an explicit `0x` / `0X` prefix. Zero-padded *decimal* values in real EDS/DCF
-files (for example `DefaultValue=010` meaning ten) are therefore misread unless authors
-use unpadded decimal (`10`) or hex (`0x0A`).
+**Decision (current major line):** keep automatic octal for `0`+digit on object-dictionary
+and general numeric fields. Hexadecimal requires an explicit `0x` / `0X` prefix.
+Zero-padded *decimal* values in real EDS/DCF files (for example `DefaultValue=010`
+meaning ten) are therefore misread unless authors use unpadded decimal (`10`) or
+hex (`0x0A`).
 
-Changing the default to “leading zeros are decimal” would be a **breaking** behavior
-change for callers that rely on C-style octal; that switch is deferred to a planned
-major release or an opt-in parse mode (see issue #428), not done as a silent patch.
+**Exception — `FileVersion` / `FileRevision`:** these metadata fields use plain
+decimal parsing (aligned with XDD `fileVersion`), so `FileVersion=010` → `10` on
+EDS, DCF, and XDD alike. General OD values still follow the octal rule above.
+
+Changing the default OD rule to “leading zeros are decimal” would be a **breaking**
+behavior change for callers that rely on C-style octal; that switch is deferred to a
+planned major release or a dedicated opt-in, not done as a silent patch.
 
 ### $NODEID Formula
 
