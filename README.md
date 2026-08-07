@@ -167,11 +167,11 @@ legacy static `Read*` / `Write*` overloads:
 | XDD | `CanOpenFile.Xdd` | `CanOpenFile.Xdd.ReadFile("device.xdd")` |
 | XDC | `CanOpenFile.Xdc` | `CanOpenFile.Xdc.ReadFile("device.xdc")` |
 
-These entry points accept `CanOpenFileOptions` (read limits) and `CanOpenWriteOptions`
-(pre-write validation) in one place. Legacy facade `Read*` / `Write*` overloads
-(path, stream, string, sync, async, and options-taking variants) remain for
-backward compatibility and are marked `[Obsolete]` (advisory); they will be
-removed in a future major release.
+These entry points accept `CanOpenFileOptions` (`MaxInputSize`, `StrictParsing`)
+and `CanOpenWriteOptions` (pre-write validation) in one place. Legacy facade
+`Read*` / `Write*` overloads (path, stream, string, sync, async, and options-taking
+variants) remain for backward compatibility and are marked `[Obsolete]` (advisory);
+they will be removed in a future major release.
 
 EDS-to-DCF conversion lives on the EDS entry point: `CanOpenFile.Eds.ConvertToDcf(...)`.
 The no-timestamp `CanOpenFile.EdsToDcf(...)` overload is obsolete and delegates
@@ -596,12 +596,27 @@ var xdd = CanOpenFile.Xdd.ReadFile(
 
 Set `CanOpenFileOptions.StrictParsing = true` so silent read coercions fail with
 `EdsParseException` instead of mapping to defaults. Default remains lenient.
-Today this covers duplicate INI keys, unknown XDD/XDC baud-rate strings, unknown
-boolean tokens (`ValueConverter.ParseBoolean`), unknown access-type tokens
-(`ValueConverter.ParseAccessType`), EDS/DCF/XDD file-version major/minor tooling
-forms, missing XDD/XDC `index` on CANopen objects, and missing or invalid
-XDD/XDC `objectType` (schema-valid unsignedByte forms such as `+9` / `-0` are
-accepted after trim).
+This applies to reads through the `CanOpenFile` format entry points (and legacy
+facade overloads that accept options). Direct `*Reader` APIs without options
+stay lenient (no public way to enable StrictParsing on those readers).
+
+Today this covers:
+
+- Duplicate keys within an INI section
+- Unknown XDD/XDC baud-rate strings (`supportedBaudRate`, `actualBaudRate`,
+  `baudRate/@defaultValue`)
+- Unknown boolean tokens (`ValueConverter.ParseBoolean`) and CPJ present-flag
+  tokens (`ValueConverter.ParsePresentFlag`)
+- Unknown access-type tokens (`ValueConverter.ParseAccessType` and XDD
+  `ParseXddAccessType`) and unknown XDD XML bools (`ParseXmlBool`)
+- EDS/DCF `FileVersion` / `FileRevision` and XDD/XDC `fileVersion` major/minor
+  tooling forms (`1.0` / `1,0`); zero-padded values such as `010` parse as
+  decimal `10` across EDS/DCF/XDD
+- Missing XDD/XDC `index` on `CANopenObject`, and missing or invalid
+  `objectType` (schema-valid unsignedByte forms such as `+9` / `-0` are
+  accepted after trim; missing `CANopenSubObject` `subIndex` stays lenient)
+- Malformed XDD/XDC unsigned numeric attributes (`objFlags`, `subNumber`,
+  `pDOmappingIndex`, general-feature counts, `networkNumber`)
 
 ```csharp
 var eds = CanOpenFile.Eds.ReadFile(
@@ -611,14 +626,16 @@ var eds = CanOpenFile.Eds.ReadFile(
 
 Guidance:
 - Keep the default whenever possible.
-- Increase limits only for trusted sources and known use cases.
+- Enable StrictParsing for trusted inputs when you want malformed tokens to fail
+  fast instead of coercing.
+- Increase `MaxInputSize` only for trusted sources and known use cases.
 - Set the limit just high enough for your expected maximum file size.
 
 ### Options extension pattern (format-specific options)
 
 `CanOpenFileOptions` (read) and `CanOpenWriteOptions` (write) are intentionally
 small, shared across all formats, and hold only cross-format concerns
-(input-size limit, pre-write validation).
+(`MaxInputSize`, `StrictParsing`, and pre-write `ValidateBeforeWrite`).
 
 When a genuinely **format-specific** option becomes necessary (for example XDD
 XML formatting, INI section ordering, or CPJ network defaults), the agreed
