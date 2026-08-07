@@ -325,6 +325,68 @@ public class ValueConverterTests
     }
 
     [Theory]
+    [InlineData("1.0", (byte)1)]
+    [InlineData("1,0", (byte)1)]
+    [InlineData("7.3", (byte)7)]
+    [InlineData("07.3", (byte)7)]
+    [InlineData("07,3", (byte)7)]
+    [InlineData("012.5", (byte)12)]
+    [InlineData("010.0", (byte)10)]
+    [InlineData("12,5", (byte)12)]
+    [InlineData("255.1", (byte)255)]
+    [InlineData(" 2.0 ", (byte)2)]
+    public void ParseByteAllowingMajorMinor_MajorMinorForms_UsesMajor(string input, byte expected)
+    {
+        ValueConverter.ParseByteAllowingMajorMinor(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("", (byte)0)]
+    [InlineData("   ", (byte)0)]
+    public void ParseByteAllowingMajorMinor_EmptyOrWhitespace_ReturnsZero(string input, byte expected)
+    {
+        ValueConverter.ParseByteAllowingMajorMinor(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("1")]
+    [InlineData("0x10")]
+    [InlineData("010")]
+    public void ParseByteAllowingMajorMinor_PlainLiterals_MatchesParseByte(string input)
+    {
+        ValueConverter.ParseByteAllowingMajorMinor(input).Should().Be(ValueConverter.ParseByte(input));
+    }
+
+    [Theory]
+    [InlineData("1.0.0")]
+    [InlineData("1,0,0")]
+    [InlineData("1.")]
+    [InlineData(",0")]
+    [InlineData("1.x")]
+    [InlineData("a.0")]
+    [InlineData("1./")] // digit check: char < '0'
+    [InlineData("1.+")]
+    [InlineData("NaN")]
+    [InlineData("256.0")] // major overflows byte
+    [InlineData("999,1")]
+    public void ParseByteAllowingMajorMinor_InvalidForms_ThrowsEdsParseException(string input)
+    {
+        var act = () => ValueConverter.ParseByteAllowingMajorMinor(input);
+        act.Should().Throw<EdsParseException>();
+    }
+
+    [Theory]
+    [InlineData("1. ")] // minor whitespace-only after trim
+    [InlineData("1, ")]
+    [InlineData(" .0")] // major whitespace-only after trim (caller may not pre-trim)
+    [InlineData(" ,0")]
+    public void TrySplitMajorMinorDecimal_WhitespaceOnlySide_ReturnsFalse(string input)
+    {
+        ValueConverter.TrySplitMajorMinorDecimal(input, out var major).Should().BeFalse();
+        major.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData("", (byte)0)]
     [InlineData("   ", (byte)0)]
     public void ParseByte_EmptyOrWhitespace_ReturnsZero(string input, byte expected)

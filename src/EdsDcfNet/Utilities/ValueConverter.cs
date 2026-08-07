@@ -184,6 +184,104 @@ public static class ValueConverter
     }
 
     /// <summary>
+    /// Parses an <c>Unsigned8</c> that CiA 306 defines as an integer, while tolerating
+    /// major/minor forms some tooling emits (dot or comma separator).
+    /// </summary>
+    /// <remarks>
+    /// When <paramref name="value"/> matches <c>major.minor</c> or <c>major,minor</c>
+    /// with both sides non-empty unsigned decimal digit runs and a single separator,
+    /// only the major component is parsed as decimal (same policy as XDD <c>fileVersion</c>),
+    /// including leading-zero majors such as <c>07.3</c> → 7 or <c>012.5</c> → 12.
+    /// Hex (<c>0x…</c>) literals and pure octal literals (no separator) are never
+    /// treated as major/minor forms. All other inputs are delegated to <see cref="ParseByte"/>.
+    /// </remarks>
+    /// <param name="value">String value to parse.</param>
+    /// <returns>The parsed byte (major component when a major/minor form is recognized).</returns>
+    /// <exception cref="EdsParseException">Thrown when the value cannot be parsed as a byte.</exception>
+    public static byte ParseByteAllowingMajorMinor(string value)
+    {
+        value = value.Trim();
+
+        if (string.IsNullOrEmpty(value))
+            return 0;
+
+        if (TrySplitMajorMinorDecimal(value, out var major))
+        {
+            // Major/minor forms are tooling-style decimal versions (e.g. "012.5" → 12),
+            // not CiA octal literals. ParseByte would treat a leading-zero major as octal.
+            try
+            {
+                return byte.Parse(major, NumberStyles.None, CultureInfo.InvariantCulture);
+            }
+            catch (OverflowException ex)
+            {
+                // FormatException is unreachable here: TrySplitMajorMinorDecimal only yields
+                // non-empty ASCII digit majors, so NumberStyles.None can only overflow.
+                throw new EdsParseException(BuildInvalidNumericLiteralMessage("byte", value, ex), ex);
+            }
+        }
+
+        return ParseByte(value);
+    }
+
+    /// <summary>
+    /// Tries to split a major/minor decimal version literal (<c>1.0</c> / <c>1,0</c>).
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="value"/> is exactly one separator
+    /// (<c>.</c> or <c>,</c>) between two non-empty unsigned decimal digit runs.
+    /// </returns>
+    internal static bool TrySplitMajorMinorDecimal(string value, out string major)
+    {
+        major = string.Empty;
+
+        // Hex shapes are numeric literals, not dotted version strings.
+        // Pure octals (e.g. "010") have no separator and fall through below;
+        // do not reject leading-zero majors like "07.3" before looking for '.' / ','.
+        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var separatorIndex = -1;
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (c != '.' && c != ',')
+                continue;
+
+            if (separatorIndex >= 0)
+                return false;
+
+            separatorIndex = i;
+        }
+
+        if (separatorIndex <= 0 || separatorIndex >= value.Length - 1)
+            return false;
+
+        var majorPart = value[..separatorIndex].Trim();
+        var minorPart = value[(separatorIndex + 1)..].Trim();
+        if (majorPart.Length == 0 || minorPart.Length == 0)
+            return false;
+
+        if (!IsAllAsciiDigits(majorPart) || !IsAllAsciiDigits(minorPart))
+            return false;
+
+        major = majorPart;
+        return true;
+    }
+
+    private static bool IsAllAsciiDigits(string value)
+    {
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (c < '0' || c > '9')
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Parses a ushort value from string.
     /// </summary>
     public static ushort ParseUInt16(string value)

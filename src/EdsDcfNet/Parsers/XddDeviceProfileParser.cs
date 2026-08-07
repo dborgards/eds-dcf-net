@@ -2,7 +2,9 @@ namespace EdsDcfNet.Parsers;
 
 using System.Globalization;
 using System.Xml.Linq;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 using static EdsDcfNet.Parsers.XddParsingPrimitives;
 
 internal static class XddDeviceProfileParser
@@ -15,15 +17,54 @@ internal static class XddDeviceProfileParser
         fileInfo.CreatedBy = profileBody.Attribute("fileCreator")?.Value ?? string.Empty;
         fileInfo.ModifiedBy = profileBody.Attribute("fileModifiedBy")?.Value ?? string.Empty;
 
-        // fileVersion is a string like "1.0" or "1" — map to byte via FileVersion
-        var fileVersionStr = profileBody.Attribute("fileVersion")?.Value ?? string.Empty;
+        // fileVersion is a string like "1.0", "1,0", or "1" — map to Unsigned8 FileVersion.
+        // Plain values always use NumberStyles.None (historical XDD decimal path), so
+        // zero-padded tokens like "010" stay decimal 10 in both modes — never CiA octal
+        // via ParseByte. Lenient: also accept major/minor tooling forms. StrictParsing:
+        // reject major/minor only. Invalid tokens throw in both modes (ProfileBody attribution).
+        // Trim before the empty check so whitespace-only attributes match missing/empty
+        // and keep the model default (1).
+        var fileVersionStr = (profileBody.Attribute("fileVersion")?.Value ?? string.Empty).Trim();
         if (!string.IsNullOrEmpty(fileVersionStr))
         {
-            // If it looks like "1.0", take the part before the dot
-            var dotIdx = fileVersionStr.IndexOf('.');
-            var majorPart = dotIdx >= 0 ? fileVersionStr[..dotIdx] : fileVersionStr;
-            if (byte.TryParse(majorPart, NumberStyles.None, CultureInfo.InvariantCulture, out var ver))
-                fileInfo.FileVersion = ver;
+            try
+            {
+                if (ValueConverter.TrySplitMajorMinorDecimal(fileVersionStr, out _))
+                {
+                    if (StrictParsingScope.IsEnabled)
+                    {
+                        throw new EdsParseException(
+                            string.Format(
+                                CultureInfo.InvariantCulture,
+                                "Invalid byte value: '{0}'.",
+                                fileVersionStr));
+                    }
+
+                    // Leading-zero majors stay decimal (e.g. "012.5" → 12).
+                    fileInfo.FileVersion = ValueConverter.ParseByteAllowingMajorMinor(fileVersionStr);
+                }
+                else if (byte.TryParse(fileVersionStr, NumberStyles.None, CultureInfo.InvariantCulture, out var ver))
+                {
+                    fileInfo.FileVersion = ver;
+                }
+                else
+                {
+                    throw new EdsParseException(
+                        string.Format(
+                            CultureInfo.InvariantCulture,
+                            "Invalid byte value: '{0}'.",
+                            fileVersionStr));
+                }
+            }
+            catch (EdsParseException ex)
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "ProfileBody fileVersion: {0}",
+                        ex.Message),
+                    ex);
+            }
         }
 
         // fileCreationDate is xsd:date "YYYY-MM-DD" → convert to EDS "MM-DD-YYYY"

@@ -12,13 +12,22 @@ public class EdsFileInfo
     public string FileName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Actual file version (Unsigned8).
+    /// Actual file version (CiA 306 <c>Unsigned8</c> integer).
     /// </summary>
+    /// <remarks>
+    /// On read, EDS/DCF parsers accept plain integers and — unless
+    /// <see cref="CanOpenFileOptions.StrictParsing"/> is enabled — major/minor
+    /// tooling forms such as <c>1.0</c> or <c>1,0</c> (major component only),
+    /// matching XDD <c>fileVersion</c> handling.
+    /// </remarks>
     public byte FileVersion { get; set; } = 1;
 
     /// <summary>
-    /// Actual file revision (Unsigned8).
+    /// Actual file revision (CiA 306 <c>Unsigned8</c> integer).
     /// </summary>
+    /// <remarks>
+    /// On read, same integer / lenient major-minor policy as <see cref="FileVersion"/>.
+    /// </remarks>
     public byte FileRevision { get; set; }
 
     /// <summary>

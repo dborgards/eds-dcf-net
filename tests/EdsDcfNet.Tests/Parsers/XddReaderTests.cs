@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Tests.Parsers;
 
 using System.Text;
+using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
@@ -1375,6 +1376,83 @@ public class XddReaderTests
         result.FileInfo.ModifiedBy.Should().Be("Editor");
         result.FileInfo.ModificationDate.Should().Be("02-20-2025");
         result.FileInfo.ModificationTime.Should().Be("16:45");
+    }
+
+    [Fact]
+    public void FileInfo_FileVersionWithCommaMinorPart_UsesMajorComponent()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"fileVersion=""1""",
+            @"fileVersion=""4,2""");
+
+        var result = _reader.ReadString(xdd);
+
+        result.FileInfo.FileVersion.Should().Be(4);
+    }
+
+    [Theory]
+    [InlineData("07.3", (byte)7)]
+    [InlineData("012.5", (byte)12)]
+    [InlineData("010.0", (byte)10)]
+    public void FileInfo_FileVersionWithLeadingZeroMajor_UsesMajorComponent(string fileVersion, byte expected)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"fileVersion=""1""",
+            $@"fileVersion=""{fileVersion}""");
+
+        var result = _reader.ReadString(xdd);
+
+        result.FileInfo.FileVersion.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("7.3")]
+    [InlineData("1,0")]
+    public void FileInfo_FileVersionMajorMinor_StrictParsing_ThrowsEdsParseException(string fileVersion)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"fileVersion=""1""",
+            $@"fileVersion=""{fileVersion}""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        var ex = act.Should().Throw<EdsParseException>().Which;
+        ex.Message.Should().Contain("fileVersion");
+        ex.Message.Should().Contain(fileVersion);
+    }
+
+    [Theory]
+    [InlineData("010", (byte)10)]
+    [InlineData("08", (byte)8)]
+    [InlineData("012", (byte)12)]
+    public void FileInfo_FileVersionZeroPadded_StrictParsing_StaysDecimal(string fileVersion, byte expected)
+    {
+        // Strict mode must reject major/minor without switching plain XDD decimals onto
+        // ParseByte/CiA octal ("010" → 10, not 8; "08" remains a valid decimal integer).
+        var xdd = MinimalXdd.Replace(
+            @"fileVersion=""1""",
+            $@"fileVersion=""{fileVersion}""");
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.FileInfo.FileVersion.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("NaN")]
+    [InlineData("1.x")]
+    [InlineData("abc")]
+    public void FileInfo_InvalidFileVersion_ThrowsEdsParseExceptionWithAttribution(string fileVersion)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"fileVersion=""1""",
+            $@"fileVersion=""{fileVersion}""");
+
+        var act = () => _reader.ReadString(xdd);
+
+        var ex = act.Should().Throw<EdsParseException>().Which;
+        ex.Message.Should().Contain("fileVersion");
+        ex.Message.Should().Contain(fileVersion);
     }
 
     [Fact]

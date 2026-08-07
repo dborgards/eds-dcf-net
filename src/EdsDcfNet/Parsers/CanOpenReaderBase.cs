@@ -126,8 +126,19 @@ public abstract class CanOpenReaderBase
             return fileInfo;
 
         fileInfo.FileName = IniParser.GetValue(sections, "FileInfo", "FileName");
-        fileInfo.FileVersion = ValueConverter.ParseByte(IniParser.GetValue(sections, "FileInfo", "FileVersion", "1"));
-        fileInfo.FileRevision = ValueConverter.ParseByte(IniParser.GetValue(sections, "FileInfo", "FileRevision", "0"));
+        // CiA 306 defines FileVersion/FileRevision as Unsigned8 integers. Lenient mode
+        // also accepts major/minor tooling forms (e.g. Polarion "1,0" / "1.0"); StrictParsing
+        // requires a plain integer and always attributes failures to this section/key.
+        fileInfo.FileVersion = SectionNumericParser.ParseUnsigned8(
+            "FileInfo",
+            "FileVersion",
+            IniParser.GetValue(sections, "FileInfo", "FileVersion", "1"),
+            allowMajorMinorVersionForm: true);
+        fileInfo.FileRevision = SectionNumericParser.ParseUnsigned8(
+            "FileInfo",
+            "FileRevision",
+            IniParser.GetValue(sections, "FileInfo", "FileRevision", "0"),
+            allowMajorMinorVersionForm: true);
         fileInfo.EdsVersion = IniParser.GetValue(sections, "FileInfo", "EDSVersion", "4.0");
         fileInfo.Description = IniParser.GetValue(sections, "FileInfo", "Description");
         fileInfo.CreationTime = IniParser.GetValue(sections, "FileInfo", "CreationTime");

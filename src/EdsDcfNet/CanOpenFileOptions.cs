@@ -40,6 +40,12 @@ public sealed class CanOpenFileOptions
     /// <item><description>Unknown XDD/XDC baud-rate strings on <c>supportedBaudRate</c>, <c>actualBaudRate</c>, and <c>baudRate/@defaultValue</c> (default: treat as 0 / ignore)</description></item>
     /// <item><description>Unknown boolean tokens in <c>ValueConverter.ParseBoolean</c> (default: treat as <see langword="false"/>)</description></item>
     /// <item><description>Unknown access-type tokens in <c>ValueConverter.ParseAccessType</c> (default: <c>ro</c>)</description></item>
+    /// <item><description>
+    /// EDS/DCF <c>[FileInfo] FileVersion</c> / <c>FileRevision</c> and XDD/XDC <c>fileVersion</c>
+    /// major/minor tooling forms such as <c>1.0</c> / <c>1,0</c> (default: accept major component;
+    /// strict: require a plain <c>Unsigned8</c> integer). Malformed tokens throw with
+    /// section/key (or <c>ProfileBody fileVersion</c>) attribution in both modes.
+    /// </description></item>
     /// </list>
     /// Related coercion sites may still be lenient-only (see issue #428 for deferred items).
     /// </remarks>
