@@ -38,6 +38,12 @@ public sealed class CanOpenFileOptions
     /// <list type="bullet">
     /// <item><description>Duplicate keys within an INI section (default: last write wins)</description></item>
     /// <item><description>Unknown XDD/XDC baud-rate strings on <c>supportedBaudRate</c>, <c>actualBaudRate</c>, and <c>baudRate/@defaultValue</c> (default: treat as 0 / ignore)</description></item>
+    /// <item><description>
+    /// EDS/DCF <c>[FileInfo] FileVersion</c> / <c>FileRevision</c> and XDD/XDC <c>fileVersion</c>
+    /// major/minor tooling forms such as <c>1.0</c> / <c>1,0</c> (default: accept major component;
+    /// strict: require a plain <c>Unsigned8</c> integer). Invalid values always throw with
+    /// section/key attribution.
+    /// </description></item>
     /// </list>
     /// Additional coercion sites may join this switch in follow-up work (see issue #428).
     /// </remarks>

@@ -281,6 +281,41 @@ public class ValueConverterTests
     }
 
     [Theory]
+    [InlineData("1.0", (byte)1)]
+    [InlineData("1,0", (byte)1)]
+    [InlineData("7.3", (byte)7)]
+    [InlineData("12,5", (byte)12)]
+    [InlineData("255.1", (byte)255)]
+    [InlineData(" 2.0 ", (byte)2)]
+    public void ParseByteAllowingMajorMinor_MajorMinorForms_UsesMajor(string input, byte expected)
+    {
+        ValueConverter.ParseByteAllowingMajorMinor(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("1")]
+    [InlineData("0x10")]
+    [InlineData("010")]
+    public void ParseByteAllowingMajorMinor_PlainLiterals_MatchesParseByte(string input)
+    {
+        ValueConverter.ParseByteAllowingMajorMinor(input).Should().Be(ValueConverter.ParseByte(input));
+    }
+
+    [Theory]
+    [InlineData("1.0.0")]
+    [InlineData("1,0,0")]
+    [InlineData("1.")]
+    [InlineData(",0")]
+    [InlineData("1.x")]
+    [InlineData("a.0")]
+    [InlineData("NaN")]
+    public void ParseByteAllowingMajorMinor_InvalidForms_ThrowsEdsParseException(string input)
+    {
+        var act = () => ValueConverter.ParseByteAllowingMajorMinor(input);
+        act.Should().Throw<EdsParseException>();
+    }
+
+    [Theory]
     [InlineData("", (byte)0)]
     [InlineData("   ", (byte)0)]
     public void ParseByte_EmptyOrWhitespace_ReturnsZero(string input, byte expected)

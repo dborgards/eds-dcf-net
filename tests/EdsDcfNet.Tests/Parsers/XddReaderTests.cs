@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Tests.Parsers;
 
 using System.Text;
+using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
@@ -1375,6 +1376,36 @@ public class XddReaderTests
         result.FileInfo.ModifiedBy.Should().Be("Editor");
         result.FileInfo.ModificationDate.Should().Be("02-20-2025");
         result.FileInfo.ModificationTime.Should().Be("16:45");
+    }
+
+    [Fact]
+    public void FileInfo_FileVersionWithCommaMinorPart_UsesMajorComponent()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"fileVersion=""1""",
+            @"fileVersion=""4,2""",
+            StringComparison.Ordinal);
+
+        var result = _reader.ReadString(xdd);
+
+        result.FileInfo.FileVersion.Should().Be(4);
+    }
+
+    [Theory]
+    [InlineData("7.3")]
+    [InlineData("1,0")]
+    public void FileInfo_FileVersionMajorMinor_StrictParsing_ThrowsEdsParseException(string fileVersion)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"fileVersion=""1""",
+            $@"fileVersion=""{fileVersion}""",
+            StringComparison.Ordinal);
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        var ex = act.Should().Throw<EdsParseException>().Which;
+        ex.Message.Should().Contain("fileVersion");
+        ex.Message.Should().Contain(fileVersion);
     }
 
     [Fact]

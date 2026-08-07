@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Parsers;
 
+using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
@@ -281,8 +282,63 @@ SupportedObjects=0
         // Act
         var act = () => _reader.ReadString(content);
 
-        // Assert
-        act.Should().Throw<EdsParseException>();
+        // Assert – failure is attributed to the first bad FileInfo field
+        var ex = act.Should().Throw<EdsParseException>().Which;
+        ex.SectionName.Should().Be("FileInfo");
+        ex.Message.Should().Contain("[FileInfo] FileVersion:");
+        ex.Message.Should().Contain("NaN");
+    }
+
+    [Theory]
+    [InlineData("1.0", (byte)1)]
+    [InlineData("1,0", (byte)1)]
+    [InlineData("7.3", (byte)7)]
+    [InlineData("12,5", (byte)12)]
+    [InlineData("255.0", (byte)255)]
+    public void ReadString_FileInfo_MajorMinorFileVersion_UsesMajorComponent(string fileVersion, byte expected)
+    {
+        var content = BuildMinimalDcf().Replace("FileVersion=1", $"FileVersion={fileVersion}", StringComparison.Ordinal);
+
+        var result = _reader.ReadString(content);
+
+        result.FileInfo.FileVersion.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("2.1", (byte)2)]
+    [InlineData("3,0", (byte)3)]
+    public void ReadString_FileInfo_MajorMinorFileRevision_UsesMajorComponent(string fileRevision, byte expected)
+    {
+        var content = BuildMinimalDcf().Replace("FileRevision=0", $"FileRevision={fileRevision}", StringComparison.Ordinal);
+
+        var result = _reader.ReadString(content);
+
+        result.FileInfo.FileRevision.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("1.0")]
+    [InlineData("1,0")]
+    public void ReadString_FileInfo_MajorMinorFileVersion_StrictParsing_ThrowsWithAttribution(string fileVersion)
+    {
+        var content = BuildMinimalDcf().Replace("FileVersion=1", $"FileVersion={fileVersion}", StringComparison.Ordinal);
+
+        var act = () => CanOpenFile.Dcf.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
+
+        var ex = act.Should().Throw<EdsParseException>().Which;
+        ex.SectionName.Should().Be("FileInfo");
+        ex.Message.Should().Contain("[FileInfo] FileVersion:");
+        ex.Message.Should().Contain(fileVersion);
+    }
+
+    [Fact]
+    public void ReadString_FileInfo_FileVersionAtMaxValue_Parses255()
+    {
+        var content = BuildMinimalDcf().Replace("FileVersion=1", "FileVersion=255", StringComparison.Ordinal);
+
+        var result = _reader.ReadString(content);
+
+        result.FileInfo.FileVersion.Should().Be(byte.MaxValue);
     }
 
     #endregion
