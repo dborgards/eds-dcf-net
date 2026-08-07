@@ -1513,6 +1513,102 @@ public class XddReaderTests
         result.ObjectDictionary.Objects[0x1000].AccessType.Should().Be(AccessType.ReadOnly);
     }
 
+    [Theory]
+    [InlineData("rwr", AccessType.ReadWriteInput)]
+    [InlineData("RWW", AccessType.ReadWriteOutput)]
+    [InlineData("const", AccessType.Constant)]
+    [InlineData("wo", AccessType.WriteOnly)]
+    [InlineData("rw", AccessType.ReadWrite)]
+    public void ParseXddAccessType_KnownTokens_IncludingRwrRww_Parses(string accessType, AccessType expected)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"accessType=""ro""",
+            $@"accessType=""{accessType}""");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.Objects[0x1000].AccessType.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ParseXddAccessType_EmptyOrWhitespace_ReturnsReadOnly(string accessType)
+    {
+        XddParsingPrimitives.ParseXddAccessType(accessType).Should().Be(AccessType.ReadOnly);
+
+        using (StrictParsingScope.Enter(true))
+        {
+            XddParsingPrimitives.ParseXddAccessType(accessType).Should().Be(AccessType.ReadOnly);
+        }
+    }
+
+    [Fact]
+    public void ParseXddAccessType_Unknown_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"accessType=""ro""",
+            @"accessType=""custom""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*access type*custom*");
+    }
+
+    [Theory]
+    [InlineData("maybe")]
+    [InlineData("yes")]
+    [InlineData("2")]
+    public void ParseXmlBool_Unknown_StrictParsing_ThrowsEdsParseException(string token)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"bootUpSlave=""true""",
+            $@"bootUpSlave=""{token}""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*XML boolean*" + token + "*");
+    }
+
+    [Theory]
+    [InlineData("false", false)]
+    [InlineData("0", false)]
+    [InlineData("true", true)]
+    [InlineData("1", true)]
+    [InlineData("FALSE", false)]
+    [InlineData("TRUE", true)]
+    public void ParseXmlBool_KnownTokens_StrictParsing_Parses(string token, bool expected)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"bootUpSlave=""true""",
+            $@"bootUpSlave=""{token}""");
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.DeviceInfo.SimpleBootUpSlave.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ParseXmlBool_EmptyOrWhitespace_ReturnsFalse(string token)
+    {
+        XddParsingPrimitives.ParseXmlBool(token).Should().BeFalse();
+
+        using (StrictParsingScope.Enter(true))
+        {
+            XddParsingPrimitives.ParseXmlBool(token).Should().BeFalse();
+        }
+    }
+
+    [Fact]
+    public void ParseXmlBool_Unknown_Lenient_ReturnsFalse()
+    {
+        XddParsingPrimitives.ParseXmlBool("maybe").Should().BeFalse();
+    }
+
     [Fact]
     public void ParseHexIndex_WithPrefix_ParsedCorrectly()
     {
