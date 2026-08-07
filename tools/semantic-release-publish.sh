@@ -84,7 +84,17 @@ dotnet pack src/EdsDcfNet/EdsDcfNet.csproj \
   --output ./packages \
   -p:PackageVersion="${next_version}"
 
-dotnet nuget push "./packages/*.nupkg" \
+# Push an explicit package path. A quoted "./packages/*.nupkg" glob is not
+# expanded by the Windows NuGet CLI (unlike Linux), so push fails with
+# "File does not exist (./packages/*.nupkg)" even after a successful pack.
+# Adjacent .snupkg symbols are published with the .nupkg automatically.
+nupkg="./packages/EdsDcfNet.${next_version}.nupkg"
+if [[ ! -f "$nupkg" ]]; then
+  echo "Expected package not found: ${nupkg}" >&2
+  exit 1
+fi
+
+dotnet nuget push "$nupkg" \
   --api-key "${NUGET_API_KEY}" \
   --source https://api.nuget.org/v3/index.json \
   --skip-duplicate
