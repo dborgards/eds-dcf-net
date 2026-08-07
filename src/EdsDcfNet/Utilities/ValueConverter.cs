@@ -3,6 +3,7 @@ namespace EdsDcfNet.Utilities;
 using System.Globalization;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 
 /// <summary>
 /// Utility class for converting string values from EDS/DCF files to typed values.
@@ -76,10 +77,12 @@ public static class ValueConverter
     /// <remarks>
     /// This parser is intentionally lenient to tolerate real-world EDS/DCF files:
     /// only <c>"1"</c>, <c>"true"</c>, and <c>"yes"</c> (case-insensitive) are treated as
-    /// <see langword="true"/>. Any other value — including typos, <c>"0"</c>, <c>"false"</c>,
-    /// <c>"no"</c>, and empty strings — silently maps to <see langword="false"/> without
-    /// raising an error. Unlike the numeric parsers in this class, malformed input is not
-    /// reported via <see cref="EdsParseException"/>.
+    /// <see langword="true"/>. Recognized false tokens are <c>"0"</c>, <c>"false"</c>, and
+    /// <c>"no"</c> (case-insensitive); empty/whitespace maps to <see langword="false"/>.
+    /// Other values silently map to <see langword="false"/> when lenient. With
+    /// <see cref="CanOpenFileOptions.StrictParsing"/> enabled (via
+    /// <see cref="StrictParsingScope"/>), unrecognized non-empty tokens throw
+    /// <see cref="EdsParseException"/>.
     /// </remarks>
     /// <param name="value">String value to parse.</param>
     /// <returns>
@@ -93,9 +96,26 @@ public static class ValueConverter
         if (string.IsNullOrEmpty(value))
             return false;
 
-        return value == "1" ||
-               value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-               value.Equals("yes", StringComparison.OrdinalIgnoreCase);
+        if (value == "1" ||
+            value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("yes", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (value == "0" ||
+            value.Equals("false", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("no", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Unknown boolean token '{0}'. Expected one of: 0, 1, true, false, yes, no.",
+                    value));
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -109,7 +129,9 @@ public static class ValueConverter
     /// <item><description><c>1</c>, <c>true</c>, <c>yes</c> (same as <see cref="ParseBoolean"/>)</description></item>
     /// </list>
     /// <para>Recognized false tokens include <c>0x00</c>, <c>0x0</c>, <c>0</c>, <c>false</c>,
-    /// <c>no</c>, and any other unrecognized value (lenient absent).</para>
+    /// <c>no</c>, and any other unrecognized value (lenient absent). This remains lenient
+    /// even when <see cref="CanOpenFileOptions.StrictParsing"/> is enabled; strict
+    /// <c>NodeNPresent</c> handling is deferred (see issue #416).</para>
     /// </remarks>
     /// <param name="value">String value to parse.</param>
     /// <returns>
@@ -131,7 +153,11 @@ public static class ValueConverter
             value.Equals("0x0", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        return ParseBoolean(value);
+        // Always lenient for CPJ NodeNPresent (#416 deferred); do not inherit ParseBoolean strictness.
+        using (StrictParsingScope.Enter(false))
+        {
+            return ParseBoolean(value);
+        }
     }
 
     /// <summary>
@@ -187,20 +213,28 @@ public static class ValueConverter
     /// This parser is intentionally lenient to tolerate real-world EDS/DCF files:
     /// recognized tokens are <c>"ro"</c>, <c>"wo"</c>, <c>"rw"</c>, <c>"rwr"</c>,
     /// <c>"rww"</c>, and <c>"const"</c> (case-insensitive, surrounding whitespace ignored).
-    /// Any unrecognized value — including typos and <see langword="null"/> — silently maps to
-    /// <see cref="AccessType.ReadOnly"/> without raising an error. Unlike the numeric parsers
-    /// in this class, malformed input is not reported via <see cref="EdsParseException"/>.
-    /// Note that this can change round-trip output: an unknown access type in the source file
-    /// is written back as <c>"ro"</c>.
+    /// Empty, whitespace-only, and <see langword="null"/> inputs always map to
+    /// <see cref="AccessType.ReadOnly"/> (absent field, not an unknown token). Any other
+    /// unrecognized value silently maps to <see cref="AccessType.ReadOnly"/> when lenient.
+    /// With <see cref="CanOpenFileOptions.StrictParsing"/> enabled (via
+    /// <see cref="StrictParsingScope"/>), non-empty unrecognized tokens throw
+    /// <see cref="EdsParseException"/>. Note that lenient mode can change round-trip
+    /// output: an unknown access type in the source file is written back as <c>"ro"</c>.
     /// </remarks>
     /// <param name="value">String value to parse.</param>
     /// <returns>
     /// The parsed <see cref="AccessType"/>, or <see cref="AccessType.ReadOnly"/> if
-    /// <paramref name="value"/> is not a recognized access type token.
+    /// <paramref name="value"/> is empty/absent or not a recognized access type token
+    /// (lenient mode).
     /// </returns>
     public static AccessType ParseAccessType(string value)
     {
-        return value?.Trim().ToLowerInvariant() switch
+        var token = value?.Trim().ToLowerInvariant();
+        // Missing AccessType/Dir keys yield "" from IniParser.GetValue; treat as absent default.
+        if (string.IsNullOrEmpty(token))
+            return AccessType.ReadOnly;
+
+        return token switch
         {
             "ro" => AccessType.ReadOnly,
             "wo" => AccessType.WriteOnly,
@@ -208,6 +242,11 @@ public static class ValueConverter
             "rwr" => AccessType.ReadWriteInput,
             "rww" => AccessType.ReadWriteOutput,
             "const" => AccessType.Constant,
+            _ when StrictParsingScope.IsEnabled => throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Unknown access type token '{0}'. Expected one of: ro, wo, rw, rwr, rww, const.",
+                    value)),
             _ => AccessType.ReadOnly
         };
     }
