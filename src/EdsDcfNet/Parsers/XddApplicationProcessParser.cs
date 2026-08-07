@@ -208,7 +208,7 @@ private static ApVarDeclaration ParseVarDeclaration(XElement elem)
 
     var signedStr = elem.Attribute("signed")?.Value;
     if (signedStr != null)
-        vd.IsSigned = signedStr.Equals("true", StringComparison.OrdinalIgnoreCase) || signedStr == "1";
+        vd.IsSigned = ParseXmlBool(signedStr);
 
     ApReadLabelGroup(elem, vd.LabelGroup);
     vd.Type = ParseTypeRef(elem);
