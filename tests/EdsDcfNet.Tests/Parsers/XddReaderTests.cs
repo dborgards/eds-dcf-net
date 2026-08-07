@@ -1757,6 +1757,19 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ParseCanOpenObject_WhitespaceOnlyObjectType_StrictParsing_ThrowsInvalidNotMissing()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"objectType=""7""",
+            @"objectType=""   """);
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*Invalid objectType*");
+    }
+
+    [Fact]
     public void ParseCanOpenSubObject_InvalidObjectType_StrictParsing_ThrowsEdsParseException()
     {
         var xdd = MinimalXdd.Replace(
