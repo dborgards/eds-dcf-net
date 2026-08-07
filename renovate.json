@@ -1,5 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Primary version-update bot for nuget/npm/github-actions. Dependabot version updates are disabled; Dependabot security alerts may still open PRs via repo settings.",
   "extends": [
     "config:recommended"
   ],
