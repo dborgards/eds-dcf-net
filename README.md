@@ -597,8 +597,11 @@ var xdd = CanOpenFile.Xdd.ReadFile(
 Set `CanOpenFileOptions.StrictParsing = true` so silent read coercions fail with
 `EdsParseException` instead of mapping to defaults. Default remains lenient.
 Today this covers duplicate INI keys, unknown XDD/XDC baud-rate strings, unknown
-boolean tokens (`ValueConverter.ParseBoolean`), and unknown access-type tokens
-(`ValueConverter.ParseAccessType`).
+boolean tokens (`ValueConverter.ParseBoolean`), unknown access-type tokens
+(`ValueConverter.ParseAccessType`), EDS/DCF/XDD file-version major/minor tooling
+forms, missing XDD/XDC `index` on CANopen objects, and missing or invalid
+XDD/XDC `objectType` (schema-valid unsignedByte forms such as `+9` / `-0` are
+accepted after trim).
 
 ```csharp
 var eds = CanOpenFile.Eds.ReadFile(
