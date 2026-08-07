@@ -193,6 +193,19 @@ internal static class XddParsingPrimitives
                 raw));
     }
 
+    /// <summary>
+    /// Returns the trimmed attribute value, or <see langword="null"/> when absent.
+    /// Collapses XML Schema surrounding whitespace for integer-derived types.
+    /// </summary>
+    internal static string? GetTrimmedAttributeValue(XElement element, string localName)
+    {
+        var attr = element.Attribute(localName);
+        if (attr == null)
+            return null;
+
+        return attr.Value.Trim();
+    }
+
     internal static string ConvertXsdDateToEds(string xsdDate)
     {
         if (string.IsNullOrEmpty(xsdDate))

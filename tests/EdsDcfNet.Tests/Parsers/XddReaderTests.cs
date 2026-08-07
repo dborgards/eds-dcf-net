@@ -1540,6 +1540,39 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void GetTrimmedAttributeValue_Absent_ReturnsNull()
+    {
+        var elem = new System.Xml.Linq.XElement("CANopenObject");
+        XddParsingPrimitives.GetTrimmedAttributeValue(elem, "objFlags").Should().BeNull();
+    }
+
+    [Fact]
+    public void GetTrimmedAttributeValue_WhitespaceOnly_ReturnsEmpty()
+    {
+        var elem = new System.Xml.Linq.XElement("CANopenObject",
+            new System.Xml.Linq.XAttribute("objFlags", "   "));
+        XddParsingPrimitives.GetTrimmedAttributeValue(elem, "objFlags").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RejectFailedNumericAttribute_LenientUnknown_DoesNotThrow()
+    {
+        var act = () => XddParsingPrimitives.RejectFailedNumericAttribute("nope", parsed: false, "objFlags");
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void RejectFailedNumericAttribute_EmptyOrParsed_DoesNotThrowEvenWhenStrict()
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            XddParsingPrimitives.RejectFailedNumericAttribute(null, parsed: false, "objFlags");
+            XddParsingPrimitives.RejectFailedNumericAttribute("", parsed: false, "objFlags");
+            XddParsingPrimitives.RejectFailedNumericAttribute("1", parsed: true, "objFlags");
+        }
+    }
+
+    [Fact]
     public void ParseCanOpenObject_InvalidSubNumber_StrictParsing_ThrowsEdsParseException()
     {
         var xdd = MinimalXdd.Replace(
