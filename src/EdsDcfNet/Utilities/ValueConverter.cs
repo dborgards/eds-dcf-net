@@ -77,10 +77,12 @@ public static class ValueConverter
     /// <remarks>
     /// This parser is intentionally lenient to tolerate real-world EDS/DCF files:
     /// only <c>"1"</c>, <c>"true"</c>, and <c>"yes"</c> (case-insensitive) are treated as
-    /// <see langword="true"/>. Any other value — including typos, <c>"0"</c>, <c>"false"</c>,
-    /// <c>"no"</c>, and empty strings — silently maps to <see langword="false"/> without
-    /// raising an error. Unlike the numeric parsers in this class, malformed input is not
-    /// reported via <see cref="EdsParseException"/>.
+    /// <see langword="true"/>. Recognized false tokens are <c>"0"</c>, <c>"false"</c>, and
+    /// <c>"no"</c> (case-insensitive); empty/whitespace maps to <see langword="false"/>.
+    /// Other values silently map to <see langword="false"/> when lenient. With
+    /// <see cref="CanOpenFileOptions.StrictParsing"/> enabled (via
+    /// <see cref="StrictParsingScope"/>), unrecognized non-empty tokens throw
+    /// <see cref="EdsParseException"/>.
     /// </remarks>
     /// <param name="value">String value to parse.</param>
     /// <returns>
