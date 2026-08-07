@@ -168,12 +168,16 @@ legacy static `Read*` / `Write*` overloads:
 | XDC | `CanOpenFile.Xdc` | `CanOpenFile.Xdc.ReadFile("device.xdc")` |
 
 These entry points accept `CanOpenFileOptions` (read limits) and `CanOpenWriteOptions`
-(pre-write validation) in one place. Legacy facade overloads remain for backward
-compatibility and delegate to the same operations; overloads that only supply default
-parameters are marked `[Obsolete]` (advisory) and will be removed in a future major release.
+(pre-write validation) in one place. Legacy facade `Read*` / `Write*` overloads
+(path, stream, string, sync, async, and options-taking variants) remain for
+backward compatibility and are marked `[Obsolete]` (advisory); they will be
+removed in a future major release.
 
 EDS-to-DCF conversion lives on the EDS entry point: `CanOpenFile.Eds.ConvertToDcf(...)`.
-The legacy `CanOpenFile.EdsToDcf(...)` methods delegate there.
+The no-timestamp `CanOpenFile.EdsToDcf(...)` overload is obsolete and delegates
+there; the `EdsToDcf(..., DateTime timestamp, ...)` overload is intentionally
+**not** obsolete (thin retained shim for deterministic timestamps) but new code
+should still call `Eds.ConvertToDcf`.
 
 ```csharp
 using EdsDcfNet;
@@ -186,9 +190,9 @@ CanOpenFile.Dcf.WriteFile(dcf, "device_node2.dcf", CanOpenWriteOptions.Validated
 ## Migration Guide
 
 If your code still calls the legacy `CanOpenFile.Read*` / `Write*` / `EdsToDcf` static
-methods, move to the format entry points in the table above. Default-parameter facade
-overloads are marked `[Obsolete]` (advisory) and delegate to the same implementation;
-they remain available until a future major release.
+methods, move to the format entry points in the table above. **All** legacy
+`Read*` / `Write*` facade overloads are marked `[Obsolete]` (advisory)—not only
+default-parameter variants—and remain available until a future major release.
 
 ### Facade → format entry point
 
@@ -206,9 +210,18 @@ Each format uses the same method names on its entry point (`Eds`, `Dcf`, `Cpj`, 
 | `WriteEds(model, stream)`, … | `Eds.WriteStream(model, stream)`, … |
 | `WriteEdsAsync(...)`, … | `Eds.WriteFileAsync(...)`, `Eds.WriteStreamAsync(...)`, … |
 | `WriteEdsToString(...)`, … | `Eds.WriteToString(...)`, `Dcf.WriteToString(...)`, … |
-| `EdsToDcf(...)` | `Eds.ConvertToDcf(...)` |
+| `EdsToDcf(...)` (no timestamp) | `Eds.ConvertToDcf(...)` — obsolete |
+| `EdsToDcf(..., DateTime timestamp, ...)` | Prefer `Eds.ConvertToDcf(..., timestamp, ...)`; facade overload kept (not obsolete) |
 
-`CanOpenFile.Validate(...)` is unchanged.
+### Non-obsolete facade members
+
+These `CanOpenFile` static members are **not** marked `[Obsolete]`:
+
+| Member | Notes |
+|--------|--------|
+| `Validate(...)` / `ValidateAsync(...)` | Unchanged validation entry points |
+| `EdsToDcf(..., DateTime timestamp, ...)` | Intentional retained shim; prefer `Eds.ConvertToDcf` for new code |
+| Format entry points (`Eds`, `Dcf`, `Cpj`, `Xdd`, `Xdc`) | Canonical API |
 
 ### Input size limits
 
@@ -559,8 +572,10 @@ IReadOnlyList<ValidationIssue> Validate(ElectronicDataSheet eds)
 IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
 ```
 
-Legacy static `Read*` / `Write*` / `EdsToDcf` facade methods remain for backward compatibility
-and delegate to these entry points; default-parameter-only overloads are marked `[Obsolete]`.
+Legacy static `Read*` / `Write*` facade methods remain for backward compatibility
+and are all marked `[Obsolete]` (advisory). The no-timestamp `EdsToDcf` overload is
+obsolete; `EdsToDcf(..., DateTime timestamp, ...)` is retained without `[Obsolete]`
+as a thin shim (prefer `Eds.ConvertToDcf`). `Validate*` is unchanged.
 
 ### Input Size Limits and Tuning
 
