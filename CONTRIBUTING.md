@@ -36,6 +36,9 @@ refactor/xyz    ──┘      │           │
    ```sh
    dotnet test --configuration Release
    ```
+   Tests multi-target `net10.0` and `net8.0`. The `net8.0` host exercises the
+   library’s `netstandard2.0` build (distinct `#else` async/IO paths). You need a
+   .NET 8 runtime installed alongside the SDK pinned in `global.json`.
 
 5. **Open a PR targeting `develop`** (not `main`).
 
@@ -77,7 +80,9 @@ while the core library project additionally pins the analyzer package version vi
 ## .NET SDK policy
 
 - SDK resolution is pinned in [`global.json`](global.json).
-- CI resolves the .NET SDK from that file in both workflows.
+- CI resolves the .NET SDK from that file in both workflows and also installs a
+  .NET 8 runtime so `EdsDcfNet.Tests` can run on `net8.0` against the
+  `netstandard2.0` library asset.
 - To update the SDK baseline, submit one PR that updates `global.json` and
   briefly notes the change in the PR description.
 

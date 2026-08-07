@@ -160,6 +160,8 @@ public class ByteLimitingStreamTests
         inner.TotalBytesServed.Should().Be(9);
     }
 
+#if NET10_0_OR_GREATER
+    // ByteLimitingStream overrides ReadAsync(Memory<byte>) only on net10.0+.
     [Fact]
     public async Task ReadAsync_MemoryOverload_OverLimit_ReadsAtMostOneByteBeyondTheLimit()
     {
@@ -172,6 +174,7 @@ public class ByteLimitingStreamTests
         await act.Should().ThrowAsync<EdsParseException>();
         inner.TotalBytesServed.Should().Be(9);
     }
+#endif
 
     [Fact]
     public void Dispose_WithoutDisposingManagedState_LeavesInnerStreamOpen()

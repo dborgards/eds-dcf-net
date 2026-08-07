@@ -37,7 +37,11 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
       with:
+        # SDK 10 from global.json builds the library; net8.0 runs tests against the
+        # netstandard2.0 asset (see TargetFrameworks on EdsDcfNet.Tests).
         global-json-file: global.json
+        dotnet-version: |
+          8.0.x
 
     - name: Restore dependencies
       run: dotnet restore
