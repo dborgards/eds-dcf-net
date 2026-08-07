@@ -120,16 +120,15 @@ jobs:
         if [[ -n "${{ steps.coverage_gate.outputs.coverage_files }}" ]]; then
           i=1
           while [[ "$i" -le 24 ]]; do
+            # Inline CODECOV_AFTER: `gh api --jq` does not support jq --arg.
             codecov_bot_status=$(gh api "repos/${{ github.repository }}/commits/${COMMIT_SHA}/statuses" \
-              --jq --arg after "${CODECOV_AFTER}" \
-              '[.[] | select(.context == "codecov/patch" and (.creator.login == "codecov[bot]") and (.created_at // "") >= $after)][0].state // empty' 2>/dev/null || true)
+              --jq "[.[] | select(.context == \"codecov/patch\" and (.creator.login == \"codecov[bot]\") and (.created_at // \"\") >= \"${CODECOV_AFTER}\")][0].state // empty" 2>/dev/null || true)
             if [[ -n "$codecov_bot_status" ]]; then
               echo "Codecov webhook status detected (${codecov_bot_status}) after ~$((i * 10))s"
               break
             fi
             codecov_check=$(gh api "repos/${{ github.repository }}/commits/${COMMIT_SHA}/check-runs" \
-              --jq --arg after "${CODECOV_AFTER}" \
-              '[.check_runs[] | select(.name == "codecov/patch" and .app.slug == "codecov" and .status == "completed" and (.completed_at // "") >= $after)][0].conclusion // empty' 2>/dev/null || true)
+              --jq "[.check_runs[] | select(.name == \"codecov/patch\" and .app.slug == \"codecov\" and .status == \"completed\" and (.completed_at // \"\") >= \"${CODECOV_AFTER}\")][0].conclusion // empty" 2>/dev/null || true)
             if [[ -n "$codecov_check" ]]; then
               echo "Codecov check run detected (${codecov_check}) after ~$((i * 10))s"
               break
