@@ -220,6 +220,7 @@ These `CanOpenFile` static members are **not** marked `[Obsolete]`:
 | Member | Notes |
 |--------|--------|
 | `Validate(...)` / `ValidateAsync(...)` | Unchanged validation entry points |
+| `EnsureValid(...)` / `EnsureValidAsync(...)` | Throw-on-invalid helpers for EDS/DCF/CPJ |
 | `EdsToDcf(..., DateTime timestamp, ...)` | Intentional retained shim; prefer `Eds.ConvertToDcf` for new code |
 | Format entry points (`Eds`, `Dcf`, `Cpj`, `Xdd`, `Xdc`) | Canonical API |
 
