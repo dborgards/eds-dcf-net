@@ -7,6 +7,13 @@ using EdsDcfNet.Models;
 
 internal static class XddParsingPrimitives
 {
+    /// <summary>
+    /// Styles for XSD unsigned integer-derived attributes after whitespace collapse.
+    /// Optional leading sign is schema-valid (<c>+n</c>, <c>-0</c>); out-of-range
+    /// negatives still fail <c>TryParse</c> for the target unsigned type.
+    /// </summary>
+    internal const NumberStyles UnsignedXsdIntegerStyles = NumberStyles.AllowLeadingSign;
+
     internal static string GetXsiType(XElement element)
     {
         foreach (var attr in element.Attributes())

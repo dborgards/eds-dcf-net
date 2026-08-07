@@ -122,7 +122,7 @@ internal static class XddCommNetProfileParser
         var objFlagsStr = GetTrimmedAttributeValue(elem, "objFlags");
         if (!string.IsNullOrEmpty(objFlagsStr))
         {
-            var objFlagsParsed = uint.TryParse(objFlagsStr, NumberStyles.None, CultureInfo.InvariantCulture, out var flags);
+            var objFlagsParsed = uint.TryParse(objFlagsStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var flags);
             if (objFlagsParsed)
                 obj.ObjFlags = flags;
             RejectFailedNumericAttribute(objFlagsStr, objFlagsParsed, "objFlags");
@@ -131,7 +131,7 @@ internal static class XddCommNetProfileParser
         var subNumberStr = GetTrimmedAttributeValue(elem, "subNumber");
         if (!string.IsNullOrEmpty(subNumberStr))
         {
-            var subNumberParsed = byte.TryParse(subNumberStr, NumberStyles.None, CultureInfo.InvariantCulture, out var subNum);
+            var subNumberParsed = byte.TryParse(subNumberStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var subNum);
             if (subNumberParsed)
                 obj.SubNumber = subNum;
             RejectFailedNumericAttribute(subNumberStr, subNumberParsed, "subNumber");
@@ -240,7 +240,7 @@ internal static class XddCommNetProfileParser
 
         var objTypeStr = attr.Value.Trim();
         // AllowLeadingSign matches xsd:unsignedByte lexical forms (+9, -0) after trim.
-        if (byte.TryParse(objTypeStr, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var objType))
+        if (byte.TryParse(objTypeStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var objType))
             return objType;
 
         if (StrictParsingScope.IsEnabled)
@@ -327,7 +327,7 @@ internal static class XddCommNetProfileParser
             var ppOffsetStr = GetTrimmedAttributeValue(chanElem, "pDOmappingIndex");
             if (!string.IsNullOrEmpty(ppOffsetStr))
             {
-                var ppOffsetParsed = uint.TryParse(ppOffsetStr, NumberStyles.None, CultureInfo.InvariantCulture, out var ppOffset);
+                var ppOffsetParsed = uint.TryParse(ppOffsetStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var ppOffset);
                 if (ppOffsetParsed)
                     seg.PPOffset = ppOffset;
                 RejectFailedNumericAttribute(ppOffsetStr, ppOffsetParsed, "pDOmappingIndex");
@@ -375,7 +375,7 @@ internal static class XddCommNetProfileParser
             var granStr = GetTrimmedAttributeValue(generalFeatures, "granularity");
             if (!string.IsNullOrEmpty(granStr))
             {
-                var granParsed = byte.TryParse(granStr, NumberStyles.None, CultureInfo.InvariantCulture, out var gran);
+                var granParsed = byte.TryParse(granStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var gran);
                 if (granParsed)
                     deviceInfo.Granularity = gran;
                 RejectFailedNumericAttribute(granStr, granParsed, "granularity");
@@ -384,7 +384,7 @@ internal static class XddCommNetProfileParser
             var rxPdoStr = GetTrimmedAttributeValue(generalFeatures, "nrOfRxPDO");
             if (!string.IsNullOrEmpty(rxPdoStr))
             {
-                var rxPdoParsed = ushort.TryParse(rxPdoStr, NumberStyles.None, CultureInfo.InvariantCulture, out var rxPdo);
+                var rxPdoParsed = ushort.TryParse(rxPdoStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var rxPdo);
                 if (rxPdoParsed)
                     deviceInfo.NrOfRxPdo = rxPdo;
                 RejectFailedNumericAttribute(rxPdoStr, rxPdoParsed, "nrOfRxPDO");
@@ -393,7 +393,7 @@ internal static class XddCommNetProfileParser
             var txPdoStr = GetTrimmedAttributeValue(generalFeatures, "nrOfTxPDO");
             if (!string.IsNullOrEmpty(txPdoStr))
             {
-                var txPdoParsed = ushort.TryParse(txPdoStr, NumberStyles.None, CultureInfo.InvariantCulture, out var txPdo);
+                var txPdoParsed = ushort.TryParse(txPdoStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var txPdo);
                 if (txPdoParsed)
                     deviceInfo.NrOfTxPdo = txPdo;
                 RejectFailedNumericAttribute(txPdoStr, txPdoParsed, "nrOfTxPDO");
@@ -411,7 +411,7 @@ internal static class XddCommNetProfileParser
             var dynChanStr = GetTrimmedAttributeValue(generalFeatures, "dynamicChannels");
             if (!string.IsNullOrEmpty(dynChanStr))
             {
-                var dynChanParsed = byte.TryParse(dynChanStr, NumberStyles.None, CultureInfo.InvariantCulture, out var dynChan);
+                var dynChanParsed = byte.TryParse(dynChanStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var dynChan);
                 if (dynChanParsed)
                     deviceInfo.DynamicChannelsSupported = dynChan;
                 RejectFailedNumericAttribute(dynChanStr, dynChanParsed, "dynamicChannels");
@@ -477,7 +477,7 @@ internal static class XddCommNetProfileParser
         var netNumberStr = GetTrimmedAttributeValue(dcElem, "networkNumber") ?? string.Empty;
         if (!string.IsNullOrEmpty(netNumberStr))
         {
-            var netNumberParsed = uint.TryParse(netNumberStr, NumberStyles.None, CultureInfo.InvariantCulture, out var netNum);
+            var netNumberParsed = uint.TryParse(netNumberStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var netNum);
             if (netNumberParsed)
                 dc.NetNumber = netNum;
             RejectFailedNumericAttribute(netNumberStr, netNumberParsed, "networkNumber");

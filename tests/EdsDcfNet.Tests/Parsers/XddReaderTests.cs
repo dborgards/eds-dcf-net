@@ -1530,9 +1530,56 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ParseCanOpenObject_ObjFlagsWithLeadingPlus_StrictParsing_Parses()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"PDOmapping=""no""",
+            @"PDOmapping=""no"" objFlags=""+1""");
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.ObjectDictionary.Objects[0x1000].ObjFlags.Should().Be(1u);
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_SubNumberNegativeZero_StrictParsing_ParsesAsZero()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"PDOmapping=""no""",
+            @"PDOmapping=""no"" subNumber=""-0""");
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.ObjectDictionary.Objects[0x1000].SubNumber.Should().Be(0);
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_SubNumberNegativeOutOfRange_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"PDOmapping=""no""",
+            @"PDOmapping=""no"" subNumber=""-1""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*subNumber*-1*");
+    }
+
+    [Fact]
     public void ParseNetworkManagement_NrOfRxPdoWithTrailingWhitespace_StrictParsing_Parses()
     {
         var xdd = MinimalXdd.Replace(@"nrOfRxPDO=""2""", @"nrOfRxPDO=""2 """);
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.DeviceInfo.NrOfRxPdo.Should().Be(2);
+    }
+
+    [Fact]
+    public void ParseNetworkManagement_NrOfRxPdoWithLeadingPlus_StrictParsing_Parses()
+    {
+        var xdd = MinimalXdd.Replace(@"nrOfRxPDO=""2""", @"nrOfRxPDO=""+2""");
 
         var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
 
