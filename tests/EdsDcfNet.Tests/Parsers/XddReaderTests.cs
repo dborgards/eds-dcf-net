@@ -1649,6 +1649,102 @@ public class XddReaderTests
         result.ObjectDictionary.Objects[0x1000].AccessType.Should().Be(AccessType.ReadOnly);
     }
 
+    [Theory]
+    [InlineData("rwr", AccessType.ReadWriteInput)]
+    [InlineData("RWW", AccessType.ReadWriteOutput)]
+    [InlineData("const", AccessType.Constant)]
+    [InlineData("wo", AccessType.WriteOnly)]
+    [InlineData("rw", AccessType.ReadWrite)]
+    public void ParseXddAccessType_KnownTokens_IncludingRwrRww_Parses(string accessType, AccessType expected)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"accessType=""ro""",
+            $@"accessType=""{accessType}""");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.Objects[0x1000].AccessType.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ParseXddAccessType_EmptyOrWhitespace_ReturnsReadOnly(string accessType)
+    {
+        XddParsingPrimitives.ParseXddAccessType(accessType).Should().Be(AccessType.ReadOnly);
+
+        using (StrictParsingScope.Enter(true))
+        {
+            XddParsingPrimitives.ParseXddAccessType(accessType).Should().Be(AccessType.ReadOnly);
+        }
+    }
+
+    [Fact]
+    public void ParseXddAccessType_Unknown_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"accessType=""ro""",
+            @"accessType=""custom""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*access type*custom*");
+    }
+
+    [Theory]
+    [InlineData("maybe")]
+    [InlineData("yes")]
+    [InlineData("2")]
+    public void ParseXmlBool_Unknown_StrictParsing_ThrowsEdsParseException(string token)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"bootUpSlave=""true""",
+            $@"bootUpSlave=""{token}""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*XML boolean*" + token + "*");
+    }
+
+    [Theory]
+    [InlineData("false", false)]
+    [InlineData("0", false)]
+    [InlineData("true", true)]
+    [InlineData("1", true)]
+    [InlineData("FALSE", false)]
+    [InlineData("TRUE", true)]
+    public void ParseXmlBool_KnownTokens_StrictParsing_Parses(string token, bool expected)
+    {
+        var xdd = MinimalXdd.Replace(
+            @"bootUpSlave=""true""",
+            $@"bootUpSlave=""{token}""");
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.DeviceInfo.SimpleBootUpSlave.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ParseXmlBool_EmptyOrWhitespace_ReturnsFalse(string token)
+    {
+        XddParsingPrimitives.ParseXmlBool(token).Should().BeFalse();
+
+        using (StrictParsingScope.Enter(true))
+        {
+            XddParsingPrimitives.ParseXmlBool(token).Should().BeFalse();
+        }
+    }
+
+    [Fact]
+    public void ParseXmlBool_Unknown_Lenient_ReturnsFalse()
+    {
+        XddParsingPrimitives.ParseXmlBool("maybe").Should().BeFalse();
+    }
+
     [Fact]
     public void ParseHexIndex_WithPrefix_ParsedCorrectly()
     {
@@ -1837,6 +1933,128 @@ public class XddReaderTests
         sub.LowLimit.Should().BeNull();
         sub.HighLimit.Should().BeNull();
         sub.PdoMapping.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_MissingIndex_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" defaultValue=""0x00000000"" PDOmapping=""no""/>",
+            @"<CANopenObject name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" defaultValue=""0x00000000"" PDOmapping=""no""/>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*missing required attribute 'index'*");
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_MissingObjectType_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"objectType=""7""",
+            @"");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*missing required attribute 'objectType'*");
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_InvalidObjectType_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"objectType=""7""",
+            @"objectType=""not-a-byte""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*Invalid objectType*not-a-byte*");
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_ObjectTypeWithSurroundingWhitespace_StrictParsing_Parses()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"objectType=""7""",
+            @"objectType="" 9 """);
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.ObjectDictionary.Objects[0x1000].ObjectType.Should().Be(9);
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_ObjectTypeWithLeadingPlus_StrictParsing_Parses()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"objectType=""7""",
+            @"objectType=""+9""");
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.ObjectDictionary.Objects[0x1000].ObjectType.Should().Be(9);
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_ObjectTypeNegativeZero_StrictParsing_ParsesAsZero()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"objectType=""7""",
+            @"objectType=""-0""");
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.ObjectDictionary.Objects[0x1000].ObjectType.Should().Be(0);
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_ObjectTypeNegativeOutOfRange_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"objectType=""7""",
+            @"objectType=""-1""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*Invalid objectType*-1*");
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_WhitespaceOnlyObjectType_StrictParsing_ThrowsInvalidNotMissing()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"objectType=""7""",
+            @"objectType=""   """);
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*Invalid objectType*");
+    }
+
+    [Fact]
+    public void ParseCanOpenSubObject_InvalidObjectType_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"<CANopenObjectList mandatoryObjects=""1"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" defaultValue=""0x00000000"" PDOmapping=""no""/>",
+            @"<CANopenObjectList mandatoryObjects=""0"" optionalObjects=""1"" manufacturerObjects=""0"">
+          <CANopenObject index=""1018"" name=""Identity"" objectType=""9"" subNumber=""1"">
+            <CANopenSubObject subIndex=""00"" name=""Count"" objectType=""invalid"" dataType=""0005""
+                              accessType=""ro"" defaultValue=""1"" PDOmapping=""no""/>
+          </CANopenObject>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*Invalid objectType*invalid*CANopenSubObject*");
     }
 
     [Fact]

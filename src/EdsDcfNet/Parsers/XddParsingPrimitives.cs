@@ -90,14 +90,37 @@ internal static class XddParsingPrimitives
                 value));
     }
 
+    /// <summary>
+    /// Parses a CiA 311 <c>accessType</c> / channel <c>accessType</c> token.
+    /// </summary>
+    /// <remarks>
+    /// Recognized tokens (case-insensitive): <c>const</c>, <c>ro</c>, <c>wo</c>,
+    /// <c>rw</c>, <c>rwr</c>, <c>rww</c>. Empty/whitespace maps to
+    /// <see cref="AccessType.ReadOnly"/> (absent field). Unknown non-empty tokens
+    /// map to <see cref="AccessType.ReadOnly"/> when lenient, or throw
+    /// <see cref="EdsParseException"/> when <see cref="StrictParsingScope"/> is enabled.
+    /// <c>rwr</c>/<c>rww</c> match EDS <see cref="Utilities.ValueConverter.ParseAccessType"/>;
+    /// the XDD writer still emits <c>rw</c> for those model values (no CiA 311 equivalent).
+    /// </remarks>
     internal static AccessType ParseXddAccessType(string value)
     {
-        return value.Trim().ToLowerInvariant() switch
+        var token = value.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(token))
+            return AccessType.ReadOnly;
+
+        return token switch
         {
             "const" => AccessType.Constant,
             "ro" => AccessType.ReadOnly,
             "wo" => AccessType.WriteOnly,
             "rw" => AccessType.ReadWrite,
+            "rwr" => AccessType.ReadWriteInput,
+            "rww" => AccessType.ReadWriteOutput,
+            _ when StrictParsingScope.IsEnabled => throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Unknown access type token '{0}'. Expected one of: ro, wo, rw, rwr, rww, const.",
+                    value)),
             _ => AccessType.ReadOnly
         };
     }
@@ -125,10 +148,39 @@ internal static class XddParsingPrimitives
                 value));
     }
 
+    /// <summary>
+    /// Parses an XML boolean attribute (<c>true</c>/<c>false</c>/<c>1</c>/<c>0</c>).
+    /// </summary>
+    /// <remarks>
+    /// Empty/whitespace maps to <see langword="false"/>. Unknown non-empty tokens
+    /// map to <see langword="false"/> when lenient, or throw
+    /// <see cref="EdsParseException"/> when <see cref="StrictParsingScope"/> is enabled.
+    /// </remarks>
     internal static bool ParseXmlBool(string value)
     {
-        return value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-               value.Equals("1", StringComparison.Ordinal);
+        value = value.Trim();
+
+        if (string.IsNullOrEmpty(value))
+            return false;
+
+        if (value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("1", StringComparison.Ordinal))
+            return true;
+
+        if (value.Equals("false", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("0", StringComparison.Ordinal))
+            return false;
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Unknown XML boolean token '{0}'. Expected one of: true, false, 1, 0.",
+                    value));
+        }
+
+        return false;
     }
 
     /// <summary>
