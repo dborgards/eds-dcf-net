@@ -127,14 +127,22 @@ internal static class XddCommNetProfileParser
         obj.PdoMappingMode = ParseXddPdoMapping(pdoMappingStr);
 
         var objFlagsStr = elem.Attribute("objFlags")?.Value;
-        if (!string.IsNullOrEmpty(objFlagsStr) &&
-            uint.TryParse(objFlagsStr, NumberStyles.None, CultureInfo.InvariantCulture, out var flags))
-            obj.ObjFlags = flags;
+        if (!string.IsNullOrEmpty(objFlagsStr))
+        {
+            var objFlagsParsed = uint.TryParse(objFlagsStr, NumberStyles.None, CultureInfo.InvariantCulture, out var flags);
+            if (objFlagsParsed)
+                obj.ObjFlags = flags;
+            RejectFailedNumericAttribute(objFlagsStr, objFlagsParsed, "objFlags");
+        }
 
         var subNumberStr = elem.Attribute("subNumber")?.Value;
-        if (!string.IsNullOrEmpty(subNumberStr) &&
-            byte.TryParse(subNumberStr, NumberStyles.None, CultureInfo.InvariantCulture, out var subNum))
-            obj.SubNumber = subNum;
+        if (!string.IsNullOrEmpty(subNumberStr))
+        {
+            var subNumberParsed = byte.TryParse(subNumberStr, NumberStyles.None, CultureInfo.InvariantCulture, out var subNum);
+            if (subNumberParsed)
+                obj.SubNumber = subNum;
+            RejectFailedNumericAttribute(subNumberStr, subNumberParsed, "subNumber");
+        }
 
         if (includeActualValues)
         {
@@ -264,9 +272,13 @@ internal static class XddCommNetProfileParser
                 seg.Range = seg.Range + "-" + endIdx;
 
             var ppOffsetStr = chanElem.Attribute("pDOmappingIndex")?.Value;
-            if (!string.IsNullOrEmpty(ppOffsetStr) &&
-                uint.TryParse(ppOffsetStr, NumberStyles.None, CultureInfo.InvariantCulture, out var ppOffset))
-                seg.PPOffset = ppOffset;
+            if (!string.IsNullOrEmpty(ppOffsetStr))
+            {
+                var ppOffsetParsed = uint.TryParse(ppOffsetStr, NumberStyles.None, CultureInfo.InvariantCulture, out var ppOffset);
+                if (ppOffsetParsed)
+                    seg.PPOffset = ppOffset;
+                RejectFailedNumericAttribute(ppOffsetStr, ppOffsetParsed, "pDOmappingIndex");
+            }
 
             result.Segments.Add(seg);
         }
@@ -308,19 +320,31 @@ internal static class XddCommNetProfileParser
         if (generalFeatures != null)
         {
             var granStr = generalFeatures.Attribute("granularity")?.Value;
-            if (!string.IsNullOrEmpty(granStr) &&
-                byte.TryParse(granStr, NumberStyles.None, CultureInfo.InvariantCulture, out var gran))
-                deviceInfo.Granularity = gran;
+            if (!string.IsNullOrEmpty(granStr))
+            {
+                var granParsed = byte.TryParse(granStr, NumberStyles.None, CultureInfo.InvariantCulture, out var gran);
+                if (granParsed)
+                    deviceInfo.Granularity = gran;
+                RejectFailedNumericAttribute(granStr, granParsed, "granularity");
+            }
 
             var rxPdoStr = generalFeatures.Attribute("nrOfRxPDO")?.Value;
-            if (!string.IsNullOrEmpty(rxPdoStr) &&
-                ushort.TryParse(rxPdoStr, NumberStyles.None, CultureInfo.InvariantCulture, out var rxPdo))
-                deviceInfo.NrOfRxPdo = rxPdo;
+            if (!string.IsNullOrEmpty(rxPdoStr))
+            {
+                var rxPdoParsed = ushort.TryParse(rxPdoStr, NumberStyles.None, CultureInfo.InvariantCulture, out var rxPdo);
+                if (rxPdoParsed)
+                    deviceInfo.NrOfRxPdo = rxPdo;
+                RejectFailedNumericAttribute(rxPdoStr, rxPdoParsed, "nrOfRxPDO");
+            }
 
             var txPdoStr = generalFeatures.Attribute("nrOfTxPDO")?.Value;
-            if (!string.IsNullOrEmpty(txPdoStr) &&
-                ushort.TryParse(txPdoStr, NumberStyles.None, CultureInfo.InvariantCulture, out var txPdo))
-                deviceInfo.NrOfTxPdo = txPdo;
+            if (!string.IsNullOrEmpty(txPdoStr))
+            {
+                var txPdoParsed = ushort.TryParse(txPdoStr, NumberStyles.None, CultureInfo.InvariantCulture, out var txPdo);
+                if (txPdoParsed)
+                    deviceInfo.NrOfTxPdo = txPdo;
+                RejectFailedNumericAttribute(txPdoStr, txPdoParsed, "nrOfTxPDO");
+            }
 
             if (generalFeatures.Attribute("bootUpSlave")?.Value is string bootUpSlaveStr)
                 deviceInfo.SimpleBootUpSlave = ParseXmlBool(bootUpSlaveStr);
@@ -332,9 +356,13 @@ internal static class XddCommNetProfileParser
                 deviceInfo.LssSupported = ParseXmlBool(lssStr);
 
             var dynChanStr = generalFeatures.Attribute("dynamicChannels")?.Value;
-            if (!string.IsNullOrEmpty(dynChanStr) &&
-                byte.TryParse(dynChanStr, NumberStyles.None, CultureInfo.InvariantCulture, out var dynChan))
-                deviceInfo.DynamicChannelsSupported = dynChan;
+            if (!string.IsNullOrEmpty(dynChanStr))
+            {
+                var dynChanParsed = byte.TryParse(dynChanStr, NumberStyles.None, CultureInfo.InvariantCulture, out var dynChan);
+                if (dynChanParsed)
+                    deviceInfo.DynamicChannelsSupported = dynChan;
+                RejectFailedNumericAttribute(dynChanStr, dynChanParsed, "dynamicChannels");
+            }
         }
 
         var masterFeatures = networkMgmt.Elements()
@@ -394,9 +422,13 @@ internal static class XddCommNetProfileParser
         dc.Baudrate = ParseBaudRateString(baudrateStr);
 
         var netNumberStr = dcElem.Attribute("networkNumber")?.Value ?? string.Empty;
-        if (!string.IsNullOrEmpty(netNumberStr) &&
-            uint.TryParse(netNumberStr, NumberStyles.None, CultureInfo.InvariantCulture, out var netNum))
-            dc.NetNumber = netNum;
+        if (!string.IsNullOrEmpty(netNumberStr))
+        {
+            var netNumberParsed = uint.TryParse(netNumberStr, NumberStyles.None, CultureInfo.InvariantCulture, out var netNum);
+            if (netNumberParsed)
+                dc.NetNumber = netNum;
+            RejectFailedNumericAttribute(netNumberStr, netNumberParsed, "networkNumber");
+        }
 
         dc.NetworkName = dcElem.Attribute("networkName")?.Value ?? string.Empty;
 

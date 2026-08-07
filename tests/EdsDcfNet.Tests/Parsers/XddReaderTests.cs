@@ -1480,6 +1480,87 @@ public class XddReaderTests
         result.DeviceInfo.SimpleBootUpMaster.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData("granularity", "invalid")]
+    [InlineData("nrOfRxPDO", "oops")]
+    [InlineData("nrOfTxPDO", "nope")]
+    [InlineData("dynamicChannels", "bad")]
+    public void ParseNetworkManagement_InvalidNumeric_StrictParsing_ThrowsEdsParseException(
+        string attribute, string badValue)
+    {
+        var xdd = MinimalXdd.Replace(
+            $@"{attribute}=""{attribute switch
+            {
+                "granularity" => "8",
+                "nrOfRxPDO" => "2",
+                "nrOfTxPDO" => "2",
+                _ => "0"
+            }}""",
+            $@"{attribute}=""{badValue}""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*{attribute}*{badValue}*");
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_InvalidObjFlags_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"PDOmapping=""no""",
+            @"PDOmapping=""no"" objFlags=""not-uint""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*objFlags*not-uint*");
+    }
+
+    [Fact]
+    public void ParseCanOpenObject_InvalidSubNumber_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"PDOmapping=""no""",
+            @"PDOmapping=""no"" subNumber=""xx""");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*subNumber*xx*");
+    }
+
+    [Fact]
+    public void ParseDynamicChannels_InvalidPPOffset_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dynamicChannels>
+            <dynamicChannel dataType=""0007"" accessType=""ro"" startIndex=""1600"" endIndex=""17FF"" pDOmappingIndex=""not-a-number""/>
+          </dynamicChannels>
+        </ApplicationLayers>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*pDOmappingIndex*not-a-number*");
+    }
+
+    [Fact]
+    public void ParseDeviceCommissioning_InvalidNetworkNumber_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdc = MinimalXdd.Replace(
+            "</NetworkManagement>",
+            @"  <deviceCommissioning nodeID=""5"" nodeName=""N1"" actualBaudRate=""250 Kbps""
+                                 networkNumber=""bad"" networkName=""Net"" CANopenManager=""false""/>
+      </NetworkManagement>");
+
+        var act = () => CanOpenFile.Xdc.ReadString(xdc, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*networkNumber*bad*");
+    }
+
     [Fact]
     public void ParseDynamicChannels_EndIndexWithoutStartIndex_DoesNotBuildRangeAndInvalidOffsetIgnored()
     {

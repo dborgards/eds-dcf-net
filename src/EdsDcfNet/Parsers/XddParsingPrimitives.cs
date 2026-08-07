@@ -172,6 +172,27 @@ internal static class XddParsingPrimitives
         return 0;
     }
 
+    /// <summary>
+    /// When <paramref name="raw"/> is non-empty and <paramref name="parsed"/> is
+    /// <see langword="false"/>, either ignore (lenient) or throw
+    /// <see cref="EdsParseException"/> (strict) with attribute context.
+    /// </summary>
+    internal static void RejectFailedNumericAttribute(string? raw, bool parsed, string attributeName)
+    {
+        if (string.IsNullOrEmpty(raw) || parsed)
+            return;
+
+        if (!StrictParsingScope.IsEnabled)
+            return;
+
+        throw new EdsParseException(
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "Invalid {0} '{1}'. Value cannot be parsed as an unsigned integer.",
+                attributeName,
+                raw));
+    }
+
     internal static string ConvertXsdDateToEds(string xsdDate)
     {
         if (string.IsNullOrEmpty(xsdDate))
