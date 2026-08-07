@@ -297,7 +297,7 @@ SupportedObjects=0
     [InlineData("255.0", (byte)255)]
     public void ReadString_FileInfo_MajorMinorFileVersion_UsesMajorComponent(string fileVersion, byte expected)
     {
-        var content = BuildMinimalDcf().Replace("FileVersion=1", $"FileVersion={fileVersion}", StringComparison.Ordinal);
+        var content = BuildMinimalDcf().Replace("FileVersion=1", $"FileVersion={fileVersion}");
 
         var result = _reader.ReadString(content);
 
@@ -309,7 +309,7 @@ SupportedObjects=0
     [InlineData("3,0", (byte)3)]
     public void ReadString_FileInfo_MajorMinorFileRevision_UsesMajorComponent(string fileRevision, byte expected)
     {
-        var content = BuildMinimalDcf().Replace("FileRevision=0", $"FileRevision={fileRevision}", StringComparison.Ordinal);
+        var content = BuildMinimalDcf().Replace("FileRevision=0", $"FileRevision={fileRevision}");
 
         var result = _reader.ReadString(content);
 
@@ -321,7 +321,7 @@ SupportedObjects=0
     [InlineData("1,0")]
     public void ReadString_FileInfo_MajorMinorFileVersion_StrictParsing_ThrowsWithAttribution(string fileVersion)
     {
-        var content = BuildMinimalDcf().Replace("FileVersion=1", $"FileVersion={fileVersion}", StringComparison.Ordinal);
+        var content = BuildMinimalDcf().Replace("FileVersion=1", $"FileVersion={fileVersion}");
 
         var act = () => CanOpenFile.Dcf.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
 
@@ -334,7 +334,7 @@ SupportedObjects=0
     [Fact]
     public void ReadString_FileInfo_FileVersionAtMaxValue_Parses255()
     {
-        var content = BuildMinimalDcf().Replace("FileVersion=1", "FileVersion=255", StringComparison.Ordinal);
+        var content = BuildMinimalDcf().Replace("FileVersion=1", "FileVersion=255");
 
         var result = _reader.ReadString(content);
 

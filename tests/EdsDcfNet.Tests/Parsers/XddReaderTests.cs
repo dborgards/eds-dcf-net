@@ -1383,8 +1383,7 @@ public class XddReaderTests
     {
         var xdd = MinimalXdd.Replace(
             @"fileVersion=""1""",
-            @"fileVersion=""4,2""",
-            StringComparison.Ordinal);
+            @"fileVersion=""4,2""");
 
         var result = _reader.ReadString(xdd);
 
@@ -1398,8 +1397,7 @@ public class XddReaderTests
     {
         var xdd = MinimalXdd.Replace(
             @"fileVersion=""1""",
-            $@"fileVersion=""{fileVersion}""",
-            StringComparison.Ordinal);
+            $@"fileVersion=""{fileVersion}""");
 
         var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
 
