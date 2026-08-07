@@ -15,11 +15,11 @@ public class RoundTripDcfTests
     public void RoundTrip_MinimalDcf_PreservesCommissioning()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/minimal.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/minimal.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert
         roundTripped.DeviceCommissioning.NodeId.Should().Be(original.DeviceCommissioning.NodeId);
@@ -34,11 +34,11 @@ public class RoundTripDcfTests
     public void RoundTrip_MinimalDcf_PreservesFileInfo()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/minimal.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/minimal.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert
         roundTripped.FileInfo.FileName.Should().Be(original.FileInfo.FileName);
@@ -52,11 +52,11 @@ public class RoundTripDcfTests
     public void RoundTrip_MinimalDcf_PreservesObjectLists()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/minimal.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/minimal.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert
         roundTripped.ObjectDictionary.MandatoryObjects.Should()
@@ -73,11 +73,11 @@ public class RoundTripDcfTests
     public void RoundTrip_FullFeaturesDcf_PreservesDeviceInfo()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/full_features.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/full_features.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert
         roundTripped.DeviceInfo.VendorName.Should().Be(original.DeviceInfo.VendorName);
@@ -91,11 +91,11 @@ public class RoundTripDcfTests
     public void RoundTrip_FullFeaturesDcf_PreservesLssSerialNumber()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/full_features.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/full_features.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert
         roundTripped.DeviceCommissioning.LssSerialNumber.Should()
@@ -108,11 +108,11 @@ public class RoundTripDcfTests
     public void RoundTrip_FullFeaturesDcf_PreservesDcfSpecificFields()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/full_features.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/full_features.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert – ParameterValue, UploadFile, DownloadFile on object 0x2000
         var origObj = original.ObjectDictionary.Objects[0x2000];
@@ -127,11 +127,11 @@ public class RoundTripDcfTests
     public void RoundTrip_FullFeaturesDcf_PreservesSubObjectDcfFields()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/full_features.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/full_features.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert – sub1 of 0x1018 has ParameterValue and Denotation
         var origSub = original.ObjectDictionary.Objects[0x1018].SubObjects[1];
@@ -144,11 +144,11 @@ public class RoundTripDcfTests
     public void RoundTrip_FullFeaturesDcf_PreservesDummyUsage()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/full_features.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/full_features.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert
         roundTripped.ObjectDictionary.DummyUsage.Should()
@@ -159,11 +159,11 @@ public class RoundTripDcfTests
     public void RoundTrip_FullFeaturesDcf_PreservesComments()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/full_features.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/full_features.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert
         roundTripped.Comments.Should().NotBeNull();
@@ -176,11 +176,11 @@ public class RoundTripDcfTests
     public void RoundTrip_FullFeaturesDcf_PreservesObjectLinks()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/full_features.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/full_features.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert – ObjectLinks are parsed and attached to the object
         var origLinks = original.ObjectDictionary.Objects[0x2000].ObjectLinks;
@@ -196,11 +196,11 @@ public class RoundTripDcfTests
     public void RoundTrip_FullFeaturesDcf_PreservesUnknownSections()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/full_features.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/full_features.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert
         roundTripped.AdditionalSections.Should().ContainKey("VendorSpecificSection");
@@ -216,11 +216,11 @@ public class RoundTripDcfTests
     public void RoundTrip_ModularDcf_PreservesSupportedModules()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/modular_device.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/modular_device.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert
         roundTripped.SupportedModules.Should().HaveCount(original.SupportedModules.Count);
@@ -241,11 +241,11 @@ public class RoundTripDcfTests
     public void RoundTrip_ModularDcf_PreservesConnectedModules()
     {
         // Arrange
-        var original = CanOpenFile.ReadDcf("Fixtures/modular_device.dcf");
+        var original = CanOpenFile.Dcf.ReadFile("Fixtures/modular_device.dcf");
 
         // Act
-        var dcfString = CanOpenFile.WriteDcfToString(original);
-        var roundTripped = CanOpenFile.ReadDcfFromString(dcfString);
+        var dcfString = CanOpenFile.Dcf.WriteToString(original);
+        var roundTripped = CanOpenFile.Dcf.ReadString(dcfString);
 
         // Assert
         roundTripped.ConnectedModules.Should()
@@ -292,9 +292,9 @@ PDOMapping=0
 ";
 
         // Act
-        var first = CanOpenFile.ReadDcfFromString(content);
-        var written = CanOpenFile.WriteDcfToString(first);
-        var second = CanOpenFile.ReadDcfFromString(written);
+        var first = CanOpenFile.Dcf.ReadString(content);
+        var written = CanOpenFile.Dcf.WriteToString(first);
+        var second = CanOpenFile.Dcf.ReadString(written);
 
         // Assert
         second.ObjectDictionary.Objects[0x1000].ParameterValue.Should().Be("0x999");

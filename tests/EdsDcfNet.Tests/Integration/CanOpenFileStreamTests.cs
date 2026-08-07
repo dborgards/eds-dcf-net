@@ -11,7 +11,7 @@ public class CanOpenFileStreamTests
     {
         using var stream = File.OpenRead("Fixtures/sample_device.eds");
 
-        var eds = CanOpenFile.ReadEds(stream);
+        var eds = CanOpenFile.Eds.ReadStream(stream);
 
         eds.DeviceInfo.ProductName.Should().Be("IO-Module 16x16");
         stream.CanRead.Should().BeTrue();
@@ -23,7 +23,7 @@ public class CanOpenFileStreamTests
         var eds = CreateMinimalEds();
         using var stream = new MemoryStream();
 
-        CanOpenFile.WriteEds(eds, stream);
+        CanOpenFile.Eds.WriteStream(eds, stream);
 
         stream.CanWrite.Should().BeTrue();
         stream.Position = 0;
@@ -44,11 +44,11 @@ public class CanOpenFileStreamTests
         var dcf = CreateMinimalDcf();
         using var writeStream = new MemoryStream();
 
-        CanOpenFile.WriteDcf(dcf, writeStream);
+        CanOpenFile.Dcf.WriteStream(dcf, writeStream);
         writeStream.CanWrite.Should().BeTrue();
         writeStream.Position = 0;
 
-        var parsed = CanOpenFile.ReadDcf(writeStream);
+        var parsed = CanOpenFile.Dcf.ReadStream(writeStream);
 
         parsed.DeviceCommissioning.NodeId.Should().Be(5);
         parsed.DeviceCommissioning.Baudrate.Should().Be(500);
@@ -75,10 +75,10 @@ public class CanOpenFileStreamTests
         });
 
         using var stream = new MemoryStream();
-        CanOpenFile.WriteCpj(cpj, stream);
+        CanOpenFile.Cpj.WriteStream(cpj, stream);
         stream.Position = 0;
 
-        var parsed = CanOpenFile.ReadCpj(stream);
+        var parsed = CanOpenFile.Cpj.ReadStream(stream);
 
         parsed.Networks.Should().ContainSingle();
         parsed.Networks[0].Nodes.Should().ContainKey(2);
@@ -90,7 +90,7 @@ public class CanOpenFileStreamTests
     {
         using var stream = File.OpenRead("Fixtures/sample_device.xdd");
 
-        var eds = CanOpenFile.ReadXdd(stream);
+        var eds = CanOpenFile.Xdd.ReadStream(stream);
 
         eds.DeviceInfo.VendorName.Should().Be("Example Automation Inc.");
         stream.CanRead.Should().BeTrue();
@@ -101,7 +101,7 @@ public class CanOpenFileStreamTests
     {
         using var stream = File.OpenRead("Fixtures/minimal.xdc");
 
-        var dcf = CanOpenFile.ReadXdc(stream);
+        var dcf = CanOpenFile.Xdc.ReadStream(stream);
 
         dcf.DeviceCommissioning.NodeId.Should().Be(5);
         stream.CanRead.Should().BeTrue();
@@ -113,9 +113,9 @@ public class CanOpenFileStreamTests
         var dcf = CreateMinimalDcf();
         using var writeStream = new MemoryStream();
 
-        await CanOpenFile.WriteDcfAsync(dcf, writeStream);
+        await CanOpenFile.Dcf.WriteStreamAsync(dcf, writeStream);
         writeStream.Position = 0;
-        var parsed = await CanOpenFile.ReadDcfAsync(writeStream);
+        var parsed = await CanOpenFile.Dcf.ReadStreamAsync(writeStream);
 
         parsed.DeviceCommissioning.NodeId.Should().Be(5);
         writeStream.CanRead.Should().BeTrue();
@@ -127,9 +127,9 @@ public class CanOpenFileStreamTests
         var eds = CreateMinimalEds();
         using var stream = new MemoryStream();
 
-        await CanOpenFile.WriteXddAsync(eds, stream);
+        await CanOpenFile.Xdd.WriteStreamAsync(eds, stream);
         stream.Position = 0;
-        var parsed = await CanOpenFile.ReadXddAsync(stream);
+        var parsed = await CanOpenFile.Xdd.ReadStreamAsync(stream);
 
         parsed.DeviceInfo.ProductName.Should().Be("Stream Device");
         stream.CanRead.Should().BeTrue();
@@ -139,7 +139,7 @@ public class CanOpenFileStreamTests
     public void ReadEds_Stream_WithExplicitMaxInputSize_Parses()
     {
         using var stream = File.OpenRead("Fixtures/sample_device.eds");
-        var eds = CanOpenFile.ReadEds(stream, maxInputSize: stream.Length + 128);
+        var eds = CanOpenFile.Eds.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = stream.Length + 128 });
         eds.DeviceInfo.ProductName.Should().Be("IO-Module 16x16");
     }
 
@@ -147,7 +147,7 @@ public class CanOpenFileStreamTests
     public async Task ReadEdsAsync_Stream_WithExplicitMaxInputSize_Parses()
     {
         using var stream = File.OpenRead("Fixtures/sample_device.eds");
-        var eds = await CanOpenFile.ReadEdsAsync(stream, maxInputSize: stream.Length + 128);
+        var eds = await CanOpenFile.Eds.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = stream.Length + 128 });
         eds.DeviceInfo.ProductName.Should().Be("IO-Module 16x16");
     }
 
@@ -155,7 +155,7 @@ public class CanOpenFileStreamTests
     public void ReadDcf_Stream_WithExplicitMaxInputSize_Parses()
     {
         using var stream = File.OpenRead("Fixtures/minimal.dcf");
-        var dcf = CanOpenFile.ReadDcf(stream, maxInputSize: stream.Length + 128);
+        var dcf = CanOpenFile.Dcf.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = stream.Length + 128 });
         dcf.DeviceCommissioning.NodeId.Should().Be(5);
     }
 
@@ -163,7 +163,7 @@ public class CanOpenFileStreamTests
     public async Task ReadDcfAsync_Stream_WithExplicitMaxInputSize_Parses()
     {
         using var stream = File.OpenRead("Fixtures/minimal.dcf");
-        var dcf = await CanOpenFile.ReadDcfAsync(stream, maxInputSize: stream.Length + 128);
+        var dcf = await CanOpenFile.Dcf.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = stream.Length + 128 });
         dcf.DeviceCommissioning.NodeId.Should().Be(5);
     }
 
@@ -172,7 +172,7 @@ public class CanOpenFileStreamTests
     {
         var cpjText = "[Topology]\nNetName=Plant\nNodes=0\n";
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(cpjText));
-        var cpj = CanOpenFile.ReadCpj(stream, maxInputSize: cpjText.Length + 16);
+        var cpj = CanOpenFile.Cpj.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = cpjText.Length + 16 });
         cpj.Networks.Should().ContainSingle();
         cpj.Networks[0].NetName.Should().Be("Plant");
     }
@@ -182,7 +182,7 @@ public class CanOpenFileStreamTests
     {
         var cpjText = "[Topology]\nNetName=Plant\nNodes=0\n";
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(cpjText));
-        var cpj = await CanOpenFile.ReadCpjAsync(stream, maxInputSize: cpjText.Length + 16);
+        var cpj = await CanOpenFile.Cpj.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = cpjText.Length + 16 });
         cpj.Networks.Should().ContainSingle();
         cpj.Networks[0].NetName.Should().Be("Plant");
     }
@@ -191,7 +191,7 @@ public class CanOpenFileStreamTests
     public void ReadXdd_Stream_WithExplicitMaxInputSize_Parses()
     {
         using var stream = File.OpenRead("Fixtures/sample_device.xdd");
-        var eds = CanOpenFile.ReadXdd(stream, maxInputSize: stream.Length + 128);
+        var eds = CanOpenFile.Xdd.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = stream.Length + 128 });
         eds.DeviceInfo.VendorName.Should().Be("Example Automation Inc.");
     }
 
@@ -199,7 +199,7 @@ public class CanOpenFileStreamTests
     public async Task ReadXddAsync_Stream_WithExplicitMaxInputSize_Parses()
     {
         using var stream = File.OpenRead("Fixtures/sample_device.xdd");
-        var eds = await CanOpenFile.ReadXddAsync(stream, maxInputSize: stream.Length + 128);
+        var eds = await CanOpenFile.Xdd.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = stream.Length + 128 });
         eds.DeviceInfo.VendorName.Should().Be("Example Automation Inc.");
     }
 
@@ -207,7 +207,7 @@ public class CanOpenFileStreamTests
     public void ReadXdc_Stream_WithExplicitMaxInputSize_Parses()
     {
         using var stream = File.OpenRead("Fixtures/minimal.xdc");
-        var dcf = CanOpenFile.ReadXdc(stream, maxInputSize: stream.Length + 128);
+        var dcf = CanOpenFile.Xdc.ReadStream(stream, new CanOpenFileOptions { MaxInputSize = stream.Length + 128 });
         dcf.DeviceCommissioning.NodeId.Should().Be(5);
     }
 
@@ -215,7 +215,7 @@ public class CanOpenFileStreamTests
     public async Task ReadXdcAsync_Stream_WithExplicitMaxInputSize_Parses()
     {
         using var stream = File.OpenRead("Fixtures/minimal.xdc");
-        var dcf = await CanOpenFile.ReadXdcAsync(stream, maxInputSize: stream.Length + 128);
+        var dcf = await CanOpenFile.Xdc.ReadStreamAsync(stream, new CanOpenFileOptions { MaxInputSize = stream.Length + 128 });
         dcf.DeviceCommissioning.NodeId.Should().Be(5);
     }
 
@@ -225,9 +225,9 @@ public class CanOpenFileStreamTests
         var cpj = CreateMinimalCpj();
         using var stream = new MemoryStream();
 
-        await CanOpenFile.WriteCpjAsync(cpj, stream);
+        await CanOpenFile.Cpj.WriteStreamAsync(cpj, stream);
         stream.Position = 0;
-        var parsed = await CanOpenFile.ReadCpjAsync(stream);
+        var parsed = await CanOpenFile.Cpj.ReadStreamAsync(stream);
 
         parsed.Networks.Should().ContainSingle();
         parsed.Networks[0].Nodes.Should().ContainKey(2);
@@ -239,14 +239,14 @@ public class CanOpenFileStreamTests
         var eds = CreateMinimalEds();
 
         using var syncStream = new MemoryStream();
-        CanOpenFile.WriteXdd(eds, syncStream);
+        CanOpenFile.Xdd.WriteStream(eds, syncStream);
         syncStream.Position = 0;
-        CanOpenFile.ReadXdd(syncStream).DeviceInfo.ProductName.Should().Be("Stream Device");
+        CanOpenFile.Xdd.ReadStream(syncStream).DeviceInfo.ProductName.Should().Be("Stream Device");
 
         using var asyncStream = new MemoryStream();
-        await CanOpenFile.WriteXddAsync(eds, asyncStream);
+        await CanOpenFile.Xdd.WriteStreamAsync(eds, asyncStream);
         asyncStream.Position = 0;
-        var reparsed = await CanOpenFile.ReadXddAsync(asyncStream);
+        var reparsed = await CanOpenFile.Xdd.ReadStreamAsync(asyncStream);
         reparsed.DeviceInfo.ProductName.Should().Be("Stream Device");
     }
 
@@ -256,14 +256,14 @@ public class CanOpenFileStreamTests
         var dcf = CreateMinimalDcf();
 
         using var syncStream = new MemoryStream();
-        CanOpenFile.WriteXdc(dcf, syncStream);
+        CanOpenFile.Xdc.WriteStream(dcf, syncStream);
         syncStream.Position = 0;
-        CanOpenFile.ReadXdc(syncStream).DeviceCommissioning.NodeId.Should().Be(5);
+        CanOpenFile.Xdc.ReadStream(syncStream).DeviceCommissioning.NodeId.Should().Be(5);
 
         using var asyncStream = new MemoryStream();
-        await CanOpenFile.WriteXdcAsync(dcf, asyncStream);
+        await CanOpenFile.Xdc.WriteStreamAsync(dcf, asyncStream);
         asyncStream.Position = 0;
-        var reparsed = await CanOpenFile.ReadXdcAsync(asyncStream);
+        var reparsed = await CanOpenFile.Xdc.ReadStreamAsync(asyncStream);
         reparsed.DeviceCommissioning.NodeId.Should().Be(5);
     }
 

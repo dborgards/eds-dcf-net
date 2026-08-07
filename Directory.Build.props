@@ -10,10 +10,10 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'EdsDcfNet.Tests'">
-    <!-- Integration tests call legacy CanOpenFile overloads marked [Obsolete] to verify delegation. -->
-    <NoWarn>$(NoWarn);CS0618</NoWarn>
-  </PropertyGroup>
+  <!--
+    CS0618 is NOT suppressed project-wide for EdsDcfNet.Tests (#426).
+    Dedicated facade/compat suites opt out via .editorconfig path rules.
+  -->
 
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'EdsDcfNet'">
     <AnalysisMode>Recommended</AnalysisMode>

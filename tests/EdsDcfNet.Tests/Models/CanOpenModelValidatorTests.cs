@@ -325,7 +325,7 @@ public class CanOpenModelValidatorTests
         var dcf = CreateValidDcf();
 
         // Act
-        var xdc = CanOpenFile.WriteXdcToString(dcf);
+        var xdc = CanOpenFile.Xdc.WriteToString(dcf);
 
         // Assert
         xdc.Should().Contain("ISO15745ProfileContainer");
