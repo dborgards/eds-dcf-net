@@ -73,7 +73,7 @@ jobs:
         fail_ci_if_error: true
 
     # Same event gate as the Codecov upload step (PR/develop). Feature-branch
-    # pushes never upload, so waiting for codecov[bot] would burn ~4 minutes.
+    # pushes never upload, so waiting for Codecov would burn ~4 minutes.
     # Still run when coverage_files is empty so a gate failure with no Cobertura
     # reports can post failure (avoids a pending required check); the wait loop
     # below is skipped in that case because upload did not run.
@@ -97,10 +97,14 @@ jobs:
           exit 0
         fi
 
-        # Wait for the Codecov webhook only when upload ran (coverage files
-        # present). With no files, codecov[bot] never posts; waiting wastes ~4m.
+        # Wait for Codecov only when upload ran (coverage files present). With no
+        # files, Codecov never reports; waiting wastes ~4m.
+        # Codecov may report as a commit status (codecov[bot], typical on develop
+        # pushes) or as a Check Run (Codecov GitHub App, typical on PRs). Poll both;
+        # looking only at statuses misses PR check-runs and burns the full timeout.
         # Portable loop (Git Bash on windows-latest may lack `seq`).
-        # Required by the develop branch ruleset integration_id constraint.
+        # Required by the develop branch ruleset integration_id constraint: our
+        # Actions status must be posted after Codecov's report.
         if [[ -n "${{ steps.coverage_gate.outputs.coverage_files }}" ]]; then
           i=1
           while [[ "$i" -le 24 ]]; do
@@ -110,7 +114,13 @@ jobs:
               echo "Codecov webhook status detected (${codecov_bot_status}) after ~$((i * 10))s"
               break
             fi
-            echo "Waiting for Codecov webhook... (attempt $i/24)"
+            codecov_check=$(gh api "repos/${{ github.repository }}/commits/${COMMIT_SHA}/check-runs" \
+              --jq '[.check_runs[] | select(.name == "codecov/patch" and .app.slug == "codecov" and .status == "completed")][0].conclusion // empty' 2>/dev/null || true)
+            if [[ -n "$codecov_check" ]]; then
+              echo "Codecov check run detected (${codecov_check}) after ~$((i * 10))s"
+              break
+            fi
+            echo "Waiting for Codecov webhook/check... (attempt $i/24)"
             sleep 10
             i=$((i + 1))
           done
