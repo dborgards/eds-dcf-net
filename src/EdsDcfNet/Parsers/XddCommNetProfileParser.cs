@@ -209,10 +209,11 @@ internal static class XddCommNetProfileParser
     /// <summary>
     /// Reads <c>objectType</c>. Lenient: missing/invalid → <c>0x7</c> (VAR).
     /// Strict: missing or non-parsable values throw <see cref="EdsParseException"/>.
+    /// Surrounding whitespace is trimmed (XML Schema integer whitespace collapse).
     /// </summary>
     private static byte ParseObjectTypeAttribute(XElement elem, string elementName)
     {
-        var objTypeStr = elem.Attribute("objectType")?.Value;
+        var objTypeStr = elem.Attribute("objectType")?.Value?.Trim();
         if (!string.IsNullOrEmpty(objTypeStr) &&
             byte.TryParse(objTypeStr, NumberStyles.None, CultureInfo.InvariantCulture, out var objType))
             return objType;

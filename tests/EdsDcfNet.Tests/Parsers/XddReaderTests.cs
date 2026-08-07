@@ -1745,6 +1745,18 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ParseCanOpenObject_ObjectTypeWithSurroundingWhitespace_StrictParsing_Parses()
+    {
+        var xdd = MinimalXdd.Replace(
+            @"objectType=""7""",
+            @"objectType="" 9 """);
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.ObjectDictionary.Objects[0x1000].ObjectType.Should().Be(9);
+    }
+
+    [Fact]
     public void ParseCanOpenSubObject_InvalidObjectType_StrictParsing_ThrowsEdsParseException()
     {
         var xdd = MinimalXdd.Replace(
