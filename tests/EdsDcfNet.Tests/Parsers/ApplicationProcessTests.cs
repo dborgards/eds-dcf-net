@@ -1788,4 +1788,104 @@ public class ApplicationProcessTests
         lg.TextRefs[1].IsDescriptionRef.Should().BeTrue();
         lg.TextRefs[1].Uri.Should().BeNull();
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // StrictParsing — ApplicationProcess numeric attributes (#484)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    [Theory]
+    [InlineData("lowerLimit", "oops")]
+    [InlineData("upperLimit", "nope")]
+    public void Parse_Subrange_InvalidLimit_StrictParsing_ThrowsEdsParseException(string attribute, string badValue)
+    {
+        var xdd = WrapInXdd($@"
+<ApplicationProcess>
+  <dataTypeList>
+    <array name=""A"" uniqueID=""uid_a"">
+      <subrange {attribute}=""{badValue}""/>
+      <UINT/>
+    </array>
+  </dataTypeList>
+  <parameterList/>
+</ApplicationProcess>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*{attribute}*{badValue}*");
+    }
+
+    [Fact]
+    public void Parse_VariableRef_InvalidPosition_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = WrapInXdd(@"
+<ApplicationProcess>
+  <parameterList>
+    <parameter uniqueID=""uid_p"">
+      <variableRef position=""not-a-byte""/>
+    </parameter>
+  </parameterList>
+</ApplicationProcess>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*position*not-a-byte*");
+    }
+
+    [Fact]
+    public void Parse_VariableRef_PositionWithLeadingPlus_StrictParsing_Parses()
+    {
+        var xdd = WrapInXdd(@"
+<ApplicationProcess>
+  <parameterList>
+    <parameter uniqueID=""uid_p"">
+      <variableRef position=""+2""/>
+    </parameter>
+  </parameterList>
+</ApplicationProcess>");
+
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        result.ApplicationProcess!.ParameterList[0].VariableRefs[0].Position.Should().Be(2);
+    }
+
+    [Fact]
+    public void Parse_MemberRef_InvalidIndex_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = WrapInXdd(@"
+<ApplicationProcess>
+  <parameterList>
+    <parameter uniqueID=""uid_p"">
+      <variableRef>
+        <memberRef index=""notanumber""/>
+      </variableRef>
+    </parameter>
+  </parameterList>
+</ApplicationProcess>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*index*notanumber*");
+    }
+
+    [Fact]
+    public void Parse_Subrange_InvalidLimit_Lenient_KeepsDefaults()
+    {
+        var result = ParseAp(@"
+<ApplicationProcess>
+  <dataTypeList>
+    <array name=""A"" uniqueID=""uid_a"">
+      <subrange lowerLimit=""oops"" upperLimit=""100""/>
+      <UINT/>
+    </array>
+  </dataTypeList>
+  <parameterList/>
+</ApplicationProcess>");
+
+        var sr = result.ApplicationProcess!.DataTypeList!.Arrays[0].Subranges[0];
+        sr.LowerLimit.Should().Be(0);
+        sr.UpperLimit.Should().Be(100);
+    }
 }
