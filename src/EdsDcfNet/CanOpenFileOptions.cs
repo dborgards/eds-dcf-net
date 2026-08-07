@@ -34,20 +34,30 @@ public sealed class CanOpenFileOptions
     /// </summary>
     /// <remarks>
     /// <para>Default is <see langword="false"/> (lenient), matching real-world EDS/DCF tolerance.</para>
+    /// <para>
+    /// Enforced when reading through <see cref="CanOpenFile"/> format entry points
+    /// (or legacy facade overloads that accept this options type). Direct
+    /// <c>*Reader</c> APIs that do not take <see cref="CanOpenFileOptions"/> remain
+    /// lenient unless the caller enters <c>StrictParsingScope</c> themselves.
+    /// </para>
     /// <para>Currently enforced for:</para>
     /// <list type="bullet">
     /// <item><description>Duplicate keys within an INI section (default: last write wins)</description></item>
     /// <item><description>Unknown XDD/XDC baud-rate strings on <c>supportedBaudRate</c>, <c>actualBaudRate</c>, and <c>baudRate/@defaultValue</c> (default: treat as 0 / ignore)</description></item>
     /// <item><description>Unknown boolean tokens in <c>ValueConverter.ParseBoolean</c> (default: treat as <see langword="false"/>)</description></item>
-    /// <item><description>Unknown access-type tokens in <c>ValueConverter.ParseAccessType</c> (default: <c>ro</c>)</description></item>
+    /// <item><description>Unknown access-type tokens in <c>ValueConverter.ParseAccessType</c> and XDD <c>ParseXddAccessType</c> (default: <c>ro</c>)</description></item>
+    /// <item><description>Unknown XDD/XDC XML boolean attributes via <c>ParseXmlBool</c> (default: <see langword="false"/>)</description></item>
+    /// <item><description>Unknown CPJ <c>NodeNPresent</c> tokens via <c>ValueConverter.ParsePresentFlag</c> (default: treat as absent / <see langword="false"/>)</description></item>
+    /// <item><description>Missing XDD/XDC <c>CANopenObject</c> <c>index</c> or missing/invalid <c>objectType</c> (default: <c>0000</c> / VAR <c>0x7</c>)</description></item>
+    /// <item><description>Malformed XDD/XDC numeric attributes such as <c>objFlags</c>, <c>subNumber</c>, <c>granularity</c>, <c>nrOfRxPDO</c>/<c>nrOfTxPDO</c>, <c>dynamicChannels</c>, <c>pDOmappingIndex</c>, <c>networkNumber</c> (default: ignore / keep model default)</description></item>
     /// <item><description>
     /// EDS/DCF <c>[FileInfo] FileVersion</c> / <c>FileRevision</c> and XDD/XDC <c>fileVersion</c>
     /// major/minor tooling forms such as <c>1.0</c> / <c>1,0</c> (default: accept major component;
     /// strict: require a plain <c>Unsigned8</c> integer). Malformed tokens throw with
     /// section/key (or <c>ProfileBody fileVersion</c>) attribution in both modes.
+    /// Plain zero-padded integers stay decimal across formats (<c>010</c> → 10).
     /// </description></item>
     /// </list>
-    /// Related coercion sites may still be lenient-only (see issue #428 for deferred items).
     /// </remarks>
     public bool StrictParsing { get; init; }
 

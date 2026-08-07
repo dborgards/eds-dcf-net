@@ -596,9 +596,25 @@ var xdd = CanOpenFile.Xdd.ReadFile(
 
 Set `CanOpenFileOptions.StrictParsing = true` so silent read coercions fail with
 `EdsParseException` instead of mapping to defaults. Default remains lenient.
-Today this covers duplicate INI keys, unknown XDD/XDC baud-rate strings, unknown
-boolean tokens (`ValueConverter.ParseBoolean`), and unknown access-type tokens
-(`ValueConverter.ParseAccessType`).
+This applies to reads through the `CanOpenFile` format entry points (and legacy
+facade overloads that accept options). Direct `*Reader` APIs without options
+stay lenient.
+
+Today this covers:
+
+- Duplicate keys within an INI section
+- Unknown XDD/XDC baud-rate strings (`supportedBaudRate`, `actualBaudRate`,
+  `baudRate/@defaultValue`)
+- Unknown boolean tokens (`ValueConverter.ParseBoolean`) and CPJ
+  `NodeNPresent` tokens (`ParsePresentFlag`)
+- Unknown access-type tokens (EDS/DCF `ParseAccessType` and XDD
+  `ParseXddAccessType`) and unknown XDD/XDC XML booleans (`ParseXmlBool`)
+- Missing XDD/XDC `CANopenObject` `index` or missing/invalid `objectType`
+- Malformed XDD/XDC numeric attributes (`objFlags`, `subNumber`, `granularity`,
+  `nrOfRxPDO` / `nrOfTxPDO`, `dynamicChannels`, `pDOmappingIndex`,
+  `networkNumber`)
+- EDS/DCF `FileVersion` / `FileRevision` and XDD/XDC `fileVersion` major/minor
+  tooling forms (`1.0` / `1,0`); plain integers stay decimal (`010` → 10)
 
 ```csharp
 var eds = CanOpenFile.Eds.ReadFile(
@@ -608,14 +624,16 @@ var eds = CanOpenFile.Eds.ReadFile(
 
 Guidance:
 - Keep the default whenever possible.
-- Increase limits only for trusted sources and known use cases.
+- Enable StrictParsing for trusted inputs when you want malformed tokens to fail
+  fast instead of coercing.
+- Increase `MaxInputSize` only for trusted sources and known use cases.
 - Set the limit just high enough for your expected maximum file size.
 
 ### Options extension pattern (format-specific options)
 
 `CanOpenFileOptions` (read) and `CanOpenWriteOptions` (write) are intentionally
 small, shared across all formats, and hold only cross-format concerns
-(input-size limit, pre-write validation).
+(`MaxInputSize`, `StrictParsing`, and pre-write `ValidateBeforeWrite`).
 
 When a genuinely **format-specific** option becomes necessary (for example XDD
 XML formatting, INI section ordering, or CPJ network defaults), the agreed
