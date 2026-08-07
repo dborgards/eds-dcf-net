@@ -213,8 +213,10 @@ public static class ValueConverter
             {
                 return byte.Parse(major, NumberStyles.None, CultureInfo.InvariantCulture);
             }
-            catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+            catch (OverflowException ex)
             {
+                // FormatException is unreachable here: TrySplitMajorMinorDecimal only yields
+                // non-empty ASCII digit majors, so NumberStyles.None can only overflow.
                 throw new EdsParseException(BuildInvalidNumericLiteralMessage("byte", value, ex), ex);
             }
         }
