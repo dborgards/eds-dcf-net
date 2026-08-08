@@ -220,6 +220,20 @@ public class CanOpenModelValidatorTests
     }
 
     [Fact]
+    public void Validate_OnlySubObjectZeroWithSubNumberZero_DoesNotReturnIssue()
+    {
+        var dcf = CreateValidDcf();
+        var obj = dcf.ObjectDictionary.Objects[0x1000];
+        obj.ObjectType = 0x9;
+        obj.SubNumber = 0;
+        obj.SubObjects[0] = new CanOpenSubObject { SubIndex = 0, ParameterName = "Number of Entries", ObjectType = 0x7 };
+
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        issues.Should().NotContain(i => i.Path == "ObjectDictionary.Objects[0x1000].SubNumber");
+    }
+
+    [Fact]
     public void Validate_SubObjectsWithoutSubNumber_WithCompactSubObj_DoesNotReturnIssue()
     {
         var dcf = CreateValidDcf();
