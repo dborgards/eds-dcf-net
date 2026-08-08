@@ -296,8 +296,15 @@ internal static class XddCommNetProfileParser
             var keyPart = entry[..eqIdx].Trim();
             var valPart = entry[(eqIdx + 1)..].Trim();
 
-            // keyPart must be exactly "Dummy" + 4 hex digits
-            if (!keyPart.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase) || keyPart.Length != 9)
+            // keyPart must start with "Dummy" followed by at least 4 hex digits.
+            // StrictParsing additionally requires exactly DummyXXXX (length 9).
+            if (!keyPart.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase) || keyPart.Length < 9)
+            {
+                RejectMalformedDummyUsageEntry(entry);
+                continue;
+            }
+
+            if (keyPart.Length != 9 && StrictParsingScope.IsEnabled)
             {
                 RejectMalformedDummyUsageEntry(entry);
                 continue;

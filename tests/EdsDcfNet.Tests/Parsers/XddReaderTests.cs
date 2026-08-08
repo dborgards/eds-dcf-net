@@ -1949,6 +1949,23 @@ public class XddReaderTests
             .WithMessage("*dummyUsage*Dummy00001=1*");
     }
 
+    [Fact]
+    public void ParseDummyUsage_OverlongDummyKey_Lenient_ParsesHexSuffix()
+    {
+        // Pre-existing lenient behavior: Dummy00001=1 is accepted as index 1.
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dummyUsage>
+            <dummy entry=""Dummy00001=1""/>
+          </dummyUsage>
+        </ApplicationLayers>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.DummyUsage.Should().ContainKey((ushort)0x0001);
+        result.ObjectDictionary.DummyUsage[0x0001].Should().BeTrue();
+    }
+
     [Theory]
     [InlineData("2")]
     [InlineData("true")]
