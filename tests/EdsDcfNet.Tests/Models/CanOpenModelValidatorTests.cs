@@ -188,6 +188,67 @@ public class CanOpenModelValidatorTests
     }
 
     [Fact]
+    public void Validate_SubObjectsWithoutSubNumber_ReturnsIssue()
+    {
+        var dcf = CreateValidDcf();
+        var obj = dcf.ObjectDictionary.Objects[0x1000];
+        obj.ObjectType = 0x8;
+        obj.SubNumber = null;
+        obj.SubObjects[1] = new CanOpenSubObject { SubIndex = 1, ParameterName = "A", ObjectType = 0x7 };
+        obj.SubObjects[2] = new CanOpenSubObject { SubIndex = 2, ParameterName = "B", ObjectType = 0x7 };
+        obj.SubObjects[3] = new CanOpenSubObject { SubIndex = 3, ParameterName = "C", ObjectType = 0x7 };
+
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        issues.Should().Contain(i =>
+            i.Path == "ObjectDictionary.Objects[0x1000].SubNumber" &&
+            i.Message.Contains("Sub-objects are defined", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_SubObjectsWithSubNumberZero_ReturnsIssue()
+    {
+        var dcf = CreateValidDcf();
+        var obj = dcf.ObjectDictionary.Objects[0x1000];
+        obj.ObjectType = 0x9;
+        obj.SubNumber = 0;
+        obj.SubObjects[1] = new CanOpenSubObject { SubIndex = 1, ParameterName = "A", ObjectType = 0x7 };
+
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        issues.Should().Contain(i => i.Path == "ObjectDictionary.Objects[0x1000].SubNumber");
+    }
+
+    [Fact]
+    public void Validate_OnlySubObjectZeroWithSubNumberZero_DoesNotReturnIssue()
+    {
+        var dcf = CreateValidDcf();
+        var obj = dcf.ObjectDictionary.Objects[0x1000];
+        obj.ObjectType = 0x9;
+        obj.SubNumber = 0;
+        obj.SubObjects[0] = new CanOpenSubObject { SubIndex = 0, ParameterName = "Number of Entries", ObjectType = 0x7 };
+
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        issues.Should().NotContain(i => i.Path == "ObjectDictionary.Objects[0x1000].SubNumber");
+    }
+
+    [Fact]
+    public void Validate_SubObjectsWithoutSubNumber_WithCompactSubObj_DoesNotReturnIssue()
+    {
+        var dcf = CreateValidDcf();
+        var obj = dcf.ObjectDictionary.Objects[0x1000];
+        obj.ObjectType = 0x8;
+        obj.SubNumber = null;
+        obj.CompactSubObj = 3;
+        obj.SubObjects[1] = new CanOpenSubObject { SubIndex = 1, ParameterName = "A", ObjectType = 0x7 };
+
+        var issues = CanOpenModelValidator.Validate(dcf);
+
+        issues.Should().NotContain(i => i.Path == "ObjectDictionary.Objects[0x1000].SubNumber");
+    }
+
+    [Fact]
     public void Validate_ValidEds_ReturnsNoIssues()
     {
         // Arrange

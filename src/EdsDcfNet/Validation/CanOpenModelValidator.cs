@@ -347,6 +347,25 @@ public static class CanOpenModelValidator
                     obj.SubNumber.Value)));
         }
 
+        if (obj.SubObjects.Count > 0 &&
+            (!obj.SubNumber.HasValue || obj.SubNumber.Value == 0) &&
+            !hasCompactSubObjects)
+        {
+            // SubNumber=0 is CiA-valid when the only present sub-index is 0.
+            var onlySubIndexZero =
+                obj.SubNumber.HasValue &&
+                obj.SubNumber.Value == 0 &&
+                obj.SubObjects.Count == 1 &&
+                obj.SubObjects.ContainsKey(0);
+
+            if (!onlySubIndexZero)
+            {
+                issues.Add(new ValidationIssue(
+                    objectPath + ".SubNumber",
+                    "Sub-objects are defined but SubNumber is missing or zero."));
+            }
+        }
+
         foreach (var subObject in obj.SubObjects)
         {
             ValidateMaxLength(
