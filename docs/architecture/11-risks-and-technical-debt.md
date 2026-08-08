@@ -9,7 +9,7 @@
 | **Risk**         | Future versions of CiA DS 306 or CiA 311 introduce new sections/elements or attributes. |
 | **Likelihood**   | Medium (specification is periodically updated).                             |
 | **Impact**       | New fields could be ignored or misinterpreted.                              |
-| **Mitigation**   | INI unknown sections are preserved in `AdditionalSections`; XML handling is kept strict to the supported mapped profile subset and extended incrementally with tests. |
+| **Mitigation**   | INI unknown sections are preserved in `AdditionalSections`; XML handling is kept strict to the supported mapped profile subset and extended incrementally with tests. Unknown CommunicationNetwork ProfileBody children are attribute-only captures (Device ProfileBody unknowns are not) and are not re-emitted by XDD/XDC writers (see §8.4). |
 
 ### R-2: netstandard2.0 API Limitations
 
@@ -27,7 +27,7 @@
 | **Risk**         | Real-world EDS/DCF files from device manufacturers sometimes deviate from the specification. |
 | **Likelihood**   | High (commonly encountered in practice).                                    |
 | **Impact**       | `EdsParseException` on otherwise usable files.                              |
-| **Mitigation**   | Tolerant parsing for optional fields. Support for common deviations (e.g., misspelling `"DeviceComissioning"` instead of `"DeviceCommissioning"`). |
+| **Mitigation**   | Tolerant parsing for optional fields. Support for common deviations (e.g., misspelling `"DeviceComissioning"` instead of `"DeviceCommissioning"`; Polarion-style `FileVersion=1,0` / `1.0` accepted as major `1` unless `StrictParsing` is enabled). |
 
 ### R-4: Non-Compliant or Tool-Specific XDD/XDC XML
 

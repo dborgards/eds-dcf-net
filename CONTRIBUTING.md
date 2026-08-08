@@ -36,6 +36,10 @@ refactor/xyz    ──┘      │           │
    ```sh
    dotnet test --configuration Release
    ```
+   Tests multi-target `net10.0` and `net48`. The `net48` host exercises the
+   library’s `netstandard2.0` build (distinct `#else` async/IO paths) and requires
+   .NET Framework 4.8 on Windows. On macOS/Linux, run the modern host only:
+   `dotnet test --configuration Release -f net10.0`.
 
 5. **Open a PR targeting `develop`** (not `main`).
 
@@ -77,9 +81,24 @@ while the core library project additionally pins the analyzer package version vi
 ## .NET SDK policy
 
 - SDK resolution is pinned in [`global.json`](global.json).
-- CI resolves the .NET SDK from that file in both workflows.
+- CI resolves the .NET SDK from that file and runs on `windows-latest` so
+  `EdsDcfNet.Tests` can execute both `net10.0` and `net48` (the latter binds
+  the `netstandard2.0` library asset).
 - To update the SDK baseline, submit one PR that updates `global.json` and
   briefly notes the change in the PR description.
+
+## Dependency update ownership
+
+| Ecosystem | Version updates | Base branch |
+|---|---|---|
+| NuGet | **Renovate** ([`renovate.json`](renovate.json)) | `develop` |
+| npm | **Renovate** | `develop` |
+| GitHub Actions | **Renovate** | `develop` |
+
+Dependabot **version** updates are disabled (no `.github/dependabot.yml`) so the
+two bots cannot open conflicting lockfile PRs. GitHub Dependabot **security**
+alerts may still open PRs when enabled in repository settings; prefer merging
+those into `develop` like other dependency work.
 
 ## Boundary & regression test guide
 
@@ -108,7 +127,7 @@ applies. Skipped dimensions should be marked `n/a` with a short reason.
 | Round-trip fidelity | read → write → read for each affected format (EDS, DCF, CPJ, XDD, XDC) | |
 | Validation modes | default write **and** `CanOpenWriteOptions.Validated` where validation differs | |
 | Representative fixtures | minimal + realistic samples (e.g. `sample_device.*`, ApplicationProcess graphs) | |
-| API contract assertions | reflection or source-compat tests where refactors can silently change public overload shapes or parameter names | |
+| API contract assertions | reflection or source-compat tests where refactors can silently change public overload shapes or parameter names; see `FormatEntryPointParameterNameContractTests` / `Baselines/format-entry-point-parameter-names.txt` | |
 
 Naming convention for boundary cases: suffix the scenario, e.g.
 `ConvertToDcf_FileRevisionAtMaxValue_ClampsAt255` (`*_AtMaxValue`) and
@@ -179,10 +198,16 @@ know why it matters.
   **source contract**. Shared generic bases must not silently rename parameters
   that appear on derived or format-specific entry points; callers using named
   arguments will fail to compile even when overload resolution still succeeds.
+  CI enforces this for `CanOpenFile.{Eds,Dcf,Cpj,Xdd,Xdc}`,
+  `FormatCanOpenOperations`, and `Validate`/`EnsureValid` via
+  `FormatEntryPointParameterNameContractTests` against
+  `tests/EdsDcfNet.Tests/Baselines/format-entry-point-parameter-names.txt`.
+  Intentional renames must update that baseline in the same PR
+  (`UPDATE_PUBLIC_API_BASELINE=1 dotnet test --filter FormatEntryPointParameterNameContractTests`).
   *(Incident: [#314](https://github.com/dborgards/eds-dcf-net/pull/314) /
   [#321](https://github.com/dborgards/eds-dcf-net/pull/321) — a shared generic
   base changed parameter names on format entry points; #321 restored
-  named-argument compatibility.)*
+  named-argument compatibility. Automated gate: [#425](https://github.com/dborgards/eds-dcf-net/issues/425).)*
 
 - [ ] **Overload shape** — When slimming or redirecting facades, preserve or
   explicitly obsolete **every sibling overload** in the same PR — both
@@ -200,8 +225,9 @@ know why it matters.
   on touched public members before opening the PR.
   *(Enforced by existing build policy; easy to miss during large refactors.)*
 
-> **Optional follow-up (separate work):** evaluate automated enforcement such
-> as `Microsoft.CodeAnalysis.PublicApiAnalyzers` or a compat baseline file.
+> **Note:** Full-assembly `Microsoft.CodeAnalysis.PublicApiAnalyzers` remains
+> optional for broader surface tracking; the format entry-point parameter-name
+> baseline above is the required named-argument gate.
 
 ## Staged deprecation playbook
 
@@ -232,6 +258,11 @@ linked, already-reviewed PR series:
    the obsolete APIs in the same PR series, or suppress with a justification
    comment and a tracking issue. Otherwise CS0618 breaks
    `TreatWarningsAsErrors` builds (the #322 incident).
+   `EdsDcfNet.Tests` does **not** suppress CS0618 project-wide; only the
+   dedicated facade/compat suites listed in `.editorconfig` (see issue
+   [#426](https://github.com/dborgards/eds-dcf-net/issues/426)) may call
+   obsolete `CanOpenFile.*` APIs. New tests must use
+   `CanOpenFile.{Eds|Dcf|Cpj|Xdd|Xdc}`.
 3. **Consumer impact** — obsolete warnings are **errors** for
    warnings-as-errors consumers. Prefer advisory deprecation
    (`[Obsolete(..., error: false)]`) until a major release, unless the break

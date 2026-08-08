@@ -41,15 +41,33 @@ public class DeviceCommissioning
     /// Serial number according to identity object sub 4 (Unsigned32).
     /// Used for LSS (Layer Setting Services).
     /// </summary>
+    /// <remarks>
+    /// CiA 306 DCF key <c>LSS_SerialNumber</c>. Not part of the CiA 311
+    /// <c>deviceCommissioning</c> schema; <see cref="Writers.XdcWriter"/> omits this
+    /// property from the emitted element when NodeId is <c>1..127</c>. Prefer DCF
+    /// (not CPJ) when this value must be preserved — CPJ has no serial-number field.
+    /// A write with NodeId <c>0</c> and this property set throws
+    /// <see cref="Exceptions.XdcWriteException"/> rather than silently dropping it.
+    /// </remarks>
     public uint? LssSerialNumber { get; set; }
 
     /// <summary>
     /// Node reference designator (max 249 characters).
     /// </summary>
+    /// <remarks>
+    /// CiA 306 DCF key <c>NodeRefd</c>. Not part of the CiA 311
+    /// <c>deviceCommissioning</c> schema; <see cref="Writers.XdcWriter"/> omits this
+    /// property when writing XDC.
+    /// </remarks>
     public string? NodeRefd { get; set; }
 
     /// <summary>
     /// Network reference designator (max 249 characters).
     /// </summary>
+    /// <remarks>
+    /// CiA 306 DCF key <c>NetRefd</c>. Not part of the CiA 311
+    /// <c>deviceCommissioning</c> schema; <see cref="Writers.XdcWriter"/> omits this
+    /// property when writing XDC.
+    /// </remarks>
     public string? NetRefd { get; set; }
 }

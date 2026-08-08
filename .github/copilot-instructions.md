@@ -43,7 +43,7 @@ EDS/DCF file → IniParser → EdsReader/DcfReader → Models → DcfWriter → 
 - **`IniParser`** — low-level INI section/key-value parsing (case-insensitive)
 - **`EdsReader`** / **`DcfReader`** — domain-specific parsers producing `ElectronicDataSheet` / `DeviceConfigurationFile`
 - **`DcfWriter`** — serializes `DeviceConfigurationFile` back to DCF format
-- **`ValueConverter`** — parses integers (decimal/hex `0x`/octal), booleans, `$NODEID` formulas, AccessType enum
+- **`ValueConverter`** — parses integers (decimal/hex `0x`/octal `0`+digit), booleans, `$NODEID` formulas, AccessType enum
 
 ### Key Models
 
@@ -148,6 +148,10 @@ This project uses a **develop → main** integration model:
 - **PR targeting `develop` or `main`** → `build.yml` runs (build + test as gate).
 - **Merge to `develop`** → `semantic-release.yml` runs (build + test + beta pre-release).
 - **Merge to `main`** → `semantic-release.yml` runs (build + test + stable release).
+- **Test TFMs:** `EdsDcfNet.Tests` / `EdsDcfNet.TestHost` multi-target `net10.0`
+  and `net48`. The `net48` host runs against the library’s `netstandard2.0`
+  asset so `#else` runtime paths are executed in CI (not only compile-checked).
+  Build/test CI uses `windows-latest` because `net48` requires .NET Framework.
 
 Direct commits to `main` or `develop` are not allowed; all changes go through PRs.
 

@@ -2,6 +2,7 @@ namespace EdsDcfNet.Tests.Utilities;
 
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 using EdsDcfNet.Utilities;
 using FluentAssertions;
 using Xunit;
@@ -56,6 +57,33 @@ public class ValueConverterTests
 
         // Assert
         result.Should().Be(expected);
+    }
+
+    /// <summary>
+    /// Locks the #411 leading-zero decision: keep C-style octal; hex needs 0x; plain decimal
+    /// has no leading zero. Zero-padded decimals are intentionally NOT treated as decimal.
+    /// </summary>
+    [Theory]
+    [InlineData("10", 10u)]      // plain decimal
+    [InlineData("010", 8u)]      // octal, not padded decimal 10
+    [InlineData("0x10", 16u)]    // hex
+    [InlineData("0X10", 16u)]
+    public void ParseInteger_LeadingZeroDecision_Matrix_ParsesExpected(string input, uint expected)
+    {
+        ValueConverter.ParseInteger(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("08")]
+    [InlineData("09")]
+    public void ParseInteger_PaddedDecimalLookingOctal_ThrowsEdsParseException(string input)
+    {
+        // "08"/"09" look like zero-padded decimals but are invalid octal under the current rule
+        var act = () => ValueConverter.ParseInteger(input);
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*'{input}'*")
+            .WithMessage("*octal literal contains characters outside 0-7*");
     }
 
     [Theory]
@@ -187,6 +215,86 @@ public class ValueConverterTests
         result.Should().Be(expected);
     }
 
+    [Theory]
+    [InlineData("2")]
+    [InlineData("random")]
+    [InlineData("yeah")]
+    public void ParseBoolean_UnknownToken_StrictParsing_ThrowsEdsParseException(string input)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            var act = () => ValueConverter.ParseBoolean(input);
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*Unknown boolean token*");
+        }
+    }
+
+    [Theory]
+    [InlineData("0", false)]
+    [InlineData("false", false)]
+    [InlineData("no", false)]
+    [InlineData("1", true)]
+    [InlineData("true", true)]
+    [InlineData("yes", true)]
+    public void ParseBoolean_KnownTokens_StrictParsing_Parses(string input, bool expected)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            ValueConverter.ParseBoolean(input).Should().Be(expected);
+        }
+    }
+
+    #endregion
+
+    #region ParsePresentFlag Tests
+
+    [Theory]
+    [InlineData("0x01", true)]
+    [InlineData("0x1", true)]
+    [InlineData("0X1", true)]
+    [InlineData("1", true)]
+    [InlineData("true", true)]
+    [InlineData("yes", true)]
+    [InlineData("0x00", false)]
+    [InlineData("0x0", false)]
+    [InlineData("0", false)]
+    [InlineData("false", false)]
+    [InlineData("no", false)]
+    [InlineData("", false)]
+    [InlineData("random", false)]
+    public void ParsePresentFlag_KnownVocabulary_ParsesExpected(string input, bool expected)
+    {
+        ValueConverter.ParsePresentFlag(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("random")]
+    [InlineData("0x02")]
+    [InlineData("present")]
+    public void ParsePresentFlag_UnknownToken_StrictParsing_ThrowsEdsParseException(string input)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            var act = () => ValueConverter.ParsePresentFlag(input);
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*boolean*" + input + "*");
+        }
+    }
+
+    [Theory]
+    [InlineData("1", true)]
+    [InlineData("0x01", true)]
+    [InlineData("0", false)]
+    [InlineData("0x00", false)]
+    [InlineData("false", false)]
+    public void ParsePresentFlag_KnownTokens_StrictParsing_Parses(string input, bool expected)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            ValueConverter.ParsePresentFlag(input).Should().Be(expected);
+        }
+    }
+
     #endregion
 
     #region ParseByte Tests
@@ -228,6 +336,90 @@ public class ValueConverterTests
 
         // Assert
         result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("010", (byte)10)]
+    [InlineData("08", (byte)8)]
+    [InlineData("012", (byte)12)]
+    [InlineData("0", (byte)0)]
+    [InlineData("255", (byte)255)]
+    [InlineData("", (byte)0)]
+    public void ParseByteDecimalPlain_ZeroPaddedAndPlain_StaysDecimal(string input, byte expected)
+    {
+        ValueConverter.ParseByteDecimalPlain(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("0x0A")]
+    [InlineData("1.0")]
+    [InlineData("abc")]
+    public void ParseByteDecimalPlain_NonDecimal_ThrowsEdsParseException(string input)
+    {
+        var act = () => ValueConverter.ParseByteDecimalPlain(input);
+        act.Should().Throw<EdsParseException>();
+    }
+
+    [Theory]
+    [InlineData("1.0", (byte)1)]
+    [InlineData("1,0", (byte)1)]
+    [InlineData("7.3", (byte)7)]
+    [InlineData("07.3", (byte)7)]
+    [InlineData("07,3", (byte)7)]
+    [InlineData("012.5", (byte)12)]
+    [InlineData("010.0", (byte)10)]
+    [InlineData("12,5", (byte)12)]
+    [InlineData("255.1", (byte)255)]
+    [InlineData(" 2.0 ", (byte)2)]
+    public void ParseByteAllowingMajorMinor_MajorMinorForms_UsesMajor(string input, byte expected)
+    {
+        ValueConverter.ParseByteAllowingMajorMinor(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("", (byte)0)]
+    [InlineData("   ", (byte)0)]
+    public void ParseByteAllowingMajorMinor_EmptyOrWhitespace_ReturnsZero(string input, byte expected)
+    {
+        ValueConverter.ParseByteAllowingMajorMinor(input).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("1")]
+    [InlineData("0x10")]
+    [InlineData("010")]
+    public void ParseByteAllowingMajorMinor_PlainLiterals_MatchesParseByte(string input)
+    {
+        ValueConverter.ParseByteAllowingMajorMinor(input).Should().Be(ValueConverter.ParseByte(input));
+    }
+
+    [Theory]
+    [InlineData("1.0.0")]
+    [InlineData("1,0,0")]
+    [InlineData("1.")]
+    [InlineData(",0")]
+    [InlineData("1.x")]
+    [InlineData("a.0")]
+    [InlineData("1./")] // digit check: char < '0'
+    [InlineData("1.+")]
+    [InlineData("NaN")]
+    [InlineData("256.0")] // major overflows byte
+    [InlineData("999,1")]
+    public void ParseByteAllowingMajorMinor_InvalidForms_ThrowsEdsParseException(string input)
+    {
+        var act = () => ValueConverter.ParseByteAllowingMajorMinor(input);
+        act.Should().Throw<EdsParseException>();
+    }
+
+    [Theory]
+    [InlineData("1. ")] // minor whitespace-only after trim
+    [InlineData("1, ")]
+    [InlineData(" .0")] // major whitespace-only after trim (caller may not pre-trim)
+    [InlineData(" ,0")]
+    public void TrySplitMajorMinorDecimal_WhitespaceOnlySide_ReturnsFalse(string input)
+    {
+        ValueConverter.TrySplitMajorMinorDecimal(input, out var major).Should().BeFalse();
+        major.Should().BeEmpty();
     }
 
     [Theory]
@@ -387,6 +579,43 @@ public class ValueConverterTests
 
         // Assert
         result.Should().Be(AccessType.ReadOnly);
+    }
+
+    [Theory]
+    [InlineData("invalid")]
+    [InlineData("read")]
+    public void ParseAccessType_UnknownToken_StrictParsing_ThrowsEdsParseException(string input)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            var act = () => ValueConverter.ParseAccessType(input);
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*Unknown access type token*");
+        }
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void ParseAccessType_EmptyOrNull_StrictParsing_ReturnsReadOnly(string? input)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            ValueConverter.ParseAccessType(input!).Should().Be(AccessType.ReadOnly);
+        }
+    }
+
+    [Theory]
+    [InlineData("ro", AccessType.ReadOnly)]
+    [InlineData("rw", AccessType.ReadWrite)]
+    [InlineData("const", AccessType.Constant)]
+    public void ParseAccessType_KnownTokens_StrictParsing_Parses(string input, AccessType expected)
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            ValueConverter.ParseAccessType(input).Should().Be(expected);
+        }
     }
 
     #endregion

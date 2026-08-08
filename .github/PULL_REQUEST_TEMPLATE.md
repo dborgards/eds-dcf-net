@@ -31,3 +31,27 @@ format entry points, or models consumed by library callers)?
 - [ ] `dotnet test --configuration Release` passes locally
 - [ ] `dotnet build --configuration Release` passes locally (required when
       public API or XML docs changed)
+
+## Boundary & regression matrix
+
+Required when this PR touches **parsers, writers, validators, or converters**
+(lessons from #305/#313, #311/#320). See the
+[Boundary & regression test guide](https://github.com/dborgards/eds-dcf-net/blob/develop/CONTRIBUTING.md#boundary--regression-test-guide)
+in `CONTRIBUTING.md`. Use `*_AtMaxValue` / `*_ValidatedRoundTrip` naming where
+applicable. Mark unused dimensions `n/a` with a short reason.
+
+- [ ] **n/a** — this PR does not touch parsers/writers/validators/converters
+- [ ] **Filled** — matrix below completed and tests added
+
+<details>
+<summary>Matrix (expand and fill when applicable)</summary>
+
+| Dimension | What to cover | This PR |
+|---|---|---|
+| Numeric boundaries | min, max, and wrap/clamp semantics of every touched numeric field | |
+| Round-trip fidelity | read → write → read for each affected format (EDS, DCF, CPJ, XDD, XDC) | |
+| Validation modes | default write **and** `CanOpenWriteOptions.Validated` where validation differs | |
+| Representative fixtures | minimal + realistic samples (e.g. `sample_device.*`, ApplicationProcess graphs) | |
+| API contract assertions | reflection or source-compat tests where refactors can silently change public overload shapes or parameter names | |
+
+</details>

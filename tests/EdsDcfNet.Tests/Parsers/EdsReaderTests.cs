@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Parsers;
 
+using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
@@ -517,6 +518,341 @@ PDOMapping=0
         obj.SubObjects.Should().ContainKey(1);
         obj.SubObjects[0].ParameterName.Should().Be("Number of Entries");
         obj.SubObjects[1].ParameterName.Should().Be("Vendor ID");
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_TemplateOnly_SynthesizesFromParentTemplate()
+    {
+        // Arrange — EDS compact storage without any [xxxsubN] sections
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+CompactSubObj=2
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.CompactSubObj.Should().Be(2);
+        obj.SubObjects.Should().HaveCount(3);
+
+        obj.SubObjects[0].ParameterName.Should().Be("NrOfObjects");
+        obj.SubObjects[0].AccessType.Should().Be(AccessType.ReadOnly);
+        obj.SubObjects[0].DataType.Should().Be(0x0005);
+        obj.SubObjects[0].DefaultValue.Should().Be("2");
+        obj.SubObjects[0].PdoMapping.Should().BeFalse();
+
+        obj.SubObjects[1].ParameterName.Should().Be("StatusBits1");
+        obj.SubObjects[1].ObjectType.Should().Be(0x7);
+        obj.SubObjects[1].DataType.Should().Be(0x0005);
+        obj.SubObjects[1].AccessType.Should().Be(AccessType.ReadOnly);
+        obj.SubObjects[1].DefaultValue.Should().Be("0");
+        obj.SubObjects[1].PdoMapping.Should().BeTrue();
+
+        obj.SubObjects[2].ParameterName.Should().Be("StatusBits2");
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_NameSection_OverridesDefaultNames()
+    {
+        // Arrange
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=3
+
+[2100Name]
+NrOfEntries=2
+1=FirstBit
+3=ThirdBit
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.SubObjects[0].ParameterName.Should().Be("NrOfObjects");
+        obj.SubObjects[1].ParameterName.Should().Be("FirstBit");
+        obj.SubObjects[2].ParameterName.Should().Be("StatusBits2"); // default rule
+        obj.SubObjects[3].ParameterName.Should().Be("ThirdBit");
+        result.AdditionalSections.Should().NotContainKey("2100Name");
+    }
+
+    [Fact]
+    public void ReadString_OrphanNameSection_PreservedInAdditionalSections()
+    {
+        // Arrange — [xxxxName] without a matching CompactSubObj object must round-trip
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[2100Name]
+NrOfEntries=1
+1=OrphanName
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("2100Name");
+        result.AdditionalSections["2100Name"]["1"].Should().Be("OrphanName");
+    }
+
+    [Fact]
+    public void ReadString_NameSectionWithoutCompactSubObj_PreservedInAdditionalSections()
+    {
+        // Arrange — object exists but CompactSubObj is absent/zero
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+SubNumber=1
+
+[2100sub0]
+ParameterName=Number of Entries
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[2100Name]
+NrOfEntries=1
+1=ShouldStayAdditional
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("2100Name");
+        result.ObjectDictionary.Objects[0x2100].SubObjects.Should().NotContainKey(1);
+    }
+
+    [Fact]
+    public void ReadString_NameSectionWithCompactSubObjZero_PreservedInAdditionalSections()
+    {
+        // Arrange — CompactSubObj=0 means no compact storage, so [2100Name] is not consumed
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=0
+
+[2100Name]
+NrOfEntries=1
+1=ShouldStayAdditional
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.CompactSubObj.Should().Be(0);
+        obj.SubObjects.Should().BeEmpty();
+        result.AdditionalSections.Should().ContainKey("2100Name");
+        result.AdditionalSections["2100Name"]["1"].Should().Be("ShouldStayAdditional");
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_NameSection_IgnoresKeysOutsideCompactListRange()
+    {
+        // Arrange — compact name lists cover sub-indexes 1..254 only; everything else is ignored:
+        // sub-index 0 and 255 are out of range, non-numeric keys are not sub-indexes, empty values
+        // carry no name, and keys without a matching sub-object have nothing to rename.
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=2
+
+[2100Name]
+NrOfEntries=2
+0=NotTheEntryCount
+255=ReservedSubIndex
+Comment=NotASubIndex
+1=FirstBit
+2=
+9=NoSuchSubObject
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.SubObjects.Should().HaveCount(3); // 0..2 — no sub-object is created by a name entry
+        obj.SubObjects[0].ParameterName.Should().Be("NrOfObjects"); // key 0 ignored
+        obj.SubObjects[1].ParameterName.Should().Be("FirstBit");
+        obj.SubObjects[2].ParameterName.Should().Be("StatusBits2"); // empty value ignored
+        obj.SubObjects.Should().NotContainKey(9);
+        obj.SubObjects.Should().NotContainKey(255);
+        result.AdditionalSections.Should().NotContainKey("2100Name");
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_NameSectionWithoutNrOfEntries_AppliesNames()
+    {
+        // Arrange — NrOfEntries is optional: the keys themselves define the list
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=2
+
+[2100Name]
+1=FirstBit
+2=SecondBit
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        var obj = result.ObjectDictionary.Objects[0x2100];
+        obj.SubObjects[1].ParameterName.Should().Be("FirstBit");
+        obj.SubObjects[2].ParameterName.Should().Be("SecondBit");
+    }
+
+    [Fact]
+    public void ReadString_SectionEndingInNameWithNonHexPrefix_PreservedInAdditionalSections()
+    {
+        // Arrange — only a hex object index before "Name" makes a compact name section
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x2100
+
+[2100]
+ParameterName=StatusBits
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=2
+
+[CustomName]
+1=NotACompactList
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("CustomName");
+        result.AdditionalSections["CustomName"]["1"].Should().Be("NotACompactList");
+    }
+
+    [Fact]
+    public void ReadString_CompactSubObj_SampleDevice_SynthesizesMissingArrayElements()
+    {
+        // Arrange — sample_device.eds uses CompactSubObj with only sub0 expanded
+        var result = _reader.ReadFile("Fixtures/sample_device.eds");
+
+        // Assert
+        var digitalIn = result.ObjectDictionary.Objects[0x6000];
+        digitalIn.CompactSubObj.Should().Be(16);
+        digitalIn.SubObjects.Should().HaveCount(17); // 0..16
+        digitalIn.SubObjects[0].ParameterName.Should().Be("Number of Elements"); // explicit
+        digitalIn.SubObjects[1].ParameterName.Should().Be("Digital Input 8-Bit1");
+        digitalIn.SubObjects[1].AccessType.Should().Be(AccessType.ReadOnly);
+        digitalIn.SubObjects[1].PdoMapping.Should().BeTrue();
+        digitalIn.SubObjects[16].ParameterName.Should().Be("Digital Input 8-Bit16");
+
+        var rpdoMap = result.ObjectDictionary.Objects[0x1600];
+        rpdoMap.CompactSubObj.Should().Be(8);
+        rpdoMap.SubObjects.Should().HaveCount(9); // 0..8
+        rpdoMap.SubObjects[0].ParameterName.Should().Be("Number of Entries");
+        rpdoMap.SubObjects[1].ParameterName.Should().Be("RPDO Mapping Parameter1");
     }
 
     [Fact]
@@ -1536,6 +1872,145 @@ VendorKey=VendorData
     }
 
     [Fact]
+    public void ReadString_HexPrefixedSubExtra_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "[1000subExtra]" has a hex prefix + "sub" but the suffix is not a hex sub-index
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x191
+PDOMapping=0
+
+[1000sub0]
+ParameterName=Highest sub-index
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=0x00
+PDOMapping=0
+
+[1000subExtra]
+VendorKey=VendorData
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - custom hex-prefixed "sub*" names must round-trip via AdditionalSections
+        result.AdditionalSections.Should().ContainKey("1000subExtra");
+        result.AdditionalSections["1000subExtra"]["VendorKey"].Should().Be("VendorData");
+        // Valid [1000sub0] remains known (not dumped into AdditionalSections)
+        result.AdditionalSections.Should().NotContainKey("1000sub0");
+        result.ObjectDictionary.Objects.Should().ContainKey((ushort)0x1000);
+    }
+
+    [Fact]
+    public void ReadString_HexPrefixedSubEmptySuffix_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "[1000sub]" ends with "sub" and has no hex sub-index suffix
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x191
+PDOMapping=0
+
+[1000sub]
+VendorKey=EmptySuffix
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - empty suffix after "sub" must not be treated as a known sub-object
+        result.AdditionalSections.Should().ContainKey("1000sub");
+        result.AdditionalSections["1000sub"]["VendorKey"].Should().Be("EmptySuffix");
+    }
+
+    [Fact]
+    public void ReadString_HexPrefixedSubWithWhitespace_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - HexNumber would accept " 1", but ParseSubObject only looks up "1000sub1"
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x191
+PDOMapping=0
+
+[1000sub 1]
+VendorKey=SpacedSuffix
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert - must round-trip via AdditionalSections, not be swallowed as known
+        result.AdditionalSections.Should().ContainKey("1000sub 1");
+        result.AdditionalSections["1000sub 1"]["VendorKey"].Should().Be("SpacedSuffix");
+    }
+
+    [Fact]
+    public void ReadString_HexPrefixedSubIndexOverflow_NotSubObject_PreservedInAdditionalSections()
+    {
+        // Arrange - "10000" is hex digits but does not fit in ushort (covers TryParse false branch)
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x191
+PDOMapping=0
+
+[10000sub0]
+VendorKey=OverflowPrefix
+";
+
+        // Act
+        var result = _reader.ReadString(content);
+
+        // Assert
+        result.AdditionalSections.Should().ContainKey("10000sub0");
+        result.AdditionalSections["10000sub0"]["VendorKey"].Should().Be("OverflowPrefix");
+    }
+
+    [Fact]
     public void ReadString_SectionStartingWithM_NotModule_PreservedInAdditionalSections()
     {
         // Arrange - "Manufacturing" starts with "M" but is NOT a module section
@@ -1747,6 +2222,89 @@ SupportedObjects=0
         var result = _reader.ReadString(content);
 
         // Assert - only the valid DummyXXXX entry is in DummyUsage; the other key is ignored
+        result.ObjectDictionary.DummyUsage.Should().ContainKey(0x0002);
+        result.ObjectDictionary.DummyUsage.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void ReadString_DummyUsage_InvalidHexKey_StrictParsing_ThrowsEdsParseException()
+    {
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[DummyUsage]
+DummyZZZZ=1
+";
+
+        var act = () => CanOpenFile.Eds.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*DummyUsage*DummyZZZZ*");
+    }
+
+    [Fact]
+    public void ReadString_DummyUsage_InvalidHexKey_Lenient_IsSkipped()
+    {
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[DummyUsage]
+Dummy0002=1
+DummyZZZZ=1
+";
+
+        var result = CanOpenFile.Eds.ReadString(content);
+
+        result.ObjectDictionary.DummyUsage.Should().ContainKey(0x0002);
+        result.ObjectDictionary.DummyUsage.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void ReadString_DummyUsage_BareDummyKey_StrictParsing_ThrowsEdsParseException()
+    {
+        // "Dummy" with no hex suffix (length == 5) must take the empty-index path and reject in strict mode.
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[DummyUsage]
+Dummy=1
+";
+
+        var act = () => CanOpenFile.Eds.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*DummyUsage*Dummy*");
+    }
+
+    [Fact]
+    public void ReadString_DummyUsage_BareDummyKey_Lenient_IsSkipped()
+    {
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[DummyUsage]
+Dummy0002=1
+Dummy=1
+";
+
+        var result = CanOpenFile.Eds.ReadString(content);
+
         result.ObjectDictionary.DummyUsage.Should().ContainKey(0x0002);
         result.ObjectDictionary.DummyUsage.Should().HaveCount(1);
     }

@@ -17,7 +17,9 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    # windows-latest is required so the net48 test host can bind and execute the
+    # library's netstandard2.0 asset before publishing (net10.0 runs on the same job).
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
@@ -34,6 +36,8 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
+          # SDK 10 from global.json builds the library and runs net10.0 tests;
+          # net48 (preinstalled on windows-latest) exercises the netstandard2.0 asset.
           global-json-file: global.json
 
       - name: Install dependencies
@@ -50,41 +54,18 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
 
+      # Shared gate with build.yml — see tools/enforce-coverage-threshold.sh.
       - name: Enforce coverage threshold
+        id: coverage_gate
         shell: bash
-        run: |
-          coverage_file="$(find . -type f -name 'coverage.cobertura.xml' -print -quit)"
-          if [[ -z "$coverage_file" ]]; then
-            echo "No coverage.cobertura.xml found."
-            exit 1
-          fi
-
-          line_rate="$(awk '
-            /line-rate="/ {
-              match($0, /line-rate="[^"]+"/)
-              value = substr($0, RSTART + 11, RLENGTH - 12)
-              print value
-              exit
-            }
-          ' "$coverage_file")"
-          if [[ -z "$line_rate" ]]; then
-            echo "Could not read line-rate from $coverage_file"
-            exit 1
-          fi
-
-          coverage_percent="$(awk "BEGIN { printf \"%.2f\", $line_rate * 100 }")"
-          echo "Line coverage: ${coverage_percent}% (required: >= ${COVERAGE_MIN_PERCENT}%)"
-
-          awk "BEGIN { exit !($coverage_percent >= $COVERAGE_MIN_PERCENT) }" || {
-            echo "Coverage gate failed."
-            exit 1
-          }
+        run: bash tools/enforce-coverage-threshold.sh .
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: '**/coverage.cobertura.xml'
+          files: ${{ steps.coverage_gate.outputs.coverage_files }}
+          disable_search: true
           fail_ci_if_error: true
 
       - name: Semantic Release

@@ -287,8 +287,129 @@ Key1=Value2
         // Act
         var result = IniParser.ParseString(content);
 
-        // Assert
+        // Assert — default policy is last-write-wins
         result["Section1"]["Key1"].Should().Be("Value2");
+    }
+
+    [Fact]
+    public void ParseString_DuplicateKey_StrictParsing_ThrowsEdsParseException()
+    {
+        // Arrange — ParameterValue / NodeID-style duplicate keys
+        var content = @"
+[DeviceCommissioning]
+NodeID=1
+NodeID=2
+ParameterValue=10
+ParameterValue=20
+";
+
+        // Act
+        var act = () => IniParser.ParseString(content, IniParser.DefaultMaxInputSize, strictParsing: true);
+
+        // Assert
+        var ex = act.Should().Throw<EdsParseException>()
+            .WithMessage("*Duplicate key 'NodeID'*")
+            .Which;
+        ex.SectionName.Should().Be("DeviceCommissioning");
+        ex.LineNumber.Should().Be(3);
+    }
+
+    [Fact]
+    public void ParseString_DuplicateKey_FacadeStrictParsing_ThrowsEdsParseException()
+    {
+        var content = @"
+[FileInfo]
+FileName=test.eds
+FileName=other.eds
+FileVersion=1
+FileRevision=0
+EdsVersion=4.0
+Description=Test
+CreationDate=01-01-2024
+CreationTime=12:00AM
+CreatedBy=Test
+";
+
+        var act = () => CanOpenFile.Eds.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*Duplicate key 'FileName'*");
+    }
+
+    [Fact]
+    public void ParseFile_DuplicateKey_StrictParsing_ThrowsEdsParseException()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, "[Section1]\nKey1=Value1\nKey1=Value2\n");
+
+            var act = () => IniParser.ParseFile(tempFile, IniParser.DefaultMaxInputSize, strictParsing: true);
+
+            var ex = act.Should().Throw<EdsParseException>()
+                .WithMessage("*Duplicate key 'Key1'*")
+                .Which;
+            ex.SectionName.Should().Be("Section1");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void ParseStream_DuplicateKey_StrictParsing_ThrowsEdsParseException()
+    {
+        const string content = "[Section1]\nKey1=Value1\nKey1=Value2\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+
+        var act = () => IniParser.ParseStream(stream, IniParser.DefaultMaxInputSize, strictParsing: true);
+
+        var ex = act.Should().Throw<EdsParseException>()
+            .WithMessage("*Duplicate key 'Key1'*")
+            .Which;
+        ex.SectionName.Should().Be("Section1");
+    }
+
+    [Fact]
+    public void StrictParsingScope_Dispose_IsIdempotent()
+    {
+        // Cover Restorer early-return on second Dispose (codecov patch for StrictParsingScope)
+        var scope = StrictParsingScope.Enter(true);
+        StrictParsingScope.IsEnabled.Should().BeTrue();
+
+        scope.Dispose();
+        StrictParsingScope.IsEnabled.Should().BeFalse();
+
+        scope.Dispose();
+        StrictParsingScope.IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ParseString_StrictParsing_HonorsAmbientScopeWhenArgumentFalse()
+    {
+        // Covers strictParsing || IsEnabled when the argument is false but ambient scope is on
+        const string content = "[Section1]\nKey1=Value1\nKey1=Value2\n";
+
+        using (StrictParsingScope.Enter(true))
+        {
+            var act = () => IniParser.ParseString(content, IniParser.DefaultMaxInputSize, strictParsing: false);
+
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*Duplicate key 'Key1'*");
+        }
+    }
+
+    [Fact]
+    public void ParseString_TwoParameterOverload_RemainsCallable()
+    {
+        // Binary-compat: existing (string, long) overload must keep working for method groups / upgrades
+        Func<string, long, Dictionary<string, Dictionary<string, string>>> parse =
+            IniParser.ParseString;
+
+        var result = parse("[Section1]\nKey1=Value1\n", IniParser.DefaultMaxInputSize);
+
+        result["Section1"]["Key1"].Should().Be("Value1");
     }
 
     [Fact]
@@ -445,6 +566,56 @@ DataType=0x0005
     }
 
     [Fact]
+    public void ParseFile_ContentAtExactMaxInputSize_ParsesSuccessfully()
+    {
+        // Arrange — ASCII content so byte length == character count; FileInfo
+        // pre-check passes and ParseReader enforces the limit while streaming.
+        const string content = "[Section1]\nKey1=Value1\n";
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            File.WriteAllText(tempFile, content);
+
+            // Act
+            var result = IniParser.ParseFile(
+                tempFile,
+                maxInputSize: System.Text.Encoding.UTF8.GetByteCount(content));
+
+            // Assert
+            result.Should().ContainKey("Section1");
+            result["Section1"]["Key1"].Should().Be("Value1");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void ParseFile_ContentOneOverMaxInputSize_ThrowsEdsParseException()
+    {
+        const string content = "[Section1]\nKey1=Value1\n";
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            File.WriteAllText(tempFile, content);
+
+            var act = () => IniParser.ParseFile(
+                tempFile,
+                maxInputSize: System.Text.Encoding.UTF8.GetByteCount(content) - 1);
+
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*too large*");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
     public async Task ParseFileAsync_ValidFile_ParsesCorrectly()
     {
         // Arrange
@@ -489,6 +660,52 @@ DataType=0x0005
             var act = () => IniParser.ParseFileAsync(tempFile, maxInputSize: 10);
 
             // Assert
+            await act.Should().ThrowAsync<EdsParseException>()
+                .WithMessage("*too large*");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ParseFileAsync_ContentAtExactMaxInputSize_ParsesSuccessfully()
+    {
+        const string content = "[Section1]\nKey1=Value1\n";
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, content);
+
+            var result = await IniParser.ParseFileAsync(
+                tempFile,
+                maxInputSize: System.Text.Encoding.UTF8.GetByteCount(content));
+
+            result.Should().ContainKey("Section1");
+            result["Section1"]["Key1"].Should().Be("Value1");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ParseFileAsync_ContentOneOverMaxInputSize_ThrowsEdsParseException()
+    {
+        const string content = "[Section1]\nKey1=Value1\n";
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, content);
+
+            var act = () => IniParser.ParseFileAsync(
+                tempFile,
+                maxInputSize: System.Text.Encoding.UTF8.GetByteCount(content) - 1);
+
             await act.Should().ThrowAsync<EdsParseException>()
                 .WithMessage("*too large*");
         }

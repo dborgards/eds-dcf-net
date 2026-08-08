@@ -83,9 +83,33 @@ public class CanOpenObject
     public string? HighLimit { get; set; }
 
     /// <summary>
-    /// Whether the object can be mapped into a PDO (Boolean, 0 = not mappable, 1 = mappable).
+    /// CiA 311 PDO mapping mode. Prefer this for XDD/XDC round-trips.
     /// </summary>
-    public bool PdoMapping { get; set; }
+    public PdoMappingMode PdoMappingMode { get; set; }
+
+    /// <summary>
+    /// Whether the object can be mapped into a PDO (EDS/DCF boolean view).
+    /// <see langword="true"/> maps to <see cref="PdoMappingMode.Optional"/> when the mode was
+    /// <see cref="PdoMappingMode.No"/>; setting <see langword="false"/> clears the mode to
+    /// <see cref="PdoMappingMode.No"/>. Fine-grained XDD modes (<c>default</c>/<c>TPDO</c>/<c>RPDO</c>)
+    /// are preserved when only this boolean is left <see langword="true"/>.
+    /// </summary>
+    public bool PdoMapping
+    {
+        get => PdoMappingMode != PdoMappingMode.No;
+        set
+        {
+            if (value)
+            {
+                if (PdoMappingMode == PdoMappingMode.No)
+                    PdoMappingMode = PdoMappingMode.Optional;
+            }
+            else
+            {
+                PdoMappingMode = PdoMappingMode.No;
+            }
+        }
+    }
 
     /// <summary>
     /// Special behavior flags (Unsigned32).
@@ -106,7 +130,10 @@ public class CanOpenObject
     public Dictionary<byte, CanOpenSubObject> SubObjects { get; } = new();
 
     /// <summary>
-    /// For compact sub-object storage: number of sub-indexes with equal description.
+    /// For compact sub-object storage (CiA 306 §4.5.2.4.2): highest sub-index described
+    /// by the parent object template. When non-zero, missing <c>[xxxsubN]</c> sections are
+    /// synthesized from this object; ParameterValues/Denotations use <c>[xxxxValue]</c> /
+    /// <c>[xxxxDenotation]</c> (DCF) and optional names use <c>[xxxxName]</c>.
     /// </summary>
     public byte? CompactSubObj { get; set; }
 
@@ -198,9 +225,29 @@ public class CanOpenSubObject
     public string? HighLimit { get; set; }
 
     /// <summary>
-    /// PDO mapping capability.
+    /// CiA 311 PDO mapping mode. Prefer this for XDD/XDC round-trips.
     /// </summary>
-    public bool PdoMapping { get; set; }
+    public PdoMappingMode PdoMappingMode { get; set; }
+
+    /// <summary>
+    /// PDO mapping capability (EDS/DCF boolean view of <see cref="PdoMappingMode"/>).
+    /// </summary>
+    public bool PdoMapping
+    {
+        get => PdoMappingMode != PdoMappingMode.No;
+        set
+        {
+            if (value)
+            {
+                if (PdoMappingMode == PdoMappingMode.No)
+                    PdoMappingMode = PdoMappingMode.Optional;
+            }
+            else
+            {
+                PdoMappingMode = PdoMappingMode.No;
+            }
+        }
+    }
 
     /// <summary>
     /// For DCF files: configured parameter value.

@@ -3,6 +3,7 @@ namespace EdsDcfNet.Utilities;
 using System.Globalization;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 
 /// <summary>
 /// Utility class for converting string values from EDS/DCF files to typed values.
@@ -17,8 +18,23 @@ public static class ValueConverter
     }
 
     /// <summary>
-    /// Parses an integer value from string (supports decimal, hexadecimal, and octal).
+    /// Parses an integer value from string (supports decimal, hexadecimal <c>0x</c>, and octal).
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Base detection (CiA DS 306 / C-style, see architecture docs §8.3 and issue #411):
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description><c>0x</c> / <c>0X</c> prefix → hexadecimal</description></item>
+    /// <item><description>leading <c>0</c> followed by a digit → octal (<c>010</c> is 8, not 10)</description></item>
+    /// <item><description>otherwise → decimal</description></item>
+    /// </list>
+    /// <para>
+    /// Zero-padded decimal literals such as <c>08</c>/<c>09</c> are invalid octal and throw
+    /// <see cref="EdsParseException"/>. Prefer unpadded decimal or an explicit <c>0x</c> prefix
+    /// when authoring EDS/DCF values.
+    /// </para>
+    /// </remarks>
     /// <param name="value">String value to parse</param>
     /// <param name="nodeId">Optional node ID for evaluating $NODEID formulas</param>
     public static uint ParseInteger(string value, byte? nodeId = null)
@@ -61,10 +77,12 @@ public static class ValueConverter
     /// <remarks>
     /// This parser is intentionally lenient to tolerate real-world EDS/DCF files:
     /// only <c>"1"</c>, <c>"true"</c>, and <c>"yes"</c> (case-insensitive) are treated as
-    /// <see langword="true"/>. Any other value — including typos, <c>"0"</c>, <c>"false"</c>,
-    /// <c>"no"</c>, and empty strings — silently maps to <see langword="false"/> without
-    /// raising an error. Unlike the numeric parsers in this class, malformed input is not
-    /// reported via <see cref="EdsParseException"/>.
+    /// <see langword="true"/>. Recognized false tokens are <c>"0"</c>, <c>"false"</c>, and
+    /// <c>"no"</c> (case-insensitive); empty/whitespace maps to <see langword="false"/>.
+    /// Other values silently map to <see langword="false"/> when lenient. With
+    /// <see cref="CanOpenFileOptions.StrictParsing"/> enabled (via
+    /// <see cref="StrictParsingScope"/>), unrecognized non-empty tokens throw
+    /// <see cref="EdsParseException"/>.
     /// </remarks>
     /// <param name="value">String value to parse.</param>
     /// <returns>
@@ -78,9 +96,66 @@ public static class ValueConverter
         if (string.IsNullOrEmpty(value))
             return false;
 
-        return value == "1" ||
-               value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-               value.Equals("yes", StringComparison.OrdinalIgnoreCase);
+        if (value == "1" ||
+            value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("yes", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (value == "0" ||
+            value.Equals("false", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("no", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Unknown boolean token '{0}'. Expected one of: 0, 1, true, false, yes, no.",
+                    value));
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Parses a present/absent flag as used by CPJ <c>NodeNPresent</c> fields and similar
+    /// hex-flag or boolean tokens.
+    /// </summary>
+    /// <remarks>
+    /// <para>Recognized true tokens (case-insensitive where alphabetic):</para>
+    /// <list type="bullet">
+    /// <item><description><c>0x01</c>, <c>0x1</c> (writer emits <c>0x01</c>)</description></item>
+    /// <item><description><c>1</c>, <c>true</c>, <c>yes</c> (same as <see cref="ParseBoolean"/>)</description></item>
+    /// </list>
+    /// <para>Recognized false tokens include <c>0x00</c>, <c>0x0</c>, <c>0</c>, <c>false</c>,
+    /// and <c>no</c>. Empty/whitespace maps to <see langword="false"/>. Unrecognized
+    /// non-empty tokens map to <see langword="false"/> when lenient. With
+    /// <see cref="CanOpenFileOptions.StrictParsing"/> enabled (via
+    /// <see cref="StrictParsingScope"/>), unrecognized non-empty tokens throw
+    /// <see cref="EdsParseException"/>.</para>
+    /// </remarks>
+    /// <param name="value">String value to parse.</param>
+    /// <returns>
+    /// <see langword="true"/> if <paramref name="value"/> is a recognized present token;
+    /// otherwise <see langword="false"/>.
+    /// </returns>
+    public static bool ParsePresentFlag(string value)
+    {
+        value = value.Trim();
+
+        if (string.IsNullOrEmpty(value))
+            return false;
+
+        if (value.Equals("0x01", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("0x1", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (value.Equals("0x00", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("0x0", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return ParseBoolean(value);
     }
 
     /// <summary>
@@ -104,6 +179,129 @@ public static class ValueConverter
         {
             throw new EdsParseException(BuildInvalidNumericLiteralMessage("byte", value, ex), ex);
         }
+    }
+
+    /// <summary>
+    /// Parses a plain decimal <c>Unsigned8</c> (no hex, no CiA octal).
+    /// </summary>
+    /// <remarks>
+    /// Used for EDS/DCF <c>FileVersion</c> / <c>FileRevision</c> so zero-padded
+    /// values such as <c>010</c> match XDD <c>fileVersion</c> (<c>10</c>), rather than
+    /// CiA octal via <see cref="ParseByte"/> (<c>8</c>). Empty/whitespace → <c>0</c>.
+    /// </remarks>
+    public static byte ParseByteDecimalPlain(string value)
+    {
+        value = value.Trim();
+
+        if (string.IsNullOrEmpty(value))
+            return 0;
+
+        try
+        {
+            return byte.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+        {
+            throw new EdsParseException(BuildInvalidNumericLiteralMessage("byte", value, ex), ex);
+        }
+    }
+
+    /// <summary>
+    /// Parses an <c>Unsigned8</c> that CiA 306 defines as an integer, while tolerating
+    /// major/minor forms some tooling emits (dot or comma separator).
+    /// </summary>
+    /// <remarks>
+    /// When <paramref name="value"/> matches <c>major.minor</c> or <c>major,minor</c>
+    /// with both sides non-empty unsigned decimal digit runs and a single separator,
+    /// only the major component is parsed as decimal (same policy as XDD <c>fileVersion</c>),
+    /// including leading-zero majors such as <c>07.3</c> → 7 or <c>012.5</c> → 12.
+    /// Hex (<c>0x…</c>) literals and pure octal literals (no separator) are never
+    /// treated as major/minor forms. All other inputs are delegated to <see cref="ParseByte"/>.
+    /// </remarks>
+    /// <param name="value">String value to parse.</param>
+    /// <returns>The parsed byte (major component when a major/minor form is recognized).</returns>
+    /// <exception cref="EdsParseException">Thrown when the value cannot be parsed as a byte.</exception>
+    public static byte ParseByteAllowingMajorMinor(string value)
+    {
+        value = value.Trim();
+
+        if (string.IsNullOrEmpty(value))
+            return 0;
+
+        if (TrySplitMajorMinorDecimal(value, out var major))
+        {
+            // Major/minor forms are tooling-style decimal versions (e.g. "012.5" → 12),
+            // not CiA octal literals. ParseByte would treat a leading-zero major as octal.
+            try
+            {
+                return byte.Parse(major, NumberStyles.None, CultureInfo.InvariantCulture);
+            }
+            catch (OverflowException ex)
+            {
+                // FormatException is unreachable here: TrySplitMajorMinorDecimal only yields
+                // non-empty ASCII digit majors, so NumberStyles.None can only overflow.
+                throw new EdsParseException(BuildInvalidNumericLiteralMessage("byte", value, ex), ex);
+            }
+        }
+
+        return ParseByte(value);
+    }
+
+    /// <summary>
+    /// Tries to split a major/minor decimal version literal (<c>1.0</c> / <c>1,0</c>).
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="value"/> is exactly one separator
+    /// (<c>.</c> or <c>,</c>) between two non-empty unsigned decimal digit runs.
+    /// </returns>
+    internal static bool TrySplitMajorMinorDecimal(string value, out string major)
+    {
+        major = string.Empty;
+
+        // Hex shapes are numeric literals, not dotted version strings.
+        // Pure octals (e.g. "010") have no separator and fall through below;
+        // do not reject leading-zero majors like "07.3" before looking for '.' / ','.
+        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var separatorIndex = -1;
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (c != '.' && c != ',')
+                continue;
+
+            if (separatorIndex >= 0)
+                return false;
+
+            separatorIndex = i;
+        }
+
+        if (separatorIndex <= 0 || separatorIndex >= value.Length - 1)
+            return false;
+
+        var majorPart = value[..separatorIndex].Trim();
+        var minorPart = value[(separatorIndex + 1)..].Trim();
+        if (majorPart.Length == 0 || minorPart.Length == 0)
+            return false;
+
+        if (!IsAllAsciiDigits(majorPart) || !IsAllAsciiDigits(minorPart))
+            return false;
+
+        major = majorPart;
+        return true;
+    }
+
+    private static bool IsAllAsciiDigits(string value)
+    {
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (c < '0' || c > '9')
+                return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -136,20 +334,28 @@ public static class ValueConverter
     /// This parser is intentionally lenient to tolerate real-world EDS/DCF files:
     /// recognized tokens are <c>"ro"</c>, <c>"wo"</c>, <c>"rw"</c>, <c>"rwr"</c>,
     /// <c>"rww"</c>, and <c>"const"</c> (case-insensitive, surrounding whitespace ignored).
-    /// Any unrecognized value — including typos and <see langword="null"/> — silently maps to
-    /// <see cref="AccessType.ReadOnly"/> without raising an error. Unlike the numeric parsers
-    /// in this class, malformed input is not reported via <see cref="EdsParseException"/>.
-    /// Note that this can change round-trip output: an unknown access type in the source file
-    /// is written back as <c>"ro"</c>.
+    /// Empty, whitespace-only, and <see langword="null"/> inputs always map to
+    /// <see cref="AccessType.ReadOnly"/> (absent field, not an unknown token). Any other
+    /// unrecognized value silently maps to <see cref="AccessType.ReadOnly"/> when lenient.
+    /// With <see cref="CanOpenFileOptions.StrictParsing"/> enabled (via
+    /// <see cref="StrictParsingScope"/>), non-empty unrecognized tokens throw
+    /// <see cref="EdsParseException"/>. Note that lenient mode can change round-trip
+    /// output: an unknown access type in the source file is written back as <c>"ro"</c>.
     /// </remarks>
     /// <param name="value">String value to parse.</param>
     /// <returns>
     /// The parsed <see cref="AccessType"/>, or <see cref="AccessType.ReadOnly"/> if
-    /// <paramref name="value"/> is not a recognized access type token.
+    /// <paramref name="value"/> is empty/absent or not a recognized access type token
+    /// (lenient mode).
     /// </returns>
     public static AccessType ParseAccessType(string value)
     {
-        return value?.Trim().ToLowerInvariant() switch
+        var token = value?.Trim().ToLowerInvariant();
+        // Missing AccessType/Dir keys yield "" from IniParser.GetValue; treat as absent default.
+        if (string.IsNullOrEmpty(token))
+            return AccessType.ReadOnly;
+
+        return token switch
         {
             "ro" => AccessType.ReadOnly,
             "wo" => AccessType.WriteOnly,
@@ -157,6 +363,11 @@ public static class ValueConverter
             "rwr" => AccessType.ReadWriteInput,
             "rww" => AccessType.ReadWriteOutput,
             "const" => AccessType.Constant,
+            _ when StrictParsingScope.IsEnabled => throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Unknown access type token '{0}'. Expected one of: ro, wo, rw, rwr, rww, const.",
+                    value)),
             _ => AccessType.ReadOnly
         };
     }
@@ -223,6 +434,8 @@ public static class ValueConverter
             return (hexDigits, NumericBase.Hexadecimal);
         }
 
+        // Leading 0 + digit → octal (CiA DS 306 / C-style). Not decimal padding.
+        // "010" → 8; "08"/"09" fail as invalid octal. See docs §8.3 / issue #411.
         if (value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]))
             return (value, NumericBase.Octal);
 

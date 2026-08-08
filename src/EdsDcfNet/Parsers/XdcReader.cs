@@ -1,7 +1,6 @@
 namespace EdsDcfNet.Parsers;
 
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
@@ -29,7 +28,10 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
             throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
 
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC", maxInputSize);
-        var content = File.ReadAllText(filePath);
+        // Bounded stream read enforces MaxInputSize while loading (guards TOCTOU
+        // if the file grows after the FileInfo.Length pre-check).
+        using var stream = SecureXmlParser.OpenFileWithSizeLimit(filePath, "XDC", maxInputSize, useAsync: false);
+        var content = SecureXmlParser.ReadContentFromStreamWithLimit(stream, "XDC", maxInputSize);
         return ReadString(content, maxInputSize);
     }
 
@@ -79,10 +81,14 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
             throw new FileNotFoundException($"XDC file not found: {filePath}", filePath);
 
         SecureXmlParser.EnsureFileWithinSizeLimit(filePath, "XDC", maxInputSize);
-        var content = await TextFileIo.ReadAllTextAsync(
-            filePath,
-            Encoding.UTF8,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+        // Bounded stream read enforces MaxInputSize while loading (guards TOCTOU
+        // if the file grows after the FileInfo.Length pre-check).
+        using var stream = SecureXmlParser.OpenFileWithSizeLimit(filePath, "XDC", maxInputSize, useAsync: true);
+        var content = await SecureXmlParser.ReadContentFromStreamWithLimitAsync(
+            stream,
+            "XDC",
+            maxInputSize,
+            cancellationToken).ConfigureAwait(false);
         return ReadString(content, maxInputSize);
     }
 
@@ -170,27 +176,31 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
         if (root == null)
             return null;
 
+        // Last-wins: match XddReader.ParseDocument CommNet ProfileBody selection so
+        // commissioning comes from the same body as the object dictionary in lenient mode.
+        XElement? commNetProfileBody = null;
+
         foreach (var profile in root.Elements().Where(e => e.Name.LocalName == "ISO15745Profile"))
         {
-            var profileBody = profile.Elements()
-                .FirstOrDefault(e => e.Name.LocalName == "ProfileBody");
-            if (profileBody == null)
-                continue;
+            foreach (var profileBody in profile.Elements().Where(e => e.Name.LocalName == "ProfileBody"))
+            {
+                var xsiType = XddReader.GetXsiType(profileBody);
+                if (!xsiType.Contains("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase))
+                    continue;
 
-            // Only look in the CommunicationNetwork profile body
-            var xsiType = XddReader.GetXsiType(profileBody);
-            if (!xsiType.Contains("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var networkMgmt = profileBody.Elements()
-                .FirstOrDefault(e => e.Name.LocalName == "NetworkManagement");
-            if (networkMgmt == null)
-                continue;
-
-            return XddReader.ParseDeviceCommissioning(networkMgmt);
+                commNetProfileBody = profileBody;
+            }
         }
 
-        return null;
+        if (commNetProfileBody == null)
+            return null;
+
+        var networkMgmt = commNetProfileBody.Elements()
+            .FirstOrDefault(e => e.Name.LocalName == "NetworkManagement");
+        if (networkMgmt == null)
+            return null;
+
+        return XddReader.ParseDeviceCommissioning(networkMgmt);
     }
 
 }

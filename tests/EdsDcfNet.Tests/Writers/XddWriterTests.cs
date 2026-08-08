@@ -596,6 +596,65 @@ public class XddWriterTests
         result.Should().Contain("PDOmapping=\"optional\"");
     }
 
+    [Theory]
+    [InlineData(PdoMappingMode.No, "no")]
+    [InlineData(PdoMappingMode.Default, "default")]
+    [InlineData(PdoMappingMode.Optional, "optional")]
+    [InlineData(PdoMappingMode.Tpdo, "TPDO")]
+    [InlineData(PdoMappingMode.Rpdo, "RPDO")]
+    public void GenerateString_PdoMappingMode_WrittenAsCiA311Token(
+        PdoMappingMode mode, string expectedToken)
+    {
+        var eds = CreateSampleEds();
+        eds.ObjectDictionary.Objects[0x1000].PdoMappingMode = mode;
+
+        var result = _writer.GenerateString(eds);
+
+        result.Should().Contain($@"PDOmapping=""{expectedToken}""");
+    }
+
+    [Fact]
+    public void GenerateString_SubObjectPdoMappingMode_WrittenAsCiA311Token()
+    {
+        var eds = CreateSampleEds();
+        var parentObj = new CanOpenObject
+        {
+            Index = 0x1018,
+            ParameterName = "Identity Object",
+            ObjectType = 0x9,
+            SubNumber = 2
+        };
+        parentObj.SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Number of Entries",
+            ObjectType = 0x7,
+            DataType = 0x0005,
+            AccessType = AccessType.ReadOnly,
+            PdoMappingMode = PdoMappingMode.Rpdo
+        };
+        eds.ObjectDictionary.Objects[0x1018] = parentObj;
+        eds.ObjectDictionary.OptionalObjects.Add(0x1018);
+
+        var result = _writer.GenerateString(eds);
+        var document = XDocument.Parse(result);
+        var subObject = document.Descendants()
+            .Single(e => e.Name.LocalName == "CANopenSubObject" && GetAttributeValue(e, "subIndex") == "00");
+
+        GetAttributeValue(subObject, "PDOmapping").Should().Be("RPDO");
+    }
+
+    [Fact]
+    public void GenerateString_UnknownPdoMappingMode_WrittenAsNo()
+    {
+        var eds = CreateSampleEds();
+        eds.ObjectDictionary.Objects[0x1000].PdoMappingMode = (PdoMappingMode)255;
+
+        var result = _writer.GenerateString(eds);
+
+        result.Should().Contain(@"PDOmapping=""no""");
+    }
+
     [Fact]
     public void GenerateString_ValidXml_CanBeParsedBack()
     {
@@ -605,6 +664,27 @@ public class XddWriterTests
         // Assert — output must be parseable as valid XML
         var act = () => XDocument.Parse(result);
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void GenerateString_AdditionalSections_NotReEmittedIntoProfileBody()
+    {
+        // Arrange — AdditionalSections is INI-shaped and is not an XDD vendor-extension store
+        var eds = CreateSampleEds();
+        eds.AdditionalSections["VendorExtension"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["customKey"] = "customValue"
+        };
+
+        // Act
+        var result = _writer.GenerateString(eds);
+
+        // Assert — writer rebuilds a fixed ProfileBody without AdditionalSections entries
+        result.Should().NotContain("VendorExtension");
+        result.Should().NotContain("customKey");
+        result.Should().Contain("ApplicationLayers");
+        result.Should().Contain("TransportLayers");
+        result.Should().Contain("NetworkManagement");
     }
 
     [Fact]

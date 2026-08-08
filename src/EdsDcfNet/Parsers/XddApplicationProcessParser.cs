@@ -93,12 +93,27 @@ private static ApArrayType ParseArrayType(XElement elem)
         if (child.Name.LocalName == "subrange")
         {
             var sr = new ApSubrange();
-            if (long.TryParse(child.Attribute("lowerLimit")?.Value, NumberStyles.Integer,
-                CultureInfo.InvariantCulture, out var lo))
-                sr.LowerLimit = lo;
-            if (long.TryParse(child.Attribute("upperLimit")?.Value, NumberStyles.Integer,
-                CultureInfo.InvariantCulture, out var hi))
-                sr.UpperLimit = hi;
+
+            var lowerLimitStr = GetTrimmedAttributeValue(child, "lowerLimit");
+            if (!string.IsNullOrEmpty(lowerLimitStr))
+            {
+                var lowerParsed = long.TryParse(lowerLimitStr, NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out var lo);
+                if (lowerParsed)
+                    sr.LowerLimit = lo;
+                RejectFailedSignedNumericAttribute(lowerLimitStr, lowerParsed, "lowerLimit");
+            }
+
+            var upperLimitStr = GetTrimmedAttributeValue(child, "upperLimit");
+            if (!string.IsNullOrEmpty(upperLimitStr))
+            {
+                var upperParsed = long.TryParse(upperLimitStr, NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out var hi);
+                if (upperParsed)
+                    sr.UpperLimit = hi;
+                RejectFailedSignedNumericAttribute(upperLimitStr, upperParsed, "upperLimit");
+            }
+
             array.Subranges.Add(sr);
         }
     }
@@ -208,7 +223,7 @@ private static ApVarDeclaration ParseVarDeclaration(XElement elem)
 
     var signedStr = elem.Attribute("signed")?.Value;
     if (signedStr != null)
-        vd.IsSigned = signedStr.Equals("true", StringComparison.OrdinalIgnoreCase) || signedStr == "1";
+        vd.IsSigned = ParseXmlBool(signedStr);
 
     ApReadLabelGroup(elem, vd.LabelGroup);
     vd.Type = ParseTypeRef(elem);
@@ -506,11 +521,15 @@ private static ApVariableRef ParseVariableRef(XElement elem)
 {
     var vr = new ApVariableRef();
 
-    var posStr = elem.Attribute("position")?.Value;
-    if (posStr != null &&
-        byte.TryParse(posStr, NumberStyles.None,
-            CultureInfo.InvariantCulture, out var pos))
-        vr.Position = pos;
+    var posStr = GetTrimmedAttributeValue(elem, "position");
+    if (!string.IsNullOrEmpty(posStr))
+    {
+        var posParsed = byte.TryParse(posStr, UnsignedXsdIntegerStyles,
+            CultureInfo.InvariantCulture, out var pos);
+        if (posParsed)
+            vr.Position = pos;
+        RejectFailedNumericAttribute(posStr, posParsed, "position");
+    }
 
     foreach (var child in elem.Elements())
     {
@@ -529,11 +548,15 @@ private static ApVariableRef ParseVariableRef(XElement elem)
                 {
                     UniqueIdRef = child.Attribute("uniqueIDRef")?.Value,
                 };
-                var idxStr = child.Attribute("index")?.Value;
-                if (idxStr != null &&
-                    long.TryParse(idxStr, NumberStyles.Integer,
-                        CultureInfo.InvariantCulture, out var idx))
-                    vr.MemberRef.Index = idx;
+                var idxStr = GetTrimmedAttributeValue(child, "index");
+                if (!string.IsNullOrEmpty(idxStr))
+                {
+                    var idxParsed = long.TryParse(idxStr, NumberStyles.Integer,
+                        CultureInfo.InvariantCulture, out var idx);
+                    if (idxParsed)
+                        vr.MemberRef.Index = idx;
+                    RejectFailedSignedNumericAttribute(idxStr, idxParsed, "index");
+                }
                 break;
         }
     }

@@ -167,13 +167,17 @@ legacy static `Read*` / `Write*` overloads:
 | XDD | `CanOpenFile.Xdd` | `CanOpenFile.Xdd.ReadFile("device.xdd")` |
 | XDC | `CanOpenFile.Xdc` | `CanOpenFile.Xdc.ReadFile("device.xdc")` |
 
-These entry points accept `CanOpenFileOptions` (read limits) and `CanOpenWriteOptions`
-(pre-write validation) in one place. Legacy facade overloads remain for backward
-compatibility and delegate to the same operations; overloads that only supply default
-parameters are marked `[Obsolete]` (advisory) and will be removed in a future major release.
+These entry points accept `CanOpenFileOptions` (`MaxInputSize`, `StrictParsing`)
+and `CanOpenWriteOptions` (pre-write validation) in one place. Legacy facade
+`Read*` / `Write*` overloads (path, stream, string, sync, async, and options-taking
+variants) remain for backward compatibility and are marked `[Obsolete]` (advisory);
+they will be removed in a future major release.
 
 EDS-to-DCF conversion lives on the EDS entry point: `CanOpenFile.Eds.ConvertToDcf(...)`.
-The legacy `CanOpenFile.EdsToDcf(...)` methods delegate there.
+The no-timestamp `CanOpenFile.EdsToDcf(...)` overload is obsolete and delegates
+there; the `EdsToDcf(..., DateTime timestamp, ...)` overload is intentionally
+**not** obsolete (thin retained shim for deterministic timestamps) but new code
+should still call `Eds.ConvertToDcf`.
 
 ```csharp
 using EdsDcfNet;
@@ -186,9 +190,9 @@ CanOpenFile.Dcf.WriteFile(dcf, "device_node2.dcf", CanOpenWriteOptions.Validated
 ## Migration Guide
 
 If your code still calls the legacy `CanOpenFile.Read*` / `Write*` / `EdsToDcf` static
-methods, move to the format entry points in the table above. Default-parameter facade
-overloads are marked `[Obsolete]` (advisory) and delegate to the same implementation;
-they remain available until a future major release.
+methods, move to the format entry points in the table above. **All** legacy
+`Read*` / `Write*` facade overloads are marked `[Obsolete]` (advisory)—not only
+default-parameter variants—and remain available until a future major release.
 
 ### Facade → format entry point
 
@@ -206,9 +210,19 @@ Each format uses the same method names on its entry point (`Eds`, `Dcf`, `Cpj`, 
 | `WriteEds(model, stream)`, … | `Eds.WriteStream(model, stream)`, … |
 | `WriteEdsAsync(...)`, … | `Eds.WriteFileAsync(...)`, `Eds.WriteStreamAsync(...)`, … |
 | `WriteEdsToString(...)`, … | `Eds.WriteToString(...)`, `Dcf.WriteToString(...)`, … |
-| `EdsToDcf(...)` | `Eds.ConvertToDcf(...)` |
+| `EdsToDcf(...)` (no timestamp) | `Eds.ConvertToDcf(...)` — obsolete |
+| `EdsToDcf(..., DateTime timestamp, ...)` | Prefer `Eds.ConvertToDcf(..., timestamp, ...)`; facade overload kept (not obsolete) |
 
-`CanOpenFile.Validate(...)` is unchanged.
+### Non-obsolete facade members
+
+These `CanOpenFile` static members are **not** marked `[Obsolete]`:
+
+| Member | Notes |
+|--------|--------|
+| `Validate(...)` / `ValidateAsync(...)` | Unchanged validation entry points |
+| `EnsureValid(...)` / `EnsureValidAsync(...)` | Throw-on-invalid helpers for EDS/DCF/CPJ |
+| `EdsToDcf(..., DateTime timestamp, ...)` | Intentional retained shim; prefer `Eds.ConvertToDcf` for new code |
+| Format entry points (`Eds`, `Dcf`, `Cpj`, `Xdd`, `Xdc`) | Canonical API |
 
 ### Input size limits
 
@@ -559,8 +573,10 @@ IReadOnlyList<ValidationIssue> Validate(ElectronicDataSheet eds)
 IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
 ```
 
-Legacy static `Read*` / `Write*` / `EdsToDcf` facade methods remain for backward compatibility
-and delegate to these entry points; default-parameter-only overloads are marked `[Obsolete]`.
+Legacy static `Read*` / `Write*` facade methods remain for backward compatibility
+and are all marked `[Obsolete]` (advisory). The no-timestamp `EdsToDcf` overload is
+obsolete; `EdsToDcf(..., DateTime timestamp, ...)` is retained without `[Obsolete]`
+as a thin shim (prefer `Eds.ConvertToDcf`). `Validate*` is unchanged.
 
 ### Input Size Limits and Tuning
 
@@ -576,16 +592,50 @@ var xdd = CanOpenFile.Xdd.ReadFile(
     new CanOpenFileOptions { MaxInputSize = 50L * 1024 * 1024 });
 ```
 
+### Strict parsing (opt-in)
+
+Set `CanOpenFileOptions.StrictParsing = true` so silent read coercions fail with
+`EdsParseException` instead of mapping to defaults. Default remains lenient.
+This applies to reads through the `CanOpenFile` format entry points (and legacy
+facade overloads that accept options). Direct `*Reader` APIs without options
+stay lenient (no public way to enable StrictParsing on those readers).
+
+Today this covers:
+
+- Duplicate keys within an INI section
+- Unknown XDD/XDC baud-rate strings (`supportedBaudRate`, `actualBaudRate`,
+  `baudRate/@defaultValue`)
+- Unknown boolean tokens (`ValueConverter.ParseBoolean`) and CPJ present-flag
+  tokens (`ValueConverter.ParsePresentFlag`)
+- Unknown access-type tokens (`ValueConverter.ParseAccessType` and XDD
+  `ParseXddAccessType`) and unknown XDD XML bools (`ParseXmlBool`)
+- EDS/DCF `FileVersion` / `FileRevision` and XDD/XDC `fileVersion` major/minor
+  tooling forms (`1.0` / `1,0`); zero-padded values such as `010` parse as
+  decimal `10` across EDS/DCF/XDD
+- Missing XDD/XDC `index` on `CANopenObject`, and missing or invalid
+  `objectType` (schema-valid unsignedByte forms such as `+9` / `-0` are
+  accepted after trim; missing `CANopenSubObject` `subIndex` stays lenient)
+- Malformed XDD/XDC unsigned numeric attributes (`objFlags`, `subNumber`,
+  `pDOmappingIndex`, general-feature counts, `networkNumber`)
+
+```csharp
+var eds = CanOpenFile.Eds.ReadFile(
+    "device.eds",
+    new CanOpenFileOptions { StrictParsing = true });
+```
+
 Guidance:
 - Keep the default whenever possible.
-- Increase limits only for trusted sources and known use cases.
+- Enable StrictParsing for trusted inputs when you want malformed tokens to fail
+  fast instead of coercing.
+- Increase `MaxInputSize` only for trusted sources and known use cases.
 - Set the limit just high enough for your expected maximum file size.
 
 ### Options extension pattern (format-specific options)
 
 `CanOpenFileOptions` (read) and `CanOpenWriteOptions` (write) are intentionally
 small, shared across all formats, and hold only cross-format concerns
-(input-size limit, pre-write validation).
+(`MaxInputSize`, `StrictParsing`, and pre-write `ValidateBeforeWrite`).
 
 When a genuinely **format-specific** option becomes necessary (for example XDD
 XML formatting, INI section ordering, or CPJ network defaults), the agreed
@@ -635,7 +685,7 @@ Rules for adding such an option:
 - ✅ Compact Storage (CompactSubObj, CompactPDO)
 - ✅ Object Links
 - ✅ Modular device concept
-- ✅ Hexadecimal, decimal, and octal numbers
+- ✅ Hexadecimal (`0x`), decimal, and octal (`0`+digit, e.g. `010` → 8 — not padded decimal)
 - ✅ $NODEID formula evaluation (e.g., $NODEID+0x200)
 - ✅ CANopen Safety (EN 50325-5) - SRDOMapping, InvertedSRAD
 - ✅ Comments and additional sections

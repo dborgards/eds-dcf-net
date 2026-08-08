@@ -18,7 +18,11 @@ The library uses **exceptions** as its primary error mechanism:
 
 > **Note:** `CanOpenFile.Eds.ConvertToDcf` (and the obsolete `CanOpenFile.EdsToDcf` facade that delegates to it), DCF parsing, and XDC writing enforce CANopen Node-ID constraints for explicit commissioning data. EDS-to-DCF conversion and DCF parsing require `1..127`; XDC writing emits commissioning only when a configured NodeId is present and valid and throws `XdcWriteException` for out-of-range values.
 
-> **Compatibility note (AccessType):** Parsing of invalid or unknown `AccessType` values is intentionally tolerant and falls back to `ReadOnly` instead of failing. This is a deliberate trade-off to maximize interoperability with non-compliant manufacturer EDS/DCF files.
+> **Compatibility note (AccessType):** By default, parsing of invalid or unknown
+> `AccessType` values is intentionally tolerant and falls back to `ReadOnly`
+> instead of failing. Set `CanOpenFileOptions.StrictParsing = true` on facade
+> reads to reject unknown EDS/DCF tokens via `ValueConverter.ParseAccessType`
+> and unknown XDD/XDC tokens via `ParseXddAccessType`.
 
 ### Error Tolerance
 
@@ -37,7 +41,14 @@ flowchart TD
 - **Required fields**: Missing required sections result in an `EdsParseException`.
 - **Optional fields**: Missing optional values result in `null` or default values.
 - **Unknown INI sections**: Preserved in `AdditionalSections` (no warning, no error).
+- **Duplicate INI keys**: Last write wins by default. With `CanOpenFileOptions.StrictParsing = true` (or `IniParser` `strictParsing: true`), duplicates throw `EdsParseException`.
+- **XDD/XDC baud-rate strings**: Unknown `supportedBaudRate`, `actualBaudRate`, and `baudRate/@defaultValue` values map to `0` / are ignored by default. With `StrictParsing = true`, they throw `EdsParseException`.
+- **Boolean / AccessType / present-flag tokens**: Lenient defaults unless `StrictParsing = true` on facade reads (`ParseBoolean` / `ParseAccessType` / `ParsePresentFlag`, plus XDD `ParseXddAccessType` / `ParseXmlBool`).
+- **FileVersion / FileRevision**: Major/minor tooling forms are accepted unless `StrictParsing = true`. Zero-padded values such as `010` parse as decimal `10` (aligned with XDD `fileVersion`).
+- **XDD/XDC OD `index` / `objectType`**: Missing `CANopenObject` `index` defaults to `0x0000` and missing/invalid `objectType` (on objects or sub-objects) defaults to `0x7` (VAR). With `StrictParsing = true`, both throw `EdsParseException`. Present `objectType` values are trimmed and accept schema-valid `xsd:unsignedByte` lexical forms (optional leading sign). Missing `CANopenSubObject` `subIndex` remains lenient (`00`) in both modes.
+- **XDD/XDC unsigned numeric attributes**: Malformed `objFlags`, `subNumber`, `pDOmappingIndex`, general-feature counts, and `networkNumber` are ignored by default. With `StrictParsing = true`, they throw `EdsParseException` (whitespace and optional leading sign accepted after trim).
 - **CiA 311 XML**: Parsed against supported profile structures; unsupported XML nodes are not represented as generic passthrough data.
+- **Direct readers**: `EdsReader` / `DcfReader` / `XddReader` / etc. called without facade options remain lenient (no public StrictParsing switch on those types).
 
 ### Input Size Limits
 
@@ -78,18 +89,42 @@ value.ToString();
 
 ## 8.3 Number Format Processing
 
-The `ValueConverter` supports three number formats specified in CiA DS 306:
+The `ValueConverter` (and typed OD conversion via `CanOpenValueConverter`) supports three
+integer literal forms aligned with the C-style conventions used by CiA DS 306 tooling:
 
 ```mermaid
 flowchart TD
     A["Input string"] --> B{"Starts with '0x' or '0X'?"}
     B -->|Yes| C["Parse as hexadecimal<br/>(e.g., 0x1A00)"]
-    B -->|No| D{"Starts with '0' and length > 1?"}
-    D -->|Yes| E["Parse as octal<br/>(e.g., 0177)"]
+    B -->|No| D{"Starts with '0' and length > 1<br/>and second char is a digit?"}
+    D -->|Yes| E["Parse as octal<br/>(e.g., 010 → 8, 0177 → 127)"]
     D -->|No| F{"Starts with '$NODEID'?"}
     F -->|Yes| G["Evaluate $NODEID formula<br/>(e.g., $NODEID+0x200)"]
-    F -->|No| H["Parse as decimal<br/>(e.g., 42)"]
+    F -->|No| H["Parse as decimal<br/>(e.g., 42, 10)"]
 ```
+
+### Leading-zero decision (#411)
+
+| Literal | Interpreted as | Result |
+|---------|----------------|--------|
+| `10` | decimal | 10 |
+| `010` | **octal** | 8 |
+| `08` / `09` | invalid octal | parse error (`EdsParseException`) |
+| `0x10` | hexadecimal | 16 |
+
+**Decision (current major line):** keep automatic octal for `0`+digit on object-dictionary
+and general numeric fields. Hexadecimal requires an explicit `0x` / `0X` prefix.
+Zero-padded *decimal* values in real EDS/DCF files (for example `DefaultValue=010`
+meaning ten) are therefore misread unless authors use unpadded decimal (`10`) or
+hex (`0x0A`).
+
+**Exception — `FileVersion` / `FileRevision`:** these metadata fields use plain
+decimal parsing (aligned with XDD `fileVersion`), so `FileVersion=010` → `10` on
+EDS, DCF, and XDD alike. General OD values still follow the octal rule above.
+
+Changing the default OD rule to “leading zeros are decimal” would be a **breaking**
+behavior change for callers that rely on C-style octal; that switch is deferred to a
+planned major release or a dedicated opt-in, not done as a silent patch.
 
 ### $NODEID Formula
 
@@ -121,6 +156,8 @@ Mechanisms (INI formats):
 
 For CiA 311 XML, round-trip behavior is guaranteed for the currently mapped schema subset used by `XddReader`/`XdcReader` and `XddWriter`/`XdcWriter`.
 
+`AdditionalSections` remains an **INI-shaped** `Dictionary<string, Dictionary<string, string>>`. Unknown children of the **CommunicationNetwork** `ProfileBody` are captured as attribute-only key/value maps for in-memory inspection and XDC→EDS bridging; nested XML content is discarded. Unknown children of the Device `ProfileBody` are not captured. `XddWriter`/`XdcWriter` rebuild a fixed CommunicationNetwork ProfileBody (`ApplicationLayers` / `TransportLayers` / `NetworkManagement`) without re-emitting those entries. Do not treat `AdditionalSections` as an XDD/XDC vendor-extension round-trip store.
+
 ## 8.5 CiA 311 XML Mapping
 
 CiA 311 support is implemented through explicit mapping of ISO 15745 profile elements to shared domain models:
@@ -130,9 +167,18 @@ CiA 311 support is implemented through explicit mapping of ISO 15745 profile ele
 - `deviceCommissioning` maps to `DeviceCommissioning`.
 
 XDC writer behavior:
-- NodeId `0` means "commissioning not configured" and omits the XML `deviceCommissioning` element.
+- NodeId `0` means "commissioning not configured" and omits the XML `deviceCommissioning` element **only when every commissioning field is empty/zero** (including `LssSerialNumber`, `NodeRefd`, and `NetRefd`).
 - NodeId `1..127` emits a valid `deviceCommissioning` element.
-- Out-of-range NodeId values cause an `XdcWriteException`.
+- Out-of-range NodeId values (including NodeId `0` with any other field set) cause an `XdcWriteException`.
+- CiA 311 `deviceCommissioning` attributes are limited to `nodeID`, `nodeName`,
+  `actualBaudRate`, `networkNumber`, `networkName`, and `CANopenManager`.
+  DCF-only fields `LSS_SerialNumber`, `NodeRefd`, and `NetRefd`
+  (`DeviceCommissioning.LssSerialNumber` / `NodeRefd` / `NetRefd`) have no
+  schema equivalent and are intentionally omitted from that element when
+  NodeId is `1..127` (including DCF→XDC conversion). They do **not** cause a
+  silent drop when NodeId is `0` with those fields populated — that write fails.
+  Use DCF to preserve the complete set; CPJ can retain network/node reference
+  designators but has no serial-number field.
 
 ## 8.6 Modular Devices (CiA DS 306)
 

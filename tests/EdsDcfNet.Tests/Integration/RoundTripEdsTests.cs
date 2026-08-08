@@ -12,11 +12,11 @@ public class RoundTripEdsTests
     public void RoundTrip_SampleEds_PreservesFileInfo()
     {
         // Arrange
-        var original = CanOpenFile.ReadEds("Fixtures/sample_device.eds");
+        var original = CanOpenFile.Eds.ReadFile("Fixtures/sample_device.eds");
 
         // Act
-        var edsString = CanOpenFile.WriteEdsToString(original);
-        var roundTripped = CanOpenFile.ReadEdsFromString(edsString);
+        var edsString = CanOpenFile.Eds.WriteToString(original);
+        var roundTripped = CanOpenFile.Eds.ReadString(edsString);
 
         // Assert
         roundTripped.FileInfo.FileName.Should().Be(original.FileInfo.FileName);
@@ -29,11 +29,11 @@ public class RoundTripEdsTests
     public void RoundTrip_SampleEds_PreservesDeviceInfoAndObjectLists()
     {
         // Arrange
-        var original = CanOpenFile.ReadEds("Fixtures/sample_device.eds");
+        var original = CanOpenFile.Eds.ReadFile("Fixtures/sample_device.eds");
 
         // Act
-        var edsString = CanOpenFile.WriteEdsToString(original);
-        var roundTripped = CanOpenFile.ReadEdsFromString(edsString);
+        var edsString = CanOpenFile.Eds.WriteToString(original);
+        var roundTripped = CanOpenFile.Eds.ReadString(edsString);
 
         // Assert
         roundTripped.DeviceInfo.VendorName.Should().Be(original.DeviceInfo.VendorName);
@@ -48,11 +48,11 @@ public class RoundTripEdsTests
     public void RoundTrip_SampleEds_PreservesSubObjectsAndComments()
     {
         // Arrange
-        var original = CanOpenFile.ReadEds("Fixtures/sample_device.eds");
+        var original = CanOpenFile.Eds.ReadFile("Fixtures/sample_device.eds");
 
         // Act
-        var edsString = CanOpenFile.WriteEdsToString(original);
-        var roundTripped = CanOpenFile.ReadEdsFromString(edsString);
+        var edsString = CanOpenFile.Eds.WriteToString(original);
+        var roundTripped = CanOpenFile.Eds.ReadString(edsString);
 
         // Assert
         roundTripped.ObjectDictionary.Objects[0x1018].SubObjects[1].DefaultValue.Should()
@@ -90,8 +90,8 @@ Foo=Bar
 ";
 
         // Act
-        var original = CanOpenFile.ReadEdsFromString(content);
-        var roundTripped = CanOpenFile.ReadEdsFromString(CanOpenFile.WriteEdsToString(original));
+        var original = CanOpenFile.Eds.ReadString(content);
+        var roundTripped = CanOpenFile.Eds.ReadString(CanOpenFile.Eds.WriteToString(original));
 
         // Assert
         roundTripped.AdditionalSections.Should().ContainKey("VendorSpecificSection");
@@ -122,13 +122,13 @@ AccessType=ro
 PDOMapping=0
 ";
 
-        var eds = CanOpenFile.ReadEdsFromString(content);
+        var eds = CanOpenFile.Eds.ReadString(content);
         eds.ObjectDictionary.Objects[0x1000].ParameterValue = "0x123";
         eds.ObjectDictionary.Objects[0x1000].Denotation = "Configured";
         eds.ObjectDictionary.Objects[0x1000].ParamRefd = "X1.A1";
 
         // Act
-        var written = CanOpenFile.WriteEdsToString(eds);
+        var written = CanOpenFile.Eds.WriteToString(eds);
 
         // Assert
         written.Should().NotContain("ParameterValue=");
