@@ -296,8 +296,8 @@ internal static class XddCommNetProfileParser
             var keyPart = entry[..eqIdx].Trim();
             var valPart = entry[(eqIdx + 1)..].Trim();
 
-            // keyPart must start with "Dummy" followed by 4 hex digits
-            if (!keyPart.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase) || keyPart.Length < 9)
+            // keyPart must be exactly "Dummy" + 4 hex digits
+            if (!keyPart.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase) || keyPart.Length != 9)
             {
                 RejectMalformedDummyUsageEntry(entry);
                 continue;
@@ -309,6 +309,9 @@ internal static class XddCommNetProfileParser
                 RejectMalformedDummyUsageEntry(entry);
                 continue;
             }
+
+            if (valPart != "0" && valPart != "1")
+                RejectMalformedDummyUsageEntry(entry);
 
             dict.DummyUsage[dummyIndex] = valPart == "1";
         }
