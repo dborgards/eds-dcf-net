@@ -238,6 +238,24 @@ internal static class XddParsingPrimitives
     /// </summary>
     internal static void RejectFailedNumericAttribute(string? raw, bool parsed, string attributeName)
     {
+        RejectFailedIntegerAttribute(raw, parsed, attributeName, signed: false);
+    }
+
+    /// <summary>
+    /// Like <see cref="RejectFailedNumericAttribute"/>, but the diagnostic describes a
+    /// signed integer (for attributes parsed via <c>long.TryParse</c>).
+    /// </summary>
+    internal static void RejectFailedSignedNumericAttribute(string? raw, bool parsed, string attributeName)
+    {
+        RejectFailedIntegerAttribute(raw, parsed, attributeName, signed: true);
+    }
+
+    private static void RejectFailedIntegerAttribute(
+        string? raw,
+        bool parsed,
+        string attributeName,
+        bool signed)
+    {
         if (string.IsNullOrEmpty(raw) || parsed)
             return;
 
@@ -247,7 +265,9 @@ internal static class XddParsingPrimitives
         throw new EdsParseException(
             string.Format(
                 CultureInfo.InvariantCulture,
-                "Invalid {0} '{1}'. Value cannot be parsed as an unsigned integer.",
+                signed
+                    ? "Invalid {0} '{1}'. Value cannot be parsed as a signed integer."
+                    : "Invalid {0} '{1}'. Value cannot be parsed as an unsigned integer.",
                 attributeName,
                 raw));
     }
