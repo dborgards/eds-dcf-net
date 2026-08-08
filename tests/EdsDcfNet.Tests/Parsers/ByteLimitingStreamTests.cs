@@ -174,6 +174,23 @@ public class ByteLimitingStreamTests
     }
 
     [Fact]
+    public void Read_AfterLimitExceeded_FurtherReadsRequestNoBytes()
+    {
+        // After CountBytes throws, _totalBytesRead already exceeds _maxBytes.
+        // AllowedCount must clamp to 0 instead of passing a negative count.
+        var inner = new CountingStream(new byte[1024]);
+        using var stream = Create(inner, maxBytes: 8);
+        var buffer = new byte[1024];
+
+        var act = () => stream.Read(buffer, 0, buffer.Length);
+        act.Should().Throw<EdsParseException>();
+
+        var servedBefore = inner.TotalBytesServed;
+        stream.Read(buffer, 0, buffer.Length).Should().Be(0);
+        inner.TotalBytesServed.Should().Be(servedBefore);
+    }
+
+    [Fact]
     public async Task ReadAsync_OverLimit_ReadsAtMostOneByteBeyondTheLimit()
     {
         var inner = new CountingStream(new byte[1024]);
