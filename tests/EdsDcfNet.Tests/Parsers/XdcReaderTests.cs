@@ -603,6 +603,28 @@ public class XdcReaderTests
     }
 
     [Fact]
+    public void ParseDeviceCommissioning_NoCommNetProfileBody_ReturnsNull()
+    {
+        var method = typeof(XdcReader).GetMethod(
+            "ParseDeviceCommissioning",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var doc = System.Xml.Linq.XDocument.Parse(@"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""t.xdc"" fileVersion=""1"">
+      <DeviceIdentity><vendorName>V</vendorName></DeviceIdentity>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>");
+
+        var result = method!.Invoke(null, new object[] { doc });
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
     public void ParseDeviceCommissioning_NoNetworkManagementElement_ReturnsDefault()
     {
         // XDC without a deviceCommissioning element → ParseDeviceCommissioning returns null → default
@@ -752,6 +774,49 @@ public class XdcReaderTests
         var result = _reader.ReadString(xdc);
 
         result.DeviceCommissioning.NodeId.Should().Be(9);
+    }
+
+    [Fact]
+    public void ParseDeviceCommissioning_CommNetProfileBodyAfterSibling_ParsesCommissioning()
+    {
+        // Device + CommNet ProfileBody siblings in one ISO15745Profile: commissioning must
+        // still be found when CommNet is not the first ProfileBody child.
+        const string xdc = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""t.xdc"" fileVersion=""1"">
+      <DeviceIdentity><vendorName>V</vendorName><vendorID>0x1</vendorID><productName>P</productName><productID>0x1</productID></DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""t.xdc"" fileVersion=""1"">
+      <ApplicationLayers>
+        <CANopenObjectList mandatoryObjects=""0"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" PDOmapping=""no""/>
+        </CANopenObjectList>
+      </ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""250 Kbps""/></PhysicalLayer></TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0""
+                                bootUpSlave=""false"" layerSettingServiceSlave=""false""
+                                groupMessaging=""false"" dynamicChannels=""0""/>
+        <CANopenMasterFeatures bootUpMaster=""false""/>
+        <deviceCommissioning nodeID=""11"" nodeName=""SiblingNode""
+                             actualBaudRate=""125 Kbps"" networkNumber=""4""
+                             networkName=""SiblingNet"" CANopenManager=""true""/>
+      </NetworkManagement>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>";
+
+        var result = _reader.ReadString(xdc);
+
+        result.DeviceCommissioning.NodeId.Should().Be(11);
+        result.DeviceCommissioning.NodeName.Should().Be("SiblingNode");
+        result.DeviceCommissioning.Baudrate.Should().Be(125);
+        result.DeviceCommissioning.NetNumber.Should().Be(4);
+        result.DeviceCommissioning.NetworkName.Should().Be("SiblingNet");
+        result.DeviceCommissioning.CANopenManager.Should().BeTrue();
     }
 
     [Fact]

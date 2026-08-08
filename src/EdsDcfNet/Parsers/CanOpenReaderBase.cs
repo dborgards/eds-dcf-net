@@ -2,6 +2,7 @@ namespace EdsDcfNet.Parsers;
 
 using System.Globalization;
 
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
@@ -184,14 +185,24 @@ public abstract class CanOpenReaderBase
         {
             foreach (var key in IniParser.GetKeys(sections, "DummyUsage"))
             {
-                if (key.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase) && key.Length > 5)
+                if (!key.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var indexStr = key.Length > 5 ? key[5..] : string.Empty;
+                if (ushort.TryParse(indexStr, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
                 {
-                    var indexStr = key[5..];
-                    if (ushort.TryParse(indexStr, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
-                    {
-                        objDict.DummyUsage[index] = ValueConverter.ParseBoolean(
-                            IniParser.GetValue(sections, "DummyUsage", key));
-                    }
+                    objDict.DummyUsage[index] = ValueConverter.ParseBoolean(
+                        IniParser.GetValue(sections, "DummyUsage", key));
+                    continue;
+                }
+
+                if (StrictParsingScope.IsEnabled)
+                {
+                    throw new EdsParseException(
+                        string.Format(
+                            CultureInfo.InvariantCulture,
+                            "Invalid DummyUsage key '{0}'. Expected DummyXXXX with a hexadecimal index.",
+                            key));
                 }
             }
         }

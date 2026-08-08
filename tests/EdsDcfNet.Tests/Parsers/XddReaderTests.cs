@@ -1620,6 +1620,17 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void RejectFailedSignedNumericAttribute_StrictParsing_MentionsSignedInteger()
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            var act = () => XddParsingPrimitives.RejectFailedSignedNumericAttribute("oops", parsed: false, "lowerLimit");
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*lowerLimit*oops*signed integer*");
+        }
+    }
+
+    [Fact]
     public void ParseCanOpenObject_InvalidSubNumber_StrictParsing_ThrowsEdsParseException()
     {
         var xdd = MinimalXdd.Replace(
@@ -1876,6 +1887,117 @@ public class XddReaderTests
 
         result.ObjectDictionary.DummyUsage.Should().ContainKey(0x0002);
         result.ObjectDictionary.DummyUsage.Should().NotContainKey(0x0005);
+    }
+
+    [Fact]
+    public void ParseDummyUsage_InvalidHexSuffix_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = File.ReadAllText("Fixtures/sample_device.xdd")
+            .Replace(@"<dummy entry=""Dummy0005=1""/>", @"<dummy entry=""DummyGGGG=1""/>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*dummyUsage*DummyGGGG=1*");
+    }
+
+    [Fact]
+    public void ParseDummyUsage_EntryWithoutEquals_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dummyUsage>
+            <dummy entry=""InvalidEntryNoEquals""/>
+          </dummyUsage>
+        </ApplicationLayers>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*dummyUsage*InvalidEntryNoEquals*");
+    }
+
+    [Fact]
+    public void ParseDummyUsage_ShortDummyKey_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dummyUsage>
+            <dummy entry=""Dummy1=1""/>
+          </dummyUsage>
+        </ApplicationLayers>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*dummyUsage*Dummy1=1*");
+    }
+
+    [Fact]
+    public void ParseDummyUsage_OverlongDummyKey_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dummyUsage>
+            <dummy entry=""Dummy00001=1""/>
+          </dummyUsage>
+        </ApplicationLayers>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*dummyUsage*Dummy00001=1*");
+    }
+
+    [Fact]
+    public void ParseDummyUsage_OverlongDummyKey_Lenient_ParsesHexSuffix()
+    {
+        // Pre-existing lenient behavior: Dummy00001=1 is accepted as index 1.
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dummyUsage>
+            <dummy entry=""Dummy00001=1""/>
+          </dummyUsage>
+        </ApplicationLayers>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.DummyUsage.Should().ContainKey((ushort)0x0001);
+        result.ObjectDictionary.DummyUsage[0x0001].Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("2")]
+    [InlineData("true")]
+    public void ParseDummyUsage_InvalidValue_StrictParsing_ThrowsEdsParseException(string badValue)
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            $@"  <dummyUsage>
+            <dummy entry=""Dummy0002={badValue}""/>
+          </dummyUsage>
+        </ApplicationLayers>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage($"*dummyUsage*Dummy0002={badValue}*");
+    }
+
+    [Fact]
+    public void ParseDummyUsage_InvalidValue_Lenient_CoercesToFalse()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ApplicationLayers>",
+            @"  <dummyUsage>
+            <dummy entry=""Dummy0002=2""/>
+          </dummyUsage>
+        </ApplicationLayers>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.ObjectDictionary.DummyUsage.Should().ContainKey((ushort)0x0002);
+        result.ObjectDictionary.DummyUsage[0x0002].Should().BeFalse();
     }
 
     [Fact]
@@ -2470,6 +2592,132 @@ public class XddReaderTests
         var result = _reader.ReadString(xdd);
 
         result.AdditionalSections.Should().NotContainKey("VendorDeviceExtension");
+    }
+
+    #endregion
+
+    #region Duplicate ProfileBody StrictParsing (#486)
+
+    [Fact]
+    public void ReadString_DuplicateDeviceProfileBody_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ISO15745ProfileContainer>",
+            @"  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""dup.xdd"" fileVersion=""2"">
+      <DeviceIdentity>
+        <vendorName>Other</vendorName>
+        <vendorID>0x2</vendorID>
+        <productName>Other</productName>
+        <productID>0x2</productID>
+      </DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*more than one*ProfileBody_Device_CANopen*");
+    }
+
+    [Fact]
+    public void ReadString_SiblingDeviceProfileBodiesInSameProfile_StrictParsing_ThrowsEdsParseException()
+    {
+        // Two ProfileBody siblings under one ISO15745Profile must also be rejected.
+        const string xdd = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""a.xdd"" fileVersion=""1"">
+      <DeviceIdentity>
+        <vendorName>First</vendorName><vendorID>0x1</vendorID>
+        <productName>First</productName><productID>0x1</productID>
+      </DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""b.xdd"" fileVersion=""2"">
+      <DeviceIdentity>
+        <vendorName>Second</vendorName><vendorID>0x2</vendorID>
+        <productName>Second</productName><productID>0x2</productID>
+      </DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+  </ISO15745Profile>
+  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""t.xdd"" fileVersion=""1"">
+      <ApplicationLayers>
+        <CANopenObjectList mandatoryObjects=""0"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" PDOmapping=""no""/>
+        </CANopenObjectList>
+      </ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""250 Kbps""/></PhysicalLayer></TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0""
+                                bootUpSlave=""false"" layerSettingServiceSlave=""false""
+                                groupMessaging=""false"" dynamicChannels=""0""/>
+        <CANopenMasterFeatures bootUpMaster=""false""/>
+      </NetworkManagement>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>";
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*more than one*ProfileBody_Device_CANopen*");
+    }
+
+    [Fact]
+    public void ReadString_DuplicateCommNetProfileBody_StrictParsing_ThrowsEdsParseException()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ISO15745ProfileContainer>",
+            @"  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""dup.xdd"" fileVersion=""2"">
+      <ApplicationLayers>
+        <CANopenObjectList mandatoryObjects=""0"" optionalObjects=""0"" manufacturerObjects=""0""/>
+      </ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""125 Kbps""/></PhysicalLayer></TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0""
+                                bootUpSlave=""false"" layerSettingServiceSlave=""false""
+                                groupMessaging=""false"" dynamicChannels=""0""/>
+        <CANopenMasterFeatures bootUpMaster=""false""/>
+      </NetworkManagement>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>");
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*more than one*ProfileBody_CommunicationNetwork_CANopen*");
+    }
+
+    [Fact]
+    public void ReadString_DuplicateDeviceProfileBody_Lenient_LastWins()
+    {
+        var xdd = MinimalXdd.Replace(
+            "</ISO15745ProfileContainer>",
+            @"  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""dup.xdd"" fileVersion=""2"">
+      <DeviceIdentity>
+        <vendorName>Other Vendor</vendorName>
+        <vendorID>0x2</vendorID>
+        <productName>Other Product</productName>
+        <productID>0x2</productID>
+      </DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>");
+
+        var result = _reader.ReadString(xdd);
+
+        result.DeviceInfo.VendorName.Should().Be("Other Vendor");
+        result.DeviceInfo.ProductName.Should().Be("Other Product");
     }
 
     #endregion
