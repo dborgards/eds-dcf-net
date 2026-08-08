@@ -2501,6 +2501,53 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void ReadString_SiblingDeviceProfileBodiesInSameProfile_StrictParsing_ThrowsEdsParseException()
+    {
+        // Two ProfileBody siblings under one ISO15745Profile must also be rejected.
+        const string xdd = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""a.xdd"" fileVersion=""1"">
+      <DeviceIdentity>
+        <vendorName>First</vendorName><vendorID>0x1</vendorID>
+        <productName>First</productName><productID>0x1</productID>
+      </DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""b.xdd"" fileVersion=""2"">
+      <DeviceIdentity>
+        <vendorName>Second</vendorName><vendorID>0x2</vendorID>
+        <productName>Second</productName><productID>0x2</productID>
+      </DeviceIdentity>
+      <DeviceManager/><DeviceFunction/>
+    </ProfileBody>
+  </ISO15745Profile>
+  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_CommunicationNetwork_CANopen"" fileName=""t.xdd"" fileVersion=""1"">
+      <ApplicationLayers>
+        <CANopenObjectList mandatoryObjects=""0"" optionalObjects=""0"" manufacturerObjects=""0"">
+          <CANopenObject index=""1000"" name=""Device Type"" objectType=""7"" dataType=""0007""
+                         accessType=""ro"" PDOmapping=""no""/>
+        </CANopenObjectList>
+      </ApplicationLayers>
+      <TransportLayers><PhysicalLayer><baudRate defaultValue=""250 Kbps""/></PhysicalLayer></TransportLayers>
+      <NetworkManagement>
+        <CANopenGeneralFeatures granularity=""8"" nrOfRxPDO=""0"" nrOfTxPDO=""0""
+                                bootUpSlave=""false"" layerSettingServiceSlave=""false""
+                                groupMessaging=""false"" dynamicChannels=""0""/>
+        <CANopenMasterFeatures bootUpMaster=""false""/>
+      </NetworkManagement>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>";
+
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*more than one*ProfileBody_Device_CANopen*");
+    }
+
+    [Fact]
     public void ReadString_DuplicateCommNetProfileBody_StrictParsing_ThrowsEdsParseException()
     {
         var xdd = MinimalXdd.Replace(

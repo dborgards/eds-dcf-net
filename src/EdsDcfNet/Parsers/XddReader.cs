@@ -161,31 +161,29 @@ public class XddReader : IFileReader<ElectronicDataSheet>
 
         foreach (var profile in profiles)
         {
-            var profileBody = profile.Elements()
-                .FirstOrDefault(e => e.Name.LocalName == "ProfileBody");
-            if (profileBody == null)
-                continue;
-
-            var xsiType = GetXsiType(profileBody);
-            if (xsiType.Contains("ProfileBody_Device_CANopen", StringComparison.OrdinalIgnoreCase))
+            foreach (var profileBody in profile.Elements().Where(e => e.Name.LocalName == "ProfileBody"))
             {
-                if (deviceProfileBody != null && StrictParsingScope.IsEnabled)
+                var xsiType = GetXsiType(profileBody);
+                if (xsiType.Contains("ProfileBody_Device_CANopen", StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new EdsParseException(
-                        "XDD document contains more than one ProfileBody_Device_CANopen.");
-                }
+                    if (deviceProfileBody != null && StrictParsingScope.IsEnabled)
+                    {
+                        throw new EdsParseException(
+                            "XDD document contains more than one ProfileBody_Device_CANopen.");
+                    }
 
-                deviceProfileBody = profileBody;
-            }
-            else if (xsiType.Contains("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase))
-            {
-                if (commNetProfileBody != null && StrictParsingScope.IsEnabled)
+                    deviceProfileBody = profileBody;
+                }
+                else if (xsiType.Contains("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new EdsParseException(
-                        "XDD document contains more than one ProfileBody_CommunicationNetwork_CANopen.");
-                }
+                    if (commNetProfileBody != null && StrictParsingScope.IsEnabled)
+                    {
+                        throw new EdsParseException(
+                            "XDD document contains more than one ProfileBody_CommunicationNetwork_CANopen.");
+                    }
 
-                commNetProfileBody = profileBody;
+                    commNetProfileBody = profileBody;
+                }
             }
         }
 
