@@ -161,16 +161,30 @@ public class XddReader : IFileReader<ElectronicDataSheet>
 
         foreach (var profile in profiles)
         {
-            var profileBody = profile.Elements()
-                .FirstOrDefault(e => e.Name.LocalName == "ProfileBody");
-            if (profileBody == null)
-                continue;
+            foreach (var profileBody in profile.Elements().Where(e => e.Name.LocalName == "ProfileBody"))
+            {
+                var xsiType = GetXsiType(profileBody);
+                if (xsiType.Contains("ProfileBody_Device_CANopen", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (deviceProfileBody != null && StrictParsingScope.IsEnabled)
+                    {
+                        throw new EdsParseException(
+                            "XDD document contains more than one ProfileBody_Device_CANopen.");
+                    }
 
-            var xsiType = GetXsiType(profileBody);
-            if (xsiType.Contains("ProfileBody_Device_CANopen", StringComparison.OrdinalIgnoreCase))
-                deviceProfileBody = profileBody;
-            else if (xsiType.Contains("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase))
-                commNetProfileBody = profileBody;
+                    deviceProfileBody = profileBody;
+                }
+                else if (xsiType.Contains("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (commNetProfileBody != null && StrictParsingScope.IsEnabled)
+                    {
+                        throw new EdsParseException(
+                            "XDD document contains more than one ProfileBody_CommunicationNetwork_CANopen.");
+                    }
+
+                    commNetProfileBody = profileBody;
+                }
+            }
         }
 
         if (commNetProfileBody == null)
