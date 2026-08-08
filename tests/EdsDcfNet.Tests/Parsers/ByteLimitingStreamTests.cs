@@ -26,6 +26,32 @@ public class ByteLimitingStreamTests
     }
 
     [Fact]
+    public void Read_MaxInputSizeAtLongMaxValue_ReadsFully()
+    {
+        // Callers may set MaxInputSize = long.MaxValue to disable the limit.
+        // AllowedCount must not overflow when computing remaining+1.
+        var data = Encoding.UTF8.GetBytes("12345678");
+        using var stream = Create(new MemoryStream(data), maxBytes: long.MaxValue);
+
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+
+        reader.ReadToEnd().Should().Be("12345678");
+    }
+
+    [Fact]
+    public async Task ReadAsync_MaxInputSizeAtLongMaxValue_ReadsFully()
+    {
+        var data = Encoding.UTF8.GetBytes("12345678");
+        using var stream = Create(new MemoryStream(data), maxBytes: long.MaxValue);
+        var buffer = new byte[data.Length];
+
+        var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+
+        bytesRead.Should().Be(data.Length);
+        Encoding.UTF8.GetString(buffer).Should().Be("12345678");
+    }
+
+    [Fact]
     public void Read_ContentOneOverByteLimit_ThrowsEdsParseException()
     {
         var data = Encoding.UTF8.GetBytes("123456789");
@@ -145,6 +171,24 @@ public class ByteLimitingStreamTests
 
         act.Should().Throw<EdsParseException>();
         inner.TotalBytesServed.Should().Be(9);
+    }
+
+    [Fact]
+    public void Read_AfterLimitExceeded_FurtherReadsStillRejectWithoutReading()
+    {
+        // After CountBytes throws, _totalBytesRead already exceeds _maxBytes.
+        // AllowedCount must clamp to 0 (no negative count) while CountBytes keeps
+        // rejecting because the budget remains exceeded.
+        var inner = new CountingStream(new byte[1024]);
+        using var stream = Create(inner, maxBytes: 8);
+        var buffer = new byte[1024];
+
+        var act = () => stream.Read(buffer, 0, buffer.Length);
+        act.Should().Throw<EdsParseException>();
+
+        var servedBefore = inner.TotalBytesServed;
+        act.Should().Throw<EdsParseException>();
+        inner.TotalBytesServed.Should().Be(servedBefore);
     }
 
     [Fact]
