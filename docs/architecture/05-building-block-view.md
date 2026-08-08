@@ -183,7 +183,7 @@ classDiagram
 
 **XddWriter** serializes `ElectronicDataSheet` into CiA 311 XML (`ISO15745ProfileContainer`) using UTF-8 without BOM.
 
-**XdcWriter** extends `XddWriter` for configuration data and emits `actualValue`, `denotation`, and `deviceCommissioning` (NodeID must be `1..127` when present).
+**XdcWriter** extends `XddWriter` for configuration data and emits `actualValue`, `denotation`, and `deviceCommissioning` (NodeID must be `1..127` when present). DCF-only commissioning fields `LssSerialNumber`, `NodeRefd`, and `NetRefd` are intentionally omitted (no CiA 311 schema attributes).
 
 ### 5.2.3 Models
 

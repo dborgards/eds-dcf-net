@@ -12,6 +12,26 @@ using EdsDcfNet.Utilities;
 /// Writer for CiA 311 XDC (XML Device Configuration) files.
 /// Extends XddWriter with actualValue, denotation, and deviceCommissioning support.
 /// </summary>
+/// <remarks>
+/// <para>
+/// CiA 311 <c>deviceCommissioning</c> only defines <c>nodeID</c>, <c>nodeName</c>,
+/// <c>actualBaudRate</c>, <c>networkNumber</c>, <c>networkName</c>, and
+/// <c>CANopenManager</c>. The DCF-only fields
+/// <see cref="DeviceCommissioning.LssSerialNumber"/>,
+/// <see cref="DeviceCommissioning.NodeRefd"/>, and
+/// <see cref="DeviceCommissioning.NetRefd"/> have no schema-equivalent attributes
+/// and are intentionally not written when a valid NodeId (<c>1..127</c>) is present.
+/// Prefer DCF when those values must be preserved (CPJ can retain network/node
+/// reference designators, but has no serial-number field).
+/// </para>
+/// <para>
+/// A DCF→XDC conversion with NodeId in <c>1..127</c> therefore drops those three
+/// fields from the emitted element. If NodeId is <c>0</c> (or otherwise outside
+/// <c>1..127</c>) while any commissioning field is set — including only those
+/// DCF-only fields — writing throws <see cref="XdcWriteException"/> instead of
+/// omitting <c>deviceCommissioning</c>.
+/// </para>
+/// </remarks>
 public class XdcWriter : XddWriter
 {
     /// <summary>
@@ -209,6 +229,8 @@ public class XdcWriter : XddWriter
                 "deviceCommissioning");
         }
 
+        // CiA 311 deviceCommissioning has no attributes for LssSerialNumber / NodeRefd /
+        // NetRefd (CiA 306 DCF keys). Those properties are intentionally omitted here.
         var elem = new XElement("deviceCommissioning");
 
         elem.Add(new XAttribute("nodeID",

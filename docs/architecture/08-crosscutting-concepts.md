@@ -167,9 +167,18 @@ CiA 311 support is implemented through explicit mapping of ISO 15745 profile ele
 - `deviceCommissioning` maps to `DeviceCommissioning`.
 
 XDC writer behavior:
-- NodeId `0` means "commissioning not configured" and omits the XML `deviceCommissioning` element.
+- NodeId `0` means "commissioning not configured" and omits the XML `deviceCommissioning` element **only when every commissioning field is empty/zero** (including `LssSerialNumber`, `NodeRefd`, and `NetRefd`).
 - NodeId `1..127` emits a valid `deviceCommissioning` element.
-- Out-of-range NodeId values cause an `XdcWriteException`.
+- Out-of-range NodeId values (including NodeId `0` with any other field set) cause an `XdcWriteException`.
+- CiA 311 `deviceCommissioning` attributes are limited to `nodeID`, `nodeName`,
+  `actualBaudRate`, `networkNumber`, `networkName`, and `CANopenManager`.
+  DCF-only fields `LSS_SerialNumber`, `NodeRefd`, and `NetRefd`
+  (`DeviceCommissioning.LssSerialNumber` / `NodeRefd` / `NetRefd`) have no
+  schema equivalent and are intentionally omitted from that element when
+  NodeId is `1..127` (including DCF→XDC conversion). They do **not** cause a
+  silent drop when NodeId is `0` with those fields populated — that write fails.
+  Use DCF to preserve the complete set; CPJ can retain network/node reference
+  designators but has no serial-number field.
 
 ## 8.6 Modular Devices (CiA DS 306)
 
