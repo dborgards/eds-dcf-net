@@ -2267,6 +2267,48 @@ DummyZZZZ=1
         result.ObjectDictionary.DummyUsage.Should().HaveCount(1);
     }
 
+    [Fact]
+    public void ReadString_DummyUsage_BareDummyKey_StrictParsing_ThrowsEdsParseException()
+    {
+        // "Dummy" with no hex suffix (length == 5) must take the empty-index path and reject in strict mode.
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[DummyUsage]
+Dummy=1
+";
+
+        var act = () => CanOpenFile.Eds.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
+
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*DummyUsage*Dummy*");
+    }
+
+    [Fact]
+    public void ReadString_DummyUsage_BareDummyKey_Lenient_IsSkipped()
+    {
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[MandatoryObjects]
+SupportedObjects=0
+
+[DummyUsage]
+Dummy0002=1
+Dummy=1
+";
+
+        var result = CanOpenFile.Eds.ReadString(content);
+
+        result.ObjectDictionary.DummyUsage.Should().ContainKey(0x0002);
+        result.ObjectDictionary.DummyUsage.Should().HaveCount(1);
+    }
+
     #endregion
 
     #region Object Type Tests
