@@ -1812,7 +1812,7 @@ public class ApplicationProcessTests
         var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
 
         act.Should().Throw<EdsParseException>()
-            .WithMessage($"*{attribute}*{badValue}*");
+            .WithMessage($"*{attribute}*{badValue}*signed integer*");
     }
 
     [Fact]
@@ -1867,7 +1867,7 @@ public class ApplicationProcessTests
         var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
 
         act.Should().Throw<EdsParseException>()
-            .WithMessage("*index*notanumber*");
+            .WithMessage("*index*notanumber*signed integer*");
     }
 
     [Fact]

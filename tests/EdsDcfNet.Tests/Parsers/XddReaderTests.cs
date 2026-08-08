@@ -1620,6 +1620,17 @@ public class XddReaderTests
     }
 
     [Fact]
+    public void RejectFailedSignedNumericAttribute_StrictParsing_MentionsSignedInteger()
+    {
+        using (StrictParsingScope.Enter(true))
+        {
+            var act = () => XddParsingPrimitives.RejectFailedSignedNumericAttribute("oops", parsed: false, "lowerLimit");
+            act.Should().Throw<EdsParseException>()
+                .WithMessage("*lowerLimit*oops*signed integer*");
+        }
+    }
+
+    [Fact]
     public void ParseCanOpenObject_InvalidSubNumber_StrictParsing_ThrowsEdsParseException()
     {
         var xdd = MinimalXdd.Replace(

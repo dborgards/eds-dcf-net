@@ -101,7 +101,7 @@ private static ApArrayType ParseArrayType(XElement elem)
                     CultureInfo.InvariantCulture, out var lo);
                 if (lowerParsed)
                     sr.LowerLimit = lo;
-                RejectFailedNumericAttribute(lowerLimitStr, lowerParsed, "lowerLimit");
+                RejectFailedSignedNumericAttribute(lowerLimitStr, lowerParsed, "lowerLimit");
             }
 
             var upperLimitStr = GetTrimmedAttributeValue(child, "upperLimit");
@@ -111,7 +111,7 @@ private static ApArrayType ParseArrayType(XElement elem)
                     CultureInfo.InvariantCulture, out var hi);
                 if (upperParsed)
                     sr.UpperLimit = hi;
-                RejectFailedNumericAttribute(upperLimitStr, upperParsed, "upperLimit");
+                RejectFailedSignedNumericAttribute(upperLimitStr, upperParsed, "upperLimit");
             }
 
             array.Subranges.Add(sr);
@@ -555,7 +555,7 @@ private static ApVariableRef ParseVariableRef(XElement elem)
                         CultureInfo.InvariantCulture, out var idx);
                     if (idxParsed)
                         vr.MemberRef.Index = idx;
-                    RejectFailedNumericAttribute(idxStr, idxParsed, "index");
+                    RejectFailedSignedNumericAttribute(idxStr, idxParsed, "index");
                 }
                 break;
         }
