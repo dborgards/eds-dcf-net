@@ -178,22 +178,20 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
 
         foreach (var profile in root.Elements().Where(e => e.Name.LocalName == "ISO15745Profile"))
         {
-            var profileBody = profile.Elements()
-                .FirstOrDefault(e => e.Name.LocalName == "ProfileBody");
-            if (profileBody == null)
-                continue;
+            foreach (var profileBody in profile.Elements().Where(e => e.Name.LocalName == "ProfileBody"))
+            {
+                // Only look in the CommunicationNetwork profile body
+                var xsiType = XddReader.GetXsiType(profileBody);
+                if (!xsiType.Contains("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase))
+                    continue;
 
-            // Only look in the CommunicationNetwork profile body
-            var xsiType = XddReader.GetXsiType(profileBody);
-            if (!xsiType.Contains("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase))
-                continue;
+                var networkMgmt = profileBody.Elements()
+                    .FirstOrDefault(e => e.Name.LocalName == "NetworkManagement");
+                if (networkMgmt == null)
+                    continue;
 
-            var networkMgmt = profileBody.Elements()
-                .FirstOrDefault(e => e.Name.LocalName == "NetworkManagement");
-            if (networkMgmt == null)
-                continue;
-
-            return XddReader.ParseDeviceCommissioning(networkMgmt);
+                return XddReader.ParseDeviceCommissioning(networkMgmt);
+            }
         }
 
         return null;
