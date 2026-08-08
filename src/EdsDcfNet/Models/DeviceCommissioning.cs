@@ -44,7 +44,8 @@ public class DeviceCommissioning
     /// <remarks>
     /// CiA 306 DCF key <c>LSS_SerialNumber</c>. Not part of the CiA 311
     /// <c>deviceCommissioning</c> schema; <see cref="Writers.XdcWriter"/> omits this
-    /// property when writing XDC.
+    /// property when writing XDC. Prefer DCF (not CPJ) when this value must be
+    /// preserved — CPJ has no serial-number field.
     /// </remarks>
     public uint? LssSerialNumber { get; set; }
 

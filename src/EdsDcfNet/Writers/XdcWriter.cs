@@ -20,8 +20,9 @@ using EdsDcfNet.Utilities;
 /// <see cref="DeviceCommissioning.LssSerialNumber"/>,
 /// <see cref="DeviceCommissioning.NodeRefd"/>, and
 /// <see cref="DeviceCommissioning.NetRefd"/> have no schema-equivalent attributes
-/// and are intentionally not written. Prefer DCF/CPJ when those values must be
-/// preserved; a DCF→XDC conversion will drop them.
+/// and are intentionally not written. Prefer DCF when those values must be
+/// preserved (CPJ can retain network/node reference designators, but has no
+/// serial-number field). A DCF→XDC conversion will drop them.
 /// </para>
 /// </remarks>
 public class XdcWriter : XddWriter

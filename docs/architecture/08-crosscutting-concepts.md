@@ -175,7 +175,8 @@ XDC writer behavior:
   DCF-only fields `LSS_SerialNumber`, `NodeRefd`, and `NetRefd`
   (`DeviceCommissioning.LssSerialNumber` / `NodeRefd` / `NetRefd`) have no
   schema equivalent and are intentionally omitted on XDC write (including
-  DCF→XDC conversion). Use DCF/CPJ when those values must be preserved.
+  DCF→XDC conversion). Use DCF to preserve the complete set; CPJ can retain
+  network/node reference designators but has no serial-number field.
 
 ## 8.6 Modular Devices (CiA DS 306)
 
