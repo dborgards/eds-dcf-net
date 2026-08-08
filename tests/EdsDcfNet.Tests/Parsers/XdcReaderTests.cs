@@ -603,6 +603,28 @@ public class XdcReaderTests
     }
 
     [Fact]
+    public void ParseDeviceCommissioning_NoCommNetProfileBody_ReturnsNull()
+    {
+        var method = typeof(XdcReader).GetMethod(
+            "ParseDeviceCommissioning",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        method.Should().NotBeNull();
+
+        var doc = System.Xml.Linq.XDocument.Parse(@"<?xml version=""1.0"" encoding=""utf-8""?>
+<ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+  <ISO15745Profile>
+    <ProfileBody xsi:type=""ProfileBody_Device_CANopen"" fileName=""t.xdc"" fileVersion=""1"">
+      <DeviceIdentity><vendorName>V</vendorName></DeviceIdentity>
+    </ProfileBody>
+  </ISO15745Profile>
+</ISO15745ProfileContainer>");
+
+        var result = method!.Invoke(null, new object[] { doc });
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
     public void ParseDeviceCommissioning_NoNetworkManagementElement_ReturnsDefault()
     {
         // XDC without a deviceCommissioning element → ParseDeviceCommissioning returns null → default
