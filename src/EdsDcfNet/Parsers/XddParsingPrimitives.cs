@@ -243,7 +243,7 @@ internal static class XddParsingPrimitives
 
     /// <summary>
     /// Like <see cref="RejectFailedNumericAttribute"/>, but the diagnostic describes a
-    /// signed integer (for attributes parsed with <see cref="long.TryParse"/>).
+    /// signed integer (for attributes parsed via <c>long.TryParse</c>).
     /// </summary>
     internal static void RejectFailedSignedNumericAttribute(string? raw, bool parsed, string attributeName)
     {
