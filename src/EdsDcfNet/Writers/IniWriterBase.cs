@@ -112,8 +112,10 @@ public abstract class IniWriterBase
 
         // CiA 306: SubNumber is normally omitted under CompactSubObj. Keep/emit it when
         // expanded sub-objects exist above the compact range so the reader can reach them.
+        // Also emit when expanded SubObjects exist even if the highest sub-index is 0
+        // (SubNumber=0), so the key is not silently dropped for that boundary case.
         var subNumberToWrite = ResolveSubNumberForWrite(obj, compactMax, useCompact);
-        if (subNumberToWrite > 0)
+        if (subNumberToWrite > 0 || (!useCompact && obj.SubObjects.Count > 0))
         {
             WriteKeyValue(sb, "SubNumber", subNumberToWrite.ToString(CultureInfo.InvariantCulture));
         }
