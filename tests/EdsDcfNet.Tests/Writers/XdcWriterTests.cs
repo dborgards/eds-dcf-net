@@ -534,6 +534,28 @@ public class XdcWriterTests
     }
 
     [Fact]
+    public void GenerateString_NodeIdZeroWithOnlyDcfOnlyFields_ThrowsXdcWriteException()
+    {
+        // DCF-only fields alone make commissioning non-omitted; NodeId 0 still fails to write.
+        var dcf = new DeviceConfigurationFile
+        {
+            DeviceCommissioning = new DeviceCommissioning
+            {
+                NodeId = 0,
+                LssSerialNumber = 0xABCDEF01,
+                NodeRefd = "N1.A2",
+                NetRefd = "NET.1",
+            }
+        };
+
+        var act = () => _writer.GenerateString(dcf);
+
+        var ex = act.Should().Throw<XdcWriteException>().Which;
+        ex.SectionName.Should().Be("deviceCommissioning");
+        ex.Message.Should().Contain("NodeId");
+    }
+
+    [Fact]
     public void GenerateString_ValidatedRoundTrip_PreservesCommissioningWithValidNodeId()
     {
         var dcf = CreateSampleDcf();

@@ -44,8 +44,10 @@ public class DeviceCommissioning
     /// <remarks>
     /// CiA 306 DCF key <c>LSS_SerialNumber</c>. Not part of the CiA 311
     /// <c>deviceCommissioning</c> schema; <see cref="Writers.XdcWriter"/> omits this
-    /// property when writing XDC. Prefer DCF (not CPJ) when this value must be
-    /// preserved — CPJ has no serial-number field.
+    /// property from the emitted element when NodeId is <c>1..127</c>. Prefer DCF
+    /// (not CPJ) when this value must be preserved — CPJ has no serial-number field.
+    /// A write with NodeId <c>0</c> and this property set throws
+    /// <see cref="Exceptions.XdcWriteException"/> rather than silently dropping it.
     /// </remarks>
     public uint? LssSerialNumber { get; set; }
 

@@ -20,9 +20,16 @@ using EdsDcfNet.Utilities;
 /// <see cref="DeviceCommissioning.LssSerialNumber"/>,
 /// <see cref="DeviceCommissioning.NodeRefd"/>, and
 /// <see cref="DeviceCommissioning.NetRefd"/> have no schema-equivalent attributes
-/// and are intentionally not written. Prefer DCF when those values must be
-/// preserved (CPJ can retain network/node reference designators, but has no
-/// serial-number field). A DCF→XDC conversion will drop them.
+/// and are intentionally not written when a valid NodeId (<c>1..127</c>) is present.
+/// Prefer DCF when those values must be preserved (CPJ can retain network/node
+/// reference designators, but has no serial-number field).
+/// </para>
+/// <para>
+/// A DCF→XDC conversion with NodeId in <c>1..127</c> therefore drops those three
+/// fields from the emitted element. If NodeId is <c>0</c> (or otherwise outside
+/// <c>1..127</c>) while any commissioning field is set — including only those
+/// DCF-only fields — writing throws <see cref="XdcWriteException"/> instead of
+/// omitting <c>deviceCommissioning</c>.
 /// </para>
 /// </remarks>
 public class XdcWriter : XddWriter
