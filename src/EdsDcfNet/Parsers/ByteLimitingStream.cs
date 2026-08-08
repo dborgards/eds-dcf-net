@@ -111,10 +111,23 @@ internal sealed class ByteLimitingStream : Stream
     /// oversized input is still detected without buffering a whole block beyond
     /// the limit.
     /// </summary>
+    /// <remarks>
+    /// When the remaining budget is already <see cref="long.MaxValue"/> (e.g.
+    /// <c>MaxInputSize = long.MaxValue</c> with nothing read yet), the budget
+    /// always covers any <see cref="int"/> read size, so the +1 overshoot path
+    /// is never taken — avoiding overflow of <c>long.MaxValue + 1</c>.
+    /// </remarks>
     private int AllowedCount(int count)
     {
-        var allowed = _maxBytes - _totalBytesRead + 1;
-        return allowed < count ? (int)allowed : count;
+        var remaining = _maxBytes - _totalBytesRead;
+        if (remaining >= count)
+            return count;
+
+        // remaining < count (<= int.MaxValue), so remaining+1 fits in int.
+        if (remaining < 0)
+            return 0;
+
+        return (int)(remaining + 1);
     }
 
     private int CountBytes(int bytesRead)
