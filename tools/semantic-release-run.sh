@@ -142,7 +142,9 @@ complete_release_publish() {
 
   echo "Completing publish for ${version} (NuGet + GitHub release)..."
 
-  trap 'remove_worktree_best_effort "$worktree"' RETURN
+  # Clear on fire: RETURN traps are global and would otherwise leak to the
+  # caller; with set -u that re-expands the now-out-of-scope local worktree.
+  trap 'trap - RETURN; remove_worktree_best_effort "$worktree"' RETURN
 
   if [[ "$(tag_commit "$tag")" != "$(git rev-parse HEAD^{})" ]]; then
     worktree="$(mktemp -d)"
