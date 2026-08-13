@@ -124,7 +124,8 @@ remove_worktree_best_effort() {
     return 0
   fi
 
-  warn "Could not remove worktree ${worktree}; continuing because publish already finished."
+  # Runner is ephemeral; a locked tree must not fail the job after pack.
+  warn "Could not remove worktree ${worktree}; continuing (ephemeral runner)."
   git worktree prune || true
 }
 
