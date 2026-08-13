@@ -53,6 +53,32 @@ retry_git_notes_push() {
   return 1
 }
 
+# Recreate semantic-release channel notes when a prior notes push failed.
+# Fresh CI checkouts do not include refs/notes/*, and dry-run only fetches notes
+# that already exist on the remote — so a missing remote note leaves nothing to
+# push unless we add {"channels":[...]} locally first.
+repair_git_notes() {
+  local notes_ref="$1"
+  local tag="$2"
+  local branch="$3"
+  local note_message
+
+  git fetch --force origin "+refs/notes/${notes_ref}:refs/notes/${notes_ref}" 2>/dev/null || true
+
+  if ! git notes --ref "$notes_ref" show "$tag" >/dev/null 2>&1; then
+    if [[ "$branch" == "main" ]]; then
+      note_message='{"channels":[null]}'
+    else
+      # Matches semantic-release: prerelease branch channel defaults to branch name.
+      note_message="$(printf '{"channels":["%s"]}' "$branch")"
+    fi
+    echo "Creating missing git notes for ${tag} on channel note ref ${notes_ref}."
+    git notes --ref "$notes_ref" add -f -m "$note_message" "$tag" || return 1
+  fi
+
+  retry_git_notes_push "$notes_ref"
+}
+
 verify_published_release() {
   local trigger_sha="$1"
   local branch="$2"
@@ -107,6 +133,7 @@ FORCE_COLOR=0 npx semantic-release --dry-run >"$dry_run_log" 2>&1 || {
 }
 
 next_version="$(sed -nE 's/.*The next release version is ([^[:space:]]+).*/\1/p' "$dry_run_log" | tail -n 1)"
+branch="${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD)}"
 
 if [[ -n "$next_version" ]]; then
   next_tag="v${next_version}"
@@ -123,12 +150,11 @@ if [[ -n "$next_version" ]]; then
     echo "Tag ${next_tag} already exists at ${tag_sha} on current branch history."
     echo "Release ${next_version} was already published; skipping re-release and repairing git notes if needed."
     configure_git_auth || true
-    retry_git_notes_push "$notes_ref" || warn "Git notes push failed; continuing without blocking CI."
+    repair_git_notes "$notes_ref" "$next_tag" "$branch" || warn "Git notes repair failed; continuing without blocking CI."
     exit 0
   fi
 fi
 
-branch="${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD)}"
 trigger_sha="$(git rev-parse HEAD)"
 sr_log="$(mktemp)"
 
@@ -153,7 +179,7 @@ if grep -Fq "refs/notes/${notes_ref}" "$sr_log"; then
 elif grep -Fq "fatal: tag '${next_tag}' already exists" "$sr_log" || grep -Fq "fatal: tag \"${next_tag}\" already exists" "$sr_log"; then
   echo "semantic-release failed because ${next_tag} already exists; treating as already published."
   configure_git_auth || true
-  retry_git_notes_push "$notes_ref" || warn "Git notes push failed; continuing without blocking CI."
+  repair_git_notes "$notes_ref" "$next_tag" "$branch" || warn "Git notes repair failed; continuing without blocking CI."
   exit 0
 else
   echo "semantic-release failed for a reason other than git notes push or an existing tag."
