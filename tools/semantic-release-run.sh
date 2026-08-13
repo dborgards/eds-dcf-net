@@ -90,23 +90,33 @@ ensure_git_notes() {
   git notes --ref "$notes_ref" add -f -m "$channel_json" "$commit"
 }
 
+release_artifact_names() {
+  local version="$1"
+  printf '%s\n' \
+    "EdsDcfNet.${version}.nupkg" \
+    "EdsDcfNet.${version}.snupkg" \
+    "bom.cdx.json" \
+    "sbom.spdx.json"
+}
+
 copy_release_packages() {
   local source_dir="$1"
   local dest_dir="$2"
   local version="$3"
-  local file
+  local name
+  local nupkg="${dest_dir}/EdsDcfNet.${version}.nupkg"
 
   mkdir -p "$dest_dir"
-  for file in \
-    "${source_dir}/EdsDcfNet.${version}.nupkg" \
-    "${source_dir}/EdsDcfNet.${version}.snupkg" \
-    "${source_dir}/bom.cdx.json" \
-    "${source_dir}/sbom.spdx.json"
-  do
-    if [[ -f "$file" ]]; then
-      cp -f "$file" "$dest_dir/"
+  while IFS= read -r name; do
+    if [[ -f "${source_dir}/${name}" ]]; then
+      cp -f "${source_dir}/${name}" "$dest_dir/"
     fi
-  done
+  done < <(release_artifact_names "$version")
+
+  if [[ ! -f "$nupkg" ]]; then
+    echo "Expected package not found after copy: ${nupkg}" >&2
+    return 1
+  fi
 }
 
 remove_worktree_best_effort() {
@@ -116,10 +126,11 @@ remove_worktree_best_effort() {
     return 0
   fi
 
-  # MSBuild node reuse on windows-latest often keeps files locked after pack.
-  # Disable the server and shut it down before remove; never fail the release
-  # if cleanup still cannot delete the tree (the runner is ephemeral).
-  MSBUILDDISABLENODEREUSE=1 dotnet build-server shutdown >/dev/null 2>&1 || true
+  # VBCSCompiler / MSBuild nodes can keep files locked after pack. Shut them
+  # down before remove; never fail the release if cleanup still cannot delete
+  # the tree (the runner is ephemeral). shutdown does not read
+  # MSBUILDDISABLENODEREUSE; reuse is disabled at pack time instead.
+  dotnet build-server shutdown >/dev/null 2>&1 || true
   if git worktree remove --force "$worktree"; then
     return 0
   fi
@@ -139,13 +150,9 @@ complete_release_publish() {
   local notes_file
   local -a assets=()
   local -a cmd
-  local file
+  local name
 
   echo "Completing publish for ${version} (NuGet + GitHub release)..."
-
-  # Clear on fire: RETURN traps are global and would otherwise leak to the
-  # caller; with set -u that re-expands the now-out-of-scope local worktree.
-  trap 'trap - RETURN; remove_worktree_best_effort "$worktree"' RETURN
 
   if [[ "$(tag_commit "$tag")" != "$(git rev-parse HEAD^{})" ]]; then
     worktree="$(mktemp -d)"
@@ -156,9 +163,11 @@ complete_release_publish() {
       dotnet restore
       bash "${repo_root}/tools/semantic-release-publish.sh" "$version"
     )
+    # Unlock packages before copy. The pack subshell already disabled node reuse;
+    # this terminates leftover VBCSCompiler / MSBuild processes.
+    dotnet build-server shutdown >/dev/null 2>&1 || true
     copy_release_packages "${worktree}/packages" "$packages_dir" "$version"
     remove_worktree_best_effort "$worktree"
-    worktree=""
   else
     bash ./tools/semantic-release-publish.sh "$version"
   fi
@@ -167,16 +176,11 @@ complete_release_publish() {
     notes_file="$(mktemp)"
     git log -1 --format=%b "$tag" >"$notes_file"
 
-    for file in \
-      "${packages_dir}/EdsDcfNet.${version}.nupkg" \
-      "${packages_dir}/EdsDcfNet.${version}.snupkg" \
-      "${packages_dir}/bom.cdx.json" \
-      "${packages_dir}/sbom.spdx.json"
-    do
-      if [[ -f "$file" ]]; then
-        assets+=("$file")
+    while IFS= read -r name; do
+      if [[ -f "${packages_dir}/${name}" ]]; then
+        assets+=("${packages_dir}/${name}")
       fi
-    done
+    done < <(release_artifact_names "$version")
 
     cmd=(gh release create "$tag" --title "$tag" --notes-file "$notes_file")
     if [[ "$version" == *-* ]]; then
