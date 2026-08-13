@@ -59,17 +59,23 @@ retry_git_notes_push() {
   return 1
 }
 
+tag_commit() {
+  git rev-parse "$1^{}"
+}
+
 ensure_git_notes() {
   local version="$1"
   local tag="v${version}"
   local notes_ref
   notes_ref="$(notes_ref_for "$version")"
+  local commit
   local channel_json
 
+  commit="$(tag_commit "$tag")"
   git fetch origin "+refs/notes/*:refs/notes/*" || true
 
-  if git notes --ref "$notes_ref" show "$tag" >/dev/null 2>&1; then
-    echo "Git notes ${notes_ref} already exist for ${tag}."
+  if git notes --ref "$notes_ref" show "$commit" >/dev/null 2>&1; then
+    echo "Git notes ${notes_ref} already exist for ${tag} (${commit})."
     return 0
   fi
 
@@ -79,48 +85,70 @@ ensure_git_notes() {
     channel_json='{"channels":[null]}'
   fi
 
-  git notes --ref "$notes_ref" add -f -m "$channel_json" "$tag"
+  # Attach notes to the peeled commit. semantic-release reads them via
+  # `git log`, which does not see notes stored on an annotated tag object.
+  git notes --ref "$notes_ref" add -f -m "$channel_json" "$commit"
 }
 
 complete_release_publish() {
   local version="$1"
   local tag="v${version}"
+  local repo_root
+  repo_root="$(pwd)"
+  local packages_dir="${repo_root}/packages"
+  local worktree=""
   local notes_file
   local -a assets=()
   local -a cmd
   local file
 
   echo "Completing publish for ${version} (NuGet + GitHub release)..."
-  bash ./tools/semantic-release-publish.sh "$version"
 
-  if gh release view "$tag" >/dev/null 2>&1; then
-    echo "GitHub release ${tag} already exists."
-    return 0
+  if [[ "$(tag_commit "$tag")" != "$(git rev-parse HEAD^{})" ]]; then
+    worktree="$(mktemp -d)"
+    git worktree add --detach "$worktree" "$tag"
+    trap 'git worktree remove --force "$worktree" 2>/dev/null || true' RETURN
+    (
+      cd "$worktree"
+      dotnet restore
+      bash "${repo_root}/tools/semantic-release-publish.sh" "$version"
+    )
+    packages_dir="${worktree}/packages"
+  else
+    bash ./tools/semantic-release-publish.sh "$version"
   fi
 
-  notes_file="$(mktemp)"
-  git log -1 --format=%b "$tag" >"$notes_file"
+  if ! gh release view "$tag" >/dev/null 2>&1; then
+    notes_file="$(mktemp)"
+    git log -1 --format=%b "$tag" >"$notes_file"
 
-  for file in \
-    "packages/EdsDcfNet.${version}.nupkg" \
-    "packages/EdsDcfNet.${version}.snupkg" \
-    packages/bom.cdx.json \
-    packages/sbom.spdx.json
-  do
-    if [[ -f "$file" ]]; then
-      assets+=("$file")
+    for file in \
+      "${packages_dir}/EdsDcfNet.${version}.nupkg" \
+      "${packages_dir}/EdsDcfNet.${version}.snupkg" \
+      "${packages_dir}/bom.cdx.json" \
+      "${packages_dir}/sbom.spdx.json"
+    do
+      if [[ -f "$file" ]]; then
+        assets+=("$file")
+      fi
+    done
+
+    cmd=(gh release create "$tag" --title "$tag" --notes-file "$notes_file")
+    if [[ "$version" == *-* ]]; then
+      cmd+=(--prerelease)
     fi
-  done
+    if ((${#assets[@]} > 0)); then
+      cmd+=("${assets[@]}")
+    fi
 
-  cmd=(gh release create "$tag" --title "$tag" --notes-file "$notes_file")
-  if [[ "$version" == *-* ]]; then
-    cmd+=(--prerelease)
-  fi
-  if ((${#assets[@]} > 0)); then
-    cmd+=("${assets[@]}")
+    "${cmd[@]}"
+  else
+    echo "GitHub release ${tag} already exists."
   fi
 
-  "${cmd[@]}"
+  if [[ -n "$worktree" ]]; then
+    git worktree remove --force "$worktree"
+  fi
 }
 
 repair_notes_and_publish() {
@@ -129,10 +157,13 @@ repair_notes_and_publish() {
   notes_ref="$(notes_ref_for "$version")"
 
   echo "Finishing release ${version}: git notes are not a completed publish."
+  complete_release_publish "$version"
+  # Channel notes are how later runs treat the tag as lastRelease. Push them
+  # only after NuGet and the GitHub release exist, otherwise a notes-only
+  # success would skip this repair path and leave artifacts unpublished.
   configure_git_auth || warn "Could not configure git auth for notes push."
   ensure_git_notes "$version" || warn "Could not add local git notes for v${version}."
-  retry_git_notes_push "$notes_ref" || warn "Git notes push failed after retries; continuing with package publish."
-  complete_release_publish "$version"
+  retry_git_notes_push "$notes_ref" || warn "Git notes push failed after retries; publish already completed."
 }
 
 dry_run_log="$(mktemp)"
