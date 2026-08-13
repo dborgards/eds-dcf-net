@@ -90,6 +90,58 @@ ensure_git_notes() {
   git notes --ref "$notes_ref" add -f -m "$channel_json" "$commit"
 }
 
+release_artifact_names() {
+  local version="$1"
+  printf '%s\n' \
+    "EdsDcfNet.${version}.nupkg" \
+    "EdsDcfNet.${version}.snupkg" \
+    "bom.cdx.json" \
+    "sbom.spdx.json"
+}
+
+copy_release_packages() {
+  local source_dir="$1"
+  local dest_dir="$2"
+  local version="$3"
+  local name
+  local nupkg="${dest_dir}/EdsDcfNet.${version}.nupkg"
+
+  mkdir -p "$dest_dir"
+  while IFS= read -r name; do
+    if [[ -f "${source_dir}/${name}" ]]; then
+      if ! cp -f "${source_dir}/${name}" "$dest_dir/"; then
+        warn "Could not copy ${name} out of the worktree."
+      fi
+    fi
+  done < <(release_artifact_names "$version")
+
+  if [[ ! -f "$nupkg" ]]; then
+    echo "Expected package not found after copy: ${nupkg}" >&2
+    return 1
+  fi
+}
+
+remove_worktree_best_effort() {
+  local worktree="$1"
+
+  if [[ -z "$worktree" || ! -e "$worktree" ]]; then
+    return 0
+  fi
+
+  # VBCSCompiler / MSBuild nodes can keep files locked after pack. Shut them
+  # down before remove; never fail the release if cleanup still cannot delete
+  # the tree (the runner is ephemeral). shutdown does not read
+  # MSBUILDDISABLENODEREUSE; reuse is disabled at pack time instead.
+  dotnet build-server shutdown >/dev/null 2>&1 || true
+  if git worktree remove --force "$worktree"; then
+    return 0
+  fi
+
+  # Runner is ephemeral; a locked tree must not fail the job after pack.
+  warn "Could not remove worktree ${worktree}; continuing (ephemeral runner)."
+  git worktree prune || true
+}
+
 complete_release_publish() {
   local version="$1"
   local tag="v${version}"
@@ -100,20 +152,24 @@ complete_release_publish() {
   local notes_file
   local -a assets=()
   local -a cmd
-  local file
+  local name
 
   echo "Completing publish for ${version} (NuGet + GitHub release)..."
 
   if [[ "$(tag_commit "$tag")" != "$(git rev-parse HEAD^{})" ]]; then
     worktree="$(mktemp -d)"
     git worktree add --detach "$worktree" "$tag"
-    trap 'git worktree remove --force "$worktree" 2>/dev/null || true' RETURN
     (
       cd "$worktree"
+      export MSBUILDDISABLENODEREUSE=1
       dotnet restore
       bash "${repo_root}/tools/semantic-release-publish.sh" "$version"
     )
-    packages_dir="${worktree}/packages"
+    # Unlock packages before copy. The pack subshell already disabled node reuse;
+    # this terminates leftover VBCSCompiler / MSBuild processes.
+    dotnet build-server shutdown >/dev/null 2>&1 || true
+    copy_release_packages "${worktree}/packages" "$packages_dir" "$version"
+    remove_worktree_best_effort "$worktree"
   else
     bash ./tools/semantic-release-publish.sh "$version"
   fi
@@ -122,16 +178,11 @@ complete_release_publish() {
     notes_file="$(mktemp)"
     git log -1 --format=%b "$tag" >"$notes_file"
 
-    for file in \
-      "${packages_dir}/EdsDcfNet.${version}.nupkg" \
-      "${packages_dir}/EdsDcfNet.${version}.snupkg" \
-      "${packages_dir}/bom.cdx.json" \
-      "${packages_dir}/sbom.spdx.json"
-    do
-      if [[ -f "$file" ]]; then
-        assets+=("$file")
+    while IFS= read -r name; do
+      if [[ -f "${packages_dir}/${name}" ]]; then
+        assets+=("${packages_dir}/${name}")
       fi
-    done
+    done < <(release_artifact_names "$version")
 
     cmd=(gh release create "$tag" --title "$tag" --notes-file "$notes_file")
     if [[ "$version" == *-* ]]; then
@@ -144,10 +195,6 @@ complete_release_publish() {
     "${cmd[@]}"
   else
     echo "GitHub release ${tag} already exists."
-  fi
-
-  if [[ -n "$worktree" ]]; then
-    git worktree remove --force "$worktree"
   fi
 }
 
