@@ -110,6 +110,8 @@ next_version="$(sed -nE 's/.*The next release version is ([^[:space:]]+).*/\1/p'
 
 if [[ -n "$next_version" ]]; then
   next_tag="v${next_version}"
+  notes_ref="semantic-release-v${next_version}"
+
   if git rev-parse -q --verify "refs/tags/$next_tag" >/dev/null; then
     tag_sha="$(git rev-list -n 1 "$next_tag")"
     if ! git merge-base --is-ancestor "$tag_sha" HEAD; then
@@ -117,6 +119,12 @@ if [[ -n "$next_version" ]]; then
       echo "Likely stale protected prerelease tag after history rewrite."
       exit 0
     fi
+
+    echo "Tag ${next_tag} already exists at ${tag_sha} on current branch history."
+    echo "Release ${next_version} was already published; skipping re-release and repairing git notes if needed."
+    configure_git_auth || true
+    retry_git_notes_push "$notes_ref" || warn "Git notes push failed; continuing without blocking CI."
+    exit 0
   fi
 fi
 
@@ -138,9 +146,17 @@ if [[ -z "$next_version" ]]; then
   exit "$sr_exit"
 fi
 
+next_tag="v${next_version}"
 notes_ref="semantic-release-v${next_version}"
-if ! grep -Fq "refs/notes/${notes_ref}" "$sr_log"; then
-  echo "semantic-release failed for a reason other than git notes push."
+if grep -Fq "refs/notes/${notes_ref}" "$sr_log"; then
+  :
+elif grep -Fq "fatal: tag '${next_tag}' already exists" "$sr_log" || grep -Fq "fatal: tag \"${next_tag}\" already exists" "$sr_log"; then
+  echo "semantic-release failed because ${next_tag} already exists; treating as already published."
+  configure_git_auth || true
+  retry_git_notes_push "$notes_ref" || warn "Git notes push failed; continuing without blocking CI."
+  exit 0
+else
+  echo "semantic-release failed for a reason other than git notes push or an existing tag."
   exit "$sr_exit"
 fi
 
