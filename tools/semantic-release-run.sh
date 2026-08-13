@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
-# Runs semantic-release and tolerates git-notes push failures when the release
-# itself (tag, release commit, NuGet publish) already succeeded. GitHub has
-# intermittently returned 500 Internal Server Error when pushing
-# refs/notes/semantic-release-v*; treating that as a hard failure leaves develop
-# with failed required checks because relay-release-status mirrors the workflow
-# conclusion onto the [skip ci] release commit.
+# Runs semantic-release and recovers when GitHub rejects the git-notes push.
+#
+# semantic-release 25 lifecycle (index.js): prepare (changelog + git commit) →
+# tag → addNote → push tags → pushNotes → publish plugins. NuGet
+# (tools/semantic-release-publish.sh) and the GitHub release therefore have not
+# run when pushNotes fails. Recovery must finish that publish, not treat the
+# tagged commit as a completed release.
 set -euo pipefail
 
 warn() {
   echo "Warning: $*" >&2
+}
+
+notes_ref_for() {
+  local version="$1"
+  echo "semantic-release-v${version}"
 }
 
 configure_git_auth() {
@@ -53,51 +59,80 @@ retry_git_notes_push() {
   return 1
 }
 
-verify_published_release() {
-  local trigger_sha="$1"
-  local branch="$2"
-  local next_version="$3"
-  local next_tag="v${next_version}"
-  local notes_ref="semantic-release-v${next_version}"
+ensure_git_notes() {
+  local version="$1"
+  local tag="v${version}"
+  local notes_ref
+  notes_ref="$(notes_ref_for "$version")"
+  local channel_json
 
-  git fetch origin "$branch" --tags
+  git fetch origin "+refs/notes/*:refs/notes/*" || true
 
-  if ! git rev-parse -q --verify "refs/tags/${next_tag}" >/dev/null; then
-    echo "Tag ${next_tag} was not created."
-    return 1
+  if git notes --ref "$notes_ref" show "$tag" >/dev/null 2>&1; then
+    echo "Git notes ${notes_ref} already exist for ${tag}."
+    return 0
   fi
 
-  local current_sha
-  current_sha="$(git rev-parse "origin/${branch}")"
-  if [[ "$current_sha" == "$trigger_sha" ]]; then
-    echo "Branch ${branch} HEAD unchanged after semantic-release failure."
-    return 1
+  if [[ "$version" == *-* ]]; then
+    channel_json='{"channels":["beta"]}'
+  else
+    channel_json='{"channels":[null]}'
   fi
 
-  local message committer parent_sha
-  message="$(git log -1 --format=%s "$current_sha")"
-  committer="$(git log -1 --format=%cn "$current_sha")"
-  parent_sha="$(git rev-parse "${current_sha}^")"
+  git notes --ref "$notes_ref" add -f -m "$channel_json" "$tag"
+}
 
-  if [[ "$message" != "chore(release):"* ]]; then
-    echo "Branch HEAD ${current_sha} is not a chore(release) commit."
-    return 1
+complete_release_publish() {
+  local version="$1"
+  local tag="v${version}"
+  local notes_file
+  local -a assets=()
+  local -a cmd
+  local file
+
+  echo "Completing publish for ${version} (NuGet + GitHub release)..."
+  bash ./tools/semantic-release-publish.sh "$version"
+
+  if gh release view "$tag" >/dev/null 2>&1; then
+    echo "GitHub release ${tag} already exists."
+    return 0
   fi
 
-  if [[ "$committer" != "semantic-release-bot" ]]; then
-    echo "Branch HEAD ${current_sha} committer is '${committer}', expected semantic-release-bot."
-    return 1
+  notes_file="$(mktemp)"
+  git log -1 --format=%b "$tag" >"$notes_file"
+
+  for file in \
+    "packages/EdsDcfNet.${version}.nupkg" \
+    "packages/EdsDcfNet.${version}.snupkg" \
+    packages/bom.cdx.json \
+    packages/sbom.spdx.json
+  do
+    if [[ -f "$file" ]]; then
+      assets+=("$file")
+    fi
+  done
+
+  cmd=(gh release create "$tag" --title "$tag" --notes-file "$notes_file")
+  if [[ "$version" == *-* ]]; then
+    cmd+=(--prerelease)
+  fi
+  if ((${#assets[@]} > 0)); then
+    cmd+=("${assets[@]}")
   fi
 
-  if [[ "$parent_sha" != "$trigger_sha" ]]; then
-    echo "Branch HEAD ${current_sha} parent is ${parent_sha}, expected trigger ${trigger_sha}."
-    return 1
-  fi
+  "${cmd[@]}"
+}
 
-  NOTES_REF="$notes_ref"
-  RELEASE_TAG="$next_tag"
-  RELEASE_SHA="$current_sha"
-  return 0
+repair_notes_and_publish() {
+  local version="$1"
+  local notes_ref
+  notes_ref="$(notes_ref_for "$version")"
+
+  echo "Finishing release ${version}: git notes are not a completed publish."
+  configure_git_auth || warn "Could not configure git auth for notes push."
+  ensure_git_notes "$version" || warn "Could not add local git notes for v${version}."
+  retry_git_notes_push "$notes_ref" || warn "Git notes push failed after retries; continuing with package publish."
+  complete_release_publish "$version"
 }
 
 dry_run_log="$(mktemp)"
@@ -110,8 +145,6 @@ next_version="$(sed -nE 's/.*The next release version is ([^[:space:]]+).*/\1/p'
 
 if [[ -n "$next_version" ]]; then
   next_tag="v${next_version}"
-  notes_ref="semantic-release-v${next_version}"
-
   if git rev-parse -q --verify "refs/tags/$next_tag" >/dev/null; then
     tag_sha="$(git rev-list -n 1 "$next_tag")"
     if ! git merge-base --is-ancestor "$tag_sha" HEAD; then
@@ -121,15 +154,12 @@ if [[ -n "$next_version" ]]; then
     fi
 
     echo "Tag ${next_tag} already exists at ${tag_sha} on current branch history."
-    echo "Release ${next_version} was already published; skipping re-release and repairing git notes if needed."
-    configure_git_auth || true
-    retry_git_notes_push "$notes_ref" || warn "Git notes push failed; continuing without blocking CI."
+    echo "Skipping a second semantic-release run and completing any unfinished publish."
+    repair_notes_and_publish "$next_version"
     exit 0
   fi
 fi
 
-branch="${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD)}"
-trigger_sha="$(git rev-parse HEAD)"
 sr_log="$(mktemp)"
 
 set +e
@@ -147,33 +177,18 @@ if [[ -z "$next_version" ]]; then
 fi
 
 next_tag="v${next_version}"
-notes_ref="semantic-release-v${next_version}"
+notes_ref="$(notes_ref_for "$next_version")"
 if grep -Fq "refs/notes/${notes_ref}" "$sr_log"; then
-  :
-elif grep -Fq "fatal: tag '${next_tag}' already exists" "$sr_log" || grep -Fq "fatal: tag \"${next_tag}\" already exists" "$sr_log"; then
-  echo "semantic-release failed because ${next_tag} already exists; treating as already published."
-  configure_git_auth || true
-  retry_git_notes_push "$notes_ref" || warn "Git notes push failed; continuing without blocking CI."
-  exit 0
-else
-  echo "semantic-release failed for a reason other than git notes push or an existing tag."
-  exit "$sr_exit"
-fi
-
-NOTES_REF=""
-RELEASE_TAG=""
-RELEASE_SHA=""
-if ! verify_published_release "$trigger_sha" "$branch" "$next_version"; then
-  exit "$sr_exit"
-fi
-
-echo "Release ${next_version} (${RELEASE_TAG} @ ${RELEASE_SHA}) was published; recovering from git notes push failure."
-
-configure_git_auth
-if retry_git_notes_push "$NOTES_REF"; then
+  echo "semantic-release failed while pushing git notes; completing publish plugins."
+  repair_notes_and_publish "$next_version"
   exit 0
 fi
 
-warn "Release ${next_version} was published but git notes push failed after retries."
-warn "Continuing with workflow success so develop required checks are not left failing."
-exit 0
+if grep -Fq "fatal: tag '${next_tag}' already exists" "$sr_log" || grep -Fq "fatal: tag \"${next_tag}\" already exists" "$sr_log"; then
+  echo "semantic-release failed because ${next_tag} already exists; completing any unfinished publish."
+  repair_notes_and_publish "$next_version"
+  exit 0
+fi
+
+echo "semantic-release failed for a reason other than git notes push or an existing tag."
+exit "$sr_exit"
