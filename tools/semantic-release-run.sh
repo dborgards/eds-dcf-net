@@ -109,7 +109,9 @@ copy_release_packages() {
   mkdir -p "$dest_dir"
   while IFS= read -r name; do
     if [[ -f "${source_dir}/${name}" ]]; then
-      cp -f "${source_dir}/${name}" "$dest_dir/"
+      if ! cp -f "${source_dir}/${name}" "$dest_dir/"; then
+        warn "Could not copy ${name} out of the worktree."
+      fi
     fi
   done < <(release_artifact_names "$version")
 
