@@ -225,12 +225,8 @@ jobs:
           check_conclusion="success"
           summary="Build and tests passed in Semantic Release workflow."
         else
-          # release_sha is only set after verifying a chore(release) commit from
-          # semantic-release-bot whose parent is the workflow trigger SHA. When
-          # that holds, build/test/publish already succeeded and a late git-notes
-          # push failure should not block develop merges.
-          check_conclusion="success"
-          summary="Release commit verified; relaying success despite workflow conclusion: ${conclusion}."
+          check_conclusion="failure"
+          summary="Semantic Release workflow did not succeed (conclusion: ${conclusion})."
         fi
 
         gh api repos/${{ github.repository }}/check-runs \
@@ -256,8 +252,8 @@ jobs:
           state="success"
           description="Release commit — build verified by Semantic Release workflow"
         else
-          state="success"
-          description="Release commit verified; build passed before workflow conclusion: ${conclusion}"
+          state="failure"
+          description="Semantic Release workflow did not succeed"
         fi
 
         gh api "repos/${{ github.repository }}/statuses/${sha}" \
