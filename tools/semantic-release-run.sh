@@ -90,6 +90,44 @@ ensure_git_notes() {
   git notes --ref "$notes_ref" add -f -m "$channel_json" "$commit"
 }
 
+copy_release_packages() {
+  local source_dir="$1"
+  local dest_dir="$2"
+  local version="$3"
+  local file
+
+  mkdir -p "$dest_dir"
+  for file in \
+    "${source_dir}/EdsDcfNet.${version}.nupkg" \
+    "${source_dir}/EdsDcfNet.${version}.snupkg" \
+    "${source_dir}/bom.cdx.json" \
+    "${source_dir}/sbom.spdx.json"
+  do
+    if [[ -f "$file" ]]; then
+      cp -f "$file" "$dest_dir/"
+    fi
+  done
+}
+
+remove_worktree_best_effort() {
+  local worktree="$1"
+
+  if [[ -z "$worktree" || ! -e "$worktree" ]]; then
+    return 0
+  fi
+
+  # MSBuild node reuse on windows-latest often keeps files locked after pack.
+  # Disable the server and shut it down before remove; never fail the release
+  # if cleanup still cannot delete the tree (the runner is ephemeral).
+  MSBUILDDISABLENODEREUSE=1 dotnet build-server shutdown >/dev/null 2>&1 || true
+  if git worktree remove --force "$worktree"; then
+    return 0
+  fi
+
+  warn "Could not remove worktree ${worktree}; continuing because publish already finished."
+  git worktree prune || true
+}
+
 complete_release_publish() {
   local version="$1"
   local tag="v${version}"
@@ -104,16 +142,20 @@ complete_release_publish() {
 
   echo "Completing publish for ${version} (NuGet + GitHub release)..."
 
+  trap 'remove_worktree_best_effort "$worktree"' RETURN
+
   if [[ "$(tag_commit "$tag")" != "$(git rev-parse HEAD^{})" ]]; then
     worktree="$(mktemp -d)"
     git worktree add --detach "$worktree" "$tag"
-    trap 'git worktree remove --force "$worktree" 2>/dev/null || true' RETURN
     (
       cd "$worktree"
+      export MSBUILDDISABLENODEREUSE=1
       dotnet restore
       bash "${repo_root}/tools/semantic-release-publish.sh" "$version"
     )
-    packages_dir="${worktree}/packages"
+    copy_release_packages "${worktree}/packages" "$packages_dir" "$version"
+    remove_worktree_best_effort "$worktree"
+    worktree=""
   else
     bash ./tools/semantic-release-publish.sh "$version"
   fi
@@ -144,10 +186,6 @@ complete_release_publish() {
     "${cmd[@]}"
   else
     echo "GitHub release ${tag} already exists."
-  fi
-
-  if [[ -n "$worktree" ]]; then
-    git worktree remove --force "$worktree"
   fi
 }
 
