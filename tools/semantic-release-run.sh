@@ -492,7 +492,15 @@ verify_last_release() {
   if ((github_status == 1)) || ((nuget_status == 1)); then
     echo "Last release ${tag} is incomplete (github=${github_status}, nuget=${nuget_status}); repairing."
     repair_notes_and_publish "$version"
-    return
+
+    # The repair leaves the repaired version's packages in packages/, and
+    # .releaserc.json attaches packages/*.nupkg and packages/*.snupkg to a
+    # release by glob. When a newly planned release follows in this same run,
+    # those globs would hang the repaired version's artifacts on the new
+    # release as well, so drop them now that they are published.
+    rm -f "packages/EdsDcfNet.${version}.nupkg" \
+      "packages/EdsDcfNet.${version}.snupkg"
+    return 0
   fi
 
   # Nothing confirmed broken, but something could not be read. This runs on
