@@ -314,15 +314,73 @@ complete_release_publish() {
 }
 
 # 0 = version is on nuget.org, 1 = absent, 2 = could not ask.
+#
+# The HTTP status has to be read rather than left to `curl -f`, which collapses
+# every error into one exit code. A 404 from the flat container is not an
+# outage: it is nuget.org answering "this package has no listed versions", the
+# most complete form of absence there is, and reporting it as indeterminate
+# would downgrade a confirmation to an unknown — the inversion gh_release_field
+# exists to avoid.
+nuget_query_version() {
+  local version="$1"
+  local body_file
+  local http
+
+  body_file="$(mktemp)"
+  http="$(curl -sS -o "$body_file" -w '%{http_code}' \
+    "https://api.nuget.org/v3-flatcontainer/edsdcfnet/index.json" 2>/dev/null)" || {
+    rm -f "$body_file"
+    return 2
+  }
+
+  case "$http" in
+    200)
+      grep -Fq "\"${version}\"" "$body_file"
+      http=$?
+      rm -f "$body_file"
+      return "$http"
+      ;;
+    404)
+      rm -f "$body_file"
+      return 1
+      ;;
+    *)
+      echo "NuGet index query returned HTTP ${http}." >&2
+      rm -f "$body_file"
+      return 2
+      ;;
+  esac
+}
+
+# Same states, but an absence is only reported after it survives a re-query.
+#
+# The flat container is a downstream index: it trails a successful push by a
+# few minutes, so a single "absent" reading can be indexing lag rather than a
+# failed publish. That matters because a confirmed absence outranks everything
+# else and goes straight to repair — and the repository-wide concurrency group
+# queues a develop run directly behind main's release, which is exactly that
+# window. A genuinely missing version still reads absent on every attempt.
 nuget_has_version() {
   local version="$1"
-  local body
+  local attempt
+  local status
+  local sleep_seconds="${NUGET_SETTLE_SECONDS:-20}"
 
-  if ! body="$(curl -fsSL "https://api.nuget.org/v3-flatcontainer/edsdcfnet/index.json")"; then
-    return 2
-  fi
+  for attempt in 1 2 3; do
+    status=0
+    nuget_query_version "$version" || status=$?
 
-  printf '%s' "$body" | grep -Fq "\"${version}\""
+    if ((status != 1)); then
+      return "$status"
+    fi
+
+    if ((attempt < 3)); then
+      echo "Version ${version} is not in the NuGet index yet; re-checking in ${sleep_seconds}s." >&2
+      sleep "$sleep_seconds"
+    fi
+  done
+
+  return 1
 }
 
 # Reads one --jq field off a release. 0 = value on stdout, 1 = the release
@@ -500,6 +558,12 @@ verify_last_release() {
   if ((github_status == 1)) || ((nuget_status == 1)); then
     echo "Last release ${tag} is incomplete (github=${github_status}, nuget=${nuget_status}); repairing."
     repair_notes_and_publish "$version"
+    # Recorded so the tag-already-exists branch below does not repair the same
+    # version a second time in this run. That pass is not destructive, but the
+    # artifact cleanup underneath means it cannot short-circuit: it would re-add
+    # the worktree and re-pack the whole tag on windows-latest, minutes after
+    # the first repair published it.
+    repaired_version="$version"
 
     # The repair leaves its artifacts in packages/, and .releaserc.json attaches
     # that directory's packages and SBOMs to a release by path. When a newly
@@ -570,6 +634,11 @@ if [[ -n "$next_version" ]]; then
     if ! git merge-base --is-ancestor "$tag_sha" HEAD; then
       echo "Skipping semantic-release: tag $next_tag exists outside current branch history at $tag_sha."
       echo "Likely stale protected prerelease tag after history rewrite."
+      exit 0
+    fi
+
+    if [[ "${repaired_version:-}" == "$next_version" ]]; then
+      echo "Tag ${next_tag} already exists and was repaired by the verification above."
       exit 0
     fi
 
