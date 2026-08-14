@@ -332,6 +332,8 @@ nuget_query_version() {
     rm -f "$body_file"
     return 2
   }
+  # Strip CR so Git Bash on windows-latest does not turn `200\r` into a miss.
+  http="${http//$'\r'/}"
 
   case "$http" in
     200)
