@@ -156,11 +156,19 @@ local_release_assets() {
 
 # Asset names GitHub reports as fully uploaded. Anything still in the `starter`
 # state is a half-finished upload from the aborted run and must be re-sent.
+#
+# A failed probe must fail the repair, for the same reason as release_is_draft:
+# an unreadable asset list silently becomes "nothing is uploaded", which either
+# re-clobbers a healthy release or, once the channel note is pushed, hides a
+# release that is genuinely missing artifacts from every later repair run.
 uploaded_release_assets() {
   local tag="$1"
 
   gh release view "$tag" --json assets \
-    --jq '.assets[] | select(.state == "uploaded") | .name' 2>/dev/null || true
+    --jq '.assets[] | select(.state == "uploaded") | .name' || {
+    echo "Could not list assets for ${tag}." >&2
+    return 1
+  }
 }
 
 # Prints "true" or "false". A failed or unreadable probe must fail the repair:
@@ -200,8 +208,12 @@ resume_release_publish() {
   local name
   local resumed=0
   local is_draft
+  local uploaded_raw
 
-  mapfile -t uploaded < <(uploaded_release_assets "$tag")
+  # Capture before mapfile: a process substitution would discard the exit status
+  # and turn a failed probe back into an empty "nothing uploaded" list.
+  uploaded_raw="$(uploaded_release_assets "$tag")" || return 1
+  mapfile -t uploaded <<<"$uploaded_raw"
 
   while IFS= read -r name; do
     if ! printf '%s\n' "${uploaded[@]}" | grep -Fxq "$name"; then
