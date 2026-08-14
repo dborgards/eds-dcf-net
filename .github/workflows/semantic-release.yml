@@ -25,8 +25,16 @@ concurrency:
   # develop can act on the *same* tag: verify_last_release considers reachable
   # stable tags on develop too, because semantic-release does, so a back-merge
   # firing develop while main publishes that stable release would have both
-  # jobs repairing it at once. Releases are infrequent; serializing the two
-  # channels against each other costs little next to a duplicated publish.
+  # jobs repairing it at once.
+  #
+  # This trade is not free, and the cost falls on the more valuable side.
+  # cancel-in-progress: false protects the run that is *executing*, but Actions
+  # keeps only one *pending* run per group: a newly queued run cancels the
+  # pending one. Sharing a group across channels therefore lets a develop push
+  # cancel a queued main release, and nothing retries it — the commit is
+  # already on main, so no further push fires the workflow, and that release
+  # stays missing until the next one. Weigh that against the duplicated publish
+  # it prevents before narrowing or widening this group again.
   #
   # Queue rather than cancel: cancelling a run mid-publish is precisely how the
   # partial releases this pipeline repairs come about.
