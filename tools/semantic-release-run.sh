@@ -142,6 +142,74 @@ remove_worktree_best_effort() {
   git worktree prune || true
 }
 
+local_release_assets() {
+  local version="$1"
+  local packages_dir="$2"
+  local name
+
+  while IFS= read -r name; do
+    if [[ -f "${packages_dir}/${name}" ]]; then
+      printf '%s\n' "$name"
+    fi
+  done < <(release_artifact_names "$version")
+}
+
+# Asset names GitHub reports as fully uploaded. Anything still in the `starter`
+# state is a half-finished upload from the aborted run and must be re-sent.
+uploaded_release_assets() {
+  local tag="$1"
+
+  gh release view "$tag" --json assets \
+    --jq '.assets[] | select(.state == "uploaded") | .name' 2>/dev/null || true
+}
+
+release_is_draft() {
+  local tag="$1"
+  local is_draft
+
+  is_draft="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null || true)"
+  [[ "$is_draft" == "true" ]]
+}
+
+# `gh release create` with assets creates a draft, uploads each asset, then
+# publishes. A run that dies partway leaves a release that `gh release view`
+# finds but that is missing assets, still a draft, or both. Resume whichever
+# step did not finish instead of treating mere existence as success.
+resume_release_publish() {
+  local version="$1"
+  local tag="v${version}"
+  local packages_dir="$2"
+  local -a missing=()
+  local -a uploaded=()
+  local name
+  local resumed=0
+
+  mapfile -t uploaded < <(uploaded_release_assets "$tag")
+
+  while IFS= read -r name; do
+    if ! printf '%s\n' "${uploaded[@]}" | grep -Fxq "$name"; then
+      missing+=("${packages_dir}/${name}")
+    fi
+  done < <(local_release_assets "$version" "$packages_dir")
+
+  if ((${#missing[@]} > 0)); then
+    echo "Uploading ${#missing[@]} missing asset(s) to ${tag}."
+    # --clobber replaces `starter` leftovers from the interrupted upload.
+    gh release upload "$tag" "${missing[@]}" --clobber
+    resumed=1
+  fi
+
+  if release_is_draft "$tag"; then
+    echo "Publishing draft release ${tag}."
+    gh release edit "$tag" --draft=false
+    resumed=1
+  fi
+
+  if ((resumed == 0)); then
+    echo "GitHub release ${tag} already complete."
+  fi
+}
+
 complete_release_publish() {
   local version="$1"
   local tag="v${version}"
@@ -194,7 +262,7 @@ complete_release_publish() {
 
     "${cmd[@]}"
   else
-    echo "GitHub release ${tag} already exists."
+    resume_release_publish "$version" "$packages_dir"
   fi
 }
 
