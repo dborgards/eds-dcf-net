@@ -401,14 +401,38 @@ github_release_complete() {
 # lastRelease. Those runs plan nothing and exit 0, which would strand the
 # partial release forever behind a green build. Check the last tag before
 # accepting a no-op result.
+# The last release tag *on this branch's channel*. .releaserc.json runs two
+# channels: stable on main, beta prereleases on develop. An unfiltered
+# `git describe` returns whichever tag is nearest, so on develop — where main
+# is merged back and stable tags become reachable — it can return the stable
+# tag and pronounce the release healthy while the beta this branch actually
+# publishes is the broken one. On main the reverse holds: merged develop
+# history makes beta tags reachable, so prereleases are excluded there.
+last_release_tag() {
+  local branch="${GITHUB_REF_NAME:-}"
+  local -a match
+
+  if [[ -z "$branch" ]]; then
+    branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  fi
+
+  if [[ "$branch" == "develop" ]]; then
+    match=(--match 'v*-beta.*')
+  else
+    match=(--match 'v*' --exclude 'v*-*')
+  fi
+
+  git describe --tags --abbrev=0 "${match[@]}" 2>/dev/null
+}
+
 verify_last_release() {
   local tag
   local version
   local github_status
   local nuget_status
 
-  if ! tag="$(git describe --tags --abbrev=0 2>/dev/null)"; then
-    echo "No release tag reachable from HEAD; nothing to verify."
+  if ! tag="$(last_release_tag)"; then
+    echo "No release tag for this channel is reachable from HEAD; nothing to verify."
     return 0
   fi
 
