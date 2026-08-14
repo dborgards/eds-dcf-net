@@ -522,6 +522,17 @@ FORCE_COLOR=0 npx semantic-release --dry-run >"$dry_run_log" 2>&1 || {
 
 next_version="$(sed -nE 's/.*The next release version is ([^[:space:]]+).*/\1/p' "$dry_run_log" | tail -n 1)"
 
+# Verify the previous release before acting on a newly planned one, not only on
+# a no-op run. A partial release is visible as "the last release" just until the
+# next commit warrants a version: from then on every dry run plans that newer
+# version, and a check confined to no-op runs would inspect the new, healthy tag
+# and never look back at the broken one, which stays unpublished for good.
+#
+# This runs before the release below on purpose. If the previous release cannot
+# be repaired the run stops here, rather than stacking a new release on top of a
+# broken one.
+verify_last_release
+
 if [[ -n "$next_version" ]]; then
   next_tag="v${next_version}"
   if git rev-parse -q --verify "refs/tags/$next_tag" >/dev/null; then
@@ -547,11 +558,6 @@ sr_exit="${PIPESTATUS[0]}"
 set -e
 
 if [[ "$sr_exit" -eq 0 ]]; then
-  # A run that planned nothing may be standing on a previous release whose
-  # publish never finished; success here only means nothing *new* was due.
-  if [[ -z "$next_version" ]]; then
-    verify_last_release
-  fi
   exit 0
 fi
 
