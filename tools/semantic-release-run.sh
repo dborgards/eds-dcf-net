@@ -142,6 +142,92 @@ remove_worktree_best_effort() {
   git worktree prune || true
 }
 
+local_release_assets() {
+  local version="$1"
+  local packages_dir="$2"
+  local name
+
+  while IFS= read -r name; do
+    if [[ -f "${packages_dir}/${name}" ]]; then
+      printf '%s\n' "$name"
+    fi
+  done < <(release_artifact_names "$version")
+}
+
+# Asset names GitHub reports as fully uploaded. Anything still in the `starter`
+# state is a half-finished upload from the aborted run and must be re-sent.
+uploaded_release_assets() {
+  local tag="$1"
+
+  gh release view "$tag" --json assets \
+    --jq '.assets[] | select(.state == "uploaded") | .name' 2>/dev/null || true
+}
+
+# Prints "true" or "false". A failed or unreadable probe must fail the repair:
+# treating a missed read as "not a draft" would skip --draft=false, after which
+# channel notes are pushed and later runs leave the GitHub release unpublished.
+# Strip CR so Git Bash on windows-latest does not turn `true\r` into a miss.
+release_is_draft() {
+  local tag="$1"
+  local is_draft
+
+  is_draft="$(gh release view "$tag" --json isDraft --jq .isDraft)" || {
+    echo "Could not determine draft status for ${tag}." >&2
+    return 1
+  }
+  is_draft="${is_draft//$'\r'/}"
+  case "$is_draft" in
+    true|false)
+      printf '%s\n' "$is_draft"
+      ;;
+    *)
+      echo "Could not determine draft status for ${tag} (got: ${is_draft})." >&2
+      return 1
+      ;;
+  esac
+}
+
+# `gh release create` with assets creates a draft, uploads each asset, then
+# publishes. A run that dies partway leaves a release that `gh release view`
+# finds but that is missing assets, still a draft, or both. Resume whichever
+# step did not finish instead of treating mere existence as success.
+resume_release_publish() {
+  local version="$1"
+  local tag="v${version}"
+  local packages_dir="$2"
+  local -a missing=()
+  local -a uploaded=()
+  local name
+  local resumed=0
+  local is_draft
+
+  mapfile -t uploaded < <(uploaded_release_assets "$tag")
+
+  while IFS= read -r name; do
+    if ! printf '%s\n' "${uploaded[@]}" | grep -Fxq "$name"; then
+      missing+=("${packages_dir}/${name}")
+    fi
+  done < <(local_release_assets "$version" "$packages_dir")
+
+  if ((${#missing[@]} > 0)); then
+    echo "Uploading ${#missing[@]} missing asset(s) to ${tag}."
+    # --clobber replaces `starter` leftovers from the interrupted upload.
+    gh release upload "$tag" "${missing[@]}" --clobber
+    resumed=1
+  fi
+
+  is_draft="$(release_is_draft "$tag")" || return 1
+  if [[ "$is_draft" == "true" ]]; then
+    echo "Publishing draft release ${tag}."
+    gh release edit "$tag" --draft=false
+    resumed=1
+  fi
+
+  if ((resumed == 0)); then
+    echo "GitHub release ${tag} already complete."
+  fi
+}
+
 complete_release_publish() {
   local version="$1"
   local tag="v${version}"
@@ -194,7 +280,7 @@ complete_release_publish() {
 
     "${cmd[@]}"
   else
-    echo "GitHub release ${tag} already exists."
+    resume_release_publish "$version" "$packages_dir"
   fi
 }
 
