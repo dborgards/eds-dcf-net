@@ -21,9 +21,16 @@ concurrency:
   # sees a release that looks incomplete but is only in progress — and would
   # launch a repair racing the publish it duplicates.
   #
+  # The group is repository-wide rather than per-ref on purpose. main and
+  # develop can act on the *same* tag: verify_last_release considers reachable
+  # stable tags on develop too, because semantic-release does, so a back-merge
+  # firing develop while main publishes that stable release would have both
+  # jobs repairing it at once. Releases are infrequent; serializing the two
+  # channels against each other costs little next to a duplicated publish.
+  #
   # Queue rather than cancel: cancelling a run mid-publish is precisely how the
   # partial releases this pipeline repairs come about.
-  group: semantic-release-${{ github.ref }}
+  group: semantic-release
   cancel-in-progress: false
 
 jobs:
