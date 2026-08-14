@@ -410,8 +410,7 @@ github_release_complete() {
 # history makes beta tags reachable, so prereleases are excluded there.
 last_release_tag() {
   local branch="${GITHUB_REF_NAME:-}"
-  local pattern
-  local -a drop_prereleases
+  local -a keep
   local -a candidates=()
 
   if [[ -z "$branch" ]]; then
@@ -420,15 +419,19 @@ last_release_tag() {
 
   case "$branch" in
     develop)
-      # Only prereleases, so the sort never compares v1.12.0 against
-      # v1.12.0-beta.15 — version sort orders those by its own suffix rules
-      # rather than SemVer's, and keeping the sets disjoint avoids the question.
-      pattern='v*-beta.*'
-      drop_prereleases=(cat)
+      # semantic-release's get-last-release accepts, on a prerelease branch,
+      # this channel's own prereleases *and* every non-prerelease tag, then
+      # takes the SemVer-highest of the combined set:
+      #
+      #   ((branch.type === "prerelease" && <channel prerelease>) ||
+      #     !semver.prerelease(tag.version))
+      #
+      # A stable tag merged back from main is therefore eligible on develop and
+      # can outrank the newest beta, so both forms have to be considered here.
+      keep=(grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$')
       ;;
     main)
-      pattern='v*'
-      drop_prereleases=(grep -v -- '-')
+      keep=(grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')
       ;;
     *)
       # The workflow also accepts workflow_dispatch, which can target any
@@ -447,9 +450,14 @@ last_release_tag() {
   # return an older tag while a higher, partially published release is the real
   # lastRelease, and the run would go green without repairing it.
   # semantic-release picks its lastRelease with semver.rcompare, so match that.
+  #
+  # versionsort.suffix is required now that prereleases and stable tags share
+  # one list: git's plain version sort ranks v1.12.0-beta.15 *above* v1.12.0,
+  # the reverse of SemVer. Naming the suffix restores SemVer's order, which was
+  # checked against git rather than assumed.
   mapfile -t candidates < <(
-    git tag --merged HEAD --list "$pattern" --sort=-v:refname 2>/dev/null |
-      tr -d '\r' | "${drop_prereleases[@]}"
+    git -c versionsort.suffix=-beta. tag --merged HEAD --list 'v*' \
+      --sort=-v:refname 2>/dev/null | tr -d '\r' | "${keep[@]}"
   )
 
   if ((${#candidates[@]} == 0)) || [[ -z "${candidates[0]}" ]]; then
