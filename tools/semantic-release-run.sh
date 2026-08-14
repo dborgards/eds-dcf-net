@@ -163,12 +163,28 @@ uploaded_release_assets() {
     --jq '.assets[] | select(.state == "uploaded") | .name' 2>/dev/null || true
 }
 
+# Prints "true" or "false". A failed or unreadable probe must fail the repair:
+# treating a missed read as "not a draft" would skip --draft=false, after which
+# channel notes are pushed and later runs leave the GitHub release unpublished.
+# Strip CR so Git Bash on windows-latest does not turn `true\r` into a miss.
 release_is_draft() {
   local tag="$1"
   local is_draft
 
-  is_draft="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null || true)"
-  [[ "$is_draft" == "true" ]]
+  is_draft="$(gh release view "$tag" --json isDraft --jq .isDraft)" || {
+    echo "Could not determine draft status for ${tag}." >&2
+    return 1
+  }
+  is_draft="${is_draft//$'\r'/}"
+  case "$is_draft" in
+    true|false)
+      printf '%s\n' "$is_draft"
+      ;;
+    *)
+      echo "Could not determine draft status for ${tag} (got: ${is_draft})." >&2
+      return 1
+      ;;
+  esac
 }
 
 # `gh release create` with assets creates a draft, uploads each asset, then
@@ -183,6 +199,7 @@ resume_release_publish() {
   local -a uploaded=()
   local name
   local resumed=0
+  local is_draft
 
   mapfile -t uploaded < <(uploaded_release_assets "$tag")
 
@@ -199,7 +216,8 @@ resume_release_publish() {
     resumed=1
   fi
 
-  if release_is_draft "$tag"; then
+  is_draft="$(release_is_draft "$tag")" || return 1
+  if [[ "$is_draft" == "true" ]]; then
     echo "Publishing draft release ${tag}."
     gh release edit "$tag" --draft=false
     resumed=1
