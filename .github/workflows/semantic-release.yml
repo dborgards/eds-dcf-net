@@ -15,6 +15,17 @@ permissions:
   issues: write
   pull-requests: write
 
+concurrency:
+  # Release runs must not overlap. semantic-release pushes the tag and channel
+  # note before the publish plugins run, so a second run starting in that window
+  # sees a release that looks incomplete but is only in progress — and would
+  # launch a repair racing the publish it duplicates.
+  #
+  # Queue rather than cancel: cancelling a run mid-publish is precisely how the
+  # partial releases this pipeline repairs come about.
+  group: semantic-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     # windows-latest is required so the net48 test host can bind and execute the
