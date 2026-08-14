@@ -558,6 +558,18 @@ verify_last_release() {
   # Repairing on the confirmation either fixes it or fails the run — both leave
   # the release recoverable, which returning success here would not.
   if ((github_status == 1)) || ((nuget_status == 1)); then
+    # Observe-only: report the finding and change nothing. This verification has
+    # never run against the real services, and two of its probe semantics — how
+    # often nuget.org's index lags a push, and whether a queued release was
+    # dropped rather than never made — are guesses until a real run measures
+    # them. Leaving this on for a few releases turns those guesses into a
+    # false-positive count at no risk; the repair is one condition away.
+    if [[ "${RELEASE_VERIFY_OBSERVE_ONLY:-1}" == "1" ]]; then
+      warn "OBSERVE-ONLY: ${tag} looks incomplete (github=${github_status}, nuget=${nuget_status})."
+      warn "OBSERVE-ONLY: would run repair_notes_and_publish ${version}; taking no action."
+      return 0
+    fi
+
     echo "Last release ${tag} is incomplete (github=${github_status}, nuget=${nuget_status}); repairing."
     repair_notes_and_publish "$version"
     # Recorded so the tag-already-exists branch below does not repair the same
