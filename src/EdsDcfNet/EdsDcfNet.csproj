@@ -29,12 +29,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.301">
+		<PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.400">
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		  <PrivateAssets>all</PrivateAssets>
 		</PackageReference>
-		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
-		<PackageReference Include="Polyfill" Version="10.10.0" PrivateAssets="all">
+		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.400" PrivateAssets="All" />
+		<PackageReference Include="Polyfill" Version="11.2.0" PrivateAssets="all">
 		  <IncludeAssets>compile; build; analyzers; contentfiles</IncludeAssets>
 		</PackageReference>
 	</ItemGroup>
