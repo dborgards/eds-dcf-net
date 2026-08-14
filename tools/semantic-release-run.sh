@@ -482,21 +482,28 @@ verify_last_release() {
   nuget_status=0
   nuget_has_version "$version" || nuget_status=$?
 
-  # An unreachable probe is not evidence of a broken release, and this runs on
-  # every push that plans no release. Say so loudly rather than either failing
-  # the build or silently repairing on a guess.
+  # A confirmed incomplete result outranks an indeterminate companion probe.
+  # One side saying "this really is missing" is evidence; the other side being
+  # unreachable is only absence of evidence, and letting the unknown mask the
+  # confirmation would strand the release: the run continues, the next planned
+  # version publishes, and from then on only that newer tag is ever inspected.
+  # Repairing on the confirmation either fixes it or fails the run — both leave
+  # the release recoverable, which returning success here would not.
+  if ((github_status == 1)) || ((nuget_status == 1)); then
+    echo "Last release ${tag} is incomplete (github=${github_status}, nuget=${nuget_status}); repairing."
+    repair_notes_and_publish "$version"
+    return
+  fi
+
+  # Nothing confirmed broken, but something could not be read. This runs on
+  # every push, so say so loudly rather than failing the build or repairing on
+  # a guess.
   if ((github_status == 2)) || ((nuget_status == 2)); then
     warn "Could not verify ${tag} (github=${github_status}, nuget=${nuget_status}); leaving it as-is."
     return 0
   fi
 
-  if ((github_status == 0)) && ((nuget_status == 0)); then
-    echo "Last release ${tag} is complete on GitHub and NuGet."
-    return 0
-  fi
-
-  echo "Last release ${tag} is incomplete (github=${github_status}, nuget=${nuget_status}); repairing."
-  repair_notes_and_publish "$version"
+  echo "Last release ${tag} is complete on GitHub and NuGet."
 }
 
 repair_notes_and_publish() {
