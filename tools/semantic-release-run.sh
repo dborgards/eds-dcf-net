@@ -416,11 +416,23 @@ last_release_tag() {
     branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
   fi
 
-  if [[ "$branch" == "develop" ]]; then
-    match=(--match 'v*-beta.*')
-  else
-    match=(--match 'v*' --exclude 'v*-*')
-  fi
+  case "$branch" in
+    develop)
+      match=(--match 'v*-beta.*')
+      ;;
+    main)
+      match=(--match 'v*' --exclude 'v*-*')
+      ;;
+    *)
+      # The workflow also accepts workflow_dispatch, which can target any
+      # branch, but only main and develop are channels in .releaserc.json. Such
+      # a run plans no version, and verifying "the last release" from there
+      # would mean rebuilding and repairing a production release with recovery
+      # code taken from an unreleased branch.
+      echo "Branch '${branch:-unknown}' is not a release channel; skipping verification." >&2
+      return 1
+      ;;
+  esac
 
   git describe --tags --abbrev=0 "${match[@]}" 2>/dev/null
 }
@@ -432,7 +444,7 @@ verify_last_release() {
   local nuget_status
 
   if ! tag="$(last_release_tag)"; then
-    echo "No release tag for this channel is reachable from HEAD; nothing to verify."
+    echo "No release to verify for this run."
     return 0
   fi
 
