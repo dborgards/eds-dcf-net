@@ -313,6 +313,90 @@ complete_release_publish() {
   fi
 }
 
+# 0 = version is on nuget.org, 1 = absent, 2 = could not ask.
+nuget_has_version() {
+  local version="$1"
+  local body
+
+  if ! body="$(curl -fsSL "https://api.nuget.org/v3-flatcontainer/edsdcfnet/index.json")"; then
+    return 2
+  fi
+
+  printf '%s' "$body" | grep -Fq "\"${version}\""
+}
+
+# 0 = published with its package asset, 1 = missing/draft/incomplete,
+# 2 = could not determine.
+#
+# Only the nupkg is required. Symbols and the SBOMs are best-effort in
+# semantic-release-publish.sh, so demanding them here would report every
+# release incomplete and re-run the repair on every build.
+github_release_complete() {
+  local tag="$1"
+  local version="${tag#v}"
+  local is_draft
+  local uploaded_raw
+  local -a uploaded=()
+
+  if ! gh release view "$tag" >/dev/null 2>&1; then
+    return 1
+  fi
+
+  is_draft="$(release_is_draft "$tag")" || return 2
+  if [[ "$is_draft" == "true" ]]; then
+    return 1
+  fi
+
+  uploaded_raw="$(uploaded_release_assets "$tag")" || return 2
+  uploaded_raw="${uploaded_raw//$'\r'/}"
+  mapfile -t uploaded <<<"$uploaded_raw"
+  uploaded=("${uploaded[@]//$'\r'/}")
+
+  printf '%s\n' "${uploaded[@]}" | grep -Fxq "EdsDcfNet.${version}.nupkg"
+}
+
+# semantic-release pushes the tag and channel note before the publish plugins
+# run, so a NuGet or GitHub failure leaves a tag that later dry runs accept as
+# lastRelease. Those runs plan nothing and exit 0, which would strand the
+# partial release forever behind a green build. Check the last tag before
+# accepting a no-op result.
+verify_last_release() {
+  local tag
+  local version
+  local github_status
+  local nuget_status
+
+  if ! tag="$(git describe --tags --abbrev=0 2>/dev/null)"; then
+    echo "No release tag reachable from HEAD; nothing to verify."
+    return 0
+  fi
+
+  tag="${tag//$'\r'/}"
+  version="${tag#v}"
+
+  github_release_complete "$tag"
+  github_status=$?
+
+  nuget_has_version "$version"
+  nuget_status=$?
+
+  # An unreachable probe is not evidence of a broken release, and this runs on
+  # every push that plans no release. Say so loudly rather than either failing
+  # the build or silently repairing on a guess.
+  if ((github_status == 2)) || ((nuget_status == 2)); then
+    warn "Could not verify ${tag} (github=${github_status}, nuget=${nuget_status}); leaving it as-is."
+    return 0
+  fi
+
+  if ((github_status == 0)) && ((nuget_status == 0)); then
+    echo "Last release ${tag} is complete on GitHub and NuGet."
+    return 0
+  fi
+
+  echo "Last release ${tag} is incomplete (github=${github_status}, nuget=${nuget_status}); repairing."
+  repair_notes_and_publish "$version"
+}
+
 repair_notes_and_publish() {
   local version="$1"
   local notes_ref
@@ -361,6 +445,11 @@ sr_exit="${PIPESTATUS[0]}"
 set -e
 
 if [[ "$sr_exit" -eq 0 ]]; then
+  # A run that planned nothing may be standing on a previous release whose
+  # publish never finished; success here only means nothing *new* was due.
+  if [[ -z "$next_version" ]]; then
+    verify_last_release
+  fi
   exit 0
 fi
 
