@@ -156,11 +156,19 @@ local_release_assets() {
 
 # Asset names GitHub reports as fully uploaded. Anything still in the `starter`
 # state is a half-finished upload from the aborted run and must be re-sent.
+#
+# A failed probe must fail the repair, for the same reason as release_is_draft:
+# an unreadable asset list silently becomes "nothing is uploaded", which either
+# re-clobbers a healthy release or, once the channel note is pushed, hides a
+# release that is genuinely missing artifacts from every later repair run.
 uploaded_release_assets() {
   local tag="$1"
 
   gh release view "$tag" --json assets \
-    --jq '.assets[] | select(.state == "uploaded") | .name' 2>/dev/null || true
+    --jq '.assets[] | select(.state == "uploaded") | .name' || {
+    echo "Could not list assets for ${tag}." >&2
+    return 1
+  }
 }
 
 # Prints "true" or "false". A failed or unreadable probe must fail the repair:
@@ -200,8 +208,16 @@ resume_release_publish() {
   local name
   local resumed=0
   local is_draft
+  local uploaded_raw
 
-  mapfile -t uploaded < <(uploaded_release_assets "$tag")
+  # Capture before mapfile: a process substitution would discard the exit status
+  # and turn a failed probe back into an empty "nothing uploaded" list.
+  uploaded_raw="$(uploaded_release_assets "$tag")" || return 1
+  # Strip CR so Git Bash on windows-latest does not break exact name matching.
+  # Command substitution of `gh --jq` and a here-string can both attach CR.
+  uploaded_raw="${uploaded_raw//$'\r'/}"
+  mapfile -t uploaded <<<"$uploaded_raw"
+  uploaded=("${uploaded[@]//$'\r'/}")
 
   while IFS= read -r name; do
     if ! printf '%s\n' "${uploaded[@]}" | grep -Fxq "$name"; then
@@ -248,6 +264,19 @@ complete_release_publish() {
     (
       cd "$worktree"
       export MSBUILDDISABLENODEREUSE=1
+      # setup-dotnet installed the SDK named by the *current* checkout's
+      # global.json. The tag's own global.json can pin an older feature band
+      # that is not installed, and SDK selection rolls forward only within a
+      # band, so restore would abort and the repair could never run for tags
+      # predating an SDK bump. Deleting the pin is not the fix either: with no
+      # global.json, .NET selects the latest installed SDK, which on a hosted
+      # runner may be newer than — or a preview of — what the workflow chose.
+      # Copy the current pin in, so the pack uses exactly the installed SDK.
+      if [[ -f "${repo_root}/global.json" ]]; then
+        cp -f "${repo_root}/global.json" global.json
+      else
+        rm -f global.json
+      fi
       dotnet restore
       bash "${repo_root}/tools/semantic-release-publish.sh" "$version"
     )
