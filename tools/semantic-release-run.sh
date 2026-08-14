@@ -213,7 +213,11 @@ resume_release_publish() {
   # Capture before mapfile: a process substitution would discard the exit status
   # and turn a failed probe back into an empty "nothing uploaded" list.
   uploaded_raw="$(uploaded_release_assets "$tag")" || return 1
+  # Strip CR so Git Bash on windows-latest does not break exact name matching.
+  # Command substitution of `gh --jq` and a here-string can both attach CR.
+  uploaded_raw="${uploaded_raw//$'\r'/}"
   mapfile -t uploaded <<<"$uploaded_raw"
+  uploaded=("${uploaded[@]//$'\r'/}")
 
   while IFS= read -r name; do
     if ! printf '%s\n' "${uploaded[@]}" | grep -Fxq "$name"; then
