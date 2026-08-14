@@ -36,9 +36,15 @@ concurrency:
   # stays missing until the next one. Weigh that against the duplicated publish
   # it prevents before narrowing or widening this group again.
   #
+  # Only main and develop share the group. workflow_dispatch accepts any ref,
+  # and such a run publishes nothing — it plans no version and skips
+  # verification — but it would still join the queue and evict a pending
+  # production release on its way to doing nothing. Non-channel refs therefore
+  # get a group of their own.
+  #
   # Queue rather than cancel: cancelling a run mid-publish is precisely how the
   # partial releases this pipeline repairs come about.
-  group: semantic-release
+  group: semantic-release-${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && 'channels' || github.ref }}
   cancel-in-progress: false
 
 jobs:
