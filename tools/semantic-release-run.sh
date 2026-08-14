@@ -410,7 +410,9 @@ github_release_complete() {
 # history makes beta tags reachable, so prereleases are excluded there.
 last_release_tag() {
   local branch="${GITHUB_REF_NAME:-}"
-  local -a match
+  local pattern
+  local -a drop_prereleases
+  local -a candidates=()
 
   if [[ -z "$branch" ]]; then
     branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
@@ -418,10 +420,15 @@ last_release_tag() {
 
   case "$branch" in
     develop)
-      match=(--match 'v*-beta.*')
+      # Only prereleases, so the sort never compares v1.12.0 against
+      # v1.12.0-beta.15 — version sort orders those by its own suffix rules
+      # rather than SemVer's, and keeping the sets disjoint avoids the question.
+      pattern='v*-beta.*'
+      drop_prereleases=(cat)
       ;;
     main)
-      match=(--match 'v*' --exclude 'v*-*')
+      pattern='v*'
+      drop_prereleases=(grep -v -- '-')
       ;;
     *)
       # The workflow also accepts workflow_dispatch, which can target any
@@ -434,7 +441,22 @@ last_release_tag() {
       ;;
   esac
 
-  git describe --tags --abbrev=0 "${match[@]}" 2>/dev/null
+  # Highest version among the reachable channel tags, not the nearest one.
+  # `git describe` selects by ancestry distance, so on non-linear history — a
+  # merge back, or one of the tag rewrites this script already handles — it can
+  # return an older tag while a higher, partially published release is the real
+  # lastRelease, and the run would go green without repairing it.
+  # semantic-release picks its lastRelease with semver.rcompare, so match that.
+  mapfile -t candidates < <(
+    git tag --merged HEAD --list "$pattern" --sort=-v:refname 2>/dev/null |
+      tr -d '\r' | "${drop_prereleases[@]}"
+  )
+
+  if ((${#candidates[@]} == 0)) || [[ -z "${candidates[0]}" ]]; then
+    return 1
+  fi
+
+  printf '%s\n' "${candidates[0]}"
 }
 
 verify_last_release() {
