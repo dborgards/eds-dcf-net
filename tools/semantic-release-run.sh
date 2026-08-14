@@ -264,13 +264,19 @@ complete_release_publish() {
     (
       cd "$worktree"
       export MSBUILDDISABLENODEREUSE=1
-      # The tag's own global.json can pin an older SDK feature band than the one
-      # the workflow installed (setup-dotnet reads the *current* checkout). SDK
-      # selection rolls forward only within a band, so restore would abort and
-      # the repair could never run for tags predating an SDK bump. Drop the pin
-      # and pack with the runner's SDK; the tree is a throwaway recovery
-      # checkout, and packing a never-published tag beats not packing it at all.
-      rm -f global.json
+      # setup-dotnet installed the SDK named by the *current* checkout's
+      # global.json. The tag's own global.json can pin an older feature band
+      # that is not installed, and SDK selection rolls forward only within a
+      # band, so restore would abort and the repair could never run for tags
+      # predating an SDK bump. Deleting the pin is not the fix either: with no
+      # global.json, .NET selects the latest installed SDK, which on a hosted
+      # runner may be newer than — or a preview of — what the workflow chose.
+      # Copy the current pin in, so the pack uses exactly the installed SDK.
+      if [[ -f "${repo_root}/global.json" ]]; then
+        cp -f "${repo_root}/global.json" global.json
+      else
+        rm -f global.json
+      fi
       dotnet restore
       bash "${repo_root}/tools/semantic-release-publish.sh" "$version"
     )
