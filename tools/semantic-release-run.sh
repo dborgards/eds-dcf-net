@@ -325,6 +325,41 @@ nuget_has_version() {
   printf '%s' "$body" | grep -Fq "\"${version}\""
 }
 
+# Reads one --jq field off a release. 0 = value on stdout, 1 = the release
+# does not exist, 2 = the question could not be answered.
+#
+# gh exits 1 for every failure, so the message is the only thing separating
+# "no such release" from an outage or a missing token. Requiring exit 1 *and*
+# a not-found message keeps an unrelated failure (127 for a missing gh, 4 for
+# auth) from being read as a confirmed absence.
+gh_release_field() {
+  local tag="$1"
+  local json="$2"
+  local filter="$3"
+  local err_file
+  local out
+  local status=0
+
+  err_file="$(mktemp)"
+  out="$(gh release view "$tag" --json "$json" --jq "$filter" 2>"$err_file")" || status=$?
+
+  if ((status == 0)); then
+    rm -f "$err_file"
+    printf '%s\n' "$out"
+    return 0
+  fi
+
+  if ((status == 1)) &&
+    grep -qiE "release not found|could not resolve to a release|HTTP 404" "$err_file"; then
+    rm -f "$err_file"
+    return 1
+  fi
+
+  cat "$err_file" >&2
+  rm -f "$err_file"
+  return 2
+}
+
 # 0 = published with its package asset, 1 = missing/draft/incomplete,
 # 2 = could not determine.
 #
@@ -337,17 +372,23 @@ github_release_complete() {
   local is_draft
   local uploaded_raw
   local -a uploaded=()
+  local status=0
 
-  if ! gh release view "$tag" >/dev/null 2>&1; then
+  is_draft="$(gh_release_field "$tag" isDraft .isDraft)" || status=$?
+  if ((status != 0)); then
+    return "$status"
+  fi
+  if [[ "${is_draft//$'\r'/}" == "true" ]]; then
     return 1
   fi
 
-  is_draft="$(release_is_draft "$tag")" || return 2
-  if [[ "$is_draft" == "true" ]]; then
-    return 1
+  status=0
+  uploaded_raw="$(gh_release_field "$tag" assets \
+    '.assets[] | select(.state == "uploaded") | .name')" || status=$?
+  if ((status != 0)); then
+    return "$status"
   fi
 
-  uploaded_raw="$(uploaded_release_assets "$tag")" || return 2
   uploaded_raw="${uploaded_raw//$'\r'/}"
   mapfile -t uploaded <<<"$uploaded_raw"
   uploaded=("${uploaded[@]//$'\r'/}")
@@ -374,11 +415,14 @@ verify_last_release() {
   tag="${tag//$'\r'/}"
   version="${tag#v}"
 
-  github_release_complete "$tag"
-  github_status=$?
+  # Capture through `|| var=$?`: a bare call would hit errexit on any nonzero
+  # status and kill the run before the status could be read, so an incomplete
+  # release would fail the build instead of being repaired.
+  github_status=0
+  github_release_complete "$tag" || github_status=$?
 
-  nuget_has_version "$version"
-  nuget_status=$?
+  nuget_status=0
+  nuget_has_version "$version" || nuget_status=$?
 
   # An unreachable probe is not evidence of a broken release, and this runs on
   # every push that plans no release. Say so loudly rather than either failing
