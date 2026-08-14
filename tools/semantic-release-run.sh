@@ -493,13 +493,20 @@ verify_last_release() {
     echo "Last release ${tag} is incomplete (github=${github_status}, nuget=${nuget_status}); repairing."
     repair_notes_and_publish "$version"
 
-    # The repair leaves the repaired version's packages in packages/, and
-    # .releaserc.json attaches packages/*.nupkg and packages/*.snupkg to a
-    # release by glob. When a newly planned release follows in this same run,
-    # those globs would hang the repaired version's artifacts on the new
-    # release as well, so drop them now that they are published.
+    # The repair leaves its artifacts in packages/, and .releaserc.json attaches
+    # that directory's packages and SBOMs to a release by path. When a newly
+    # planned release follows in this same run, they would be hung on the new
+    # release too, so drop them now that the repair has published them.
+    #
+    # The SBOMs need clearing as much as the packages do: they have fixed names,
+    # but semantic-release-publish.sh only overwrites them on the happy path.
+    # generate_spdx_sbom returns early when CycloneDX generation failed, before
+    # it deletes the old sbom.spdx.json, which would then ship as the new
+    # release's SPDX SBOM. Absent beats wrong — the SBOMs are best-effort.
     rm -f "packages/EdsDcfNet.${version}.nupkg" \
-      "packages/EdsDcfNet.${version}.snupkg"
+      "packages/EdsDcfNet.${version}.snupkg" \
+      packages/bom.cdx.json \
+      packages/sbom.spdx.json
     return 0
   fi
 
