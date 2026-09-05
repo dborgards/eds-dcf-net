@@ -17,13 +17,13 @@
   },
   "overrides": {
     "@actions/http-client": {
-      "undici": "8.10.0"
+      "undici": "8.10.2"
     },
     "@semantic-release/github": {
-      "undici": "8.10.0"
+      "undici": "8.10.2"
     },
     "node-gyp": {
-      "undici": "8.10.0"
+      "undici": "8.10.2"
     },
     "npm": "$eds-npm-cli-stub"
   },
