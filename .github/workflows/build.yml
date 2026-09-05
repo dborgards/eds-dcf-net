@@ -148,6 +148,39 @@ jobs:
           -f description="${description}" \
           -f target_url="https://app.codecov.io/github/${{ github.repository }}"
 
+  # Guards the lockfile against package.json/package-lock.json drift.
+  #
+  # npm runs nowhere else in this workflow: the only `npm ci` is in
+  # semantic-release.yml, which fires *after* a merge to develop. Renovate npm
+  # PRs therefore stay green while breaking the release run — twice now, both
+  # times because a lockfile update dropped the overridden undici node instead
+  # of updating it (#502/#506, #515/#519). This job reproduces that exact step
+  # on the PR so the drift is caught before merge.
+  #
+  # Not relayed by relay-release-status (which posts only `build`), so do not
+  # add it to the develop/main required-check ruleset without extending that
+  # job — release commits carry [skip ci] and would otherwise stay pending.
+  npm-lockfile:
+    if: github.event_name != 'workflow_run'
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      with:
+        # Keep in sync with semantic-release.yml — this job exists to reproduce
+        # that workflow's install step.
+        node-version: '24.20.x'
+
+    # Same command as semantic-release.yml. Fails on any package.json /
+    # package-lock.json mismatch (npm error code EUSAGE).
+    - name: Verify package-lock.json is in sync
+      run: npm ci
+
   # Relays required check statuses for release commits that carry [skip ci].
   # The Semantic Release workflow already built and tested the code; this job simply
   # forwards its outcome to the release commit SHA so PR required checks are satisfied.
