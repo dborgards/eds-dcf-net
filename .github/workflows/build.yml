@@ -239,8 +239,8 @@ jobs:
           [.[].commit.message] | any(
             . as $msg |
             ($msg | split("\n")) as $lines |
-            ((($lines[0] // "") | test("^[a-zA-Z]+(\\([^)]*\\))?!:"))
-              or (($lines[0] // "") | test("^(breaking|major)(\\([^)]*\\))?:")))
+            ((($lines[0] // "") | test("^[a-zA-Z]+(\\([^)]*\\))?!: "))
+              or (($lines[0] // "") | test("^(breaking|major)(\\([^)]*\\))?: ")))
             or
             (($lines[1:] | join("\n")) | test("(?m)^(BREAKING CHANGE|BREAKING CHANGES|BREAKING):"))
           )
