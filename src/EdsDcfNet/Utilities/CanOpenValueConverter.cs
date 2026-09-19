@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Utilities;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 /// <summary>
@@ -76,6 +77,7 @@ public static class CanOpenValueConverter
     /// <see cref="CanOpenDataType.TryGetBitLength"/> so the converter and the public metadata
     /// table cannot drift apart. Only reached for fixed-width integer types.
     /// </summary>
+    [ExcludeFromCodeCoverage] // the throw is unreachable: every call site passes a fixed-width constant
     private static int BitLength(ushort dataType) =>
         CanOpenDataType.TryGetBitLength(dataType)
         ?? throw new NotSupportedException(
