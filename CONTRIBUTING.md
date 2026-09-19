@@ -175,6 +175,20 @@ BREAKING CHANGE: CanOpenFile.Eds.ReadFile now returns a Result type
 
 ## Public API compatibility checklist
 
+> **Automated gate:** the `apicompat` CI job (`build.yml`, PRs into `develop`
+> and `main`) compares the built assemblies against the latest stable
+> `EdsDcfNet` package on nuget.org via `Microsoft.DotNet.ApiCompat`
+> (`tools/apicompat-check.sh`). A PR that removes/renames public members fails
+> CI unless it carries the `breaking` label or a `!`/`BREAKING CHANGE:` commit
+> footer — in that case the diff is posted as a PR comment so the Major bump is
+> a conscious decision. Known, intentional deviations (e.g. `[Obsolete]`
+> removals allowed by the obsoleting policy at the next Major) are suppressed in
+> `src/EdsDcfNet/ApiCompatSuppressions.xml` with a comment referencing the
+> approving issue/PR.
+>
+> The checklist below covers what the tool **cannot** see: behavioural
+> changes, exception-contract changes, and source-level (not binary) breaks.
+
 Use this checklist for any PR that adds, removes, renames, or reshapes public
 members in `EdsDcfNet` — especially `CanOpenFile`, format entry points
 (`.Eds`, `.Dcf`, `.Cpj`, `.Xdd`, `.Xdc`), and models consumed by library

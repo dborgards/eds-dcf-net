@@ -181,6 +181,95 @@ jobs:
     - name: Verify package-lock.json is in sync
       run: npm ci
 
+  # Compares the built public API against the latest stable EdsDcfNet package on
+  # nuget.org (Microsoft.DotNet.ApiCompat). semantic-release derives the version
+  # bump from commit types, not from the actual API delta — this job makes an
+  # accidental breaking change in a feat:/fix: PR fail CI instead of shipping as
+  # a Minor/Patch.
+  #
+  # PR-only on purpose: release commits carry [skip ci] and relay-release-status
+  # posts only `build`, so a push/develop trigger here would stay pending on
+  # release commits.
+  apicompat:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        # Full history so the breaking-change detection can inspect all PR commits.
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+      with:
+        global-json-file: global.json
+
+    - name: Build library
+      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
+
+    - name: Install ApiCompat tool
+      run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool
+
+    # Differences are a failure by default. They are tolerated when the PR opts
+    # in to a conscious Major bump: the `breaking` label or a `!` /
+    # `BREAKING CHANGE:` commit footer. In that case the job passes and the diff
+    # is posted as a PR comment so the decision is visible in review.
+    - name: Detect explicit breaking-change intent
+      id: breaking
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        pr="${{ github.event.pull_request.number }}"
+        intent="false"
+        if gh pr view "$pr" --json labels --jq '.labels[].name' | grep -qx 'breaking'; then
+          echo "PR carries the 'breaking' label."
+          intent="true"
+        elif gh api "repos/${{ github.repository }}/pulls/$pr/commits" --jq '.[].commit.message' \
+             | grep -Eq '^[a-zA-Z]+(\([^)]*\))?!:|^BREAKING[ -]CHANGE:'; then
+          echo "PR contains a '!'/BREAKING CHANGE commit."
+          intent="true"
+        fi
+        echo "intent=${intent}" >> "$GITHUB_OUTPUT"
+
+    - name: Run ApiCompat against latest stable package
+      id: apicompat
+      run: |
+        set +e
+        bash tools/apicompat-check.sh src/EdsDcfNet/bin/Release "$RUNNER_TEMP/apicompat"
+        rc=$?
+        set -e
+        # rc 2 is an infrastructure failure — fail the step normally.
+        if [ "$rc" -eq 2 ]; then exit 2; fi
+        if [ "$rc" -eq 0 ]; then result="compatible"; else result="incompatible"; fi
+        echo "result=${result}" >> "$GITHUB_OUTPUT"
+
+    - name: Post API diff as PR comment
+      if: steps.apicompat.outputs.result == 'incompatible' && steps.breaking.outputs.intent == 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        {
+          echo "## Public API compatibility diff"
+          echo
+          echo "ApiCompat reports breaking changes against the latest stable package."
+          echo "This PR explicitly opts in ('breaking' label or BREAKING CHANGE commit),"
+          echo "so the check passes — the diff is recorded here for review:"
+          echo
+          cat "$RUNNER_TEMP/apicompat/apicompat-diff.md"
+        } > "$RUNNER_TEMP/apicompat-comment.md"
+        gh pr comment "${{ github.event.pull_request.number }}" --body-file "$RUNNER_TEMP/apicompat-comment.md"
+
+    - name: Fail on unannounced breaking changes
+      if: steps.apicompat.outputs.result == 'incompatible' && steps.breaking.outputs.intent != 'true'
+      run: |
+        cat "$RUNNER_TEMP/apicompat/apicompat-diff.md"
+        echo "::error::Public API is not compatible with the latest stable package. Either revert the breaking change or mark the PR with the 'breaking' label / a BREAKING CHANGE commit footer (Major release)."
+        exit 1
+
   # Relays required check statuses for release commits that carry [skip ci].
   # The Semantic Release workflow already built and tested the code; this job simply
   # forwards its outcome to the release commit SHA so PR required checks are satisfied.
