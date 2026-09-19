@@ -228,12 +228,29 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         pr="${{ github.event.pull_request.number }}"
-        if ! messages=$(gh api --paginate "repos/${{ github.repository }}/pulls/$pr/commits" --jq '.[].commit.message'); then
+        # Evaluated per commit, header vs. body/footer, matching how the
+        # conventionalcommits parser actually derives type/notes: a bare
+        # grep over the flattened, concatenated commit messages would also
+        # match a `!`/`breaking:`/`major:`-looking line inside some other
+        # commit's body, or a `BREAKING:`-looking commit *subject* (which
+        # parses as an unrecognized type, not a note) — both false positives
+        # that would incorrectly let an unannounced breaking change through.
+        jq_program='
+          [.[].commit.message] | any(
+            . as $msg |
+            ($msg | split("\n")) as $lines |
+            ((($lines[0] // "") | test("^[a-zA-Z]+(\\([^)]*\\))?!:"))
+              or (($lines[0] // "") | test("^(breaking|major)(\\([^)]*\\))?:")))
+            or
+            (($lines[1:] | join("\n")) | test("(?m)^(BREAKING CHANGE|BREAKING CHANGES|BREAKING):"))
+          )
+        '
+        if ! results=$(gh api --paginate "repos/${{ github.repository }}/pulls/$pr/commits" --jq "$jq_program"); then
           echo "::error::Failed to fetch PR commits from the GitHub API — cannot determine breaking-change intent."
           exit 1
         fi
         intent="false"
-        if echo "$messages" | grep -Eq '^[a-zA-Z]+(\([^)]*\))?!:|^(breaking|major)(\([^)]*\))?:|^(BREAKING CHANGE|BREAKING CHANGES|BREAKING):'; then
+        if echo "$results" | grep -qx true; then
           echo "PR contains a commit that triggers a semantic-release Major bump."
           intent="true"
         fi
@@ -271,7 +288,7 @@ jobs:
       if: steps.apicompat.outputs.result == 'incompatible' && steps.breaking.outputs.intent != 'true'
       run: |
         cat "$RUNNER_TEMP/apicompat/apicompat-diff.md"
-        echo "::error::Public API is not compatible with the latest stable package. Either revert the breaking change or mark the PR with the 'breaking' label / a BREAKING CHANGE commit footer (Major release)."
+        echo "::error::Public API is not compatible with the latest stable package. Either revert the breaking change or add a commit with a '!' after the type, the 'breaking'/'major' type, or a BREAKING CHANGE/BREAKING CHANGES/BREAKING footer (Major release)."
         exit 1
 
   # Relays required check statuses for release commits that carry [skip ci].
