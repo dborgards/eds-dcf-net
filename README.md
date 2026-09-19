@@ -645,10 +645,12 @@ Guidance:
   `NodelistProject`, `ObjectDictionary`, etc. are plain mutable objects. Do not
   mutate a model while it is being written, validated, or converted
   (`EdsToDcf` / `ConvertToDcf`); give each thread its own model instance.
-- **Caller-owned streams are not synchronized.** The `ReadStream*` / `WriteStream*`
-  overloads operate directly on the `Stream` you pass. Concurrent calls must each
-  use their own stream (or one that provides its own synchronization) — sharing one
-  stream across concurrent calls races its position and can corrupt output.
+- **Caller-owned streams and files are not synchronized.** The `ReadStream*` /
+  `WriteStream*` overloads operate directly on the `Stream` you pass, and the
+  file-based overloads contend on the external file system. Concurrent calls must
+  each use their own stream and target distinct paths — sharing one stream races
+  its position, and concurrent writes to the same path (or a read overlapping a
+  write) can throw a sharing `IOException` or expose truncated content.
 - **Options may be shared.** `CanOpenFileOptions` and `CanOpenWriteOptions` are
   immutable (`init`-only); a single instance can be reused across threads.
 
