@@ -8,8 +8,9 @@ using EdsDcfNet.Exceptions;
 /// <typeparam name="TModel">The in-memory model type for the format.</typeparam>
 /// <threadsafety>
 /// The built-in instances exposed through <see cref="CanOpenFile"/>'s format entry points are
-/// safe to call concurrently: their readers and writers are stateless, and strict-mode state
-/// is scoped per call via <see cref="AsyncLocal{T}"/>, so concurrent calls with different
+/// safe to call concurrently: they hold only immutable delegates and construct a fresh
+/// reader/writer per call, and strict-mode state is scoped per call via
+/// <see cref="AsyncLocal{T}"/>, so concurrent calls with different
 /// <see cref="CanOpenFileOptions.StrictParsing"/> values do not interfere. This guarantee does
 /// <b>not</b> extend automatically to subclasses or custom delegates — supplied delegates and
 /// overrides must not capture mutable shared state. The models passed to and returned from

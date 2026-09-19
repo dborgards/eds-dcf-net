@@ -23,8 +23,9 @@ using EdsDcfNet.Validation;
 /// </remarks>
 /// <threadsafety>
 /// All members of <see cref="CanOpenFile"/> and the format entry points are safe to call
-/// concurrently: the underlying readers and writers are stateless singletons, and strict-mode
-/// state is scoped per call via <see cref="AsyncLocal{T}"/>. Model instances
+/// concurrently: the underlying operation objects are stateless singletons that construct
+/// a fresh reader/writer per call, and strict-mode state is scoped per call via
+/// <see cref="AsyncLocal{T}"/>. Model instances
 /// (<see cref="ElectronicDataSheet"/>, <c>DeviceConfigurationFile</c>, <c>NodelistProject</c>,
 /// <c>ObjectDictionary</c>, …) are plain mutable objects and are <b>not</b> thread-safe — a model
 /// must not be mutated while it is being written or validated.

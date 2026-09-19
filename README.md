@@ -635,10 +635,11 @@ Guidance:
 
 - **Entry points are safe for concurrent use.** `CanOpenFile.Eds` / `.Dcf` /
   `.Cpj` / `.Xdd` / `.Xdc` and their `Read*` / `Write*` / `Validate` operations
-  may be called from multiple threads or async flows simultaneously. The readers
-  and writers behind them are stateless singletons, and `StrictParsing` state is
-  scoped per call via `AsyncLocal`, so concurrent calls with different options do
-  not interfere. This contract is guarded by a concurrency test
+  may be called from multiple threads or async flows simultaneously. The
+  operation objects behind them are stateless singletons whose delegates
+  construct a fresh reader/writer per call, and `StrictParsing` state is scoped
+  per call via `AsyncLocal`, so concurrent calls with different options do not
+  interfere. This contract is guarded by a concurrency test
   (`tests/EdsDcfNet.Tests/Integration/ThreadSafetyTests.cs`).
 - **Models are not thread-safe.** `ElectronicDataSheet`, `DeviceConfigurationFile`,
   `NodelistProject`, `ObjectDictionary`, etc. are plain mutable objects. Do not

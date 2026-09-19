@@ -9,8 +9,9 @@ using Xunit;
 /// <summary>
 /// Guards the documented thread-safety contract of the format entry points:
 /// concurrent read/write/validate calls through <see cref="CanOpenFile"/> are safe
-/// because the singleton readers/writers are stateless and strict-mode state lives
-/// in an <see cref="AsyncLocal{T}"/> scoped per call.
+/// because the singleton operation objects hold only immutable delegates, each call
+/// constructs its own reader/writer, and strict-mode state lives in an
+/// <see cref="AsyncLocal{T}"/> scoped per call.
 /// </summary>
 public class ThreadSafetyTests
 {
@@ -112,7 +113,11 @@ public class ThreadSafetyTests
 
     /// <summary>
     /// Async variant of the isolation guard: scopes must survive <c>await</c>
-    /// continuations without leaking into interleaved concurrent reads.
+    /// continuations without leaking into interleaved concurrent reads. Reads go
+    /// through <see cref="YieldingReadStream"/>, which suspends on every read, so
+    /// the parser's awaits resume as real continuations on thread-pool threads —
+    /// a <c>MemoryStream</c> would complete synchronously and never exercise
+    /// <see cref="AsyncLocal{T}"/> flow across an await boundary.
     /// </summary>
     [Fact]
     public async Task StrictParsingScope_AsyncReads_DoNotLeakAcrossAwait()
@@ -128,11 +133,13 @@ public class ThreadSafetyTests
 
             for (var iteration = 0; iteration < IterationsPerTask; iteration++)
             {
-                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(malformed));
+                using var stream = new YieldingReadStream(Encoding.UTF8.GetBytes(malformed));
                 if (strict)
                 {
                     await FluentActions.Awaiting(() => CanOpenFile.Eds.ReadStreamAsync(stream, options))
-                        .Should().ThrowAsync<EdsParseException>();
+                        .Should().ThrowAsync<EdsParseException>(
+                            "strict mode must survive await continuations — " +
+                            "thread-local state would be lost when the continuation resumes on another thread");
                 }
                 else
                 {
@@ -160,5 +167,68 @@ public class ThreadSafetyTests
         return content.Insert(
             match.Index + match.Length,
             "\nFileName=duplicate-b.eds");
+    }
+
+    /// <summary>
+    /// Read-only stream whose reads first suspend on a timer delay, forcing the
+    /// caller's <c>await</c> to resume as a real continuation on a thread-pool
+    /// thread. <c>MemoryStream</c> completes synchronously, so it would never
+    /// exercise <see cref="AsyncLocal{T}"/> flow across an await boundary.
+    /// Only the array-based <c>ReadAsync</c> overload is overridden; the base
+    /// class routes the <c>Memory&lt;byte&gt;</c> overload through it.
+    /// </summary>
+    private sealed class YieldingReadStream : Stream
+    {
+        private readonly byte[] _payload;
+        private int _position;
+
+        public YieldingReadStream(byte[] payload) => _payload = payload;
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => _position;
+            set => throw new NotSupportedException();
+        }
+
+        public override async Task<int> ReadAsync(
+            byte[] buffer,
+            int offset,
+            int count,
+            CancellationToken cancellationToken)
+        {
+            // ExecutionContext (and therefore AsyncLocal) flows across this await
+            // regardless of ConfigureAwait; a thread-local regression would lose it
+            // when the continuation resumes on a different thread-pool thread.
+            await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+            return Read(buffer, offset, count);
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = Math.Min(count, _payload.Length - _position);
+            Array.Copy(_payload, _position, buffer, offset, read);
+            _position += read;
+            return read;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) =>
+            throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
     }
 }
