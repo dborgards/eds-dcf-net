@@ -15,6 +15,17 @@
       ],
       "rangeStrategy": "bump",
       "description": "Bump NuGet versions including exact/[bracket] pins (e.g. FluentAssertions [7.2.2])."
+    },
+    {
+      "matchManagers": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "npm",
+        "eds-npm-cli-stub"
+      ],
+      "enabled": false,
+      "description": "Keep the transitive npm CLI package replaced by the local stub (package.json overrides: npm -> $eds-npm-cli-stub, tools/npm-cli-stub). Upstream npm ships bundled (inBundle) brace-expansion/tar copies that npm overrides cannot patch, so any update that restores the real npm package re-introduces those advisories (#396, #399). Release tooling publishes NuGet via @semantic-release/exec and never invokes the npm CLI plugin."
     }
   ]
 }

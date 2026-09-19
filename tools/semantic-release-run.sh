@@ -313,6 +313,300 @@ complete_release_publish() {
   fi
 }
 
+# 0 = version is on nuget.org, 1 = absent, 2 = could not ask.
+#
+# The HTTP status has to be read rather than left to `curl -f`, which collapses
+# every error into one exit code. A 404 from the flat container is not an
+# outage: it is nuget.org answering "this package has no listed versions", the
+# most complete form of absence there is, and reporting it as indeterminate
+# would downgrade a confirmation to an unknown — the inversion gh_release_field
+# exists to avoid.
+nuget_query_version() {
+  local version="$1"
+  local body_file
+  local http
+
+  body_file="$(mktemp)"
+  http="$(curl -sS -o "$body_file" -w '%{http_code}' \
+    "https://api.nuget.org/v3-flatcontainer/edsdcfnet/index.json" 2>/dev/null)" || {
+    rm -f "$body_file"
+    return 2
+  }
+  # Strip CR so Git Bash on windows-latest does not turn `200\r` into a miss.
+  http="${http//$'\r'/}"
+
+  case "$http" in
+    200)
+      grep -Fq "\"${version}\"" "$body_file"
+      http=$?
+      rm -f "$body_file"
+      return "$http"
+      ;;
+    404)
+      rm -f "$body_file"
+      return 1
+      ;;
+    *)
+      echo "NuGet index query returned HTTP ${http}." >&2
+      rm -f "$body_file"
+      return 2
+      ;;
+  esac
+}
+
+# Same states, but an absence is only reported after it survives a re-query.
+#
+# The flat container is a downstream index: it trails a successful push by a
+# few minutes, so a single "absent" reading can be indexing lag rather than a
+# failed publish. That matters because a confirmed absence outranks everything
+# else and goes straight to repair — and the repository-wide concurrency group
+# queues a develop run directly behind main's release, which is exactly that
+# window. A genuinely missing version still reads absent on every attempt.
+nuget_has_version() {
+  local version="$1"
+  local attempt
+  local status
+  local sleep_seconds="${NUGET_SETTLE_SECONDS:-20}"
+
+  for attempt in 1 2 3; do
+    status=0
+    nuget_query_version "$version" || status=$?
+
+    if ((status != 1)); then
+      return "$status"
+    fi
+
+    if ((attempt < 3)); then
+      echo "Version ${version} is not in the NuGet index yet; re-checking in ${sleep_seconds}s." >&2
+      sleep "$sleep_seconds"
+    fi
+  done
+
+  return 1
+}
+
+# Reads one --jq field off a release. 0 = value on stdout, 1 = the release
+# does not exist, 2 = the question could not be answered.
+#
+# gh exits 1 for every failure, so the message is the only thing separating
+# "no such release" from an outage or a missing token. Requiring exit 1 *and*
+# a not-found message keeps an unrelated failure (127 for a missing gh, 4 for
+# auth) from being read as a confirmed absence.
+gh_release_field() {
+  local tag="$1"
+  local json="$2"
+  local filter="$3"
+  local err_file
+  local out
+  local status=0
+
+  err_file="$(mktemp)"
+  out="$(gh release view "$tag" --json "$json" --jq "$filter" 2>"$err_file")" || status=$?
+
+  if ((status == 0)); then
+    rm -f "$err_file"
+    printf '%s\n' "$out"
+    return 0
+  fi
+
+  if ((status == 1)) &&
+    grep -qiE "release not found|could not resolve to a release|HTTP 404" "$err_file"; then
+    rm -f "$err_file"
+    return 1
+  fi
+
+  cat "$err_file" >&2
+  rm -f "$err_file"
+  return 2
+}
+
+# 0 = published with its package asset, 1 = missing/draft/incomplete,
+# 2 = could not determine.
+#
+# Only the nupkg is required. Symbols and the SBOMs are best-effort in
+# semantic-release-publish.sh, so demanding them here would report every
+# release incomplete and re-run the repair on every build.
+github_release_complete() {
+  local tag="$1"
+  local version="${tag#v}"
+  local is_draft
+  local uploaded_raw
+  local -a uploaded=()
+  local status=0
+
+  is_draft="$(gh_release_field "$tag" isDraft .isDraft)" || status=$?
+  if ((status != 0)); then
+    return "$status"
+  fi
+  if [[ "${is_draft//$'\r'/}" == "true" ]]; then
+    return 1
+  fi
+
+  status=0
+  uploaded_raw="$(gh_release_field "$tag" assets \
+    '.assets[] | select(.state == "uploaded") | .name')" || status=$?
+  if ((status != 0)); then
+    return "$status"
+  fi
+
+  uploaded_raw="${uploaded_raw//$'\r'/}"
+  mapfile -t uploaded <<<"$uploaded_raw"
+  uploaded=("${uploaded[@]//$'\r'/}")
+
+  printf '%s\n' "${uploaded[@]}" | grep -Fxq "EdsDcfNet.${version}.nupkg"
+}
+
+# semantic-release pushes the tag and channel note before the publish plugins
+# run, so a NuGet or GitHub failure leaves a tag that later dry runs accept as
+# lastRelease. Those runs plan nothing and exit 0, which would strand the
+# partial release forever behind a green build. Check the last tag before
+# accepting a no-op result.
+# The last release tag *on this branch's channel*. .releaserc.json runs two
+# channels: stable on main, beta prereleases on develop. An unfiltered
+# `git describe` returns whichever tag is nearest, so on develop — where main
+# is merged back and stable tags become reachable — it can return the stable
+# tag and pronounce the release healthy while the beta this branch actually
+# publishes is the broken one. On main the reverse holds: merged develop
+# history makes beta tags reachable, so prereleases are excluded there.
+last_release_tag() {
+  local branch="${GITHUB_REF_NAME:-}"
+  local -a keep
+  local -a candidates=()
+
+  if [[ -z "$branch" ]]; then
+    branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  fi
+
+  case "$branch" in
+    develop)
+      # semantic-release's get-last-release accepts, on a prerelease branch,
+      # this channel's own prereleases *and* every non-prerelease tag, then
+      # takes the SemVer-highest of the combined set:
+      #
+      #   ((branch.type === "prerelease" && <channel prerelease>) ||
+      #     !semver.prerelease(tag.version))
+      #
+      # A stable tag merged back from main is therefore eligible on develop and
+      # can outrank the newest beta, so both forms have to be considered here.
+      keep=(grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$')
+      ;;
+    main)
+      keep=(grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')
+      ;;
+    *)
+      # The workflow also accepts workflow_dispatch, which can target any
+      # branch, but only main and develop are channels in .releaserc.json. Such
+      # a run plans no version, and verifying "the last release" from there
+      # would mean rebuilding and repairing a production release with recovery
+      # code taken from an unreleased branch.
+      echo "Branch '${branch:-unknown}' is not a release channel; skipping verification." >&2
+      return 1
+      ;;
+  esac
+
+  # Highest version among the reachable channel tags, not the nearest one.
+  # `git describe` selects by ancestry distance, so on non-linear history — a
+  # merge back, or one of the tag rewrites this script already handles — it can
+  # return an older tag while a higher, partially published release is the real
+  # lastRelease, and the run would go green without repairing it.
+  # semantic-release picks its lastRelease with semver.rcompare, so match that.
+  #
+  # versionsort.suffix is required now that prereleases and stable tags share
+  # one list: git's plain version sort ranks v1.12.0-beta.15 *above* v1.12.0,
+  # the reverse of SemVer. Naming the suffix restores SemVer's order, which was
+  # checked against git rather than assumed.
+  mapfile -t candidates < <(
+    git -c versionsort.suffix=-beta. tag --merged HEAD --list 'v*' \
+      --sort=-v:refname 2>/dev/null | tr -d '\r' | "${keep[@]}"
+  )
+
+  if ((${#candidates[@]} == 0)) || [[ -z "${candidates[0]}" ]]; then
+    return 1
+  fi
+
+  printf '%s\n' "${candidates[0]}"
+}
+
+verify_last_release() {
+  local tag
+  local version
+  local github_status
+  local nuget_status
+
+  if ! tag="$(last_release_tag)"; then
+    echo "No release to verify for this run."
+    return 0
+  fi
+
+  tag="${tag//$'\r'/}"
+  version="${tag#v}"
+
+  # Capture through `|| var=$?`: a bare call would hit errexit on any nonzero
+  # status and kill the run before the status could be read, so an incomplete
+  # release would fail the build instead of being repaired.
+  github_status=0
+  github_release_complete "$tag" || github_status=$?
+
+  nuget_status=0
+  nuget_has_version "$version" || nuget_status=$?
+
+  # A confirmed incomplete result outranks an indeterminate companion probe.
+  # One side saying "this really is missing" is evidence; the other side being
+  # unreachable is only absence of evidence, and letting the unknown mask the
+  # confirmation would strand the release: the run continues, the next planned
+  # version publishes, and from then on only that newer tag is ever inspected.
+  # Repairing on the confirmation either fixes it or fails the run — both leave
+  # the release recoverable, which returning success here would not.
+  if ((github_status == 1)) || ((nuget_status == 1)); then
+    # Observe-only: report the finding and change nothing. This verification has
+    # never run against the real services, and two of its probe semantics — how
+    # often nuget.org's index lags a push, and whether a queued release was
+    # dropped rather than never made — are guesses until a real run measures
+    # them. Leaving this on for a few releases turns those guesses into a
+    # false-positive count at no risk; the repair is one condition away.
+    if [[ "${RELEASE_VERIFY_OBSERVE_ONLY:-1}" == "1" ]]; then
+      warn "OBSERVE-ONLY: ${tag} looks incomplete (github=${github_status}, nuget=${nuget_status})."
+      warn "OBSERVE-ONLY: would run repair_notes_and_publish ${version}; taking no action."
+      return 0
+    fi
+
+    echo "Last release ${tag} is incomplete (github=${github_status}, nuget=${nuget_status}); repairing."
+    repair_notes_and_publish "$version"
+    # Recorded so the tag-already-exists branch below does not repair the same
+    # version a second time in this run. That pass is not destructive, but the
+    # artifact cleanup underneath means it cannot short-circuit: it would re-add
+    # the worktree and re-pack the whole tag on windows-latest, minutes after
+    # the first repair published it.
+    repaired_version="$version"
+
+    # The repair leaves its artifacts in packages/, and .releaserc.json attaches
+    # that directory's packages and SBOMs to a release by path. When a newly
+    # planned release follows in this same run, they would be hung on the new
+    # release too, so drop them now that the repair has published them.
+    #
+    # The SBOMs need clearing as much as the packages do: they have fixed names,
+    # but semantic-release-publish.sh only overwrites them on the happy path.
+    # generate_spdx_sbom returns early when CycloneDX generation failed, before
+    # it deletes the old sbom.spdx.json, which would then ship as the new
+    # release's SPDX SBOM. Absent beats wrong — the SBOMs are best-effort.
+    rm -f "packages/EdsDcfNet.${version}.nupkg" \
+      "packages/EdsDcfNet.${version}.snupkg" \
+      packages/bom.cdx.json \
+      packages/sbom.spdx.json
+    return 0
+  fi
+
+  # Nothing confirmed broken, but something could not be read. This runs on
+  # every push, so say so loudly rather than failing the build or repairing on
+  # a guess.
+  if ((github_status == 2)) || ((nuget_status == 2)); then
+    warn "Could not verify ${tag} (github=${github_status}, nuget=${nuget_status}); leaving it as-is."
+    return 0
+  fi
+
+  echo "Last release ${tag} is complete on GitHub and NuGet."
+}
+
 repair_notes_and_publish() {
   local version="$1"
   local notes_ref
@@ -336,6 +630,17 @@ FORCE_COLOR=0 npx semantic-release --dry-run >"$dry_run_log" 2>&1 || {
 
 next_version="$(sed -nE 's/.*The next release version is ([^[:space:]]+).*/\1/p' "$dry_run_log" | tail -n 1)"
 
+# Verify the previous release before acting on a newly planned one, not only on
+# a no-op run. A partial release is visible as "the last release" just until the
+# next commit warrants a version: from then on every dry run plans that newer
+# version, and a check confined to no-op runs would inspect the new, healthy tag
+# and never look back at the broken one, which stays unpublished for good.
+#
+# This runs before the release below on purpose. If the previous release cannot
+# be repaired the run stops here, rather than stacking a new release on top of a
+# broken one.
+verify_last_release
+
 if [[ -n "$next_version" ]]; then
   next_tag="v${next_version}"
   if git rev-parse -q --verify "refs/tags/$next_tag" >/dev/null; then
@@ -343,6 +648,11 @@ if [[ -n "$next_version" ]]; then
     if ! git merge-base --is-ancestor "$tag_sha" HEAD; then
       echo "Skipping semantic-release: tag $next_tag exists outside current branch history at $tag_sha."
       echo "Likely stale protected prerelease tag after history rewrite."
+      exit 0
+    fi
+
+    if [[ "${repaired_version:-}" == "$next_version" ]]; then
+      echo "Tag ${next_tag} already exists and was repaired by the verification above."
       exit 0
     fi
 
