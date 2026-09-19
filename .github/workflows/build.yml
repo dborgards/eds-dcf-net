@@ -242,7 +242,9 @@ jobs:
       working-directory: base-branch
 
     - name: Install ApiCompat tool
-      run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool
+      # Pinned to the global.json SDK version so a new tool release can't silently
+      # change diagnostics or CLI flags underneath an unrelated PR.
+      run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool --version 10.0.400
 
     # Differences are a failure by default. They are tolerated when the PR opts
     # in to a conscious Major bump: the `breaking` label or a `!` /
@@ -279,6 +281,11 @@ jobs:
 
     - name: Post API diff as PR comment
       if: steps.apicompat.outputs.result == 'incompatible' && steps.breaking.outputs.intent == 'true'
+      # Best-effort: e.g. GITHUB_TOKEN is read-only on pull_request runs triggered
+      # from a fork, so `gh pr comment` fails there regardless of the job's
+      # `pull-requests: write` permission. That must not fail a PR that already
+      # did the right thing by declaring its breaking change.
+      continue-on-error: true
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
