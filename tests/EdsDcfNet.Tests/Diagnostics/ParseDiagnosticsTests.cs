@@ -340,6 +340,26 @@ public class ParseDiagnosticsTests
     }
 
     [Fact]
+    public void InvalidDummyUsageValue_Xdd_LenientReportsCoercion_StrictThrowsSameCode()
+    {
+        var content = MinimalXdd.Replace(
+            "</CANopenObjectList>",
+            "</CANopenObjectList>\n        <dummyUsage><dummy entry=\"Dummy0001=2\"/></dummyUsage>");
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(content);
+
+        var diagnostic = result.Diagnostics.Should().ContainSingle().Subject;
+        diagnostic.Code.Should().Be(ParseDiagnosticCodes.XddInvalidDummyUsage);
+        diagnostic.Path.Should().Be("dummyUsage/dummy");
+        diagnostic.RawValue.Should().Be("Dummy0001=2");
+        diagnostic.CoercedTo.Should().Be("false");
+        result.Model.ObjectDictionary?.DummyUsage[0x0001].Should().BeFalse(
+            "lenient mode stores the invalid value as false");
+
+        AssertStrictThrowsWithCode(content, ParseDiagnosticCodes.XddInvalidDummyUsage, xdd: true);
+    }
+
+    [Fact]
     public void OverlongDummyUsageKey_Xdd_LenientReports_StrictThrowsSameCode()
     {
         var content = MinimalXdd.Replace(

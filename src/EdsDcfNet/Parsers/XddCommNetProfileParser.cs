@@ -374,23 +374,30 @@ internal static class XddCommNetProfileParser
             }
 
             if (valPart != "0" && valPart != "1")
-                RejectMalformedDummyUsageEntry(entry);
+                RejectMalformedDummyUsageEntry(entry, coercedTo: "false");
 
             dict.DummyUsage[dummyIndex] = valPart == "1";
         }
     }
 
-    private static void RejectMalformedDummyUsageEntry(string entry)
+    private static void RejectMalformedDummyUsageEntry(string entry, string? coercedTo = null)
     {
         Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
             Diagnostics.ParseSeverity.Warning,
             Diagnostics.ParseDiagnosticCodes.XddInvalidDummyUsage,
             path: "dummyUsage/dummy",
             rawValue: entry,
-            message: string.Format(
-                CultureInfo.InvariantCulture,
-                "Invalid dummyUsage entry '{0}'. Expected DummyXXXX=0|1 with a hexadecimal index.",
-                entry)));
+            coercedTo: coercedTo,
+            message: coercedTo == null
+                ? string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Invalid dummyUsage entry '{0}'. Expected DummyXXXX=0|1 with a hexadecimal index.",
+                    entry)
+                : string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Invalid dummyUsage entry '{0}'. Expected DummyXXXX=0|1 with a hexadecimal index; treated as {1} in lenient mode.",
+                    entry,
+                    coercedTo)));
 
         if (!StrictParsingScope.IsEnabled)
             return;
