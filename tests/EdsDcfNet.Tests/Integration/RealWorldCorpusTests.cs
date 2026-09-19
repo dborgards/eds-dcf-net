@@ -146,8 +146,9 @@ public class RealWorldCorpusTests
             ? entries
             : Array.Empty<string>();
 
-        var unexpected = issues
-            .Select(i => i.ToString())
+        var actual = issues.Select(i => i.ToString()).ToList();
+
+        var unexpected = actual
             .Except(allowed, StringComparer.Ordinal)
             .ToList();
 
@@ -155,6 +156,17 @@ public class RealWorldCorpusTests
             "corpus file {0} must validate without unexpected issues (got: {1})",
             key,
             string.Join("; ", unexpected));
+
+        // Symmetric check: an allow-listed deviation that no longer occurs is stale
+        // and must be removed — otherwise the list silently stops matching reality.
+        var stale = allowed
+            .Except(actual, StringComparer.Ordinal)
+            .ToList();
+
+        stale.Should().BeEmpty(
+            "allow-list entries for {0} must still occur (stale: {1})",
+            key,
+            string.Join("; ", stale));
     }
 
     private static void AssertRoundTripStable<TModel>(
