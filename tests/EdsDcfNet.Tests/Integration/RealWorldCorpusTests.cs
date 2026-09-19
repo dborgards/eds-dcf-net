@@ -107,8 +107,10 @@ public class RealWorldCorpusTests
         var found = new List<string>();
         if (Directory.Exists(CorpusRoot))
         {
+            var dottedExtension = "." + extension;
             foreach (var sourceDir in Directory.EnumerateDirectories(CorpusRoot))
-                found.AddRange(Directory.EnumerateFiles(sourceDir, "*." + extension));
+                found.AddRange(Directory.EnumerateFiles(sourceDir, "*.*")
+                    .Where(file => string.Equals(Path.GetExtension(file), dottedExtension, StringComparison.OrdinalIgnoreCase)));
         }
 
         // xUnit errors on empty MemberData; emit a sentinel row the theories turn
