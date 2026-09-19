@@ -71,8 +71,8 @@ public class ParseDiagnosticsTests
     [Fact]
     public void UnknownAccessType_LenientReports_StrictThrowsSameCode()
     {
-        var content = new Regex("(?m)^AccessType=ro$")
-            .Replace(File.ReadAllText("Fixtures/sample_device.eds"), "AccessType=nope", 1);
+        var content = new Regex("(?m)^AccessType=ro(\r?)$")
+            .Replace(File.ReadAllText("Fixtures/sample_device.eds"), "AccessType=nope$1", 1);
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
@@ -105,8 +105,8 @@ public class ParseDiagnosticsTests
     [Fact]
     public void MajorMinorFileVersion_LenientReports_StrictThrowsSameCode()
     {
-        var content = File.ReadAllText("Fixtures/sample_device.eds")
-            .Replace("FileVersion=1\n", "FileVersion=1.0\n");
+        var content = new Regex("(?m)^FileVersion=1(\r?)$")
+            .Replace(File.ReadAllText("Fixtures/sample_device.eds"), "FileVersion=1.0$1", 1);
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
