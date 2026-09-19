@@ -144,6 +144,32 @@ Naming convention for boundary cases: suffix the scenario, e.g.
 | Representative fixtures | minimal EDS with `FileRevision = 255` | added |
 | API contract assertions | n/a | no public signature change |
 
+## Real-world fixture corpus
+
+`tests/EdsDcfNet.Tests/Fixtures/Corpus/` holds **redistributable real-world**
+EDS/DCF/XDD/XDC files grouped by source (`Corpus/<source>/`). The corpus guard
+(`RealWorldCorpusTests`) reads every file in lenient mode, validates it against
+a per-file allow-list, and asserts a structurally stable write → re-read
+round-trip.
+
+Contributing a corpus file:
+
+1. **Licence** — only files with a redistribution-friendly licence are accepted
+   (e.g. CANopenNode exports under Apache-2.0, python-canopen fixtures under
+   MIT, or your own anonymised files contributed under this repository's MIT
+   licence). Vendor EDS files under vendor terms must **not** be committed.
+2. **Provenance** — place the file in `Corpus/<source>/` and add a `LICENSE`
+   (or `LICENSE.txt`) plus a `NOTICE.md` naming origin and licence.
+3. **Anonymisation** — remove customer-specific or confidential values before
+   contributing; keep the file otherwise unmodified so it stays "real-world".
+4. **Validation allow-list** — if the file legitimately deviates from CiA 306,
+   add its known issues to `ValidationAllowList` in `RealWorldCorpusTests` with
+   a comment explaining why the deviation is accepted.
+5. **Diagnostics snapshots** — once the parse-diagnostics channel exists
+   (#523), each corpus file carries a `<file>.diagnostics.json` snapshot
+   (#525 phase 2); regenerate snapshots with the corpus test update switch
+   documented there when lenient behaviour changes intentionally.
+
 ## Commit convention
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/).
