@@ -1,7 +1,8 @@
 namespace EdsDcfNet.Tests.Integration;
 
+using System.Text;
 using EdsDcfNet;
-using EdsDcfNet.Models;
+using EdsDcfNet.Exceptions;
 using FluentAssertions;
 using Xunit;
 
@@ -25,8 +26,6 @@ public class ThreadSafetyTests
 
         var tasks = Enumerable.Range(0, Concurrency).Select(i => Task.Run(() =>
         {
-            // Alternate strict/lenient per task: with AsyncLocal scoping the strict
-            // flag must not leak between concurrent calls.
             var options = new CanOpenFileOptions { StrictParsing = i % 2 == 0 };
 
             for (var iteration = 0; iteration < IterationsPerTask; iteration++)
@@ -72,23 +71,94 @@ public class ThreadSafetyTests
         await Task.WhenAll(tasks);
     }
 
+    /// <summary>
+    /// Uses strict-sensitive input: a duplicate key inside an INI section is coerced
+    /// (last write wins) in lenient mode but throws in strict mode. If
+    /// <c>StrictParsingScope</c> leaked or were a shared global flag, strict tasks
+    /// would randomly succeed or lenient tasks would randomly throw. A
+    /// <see cref="Barrier"/> maximizes the time overlap of the active scopes.
+    /// </summary>
     [Fact]
-    public async Task ParallelAsyncReads_MixedStrictParsing_DoNotLeakScopeAcrossAwait()
+    public async Task StrictParsingScope_DoesNotLeakAcrossConcurrentCalls()
     {
-        var options = Enumerable.Range(0, Concurrency)
-            .Select(i => new CanOpenFileOptions { StrictParsing = i % 2 == 0 })
-            .ToArray();
+        var malformed = LoadEdsWithDuplicateKey();
+        using var start = new Barrier(Concurrency);
 
-        var reads = options.Select(o => Task.Run(async () =>
+        var tasks = Enumerable.Range(0, Concurrency).Select(i => Task.Run(() =>
         {
-            var model = await CanOpenFile.Eds.ReadFileAsync("Fixtures/sample_device.eds", o);
-            // Yield so continuations interleave across AsyncLocal scopes.
-            await Task.Yield();
-            return CanOpenFile.Eds.WriteToString(model);
+            var strict = i % 2 == 0;
+            var options = new CanOpenFileOptions { StrictParsing = strict };
+            start.SignalAndWait();
+
+            for (var iteration = 0; iteration < IterationsPerTask; iteration++)
+            {
+                if (strict)
+                {
+                    FluentActions.Invoking(() => CanOpenFile.Eds.ReadString(malformed, options))
+                        .Should().Throw<EdsParseException>(
+                            "strict mode must reject the duplicate key — a leaked lenient scope would swallow it");
+                }
+                else
+                {
+                    var model = CanOpenFile.Eds.ReadString(malformed, options);
+                    model.FileInfo.FileName.Should().Be("duplicate-b.eds",
+                        "lenient mode applies last-write-wins — a leaked strict scope would throw");
+                }
+            }
         })).ToArray();
 
-        var results = await Task.WhenAll(reads);
-        results.Distinct().Should().ContainSingle(
-            "every concurrent read of the same fixture must serialize identically");
+        await Task.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// Async variant of the isolation guard: scopes must survive <c>await</c>
+    /// continuations without leaking into interleaved concurrent reads.
+    /// </summary>
+    [Fact]
+    public async Task StrictParsingScope_AsyncReads_DoNotLeakAcrossAwait()
+    {
+        var malformed = LoadEdsWithDuplicateKey();
+        using var start = new Barrier(Concurrency);
+
+        var reads = Enumerable.Range(0, Concurrency).Select(i => Task.Run(async () =>
+        {
+            var strict = i % 2 == 0;
+            var options = new CanOpenFileOptions { StrictParsing = strict };
+            start.SignalAndWait();
+
+            for (var iteration = 0; iteration < IterationsPerTask; iteration++)
+            {
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(malformed));
+                if (strict)
+                {
+                    await FluentActions.Awaiting(() => CanOpenFile.Eds.ReadStreamAsync(stream, options))
+                        .Should().ThrowAsync<EdsParseException>();
+                }
+                else
+                {
+                    var model = await CanOpenFile.Eds.ReadStreamAsync(stream, options);
+                    model.FileInfo.FileName.Should().Be("duplicate-b.eds");
+                }
+            }
+        })).ToArray();
+
+        await Task.WhenAll(reads);
+    }
+
+    /// <summary>
+    /// Loads the well-formed EDS fixture and injects a duplicate <c>FileName</c> key
+    /// into <c>[FileInfo]</c>: lenient mode keeps the last value, strict mode throws.
+    /// </summary>
+    private static string LoadEdsWithDuplicateKey()
+    {
+        var content = File.ReadAllText("Fixtures/sample_device.eds");
+        var match = System.Text.RegularExpressions.Regex.Match(
+            content, "(?m)^FileName=.+$");
+        match.Success.Should().BeTrue("the fixture must contain a FileName key");
+        // Inject AFTER the original line: lenient duplicate handling is
+        // last-write-wins, so the injected value must come last to be observable.
+        return content.Insert(
+            match.Index + match.Length,
+            "\nFileName=duplicate-b.eds");
     }
 }
