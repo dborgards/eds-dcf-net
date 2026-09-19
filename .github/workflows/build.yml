@@ -181,11 +181,19 @@ jobs:
     - name: Verify package-lock.json is in sync
       run: npm ci
 
-  # Compares the built public API against the latest stable EdsDcfNet package on
-  # nuget.org (Microsoft.DotNet.ApiCompat). semantic-release derives the version
-  # bump from commit types, not from the actual API delta — this job makes an
-  # accidental breaking change in a feat:/fix: PR fail CI instead of shipping as
-  # a Minor/Patch.
+  # Compares the built public API against the same API built from the PR's
+  # base branch (Microsoft.DotNet.ApiCompat). semantic-release derives the
+  # version bump from commit types, not from the actual API delta — this job
+  # makes an accidental breaking change in a feat:/fix: PR fail CI instead of
+  # shipping as a Minor/Patch.
+  #
+  # Compared against the PR's own base branch, not the latest stable NuGet
+  # package: `develop` only ever publishes beta pre-releases, so an accepted
+  # breaking change can sit there unreleased as stable for a while — every
+  # subsequent, unrelated PR into develop would otherwise inherit blame for
+  # someone else's change. For a develop -> main release PR the base branch
+  # (main) IS the last published stable version, so this is equivalent to the
+  # original "vs latest stable" comparison there, without a NuGet download.
   #
   # PR-only on purpose: release commits carry [skip ci] and relay-release-status
   # posts only `build`, so a push/develop trigger here would stay pending on
@@ -199,47 +207,116 @@ jobs:
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        # Full history so the breaking-change detection can inspect all PR commits.
-        fetch-depth: 0
+      # Breaking-change commit detection queries the GitHub API (not local git
+      # history), and the compatibility baseline comes from the separate base
+      # branch checkout below — no full-history clone needed here.
 
-    - name: Setup .NET
+    - name: Checkout PR base branch
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: ${{ github.event.pull_request.base.sha }}
+        path: base-branch
+
+    - name: Setup .NET (PR head)
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
       with:
         global-json-file: global.json
 
-    - name: Build library
+    # dotnet resolves the SDK from the nearest global.json to the invoked
+    # working directory, so building base-branch/ with `working-directory:`
+    # below picks up base-branch/global.json — which may pin an older SDK
+    # feature band than the PR head (e.g. a PR that bumps global.json
+    # itself). rollForward: latestPatch cannot cross feature bands, so that
+    # older SDK must be installed too, or the base build fails outright and
+    # apicompat never runs.
+    - name: Setup .NET (PR base branch)
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+      with:
+        global-json-file: base-branch/global.json
+
+    - name: Build library (PR head)
       run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
 
-    - name: Install ApiCompat tool
-      run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool
+    - name: Build library (PR base branch)
+      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
+      working-directory: base-branch
 
-    # Differences are a failure by default. They are tolerated when the PR opts
-    # in to a conscious Major bump: the `breaking` label or a `!` /
-    # `BREAKING CHANGE:` commit footer. In that case the job passes and the diff
-    # is posted as a PR comment so the decision is visible in review.
+    - name: Install ApiCompat tool
+      # Pinned to the global.json SDK version so a new tool release can't silently
+      # change diagnostics or CLI flags underneath an unrelated PR.
+      run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool --version 10.0.400
+
+    # Differences are a failure by default. They are tolerated only when a PR
+    # commit carries a signal that semantic-release itself (.releaserc.json)
+    # treats as a Major bump: a `!` after the type, the `breaking`/`major`
+    # commit type, or a `BREAKING CHANGE:`/`BREAKING CHANGES:` footer
+    # (commit-analyzer's `parserOpts.noteKeywords`). A GitHub label has
+    # no effect on semantic-release's version calculation, so it is
+    # deliberately not accepted here — that would let apicompat pass while the
+    # release still ships as a Minor/Patch, silently breaking consumers.
     - name: Detect explicit breaking-change intent
       id: breaking
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         pr="${{ github.event.pull_request.number }}"
+        # The REST pulls/{pr}/commits endpoint below is documented to return
+        # at most 250 commits, even with --paginate: pagination pages through
+        # what the endpoint has, not past its own hard cap. Check the PR's
+        # real commit count via GraphQL's totalCount (uncapped) first, so a
+        # marker past commit #250 fails loudly instead of silently landing on
+        # "no breaking intent" from a truncated view.
+        if ! total_commits=$(gh api graphql -f query='
+          query($owner: String!, $repo: String!, $pr: Int!) {
+            repository(owner: $owner, name: $repo) {
+              pullRequest(number: $pr) { commits { totalCount } }
+            }
+          }' -F owner="${{ github.repository_owner }}" -F repo="${{ github.event.repository.name }}" -F pr="$pr" \
+          --jq '.data.repository.pullRequest.commits.totalCount'); then
+          echo "::error::Failed to determine the PR's total commit count — cannot determine breaking-change intent."
+          exit 1
+        fi
+        if [ "$total_commits" -gt 250 ]; then
+          echo "::error::This PR has ${total_commits} commits, past the GitHub REST API's 250-commit cap on the pull-request commits endpoint. Automated breaking-change detection cannot see the full commit list; squash/rebase the PR or verify manually."
+          exit 1
+        fi
+        # Evaluated per commit, header vs. body/footer, matching how the
+        # conventionalcommits parser actually derives type/notes: a bare
+        # grep over the flattened, concatenated commit messages would also
+        # match a `!`/`breaking:`/`major:`-looking line inside some other
+        # commit's body, or a `BREAKING CHANGE:`-looking commit *subject*
+        # (which parses as an unrecognized type, not a note) — both false
+        # positives that would incorrectly let an unannounced breaking change
+        # through. Conversely, `noteKeywords` deliberately excludes a bare
+        # `BREAKING` alternative: it matched ordinary prose describing these
+        # very keywords in a commit body and triggered an unintended Major
+        # release, the opposite false positive.
+        jq_program='
+          [.[].commit.message] | any(
+            . as $msg |
+            ($msg | split("\n")) as $lines |
+            ((($lines[0] // "") | test("^[a-zA-Z]+(\\([^)]*\\))?!: "))
+              or (($lines[0] // "") | test("^(breaking|major)(\\([^)]*\\))?: ")))
+            or
+            (($lines[1:] | join("\n")) | test("(?mi)^[\\s|*]*(BREAKING CHANGE|BREAKING CHANGES)[:\\s]+"))
+          )
+        '
+        if ! results=$(gh api --paginate "repos/${{ github.repository }}/pulls/$pr/commits" --jq "$jq_program"); then
+          echo "::error::Failed to fetch PR commits from the GitHub API — cannot determine breaking-change intent."
+          exit 1
+        fi
         intent="false"
-        if gh pr view "$pr" --json labels --jq '.labels[].name' | grep -qx 'breaking'; then
-          echo "PR carries the 'breaking' label."
-          intent="true"
-        elif gh api "repos/${{ github.repository }}/pulls/$pr/commits" --jq '.[].commit.message' \
-             | grep -Eq '^[a-zA-Z]+(\([^)]*\))?!:|^BREAKING[ -]CHANGE:'; then
-          echo "PR contains a '!'/BREAKING CHANGE commit."
+        if echo "$results" | grep -qx true; then
+          echo "PR contains a commit that triggers a semantic-release Major bump."
           intent="true"
         fi
         echo "intent=${intent}" >> "$GITHUB_OUTPUT"
 
-    - name: Run ApiCompat against latest stable package
+    - name: Run ApiCompat against PR base branch
       id: apicompat
       run: |
         set +e
-        bash tools/apicompat-check.sh src/EdsDcfNet/bin/Release "$RUNNER_TEMP/apicompat"
+        bash tools/apicompat-check.sh src/EdsDcfNet/bin/Release base-branch/src/EdsDcfNet/bin/Release "$RUNNER_TEMP/apicompat"
         rc=$?
         set -e
         # rc 2 is an infrastructure failure — fail the step normally.
@@ -249,15 +326,20 @@ jobs:
 
     - name: Post API diff as PR comment
       if: steps.apicompat.outputs.result == 'incompatible' && steps.breaking.outputs.intent == 'true'
+      # Best-effort: e.g. GITHUB_TOKEN is read-only on pull_request runs triggered
+      # from a fork, so `gh pr comment` fails there regardless of the job's
+      # `pull-requests: write` permission. That must not fail a PR that already
+      # did the right thing by declaring its breaking change.
+      continue-on-error: true
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         {
           echo "## Public API compatibility diff"
           echo
-          echo "ApiCompat reports breaking changes against the latest stable package."
-          echo "This PR explicitly opts in ('breaking' label or BREAKING CHANGE commit),"
-          echo "so the check passes — the diff is recorded here for review:"
+          echo "ApiCompat reports breaking changes against this PR's base branch."
+          echo "This PR explicitly opts in via a commit that triggers a semantic-release"
+          echo "Major bump, so the check passes — the diff is recorded here for review:"
           echo
           cat "$RUNNER_TEMP/apicompat/apicompat-diff.md"
         } > "$RUNNER_TEMP/apicompat-comment.md"
@@ -267,7 +349,7 @@ jobs:
       if: steps.apicompat.outputs.result == 'incompatible' && steps.breaking.outputs.intent != 'true'
       run: |
         cat "$RUNNER_TEMP/apicompat/apicompat-diff.md"
-        echo "::error::Public API is not compatible with the latest stable package. Either revert the breaking change or mark the PR with the 'breaking' label / a BREAKING CHANGE commit footer (Major release)."
+        echo "::error::Public API is not compatible with this PR's base branch. Either revert the breaking change or add a commit with a '!' after the type, the 'breaking'/'major' type, or a BREAKING CHANGE/BREAKING CHANGES footer (Major release)."
         exit 1
 
   # Relays required check statuses for release commits that carry [skip ci].
