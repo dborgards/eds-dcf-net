@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Utilities;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 /// <summary>
@@ -42,34 +43,45 @@ public static class CanOpenValueConverter
 
         return dataType switch
         {
-            0x0001 => ParseBoolean(value),
-            0x0002 => (sbyte)ParseSignedInteger(value, 8, nodeId),
-            0x0003 => (short)ParseSignedInteger(value, 16, nodeId),
-            0x0004 => (int)ParseSignedInteger(value, 32, nodeId),
-            0x0005 => (byte)ParseUnsignedInteger(value, 8, nodeId),
-            0x0006 => (ushort)ParseUnsignedInteger(value, 16, nodeId),
-            0x0007 => (uint)ParseUnsignedInteger(value, 32, nodeId),
-            0x0008 => ParseReal32(value),
-            0x0009 => value,
-            0x000A => ParseByteString(value),
-            0x000B => value,
-            0x0010 => (int)ParseSignedInteger(value, 24, nodeId),
-            0x0011 => ParseReal64(value),
-            0x0012 => ParseSignedInteger(value, 40, nodeId),
-            0x0013 => ParseSignedInteger(value, 48, nodeId),
-            0x0014 => ParseSignedInteger(value, 56, nodeId),
-            0x0015 => ParseSignedInteger(value, 64, nodeId),
-            0x0016 => (uint)ParseUnsignedInteger(value, 24, nodeId),
-            0x0018 => ParseUnsignedInteger(value, 40, nodeId),
-            0x0019 => ParseUnsignedInteger(value, 48, nodeId),
-            0x001A => ParseUnsignedInteger(value, 56, nodeId),
-            0x001B => ParseUnsignedInteger(value, 64, nodeId),
-            0x000C or 0x000D => throw new NotSupportedException(
+            CanOpenDataType.Boolean => ParseBoolean(value),
+            CanOpenDataType.Integer8 => (sbyte)ParseSignedInteger(value, BitLength(CanOpenDataType.Integer8), nodeId),
+            CanOpenDataType.Integer16 => (short)ParseSignedInteger(value, BitLength(CanOpenDataType.Integer16), nodeId),
+            CanOpenDataType.Integer32 => (int)ParseSignedInteger(value, BitLength(CanOpenDataType.Integer32), nodeId),
+            CanOpenDataType.Unsigned8 => (byte)ParseUnsignedInteger(value, BitLength(CanOpenDataType.Unsigned8), nodeId),
+            CanOpenDataType.Unsigned16 => (ushort)ParseUnsignedInteger(value, BitLength(CanOpenDataType.Unsigned16), nodeId),
+            CanOpenDataType.Unsigned32 => (uint)ParseUnsignedInteger(value, BitLength(CanOpenDataType.Unsigned32), nodeId),
+            CanOpenDataType.Real32 => ParseReal32(value),
+            CanOpenDataType.VisibleString => value,
+            CanOpenDataType.OctetString => ParseByteString(value),
+            CanOpenDataType.UnicodeString => value,
+            CanOpenDataType.Integer24 => (int)ParseSignedInteger(value, BitLength(CanOpenDataType.Integer24), nodeId),
+            CanOpenDataType.Real64 => ParseReal64(value),
+            CanOpenDataType.Integer40 => ParseSignedInteger(value, BitLength(CanOpenDataType.Integer40), nodeId),
+            CanOpenDataType.Integer48 => ParseSignedInteger(value, BitLength(CanOpenDataType.Integer48), nodeId),
+            CanOpenDataType.Integer56 => ParseSignedInteger(value, BitLength(CanOpenDataType.Integer56), nodeId),
+            CanOpenDataType.Integer64 => ParseSignedInteger(value, BitLength(CanOpenDataType.Integer64), nodeId),
+            CanOpenDataType.Unsigned24 => (uint)ParseUnsignedInteger(value, BitLength(CanOpenDataType.Unsigned24), nodeId),
+            CanOpenDataType.Unsigned40 => ParseUnsignedInteger(value, BitLength(CanOpenDataType.Unsigned40), nodeId),
+            CanOpenDataType.Unsigned48 => ParseUnsignedInteger(value, BitLength(CanOpenDataType.Unsigned48), nodeId),
+            CanOpenDataType.Unsigned56 => ParseUnsignedInteger(value, BitLength(CanOpenDataType.Unsigned56), nodeId),
+            CanOpenDataType.Unsigned64 => ParseUnsignedInteger(value, BitLength(CanOpenDataType.Unsigned64), nodeId),
+            CanOpenDataType.TimeOfDay or CanOpenDataType.TimeDifference => throw new NotSupportedException(
                 $"CANopen data type 0x{dataType:X4} does not have a universally interoperable EDS/DCF to .NET mapping."),
-            0x000F => throw new NotSupportedException(DomainNotSupportedMessage),
+            CanOpenDataType.Domain => throw new NotSupportedException(DomainNotSupportedMessage),
             _ => throw new NotSupportedException($"CANopen data type 0x{dataType:X4} is not supported for typed value conversion.")
         };
     }
+
+    /// <summary>
+    /// Fixed conversion width for an integer data type, derived from
+    /// <see cref="CanOpenDataType.TryGetBitLength"/> so the converter and the public metadata
+    /// table cannot drift apart. Only reached for fixed-width integer types.
+    /// </summary>
+    [ExcludeFromCodeCoverage] // the throw is unreachable: every call site passes a fixed-width constant
+    private static int BitLength(ushort dataType) =>
+        CanOpenDataType.TryGetBitLength(dataType)
+        ?? throw new NotSupportedException(
+            $"CANopen data type 0x{dataType:X4} has no fixed bit length and cannot be converted as an integer.");
 
     /// <summary>
     /// Formats a .NET value according to its CANopen data type index for storage in an EDS/DCF model.
@@ -88,31 +100,31 @@ public static class CanOpenValueConverter
         {
             return dataType switch
             {
-                0x0001 => FormatBoolean(value),
-                0x0002 => FormatSigned(value, 8),
-                0x0003 => FormatSigned(value, 16),
-                0x0004 => FormatSigned(value, 32),
-                0x0005 => FormatUnsigned(value, 8),
-                0x0006 => FormatUnsigned(value, 16),
-                0x0007 => FormatUnsigned(value, 32),
-                0x0008 => FormatReal32(value),
-                0x0009 or 0x000B => value as string
+                CanOpenDataType.Boolean => FormatBoolean(value),
+                CanOpenDataType.Integer8 => FormatSigned(value, BitLength(CanOpenDataType.Integer8)),
+                CanOpenDataType.Integer16 => FormatSigned(value, BitLength(CanOpenDataType.Integer16)),
+                CanOpenDataType.Integer32 => FormatSigned(value, BitLength(CanOpenDataType.Integer32)),
+                CanOpenDataType.Unsigned8 => FormatUnsigned(value, BitLength(CanOpenDataType.Unsigned8)),
+                CanOpenDataType.Unsigned16 => FormatUnsigned(value, BitLength(CanOpenDataType.Unsigned16)),
+                CanOpenDataType.Unsigned32 => FormatUnsigned(value, BitLength(CanOpenDataType.Unsigned32)),
+                CanOpenDataType.Real32 => FormatReal32(value),
+                CanOpenDataType.VisibleString or CanOpenDataType.UnicodeString => value as string
                     ?? throw new InvalidCastException("VISIBLE_STRING and UNICODE_STRING values must be supplied as strings."),
-                0x000A => FormatByteString(value),
-                0x0010 => FormatSigned(value, 24),
-                0x0011 => FormatReal64(value),
-                0x0012 => FormatSigned(value, 40),
-                0x0013 => FormatSigned(value, 48),
-                0x0014 => FormatSigned(value, 56),
-                0x0015 => FormatSigned(value, 64),
-                0x0016 => FormatUnsigned(value, 24),
-                0x0018 => FormatUnsigned(value, 40),
-                0x0019 => FormatUnsigned(value, 48),
-                0x001A => FormatUnsigned(value, 56),
-                0x001B => FormatUnsigned(value, 64),
-                0x000C or 0x000D => throw new NotSupportedException(
+                CanOpenDataType.OctetString => FormatByteString(value),
+                CanOpenDataType.Integer24 => FormatSigned(value, BitLength(CanOpenDataType.Integer24)),
+                CanOpenDataType.Real64 => FormatReal64(value),
+                CanOpenDataType.Integer40 => FormatSigned(value, BitLength(CanOpenDataType.Integer40)),
+                CanOpenDataType.Integer48 => FormatSigned(value, BitLength(CanOpenDataType.Integer48)),
+                CanOpenDataType.Integer56 => FormatSigned(value, BitLength(CanOpenDataType.Integer56)),
+                CanOpenDataType.Integer64 => FormatSigned(value, BitLength(CanOpenDataType.Integer64)),
+                CanOpenDataType.Unsigned24 => FormatUnsigned(value, BitLength(CanOpenDataType.Unsigned24)),
+                CanOpenDataType.Unsigned40 => FormatUnsigned(value, BitLength(CanOpenDataType.Unsigned40)),
+                CanOpenDataType.Unsigned48 => FormatUnsigned(value, BitLength(CanOpenDataType.Unsigned48)),
+                CanOpenDataType.Unsigned56 => FormatUnsigned(value, BitLength(CanOpenDataType.Unsigned56)),
+                CanOpenDataType.Unsigned64 => FormatUnsigned(value, BitLength(CanOpenDataType.Unsigned64)),
+                CanOpenDataType.TimeOfDay or CanOpenDataType.TimeDifference => throw new NotSupportedException(
                     $"CANopen data type 0x{dataType:X4} does not have a universally interoperable EDS/DCF to .NET mapping."),
-                0x000F => throw new NotSupportedException(DomainNotSupportedMessage),
+                CanOpenDataType.Domain => throw new NotSupportedException(DomainNotSupportedMessage),
                 _ => throw new NotSupportedException($"CANopen data type 0x{dataType:X4} is not supported for typed value conversion.")
             };
         }
