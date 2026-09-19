@@ -26,7 +26,12 @@ public class RealWorldCorpusTests
     private static readonly Dictionary<string, string[]> ValidationAllowList =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            // e.g. ["python-canopen/e35.eds"] = new[] { "DeviceInfo.BaudRate_10: ..." },
+            // e35.eds lists 0x6505 in [OptionalObjects] but ships no [6505] section —
+            // a genuine inconsistency of the vendor file, kept as-is on purpose.
+            ["python-canopen/e35.eds"] = new[]
+            {
+                "ObjectDictionary.OptionalObjects: Object list references missing object 0x6505.",
+            },
         };
 
     public static IEnumerable<object[]> EdsCorpusFiles() => EnumerateCorpus("eds");
