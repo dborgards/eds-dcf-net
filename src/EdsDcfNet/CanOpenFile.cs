@@ -25,10 +25,16 @@ using EdsDcfNet.Validation;
 /// All members of <see cref="CanOpenFile"/> and the format entry points are safe to call
 /// concurrently: the underlying operation objects are stateless singletons that construct
 /// a fresh reader/writer per call, and strict-mode state is scoped per call via
-/// <see cref="AsyncLocal{T}"/>. Model instances
-/// (<see cref="ElectronicDataSheet"/>, <c>DeviceConfigurationFile</c>, <c>NodelistProject</c>,
-/// <c>ObjectDictionary</c>, …) are plain mutable objects and are <b>not</b> thread-safe — a model
-/// must not be mutated while it is being written or validated.
+/// <see cref="AsyncLocal{T}"/>. Two qualifications apply to caller-owned inputs:
+/// <list type="bullet">
+/// <item><description>Stream overloads operate directly on the caller's <see cref="Stream"/>:
+/// concurrent calls must each use their own stream (or an externally synchronized one) —
+/// sharing one stream across concurrent calls races its position and may corrupt output.</description></item>
+/// <item><description>Model instances (<see cref="ElectronicDataSheet"/>, <c>DeviceConfigurationFile</c>,
+/// <c>NodelistProject</c>, <c>ObjectDictionary</c>, …) are plain mutable objects and are
+/// <b>not</b> thread-safe — a model must not be mutated while it is being written, validated,
+/// or converted (<c>EdsToDcf</c> / <c>ConvertToDcf</c>).</description></item>
+/// </list>
 /// <see cref="CanOpenFileOptions"/> and <see cref="CanOpenWriteOptions"/> are immutable
 /// (<c>init</c>-only) and may be shared across threads.
 /// </threadsafety>

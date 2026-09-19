@@ -643,8 +643,12 @@ Guidance:
   (`tests/EdsDcfNet.Tests/Integration/ThreadSafetyTests.cs`).
 - **Models are not thread-safe.** `ElectronicDataSheet`, `DeviceConfigurationFile`,
   `NodelistProject`, `ObjectDictionary`, etc. are plain mutable objects. Do not
-  mutate a model while it is being written or validated; give each thread its own
-  model instance.
+  mutate a model while it is being written, validated, or converted
+  (`EdsToDcf` / `ConvertToDcf`); give each thread its own model instance.
+- **Caller-owned streams are not synchronized.** The `ReadStream*` / `WriteStream*`
+  overloads operate directly on the `Stream` you pass. Concurrent calls must each
+  use their own stream (or one that provides its own synchronization) — sharing one
+  stream across concurrent calls races its position and can corrupt output.
 - **Options may be shared.** `CanOpenFileOptions` and `CanOpenWriteOptions` are
   immutable (`init`-only); a single instance can be reused across threads.
 

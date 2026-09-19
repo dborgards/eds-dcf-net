@@ -13,6 +13,7 @@ using Xunit;
 /// constructs its own reader/writer, and strict-mode state lives in an
 /// <see cref="AsyncLocal{T}"/> scoped per call.
 /// </summary>
+[Collection(ThreadSaturationCollection.Name)]
 public class ThreadSafetyTests
 {
     private const int Concurrency = 32;
@@ -114,20 +115,30 @@ public class ThreadSafetyTests
 
     /// <summary>
     /// Async variant of the isolation guard: scopes must survive <c>await</c>
-    /// continuations without leaking into interleaved concurrent reads. Reads go
-    /// through <see cref="YieldingReadStream"/>, whose first read suspends, so the
-    /// parser's awaits resume as real continuations on thread-pool threads — a
-    /// <c>MemoryStream</c> would complete synchronously and never exercise
-    /// <see cref="AsyncLocal{T}"/> flow across an await boundary. Runs with lower
-    /// concurrency than the sync guard: xUnit runs test classes in parallel, and
-    /// dozens of barrier-blocked tasks starve timing-sensitive neighbours on the
-    /// small CI runners.
+    /// continuations without leaking into interleaved concurrent reads. Every read
+    /// parks on a shared gate (<see cref="GatedReadStream"/>) until the test
+    /// releases it from its own thread; because the gate completes continuations
+    /// inline on the releasing thread, each parser continuation deterministically
+    /// resumes on a thread other than the one that entered the strict scope — a
+    /// thread-local regression would lose the scope right there. Neither
+    /// <c>MemoryStream</c> (completes synchronously) nor <c>Task.Yield</c> (may
+    /// resume on the same pool thread) can guard that contract.
     /// </summary>
     [Fact]
     public async Task StrictParsingScope_AsyncReads_DoNotLeakAcrossAwait()
     {
         var malformed = LoadEdsWithDuplicateKey();
         using var start = new Barrier(AsyncConcurrency);
+        var gate = new TaskCompletionSource<object?>();
+        var allParked = new TaskCompletionSource<object?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var parked = 0;
+
+        void OnFirstRead()
+        {
+            if (Interlocked.Increment(ref parked) == AsyncConcurrency)
+                allParked.TrySetResult(null);
+        }
 
         var reads = Enumerable.Range(0, AsyncConcurrency).Select(i => Task.Run(async () =>
         {
@@ -135,24 +146,27 @@ public class ThreadSafetyTests
             var options = new CanOpenFileOptions { StrictParsing = strict };
             start.SignalAndWait();
 
-            for (var iteration = 0; iteration < IterationsPerTask; iteration++)
+            using var stream = new GatedReadStream(
+                Encoding.UTF8.GetBytes(malformed), gate.Task, OnFirstRead);
+            if (strict)
             {
-                using var stream = new YieldingReadStream(Encoding.UTF8.GetBytes(malformed));
-                if (strict)
-                {
-                    await FluentActions.Awaiting(() => CanOpenFile.Eds.ReadStreamAsync(stream, options))
-                        .Should().ThrowAsync<EdsParseException>(
-                            "strict mode must survive await continuations — " +
-                            "thread-local state would be lost when the continuation resumes on another thread");
-                }
-                else
-                {
-                    var model = await CanOpenFile.Eds.ReadStreamAsync(stream, options);
-                    model.FileInfo.FileName.Should().Be("duplicate-b.eds");
-                }
+                await FluentActions.Awaiting(() => CanOpenFile.Eds.ReadStreamAsync(stream, options))
+                    .Should().ThrowAsync<EdsParseException>(
+                        "strict mode must survive the cross-thread continuation — " +
+                        "thread-local state is lost when the continuation resumes on another thread");
+            }
+            else
+            {
+                var model = await CanOpenFile.Eds.ReadStreamAsync(stream, options);
+                model.FileInfo.FileName.Should().Be("duplicate-b.eds");
             }
         })).ToArray();
 
+        // Every task is parked at its stream's first read; releasing the gate from
+        // this (test) thread resumes all parser continuations here — deterministically
+        // not on the threads that entered the strict scopes.
+        await allParked.Task;
+        gate.TrySetResult(null);
         await Task.WhenAll(reads);
     }
 
@@ -174,22 +188,29 @@ public class ThreadSafetyTests
     }
 
     /// <summary>
-    /// Read-only stream whose first read yields to the thread pool, forcing the
-    /// caller's <c>await</c> to resume as a real continuation. <c>MemoryStream</c>
-    /// completes synchronously, so it would never exercise <see cref="AsyncLocal{T}"/>
-    /// flow across an await boundary. Only the first read suspends — that single
-    /// crossing per parse suffices, and keeping later reads synchronous avoids
-    /// timer/thread-pool pressure on the CI runners. Only the array-based
+    /// Read-only stream whose first read parks on a shared gate until the test
+    /// releases it from a different thread. The gate is a plain
+    /// <see cref="TaskCompletionSource{TResult}"/>, so the parked continuation
+    /// resumes inline on the releasing thread — deterministically a different
+    /// thread than the one that entered the strict scope, which is what a
+    /// thread-local regression cannot survive. Only the array-based
     /// <c>ReadAsync</c> overload is overridden; the base class routes the
     /// <c>Memory&lt;byte&gt;</c> overload through it.
     /// </summary>
-    private sealed class YieldingReadStream : Stream
+    private sealed class GatedReadStream : Stream
     {
         private readonly byte[] _payload;
+        private readonly Task _gate;
+        private readonly Action _onFirstRead;
         private int _position;
         private bool _firstRead = true;
 
-        public YieldingReadStream(byte[] payload) => _payload = payload;
+        public GatedReadStream(byte[] payload, Task gate, Action onFirstRead)
+        {
+            _payload = payload;
+            _gate = gate;
+            _onFirstRead = onFirstRead;
+        }
 
         public override bool CanRead => true;
 
@@ -214,10 +235,11 @@ public class ThreadSafetyTests
             if (_firstRead)
             {
                 _firstRead = false;
-                // ExecutionContext (and therefore AsyncLocal) flows across this await;
-                // thread-local state would be lost when the continuation resumes on a
-                // different thread-pool thread.
-                await Task.Yield();
+                _onFirstRead();
+                // Resumes inline on the gate-releasing thread. ExecutionContext
+                // (and therefore AsyncLocal) flows across this await; thread-local
+                // state would be lost.
+                await _gate.ConfigureAwait(false);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
