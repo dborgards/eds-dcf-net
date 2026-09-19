@@ -128,11 +128,20 @@ public class RealWorldCorpusTests
         return string.IsNullOrEmpty(filePath);
     }
 
+    private static string CorpusRelativeKey(string filePath)
+    {
+        // Path.GetRelativePath is unavailable on net48; Uri.MakeRelativeUri works
+        // on every target and already yields forward slashes.
+        var rootUri = new Uri(Path.GetFullPath(CorpusRoot) + Path.DirectorySeparatorChar);
+        var relative = rootUri.MakeRelativeUri(new Uri(Path.GetFullPath(filePath)));
+        return Uri.UnescapeDataString(relative.ToString());
+    }
+
     private static void AssertValidAsAllowListed(
         string filePath,
         IReadOnlyList<Validation.ValidationIssue> issues)
     {
-        var key = Path.GetRelativePath(CorpusRoot, filePath).Replace('\\', '/');
+        var key = CorpusRelativeKey(filePath);
         var allowed = ValidationAllowList.TryGetValue(key, out var entries)
             ? entries
             : Array.Empty<string>();
