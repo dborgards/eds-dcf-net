@@ -16,6 +16,14 @@ public class EdsParseException : Exception
     public string? SectionName { get; set; }
 
     /// <summary>
+    /// Stable machine-readable identifier of the parse problem (if applicable), matching
+    /// <see cref="Diagnostics.ParseDiagnostic.Code"/> — the same condition reports the same
+    /// code as a diagnostic in lenient mode and as an exception in strict mode.
+    /// See <see cref="Diagnostics.ParseDiagnosticCodes"/> for the catalogue.
+    /// </summary>
+    public string? Code { get; set; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="EdsParseException"/> class.
     /// </summary>
     public EdsParseException()

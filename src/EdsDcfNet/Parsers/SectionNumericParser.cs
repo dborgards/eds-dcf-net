@@ -39,18 +39,38 @@ internal static class SectionNumericParser
             // FileVersion/FileRevision: decimal plain integers like XDD fileVersion.
             // Do not route through ParseByte (CiA octal for 0+digit).
             if (!StrictParsingScope.IsEnabled &&
-                ValueConverter.TrySplitMajorMinorDecimal(value.Trim(), out _))
+                ValueConverter.TrySplitMajorMinorDecimal(value.Trim(), out var major))
+            {
+                Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                    Diagnostics.ParseSeverity.Warning,
+                    Diagnostics.ParseDiagnosticCodes.IniVersionMajorMinor,
+                    path: sectionName + "." + keyName,
+                    rawValue: value,
+                    coercedTo: major,
+                    message: string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Version field '{0}' uses a major/minor tooling form; the major component {1} is used.",
+                        value,
+                        major)));
+
                 return ValueConverter.ParseByteAllowingMajorMinor(value);
+            }
 
             return ValueConverter.ParseByteDecimalPlain(value);
         }
         catch (EdsParseException ex)
         {
-            throw Wrap(sectionName, keyName, ex);
+            var isMajorMinorForm = allowMajorMinorVersionForm
+                && ValueConverter.TrySplitMajorMinorDecimal(value.Trim(), out _);
+            throw Wrap(
+                sectionName,
+                keyName,
+                ex,
+                isMajorMinorForm ? Diagnostics.ParseDiagnosticCodes.IniVersionMajorMinor : null);
         }
     }
 
-    private static EdsParseException Wrap(string sectionName, string keyName, EdsParseException ex)
+    private static EdsParseException Wrap(string sectionName, string keyName, EdsParseException ex, string? code = null)
     {
         return new EdsParseException(
             string.Format(
@@ -61,7 +81,8 @@ internal static class SectionNumericParser
                 ex.Message),
             ex)
         {
-            SectionName = sectionName
+            SectionName = sectionName,
+            Code = code
         };
     }
 }
