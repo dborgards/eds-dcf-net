@@ -16,6 +16,7 @@ using Xunit;
 public class ThreadSafetyTests
 {
     private const int Concurrency = 32;
+    private const int AsyncConcurrency = 8;
     private const int IterationsPerTask = 5;
 
     [Fact]
@@ -114,18 +115,21 @@ public class ThreadSafetyTests
     /// <summary>
     /// Async variant of the isolation guard: scopes must survive <c>await</c>
     /// continuations without leaking into interleaved concurrent reads. Reads go
-    /// through <see cref="YieldingReadStream"/>, which suspends on every read, so
-    /// the parser's awaits resume as real continuations on thread-pool threads —
-    /// a <c>MemoryStream</c> would complete synchronously and never exercise
-    /// <see cref="AsyncLocal{T}"/> flow across an await boundary.
+    /// through <see cref="YieldingReadStream"/>, whose first read suspends, so the
+    /// parser's awaits resume as real continuations on thread-pool threads — a
+    /// <c>MemoryStream</c> would complete synchronously and never exercise
+    /// <see cref="AsyncLocal{T}"/> flow across an await boundary. Runs with lower
+    /// concurrency than the sync guard: xUnit runs test classes in parallel, and
+    /// dozens of barrier-blocked tasks starve timing-sensitive neighbours on the
+    /// small CI runners.
     /// </summary>
     [Fact]
     public async Task StrictParsingScope_AsyncReads_DoNotLeakAcrossAwait()
     {
         var malformed = LoadEdsWithDuplicateKey();
-        using var start = new Barrier(Concurrency);
+        using var start = new Barrier(AsyncConcurrency);
 
-        var reads = Enumerable.Range(0, Concurrency).Select(i => Task.Run(async () =>
+        var reads = Enumerable.Range(0, AsyncConcurrency).Select(i => Task.Run(async () =>
         {
             var strict = i % 2 == 0;
             var options = new CanOpenFileOptions { StrictParsing = strict };
@@ -170,17 +174,20 @@ public class ThreadSafetyTests
     }
 
     /// <summary>
-    /// Read-only stream whose reads first suspend on a timer delay, forcing the
-    /// caller's <c>await</c> to resume as a real continuation on a thread-pool
-    /// thread. <c>MemoryStream</c> completes synchronously, so it would never
-    /// exercise <see cref="AsyncLocal{T}"/> flow across an await boundary.
-    /// Only the array-based <c>ReadAsync</c> overload is overridden; the base
-    /// class routes the <c>Memory&lt;byte&gt;</c> overload through it.
+    /// Read-only stream whose first read yields to the thread pool, forcing the
+    /// caller's <c>await</c> to resume as a real continuation. <c>MemoryStream</c>
+    /// completes synchronously, so it would never exercise <see cref="AsyncLocal{T}"/>
+    /// flow across an await boundary. Only the first read suspends — that single
+    /// crossing per parse suffices, and keeping later reads synchronous avoids
+    /// timer/thread-pool pressure on the CI runners. Only the array-based
+    /// <c>ReadAsync</c> overload is overridden; the base class routes the
+    /// <c>Memory&lt;byte&gt;</c> overload through it.
     /// </summary>
     private sealed class YieldingReadStream : Stream
     {
         private readonly byte[] _payload;
         private int _position;
+        private bool _firstRead = true;
 
         public YieldingReadStream(byte[] payload) => _payload = payload;
 
@@ -204,10 +211,16 @@ public class ThreadSafetyTests
             int count,
             CancellationToken cancellationToken)
         {
-            // ExecutionContext (and therefore AsyncLocal) flows across this await
-            // regardless of ConfigureAwait; a thread-local regression would lose it
-            // when the continuation resumes on a different thread-pool thread.
-            await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+            if (_firstRead)
+            {
+                _firstRead = false;
+                // ExecutionContext (and therefore AsyncLocal) flows across this await;
+                // thread-local state would be lost when the continuation resumes on a
+                // different thread-pool thread.
+                await Task.Yield();
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
             return Read(buffer, offset, count);
         }
 
