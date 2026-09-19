@@ -244,7 +244,7 @@ jobs:
             ((($lines[0] // "") | test("^[a-zA-Z]+(\\([^)]*\\))?!: "))
               or (($lines[0] // "") | test("^(breaking|major)(\\([^)]*\\))?: ")))
             or
-            (($lines[1:] | join("\n")) | test("(?m)^(BREAKING CHANGE|BREAKING CHANGES|BREAKING):"))
+            (($lines[1:] | join("\n")) | test("(?mi)^[\\s|*]*(BREAKING CHANGE|BREAKING CHANGES|BREAKING)[:\\s]+"))
           )
         '
         if ! results=$(gh api --paginate "repos/${{ github.repository }}/pulls/$pr/commits" --jq "$jq_program"); then
