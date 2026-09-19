@@ -339,6 +339,25 @@ public class ParseDiagnosticsTests
         AssertStrictThrowsWithCode(content, ParseDiagnosticCodes.XddDuplicateCommNetProfile, xdd: true);
     }
 
+    [Fact]
+    public void OverlongDummyUsageKey_Xdd_LenientReports_StrictThrowsSameCode()
+    {
+        var content = MinimalXdd.Replace(
+            "</CANopenObjectList>",
+            "</CANopenObjectList>\n        <dummyUsage><dummy entry=\"Dummy00001=1\"/></dummyUsage>");
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(content);
+
+        var diagnostic = result.Diagnostics.Should().ContainSingle().Subject;
+        diagnostic.Code.Should().Be(ParseDiagnosticCodes.XddInvalidDummyUsage);
+        diagnostic.Path.Should().Be("dummyUsage/dummy");
+        diagnostic.RawValue.Should().Be("Dummy00001=1");
+        result.Model.ObjectDictionary?.DummyUsage.Should().ContainKey(0x0001,
+            "lenient mode accepts the overlong key");
+
+        AssertStrictThrowsWithCode(content, ParseDiagnosticCodes.XddInvalidDummyUsage, xdd: true);
+    }
+
     // --- value object -------------------------------------------------------
 
     [Fact]
@@ -351,6 +370,19 @@ public class ParseDiagnosticsTests
 
         withLine.ToString().Should().Be("[Warning] CODE at Section.Key:12: message");
         withoutLine.ToString().Should().Be("[Info] CODE at Section.Key: message");
+    }
+
+    [Fact]
+    public void ParseDiagnostic_ToString_OmitsLocationWhenPathIsEmpty()
+    {
+        // Shared token converters report without location context.
+        var emptyPath = new ParseDiagnostic(
+            ParseSeverity.Warning, "CODE", string.Empty, "message");
+        var emptyPathWithLine = new ParseDiagnostic(
+            ParseSeverity.Warning, "CODE", string.Empty, "message", line: 7);
+
+        emptyPath.ToString().Should().Be("[Warning] CODE: message");
+        emptyPathWithLine.ToString().Should().Be("[Warning] CODE at line 7: message");
     }
 
     // --- helpers ------------------------------------------------------------

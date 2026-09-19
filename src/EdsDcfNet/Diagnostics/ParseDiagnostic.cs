@@ -69,8 +69,11 @@ public sealed class ParseDiagnostic
     public string? CoercedTo { get; }
 
     /// <inheritdoc />
-    public override string ToString() =>
-        Line.HasValue
-            ? $"[{Severity}] {Code} at {Path}:{Line.Value}: {Message}"
-            : $"[{Severity}] {Code} at {Path}: {Message}";
+    public override string ToString()
+    {
+        var location = Path.Length > 0
+            ? (Line.HasValue ? $" at {Path}:{Line.Value}" : $" at {Path}")
+            : (Line.HasValue ? $" at line {Line.Value}" : string.Empty);
+        return $"[{Severity}] {Code}{location}: {Message}";
+    }
 }

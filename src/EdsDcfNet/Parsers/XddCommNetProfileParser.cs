@@ -345,10 +345,25 @@ internal static class XddCommNetProfileParser
                 continue;
             }
 
-            if (keyPart.Length != 9 && StrictParsingScope.IsEnabled)
+            if (keyPart.Length != 9)
             {
-                RejectMalformedDummyUsageEntry(entry);
-                continue;
+                if (StrictParsingScope.IsEnabled)
+                {
+                    RejectMalformedDummyUsageEntry(entry);
+                    continue;
+                }
+
+                // Lenient mode accepts the overlong key — report the deviation so
+                // Read*WithDiagnostics surfaces what strict mode would reject.
+                Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                    Diagnostics.ParseSeverity.Warning,
+                    Diagnostics.ParseDiagnosticCodes.XddInvalidDummyUsage,
+                    path: "dummyUsage/dummy",
+                    rawValue: entry,
+                    message: string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Overlong dummyUsage key '{0}'. Expected exactly DummyXXXX with four hexadecimal digits; accepted in lenient mode.",
+                        entry)));
             }
 
             var hexPart = keyPart[5..];
