@@ -121,6 +121,58 @@ public class ParseDiagnosticsTests
     }
 
     [Fact]
+    public void ReadFileWithDiagnostics_ReportsDiagnostics()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, EdsWithDuplicateKey());
+
+            var result = CanOpenFile.Eds.ReadFileWithDiagnostics(tempFile);
+
+            result.Diagnostics.Should().ContainSingle(d =>
+                d.Code == ParseDiagnosticCodes.IniDuplicateKey);
+            result.Model.FileInfo.FileName.Should().Be("duplicate-b.eds");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ReadFileWithDiagnosticsAsync_ReportsDiagnostics()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, EdsWithDuplicateKey());
+
+            var result = await CanOpenFile.Eds.ReadFileWithDiagnosticsAsync(tempFile);
+
+            result.Diagnostics.Should().ContainSingle(d =>
+                d.Code == ParseDiagnosticCodes.IniDuplicateKey);
+            result.Model.FileInfo.FileName.Should().Be("duplicate-b.eds");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void ReadStreamWithDiagnostics_ReportsDiagnostics()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(EdsWithDuplicateKey()));
+
+        var result = CanOpenFile.Eds.ReadStreamWithDiagnostics(stream);
+
+        result.Diagnostics.Should().ContainSingle(d =>
+            d.Code == ParseDiagnosticCodes.IniDuplicateKey);
+        result.Model.FileInfo.FileName.Should().Be("duplicate-b.eds");
+    }
+
+    [Fact]
     public async Task ReadStreamWithDiagnosticsAsync_ReportsDiagnostics()
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(EdsWithDuplicateKey()));
@@ -130,6 +182,43 @@ public class ParseDiagnosticsTests
         result.Diagnostics.Should().ContainSingle(d =>
             d.Code == ParseDiagnosticCodes.IniDuplicateKey);
         result.Model.FileInfo.FileName.Should().Be("duplicate-b.eds");
+    }
+
+    [Fact]
+    public void ParseDiagnosticScope_IsCollecting_TracksActiveScope()
+    {
+        ParseDiagnosticScope.IsCollecting.Should().BeFalse();
+
+        using (ParseDiagnosticScope.Enter())
+            ParseDiagnosticScope.IsCollecting.Should().BeTrue();
+
+        ParseDiagnosticScope.IsCollecting.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ParseDiagnosticScope_Dispose_IsIdempotent()
+    {
+        // Cover CollectingScope early-return on second Dispose (codecov patch for ParseDiagnosticScope)
+        var scope = ParseDiagnosticScope.Enter();
+        ParseDiagnosticScope.IsCollecting.Should().BeTrue();
+
+        scope.Dispose();
+        ParseDiagnosticScope.IsCollecting.Should().BeFalse();
+
+        scope.Dispose();
+        ParseDiagnosticScope.IsCollecting.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ParseDiagnosticScope_Report_IsNoOpWhenNoCollectorIsActive()
+    {
+        ParseDiagnosticScope.IsCollecting.Should().BeFalse();
+
+        var act = () => ParseDiagnosticScope.Report(new ParseDiagnostic(
+            ParseSeverity.Warning, "CODE", "Section.Key", "message"));
+
+        act.Should().NotThrow();
+        ParseDiagnosticScope.IsCollecting.Should().BeFalse();
     }
 
     [Fact]
