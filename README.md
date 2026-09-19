@@ -752,6 +752,12 @@ eds-dcf-net/
 - Any .NET implementation compatible with .NET Standard 2.0
   (e.g., .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5+, Unity, Xamarin)
 
+**Strong naming:** `EdsDcfNet.dll` is strong-named as of **1.13.0**. The key
+(`src/EdsDcfNet/EdsDcfNet.snk`) is committed and public — it provides assembly
+identity only, not authenticity. On .NET (Core) 5+ nothing changes; .NET
+Framework consumers that referenced the previously unsigned assembly must
+**rebuild** against 1.13.0 (no source changes required).
+
 **For building this repository (library, tests, examples):**
 
 - .NET SDK 10.0 or higher
