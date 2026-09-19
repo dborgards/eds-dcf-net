@@ -1,61 +1,53 @@
 #!/usr/bin/env bash
-# Downloads the latest stable EdsDcfNet package from nuget.org and runs
-# Microsoft.DotNet.ApiCompat (apicompat) against the locally built assemblies.
+# Runs Microsoft.DotNet.ApiCompat (apicompat) comparing the PR's built
+# assemblies against the same assemblies built from the PR's base branch.
 #
-# Usage: tools/apicompat-check.sh <build-output-dir> [work-dir]
-#   <build-output-dir>  Directory that contains one sub-folder per TFM with the
-#                       built EdsDcfNet.dll (e.g. src/EdsDcfNet/bin/Release).
-#   [work-dir]          Scratch directory for the baseline package and the diff
-#                       report (default: .apicompat).
+# Usage: tools/apicompat-check.sh <head-build-output-dir> <base-build-output-dir> [work-dir]
+#   <head-build-output-dir>  Directory with one sub-folder per TFM containing
+#                            the PR branch's built EdsDcfNet.dll (e.g.
+#                            src/EdsDcfNet/bin/Release).
+#   <base-build-output-dir>  Same layout, built from the PR's base branch
+#                            (develop or main) — the public API this PR is
+#                            compared against.
+#   [work-dir]               Scratch directory for the diff report (default:
+#                            .apicompat).
 #
 # Exit codes:
 #   0  no compatibility differences (or only suppressed ones)
 #   1  compatibility differences found — report written to <work-dir>/apicompat-diff.md
-#   2  infrastructure failure (download, missing tool, missing build output)
+#   2  infrastructure failure (missing tool, missing build output)
+#
+# Comparing against the PR's own base branch rather than the latest stable
+# NuGet package avoids blaming a PR for an incompatibility some *other*,
+# already-merged PR introduced: `develop` only ever publishes beta
+# pre-releases, so an accepted breaking change can sit there unreleased as
+# stable for a while, and every subsequent PR into develop would otherwise
+# inherit that blame. For a develop -> main release PR, the base branch
+# (main) is exactly the last published stable version, so this reduces to
+# the original "vs latest stable" comparison there.
 #
 # When differences are found the report is written to <work-dir>/apicompat-diff.md
 # so the caller can post it as a PR comment.
 
 set -euo pipefail
 
-BUILD_OUTPUT="${1:?usage: apicompat-check.sh <build-output-dir> [work-dir]}"
-WORK_DIR="${2:-.apicompat}"
-PACKAGE_ID="edsdcfnet"
-FLAT_CONTAINER="https://api.nuget.org/v3-flatcontainer/${PACKAGE_ID}"
+HEAD_BUILD_OUTPUT="${1:?usage: apicompat-check.sh <head-build-output-dir> <base-build-output-dir> [work-dir]}"
+BASE_BUILD_OUTPUT="${2:?usage: apicompat-check.sh <head-build-output-dir> <base-build-output-dir> [work-dir]}"
+WORK_DIR="${3:-.apicompat}"
 SUPPRESSION_FILE="src/EdsDcfNet/ApiCompatSuppressions.xml"
 
 die() { echo "apicompat-check: $*" >&2; exit 2; }
 
-command -v curl >/dev/null || die "curl not found"
-command -v jq >/dev/null || die "jq not found"
-command -v unzip >/dev/null || die "unzip not found"
 command -v apicompat >/dev/null || die "apicompat not found — install with: dotnet tool install -g Microsoft.DotNet.ApiCompat.Tool"
+[ -d "${BASE_BUILD_OUTPUT}" ] || die "base branch build output not found: ${BASE_BUILD_OUTPUT}"
 
 mkdir -p "${WORK_DIR}"
 
-# --- Resolve the latest stable (non-prerelease) package version -------------
-echo "Resolving latest stable ${PACKAGE_ID} package from nuget.org..."
-BASELINE_VERSION=$(curl -fsSL "${FLAT_CONTAINER}/index.json" \
-  | jq -r '[.versions[] | select(contains("-") | not)] | last // empty')
-[ -n "${BASELINE_VERSION}" ] || die "no stable ${PACKAGE_ID} version found on nuget.org"
-echo "Baseline: ${PACKAGE_ID} ${BASELINE_VERSION}"
-
-# --- Download and extract the baseline package ------------------------------
-BASELINE_DIR="${WORK_DIR}/baseline/${BASELINE_VERSION}"
-if [ ! -d "${BASELINE_DIR}/lib" ]; then
-  mkdir -p "${BASELINE_DIR}"
-  curl -fsSL "${FLAT_CONTAINER}/${BASELINE_VERSION}/${PACKAGE_ID}.${BASELINE_VERSION}.nupkg" \
-    -o "${WORK_DIR}/baseline.nupkg" \
-    || die "failed to download ${PACKAGE_ID} ${BASELINE_VERSION}"
-  unzip -q -o "${WORK_DIR}/baseline.nupkg" -d "${BASELINE_DIR}" \
-    || die "failed to extract baseline package"
-fi
-
 # --- Compare per TFM ---------------------------------------------------------
-# Compare each built TFM against the same TFM in the baseline package. When the
-# baseline does not ship that TFM (older releases), fall back to the
-# netstandard2.0 asset: the public surface is identical across TFMs, so this is
-# still a meaningful guard.
+# Compare each built TFM against the same TFM in the base branch's build
+# output. When the base branch does not ship that TFM (e.g. it was just added
+# in this PR), fall back to the netstandard2.0 asset: the public surface is
+# identical across TFMs, so this is still a meaningful guard.
 DIFF_FILE="${WORK_DIR}/apicompat-diff.md"
 : > "${DIFF_FILE}"
 FAILED=0
@@ -67,19 +59,19 @@ if [ -f "${SUPPRESSION_FILE}" ]; then
 fi
 
 shopt -s nullglob
-for tfm_dir in "${BUILD_OUTPUT}"/*/; do
+for tfm_dir in "${HEAD_BUILD_OUTPUT}"/*/; do
   tfm="$(basename "${tfm_dir}")"
   right="${tfm_dir}EdsDcfNet.dll"
   [ -f "${right}" ] || continue
 
-  if [ -f "${BASELINE_DIR}/lib/${tfm}/EdsDcfNet.dll" ]; then
-    left="${BASELINE_DIR}/lib/${tfm}/EdsDcfNet.dll"
+  if [ -f "${BASE_BUILD_OUTPUT}/${tfm}/EdsDcfNet.dll" ]; then
+    left="${BASE_BUILD_OUTPUT}/${tfm}/EdsDcfNet.dll"
     baseline_tfm="${tfm}"
-  elif [ -f "${BASELINE_DIR}/lib/netstandard2.0/EdsDcfNet.dll" ]; then
-    left="${BASELINE_DIR}/lib/netstandard2.0/EdsDcfNet.dll"
+  elif [ -f "${BASE_BUILD_OUTPUT}/netstandard2.0/EdsDcfNet.dll" ]; then
+    left="${BASE_BUILD_OUTPUT}/netstandard2.0/EdsDcfNet.dll"
     baseline_tfm="netstandard2.0 (fallback)"
   else
-    echo "apicompat-check: no compatible baseline asset for ${tfm} — skipped" >&2
+    echo "apicompat-check: no compatible base-branch asset for ${tfm} — skipped" >&2
     continue
   fi
 
@@ -94,7 +86,7 @@ for tfm_dir in "${BUILD_OUTPUT}"/*/; do
   if [ "${rc}" -ne 0 ]; then
     FAILED=1
     {
-      echo "### \`${tfm}\` vs baseline ${BASELINE_VERSION} (\`${baseline_tfm}\`)"
+      echo "### \`${tfm}\` vs base branch (\`${baseline_tfm}\`)"
       echo
       echo '```'
       echo "${output}"
@@ -104,12 +96,12 @@ for tfm_dir in "${BUILD_OUTPUT}"/*/; do
   fi
 done
 
-[ "${COMPARED}" -gt 0 ] || die "no built EdsDcfNet.dll found under ${BUILD_OUTPUT}"
+[ "${COMPARED}" -gt 0 ] || die "no built EdsDcfNet.dll found under ${HEAD_BUILD_OUTPUT}"
 
 if [ "${FAILED}" -ne 0 ]; then
-  echo "apicompat-check: compatibility differences found — see ${DIFF_FILE}"
+  echo "apicompat-check: compatibility differences found vs base branch — see ${DIFF_FILE}"
   exit 1
 fi
 
-echo "apicompat-check: public API is compatible with ${PACKAGE_ID} ${BASELINE_VERSION}"
+echo "apicompat-check: public API is compatible with the base branch"
 exit 0

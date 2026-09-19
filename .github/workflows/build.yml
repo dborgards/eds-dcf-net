@@ -181,11 +181,19 @@ jobs:
     - name: Verify package-lock.json is in sync
       run: npm ci
 
-  # Compares the built public API against the latest stable EdsDcfNet package on
-  # nuget.org (Microsoft.DotNet.ApiCompat). semantic-release derives the version
-  # bump from commit types, not from the actual API delta — this job makes an
-  # accidental breaking change in a feat:/fix: PR fail CI instead of shipping as
-  # a Minor/Patch.
+  # Compares the built public API against the same API built from the PR's
+  # base branch (Microsoft.DotNet.ApiCompat). semantic-release derives the
+  # version bump from commit types, not from the actual API delta — this job
+  # makes an accidental breaking change in a feat:/fix: PR fail CI instead of
+  # shipping as a Minor/Patch.
+  #
+  # Compared against the PR's own base branch, not the latest stable NuGet
+  # package: `develop` only ever publishes beta pre-releases, so an accepted
+  # breaking change can sit there unreleased as stable for a while — every
+  # subsequent, unrelated PR into develop would otherwise inherit blame for
+  # someone else's change. For a develop -> main release PR the base branch
+  # (main) IS the last published stable version, so this is equivalent to the
+  # original "vs latest stable" comparison there, without a NuGet download.
   #
   # PR-only on purpose: release commits carry [skip ci] and relay-release-status
   # posts only `build`, so a push/develop trigger here would stay pending on
@@ -199,17 +207,39 @@ jobs:
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        # Full history so the breaking-change detection can inspect all PR commits.
-        fetch-depth: 0
+      # Breaking-change commit detection queries the GitHub API (not local git
+      # history), and the compatibility baseline comes from the separate base
+      # branch checkout below — no full-history clone needed here.
 
-    - name: Setup .NET
+    - name: Checkout PR base branch
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: ${{ github.event.pull_request.base.sha }}
+        path: base-branch
+
+    - name: Setup .NET (PR head)
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
       with:
         global-json-file: global.json
 
-    - name: Build library
+    # dotnet resolves the SDK from the nearest global.json to the invoked
+    # working directory, so building base-branch/ with `working-directory:`
+    # below picks up base-branch/global.json — which may pin an older SDK
+    # feature band than the PR head (e.g. a PR that bumps global.json
+    # itself). rollForward: latestPatch cannot cross feature bands, so that
+    # older SDK must be installed too, or the base build fails outright and
+    # apicompat never runs.
+    - name: Setup .NET (PR base branch)
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+      with:
+        global-json-file: base-branch/global.json
+
+    - name: Build library (PR head)
       run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
+
+    - name: Build library (PR base branch)
+      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
+      working-directory: base-branch
 
     - name: Install ApiCompat tool
       # Pinned to the global.json SDK version so a new tool release can't silently
@@ -237,11 +267,11 @@ jobs:
         fi
         echo "intent=${intent}" >> "$GITHUB_OUTPUT"
 
-    - name: Run ApiCompat against latest stable package
+    - name: Run ApiCompat against PR base branch
       id: apicompat
       run: |
         set +e
-        bash tools/apicompat-check.sh src/EdsDcfNet/bin/Release "$RUNNER_TEMP/apicompat"
+        bash tools/apicompat-check.sh src/EdsDcfNet/bin/Release base-branch/src/EdsDcfNet/bin/Release "$RUNNER_TEMP/apicompat"
         rc=$?
         set -e
         # rc 2 is an infrastructure failure — fail the step normally.
@@ -262,7 +292,7 @@ jobs:
         {
           echo "## Public API compatibility diff"
           echo
-          echo "ApiCompat reports breaking changes against the latest stable package."
+          echo "ApiCompat reports breaking changes against this PR's base branch."
           echo "This PR explicitly opts in ('breaking' label or BREAKING CHANGE commit),"
           echo "so the check passes — the diff is recorded here for review:"
           echo
@@ -274,7 +304,7 @@ jobs:
       if: steps.apicompat.outputs.result == 'incompatible' && steps.breaking.outputs.intent != 'true'
       run: |
         cat "$RUNNER_TEMP/apicompat/apicompat-diff.md"
-        echo "::error::Public API is not compatible with the latest stable package. Either revert the breaking change or mark the PR with the 'breaking' label / a BREAKING CHANGE commit footer (Major release)."
+        echo "::error::Public API is not compatible with this PR's base branch. Either revert the breaking change or mark the PR with the 'breaking' label / a BREAKING CHANGE commit footer (Major release)."
         exit 1
 
   # Relays required check statuses for release commits that carry [skip ci].
