@@ -251,6 +251,11 @@ jobs:
 
     - name: Post API diff as PR comment
       if: steps.apicompat.outputs.result == 'incompatible' && steps.breaking.outputs.intent == 'true'
+      # Best-effort: e.g. GITHUB_TOKEN is read-only on pull_request runs triggered
+      # from a fork, so `gh pr comment` fails there regardless of the job's
+      # `pull-requests: write` permission. That must not fail a PR that already
+      # did the right thing by declaring its breaking change.
+      continue-on-error: true
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
