@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Suppressions for Microsoft.DotNet.ApiCompat (tools/apicompat-check.sh).
+     Add an entry here only for a known, intentional deviation — e.g. removing
+     an [Obsolete] member at the next Major under the documented obsoleting
+     policy. Every entry must reference the approving issue/PR in a comment. -->
+<Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+</Suppressions>

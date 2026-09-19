@@ -144,6 +144,32 @@ Naming convention for boundary cases: suffix the scenario, e.g.
 | Representative fixtures | minimal EDS with `FileRevision = 255` | added |
 | API contract assertions | n/a | no public signature change |
 
+## Real-world fixture corpus
+
+`tests/EdsDcfNet.Tests/Fixtures/Corpus/` holds **redistributable real-world**
+EDS/DCF/XDD/XDC files grouped by source (`Corpus/<source>/`). The corpus guard
+(`RealWorldCorpusTests`) reads every file in lenient mode, validates it against
+a per-file allow-list, and asserts a structurally stable write → re-read
+round-trip.
+
+Contributing a corpus file:
+
+1. **Licence** — only files with a redistribution-friendly licence are accepted
+   (e.g. CANopenNode exports under Apache-2.0, python-canopen fixtures under
+   MIT, or your own anonymised files contributed under this repository's MIT
+   licence). Vendor EDS files under vendor terms must **not** be committed.
+2. **Provenance** — place the file in `Corpus/<source>/` and add a `LICENSE`
+   (or `LICENSE.txt`) plus a `NOTICE.md` naming origin and licence.
+3. **Anonymisation** — remove customer-specific or confidential values before
+   contributing; keep the file otherwise unmodified so it stays "real-world".
+4. **Validation allow-list** — if the file legitimately deviates from CiA 306,
+   add its known issues to `ValidationAllowList` in `RealWorldCorpusTests` with
+   a comment explaining why the deviation is accepted.
+5. **Diagnostics snapshots** — once the parse-diagnostics channel exists
+   (#523), each corpus file carries a `<file>.diagnostics.json` snapshot
+   (#525 phase 2); regenerate snapshots with the corpus test update switch
+   documented there when lenient behaviour changes intentionally.
+
 ## Commit convention
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/).
@@ -174,6 +200,24 @@ BREAKING CHANGE: CanOpenFile.Eds.ReadFile now returns a Result type
 ```
 
 ## Public API compatibility checklist
+
+> **Automated gate:** the `apicompat` CI job (`build.yml`, PRs into `develop`
+> and `main`) compares the built assemblies against the same assemblies built
+> from the PR's base branch via `Microsoft.DotNet.ApiCompat`
+> (`tools/apicompat-check.sh`). A PR that removes/renames public members fails
+> CI unless one of its commits carries a signal that semantic-release itself
+> treats as a Major bump — a `!` after the type, the `breaking`/`major` commit
+> type, or a `BREAKING CHANGE:`/`BREAKING CHANGES:` footer — in
+> which case the diff is posted as a PR comment so the Major bump is a
+> conscious decision. A GitHub label has no effect on semantic-release's
+> version calculation and is not accepted here. Known, intentional deviations
+> (e.g. `[Obsolete]`
+> removals allowed by the obsoleting policy at the next Major) are suppressed in
+> `src/EdsDcfNet/ApiCompatSuppressions.xml` with a comment referencing the
+> approving issue/PR.
+>
+> The checklist below covers what the tool **cannot** see: behavioural
+> changes, exception-contract changes, and source-level (not binary) breaks.
 
 Use this checklist for any PR that adds, removes, renames, or reshapes public
 members in `EdsDcfNet` — especially `CanOpenFile`, format entry points
@@ -224,6 +268,26 @@ know why it matters.
   `dotnet build --configuration Release` locally and resolve any new warnings
   on touched public members before opening the PR.
   *(Enforced by existing build policy; easy to miss during large refactors.)*
+
+- [ ] **Thread-safety contract** — The format entry points
+  (`CanOpenFile.{Eds,Dcf,Cpj,Xdd,Xdc}`) guarantee safe concurrent use: the
+  operation objects are singletons holding only immutable delegates, each call
+  constructs its own reader/writer, and strict-mode state is `AsyncLocal`-scoped
+  (see README § Thread safety). The prohibition is therefore narrow: no mutable
+  instance state on `FormatCanOpenOperations<TModel>` or the singleton
+  `*CanOpenOperations` subclasses, and no mutable *static* state anywhere in
+  the call path (`CanOpenModelValidator` included). Per-call instance state
+  inside a reader/writer is fine — the object is created fresh for every
+  operation and does not outlive the call — with one exception:
+  `EdsWriter`/`DcfWriter` route object serialization through a shared
+  static `Instance`, so instance state on `EdsWriter`, `DcfWriter`, or
+  `IniWriterBase` is shared across concurrent calls and must stay
+  immutable. Ambient state that must survive
+  `await` boundaries must be `AsyncLocal`-scoped, never `[ThreadStatic]`.
+  Violating this is a **behavioural breaking change** for consumers that call
+  the entry points concurrently. The contract is guarded by `ThreadSafetyTests`.
+  *(Guarantee established for the 1.13.0 cycle — see
+  [#527](https://github.com/dborgards/eds-dcf-net/issues/527).)*
 
 > **Note:** Full-assembly `Microsoft.CodeAnalysis.PublicApiAnalyzers` remains
 > optional for broader surface tracking; the format entry-point parameter-name
@@ -319,10 +383,14 @@ into package metadata (`PackageReleaseNotes` is unset during `dotnet pack`).
   them: a commit footer starting with **exactly `BREAKING CHANGE:`**. This
   triggers a **major** bump and the footer text lands in the "💥 Breaking
   Changes" section of the generated notes. The `breaking`/`major` commit types
-  work too. Avoid the `BREAKING CHANGES:` / `BREAKING:` aliases: the commit
-  analyzer accepts them for the version bump (`parserOpts.noteKeywords`), but
-  the release-notes generator has no matching configuration, so the note text
-  would be **silently dropped** from the generated notes.
+  work too. Avoid the `BREAKING CHANGES:` alias: the commit analyzer accepts
+  it for the version bump (`parserOpts.noteKeywords`), but the release-notes
+  generator has no matching configuration, so the note text would be
+  **silently dropped** from the generated notes. A bare `BREAKING:` footer is
+  **not** recognized at all: that alternative was removed from
+  `parserOpts.noteKeywords` after it matched an unrelated line of prose in a
+  commit body (one that merely *talked about* these keywords) and triggered
+  an unintended Major release.
 - **Non-breaking behavior changes** (e.g. stricter validation behind an opt-in
   flag) must be summarized in the commit **subject** of a `feat`/`fix`/`perf`
   commit — the conventionalcommits notes writer emits the subject line only;
