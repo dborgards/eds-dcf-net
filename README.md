@@ -631,6 +631,36 @@ Guidance:
 - Increase `MaxInputSize` only for trusted sources and known use cases.
 - Set the limit just high enough for your expected maximum file size.
 
+### Parse diagnostics (report repairs, keep the model)
+
+Between lenient (silently coerce) and strict (throw on the first deviation)
+there is a third path: the `Read*WithDiagnostics` methods on the format entry
+points return the parsed model **and** report every repair as a
+`ParseDiagnostic` — for import UIs and device-file validators that need to
+answer "what did the parser silently fix?" without giving up the model.
+
+```csharp
+var result = CanOpenFile.Eds.ReadFileWithDiagnostics("device.eds");
+
+foreach (var diagnostic in result.Diagnostics)
+    Console.WriteLine(diagnostic);   // [Warning] INI_DUPLICATE_KEY at FileInfo.FileName:42: ...
+
+var model = result.Model;            // fully parsed, coercions applied
+```
+
+Each `ParseDiagnostic` carries:
+
+- `Code` — stable machine-readable identifier (`ParseDiagnosticCodes`, e.g.
+  `INI_DUPLICATE_KEY`, `XDD_MISSING_INDEX`). In strict mode the same condition
+  throws an `EdsParseException` whose `Code` property carries the same value.
+- `Severity` (`Info` / `Warning` / `Error`), `Message`, `Path` (section/key for
+  INI formats, XPath-like for XML formats), `Line` (INI formats), `RawValue`,
+  and `CoercedTo` (what lenient mode substituted).
+
+Diagnostics are collected through an `AsyncLocal` sink scoped to the call, so
+concurrent reads do not interfere. Direct `*Reader` APIs stay lenient and
+silent — collection happens only through the `CanOpenFile` entry points.
+
 ### Thread safety
 
 - **Entry points are safe for concurrent use.** `CanOpenFile.Eds` / `.Dcf` /

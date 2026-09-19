@@ -156,6 +156,46 @@ public class FormatCanOpenOperations<TModel>
     }
 
     /// <summary>
+    /// Reads a file from disk and reports every lenient-mode repair as a
+    /// <see cref="Diagnostics.ParseDiagnostic"/> alongside the model.
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="CanOpenFileOptions.StrictParsing"/>, the parse does not throw on the
+    /// first deviation: the model is returned and each coercion is reported. Diagnostics are
+    /// collected through an <see cref="AsyncLocal{T}"/> sink scoped to this call, so concurrent
+    /// reads do not interfere.
+    /// </remarks>
+    public Diagnostics.CanOpenReadResult<TModel> ReadFileWithDiagnostics(
+        string filePath,
+        CanOpenFileOptions? options = null)
+    {
+        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (var diagnostics = Diagnostics.ParseDiagnosticScope.Enter())
+        {
+            var model = _readFile(filePath, CanOpenFileOptions.ResolveMaxInputSize(options));
+            return new Diagnostics.CanOpenReadResult<TModel>(model, diagnostics.Diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Reads a file from disk asynchronously and reports every lenient-mode repair as a
+    /// <see cref="Diagnostics.ParseDiagnostic"/> alongside the model.
+    /// </summary>
+    public async Task<Diagnostics.CanOpenReadResult<TModel>> ReadFileWithDiagnosticsAsync(
+        string filePath,
+        CanOpenFileOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (var diagnostics = Diagnostics.ParseDiagnosticScope.Enter())
+        {
+            var model = await _readFileAsync(filePath, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken)
+                .ConfigureAwait(false);
+            return new Diagnostics.CanOpenReadResult<TModel>(model, diagnostics.Diagnostics);
+        }
+    }
+
+    /// <summary>
     /// Reads from a string.
     /// </summary>
     public TModel ReadString(string content, CanOpenFileOptions? options = null)
@@ -184,6 +224,59 @@ public class FormatCanOpenOperations<TModel>
         using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
             return await _readStreamAsync(stream, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken)
                 .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Reads from a string and reports every lenient-mode repair as a
+    /// <see cref="Diagnostics.ParseDiagnostic"/> alongside the model.
+    /// </summary>
+    /// <remarks>See <see cref="ReadFileWithDiagnostics"/> for the collection contract.</remarks>
+    public Diagnostics.CanOpenReadResult<TModel> ReadStringWithDiagnostics(
+        string content,
+        CanOpenFileOptions? options = null)
+    {
+        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (var diagnostics = Diagnostics.ParseDiagnosticScope.Enter())
+        {
+            var model = _readString(content, CanOpenFileOptions.ResolveMaxInputSize(options));
+            return new Diagnostics.CanOpenReadResult<TModel>(model, diagnostics.Diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Reads from a stream and reports every lenient-mode repair as a
+    /// <see cref="Diagnostics.ParseDiagnostic"/> alongside the model. The stream is not disposed.
+    /// </summary>
+    /// <remarks>See <see cref="ReadFileWithDiagnostics"/> for the collection contract.</remarks>
+    public Diagnostics.CanOpenReadResult<TModel> ReadStreamWithDiagnostics(
+        Stream stream,
+        CanOpenFileOptions? options = null)
+    {
+        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (var diagnostics = Diagnostics.ParseDiagnosticScope.Enter())
+        {
+            var model = _readStream(stream, CanOpenFileOptions.ResolveMaxInputSize(options));
+            return new Diagnostics.CanOpenReadResult<TModel>(model, diagnostics.Diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Reads from a stream asynchronously and reports every lenient-mode repair as a
+    /// <see cref="Diagnostics.ParseDiagnostic"/> alongside the model. The stream is not disposed.
+    /// </summary>
+    /// <remarks>See <see cref="ReadFileWithDiagnostics"/> for the collection contract.</remarks>
+    public async Task<Diagnostics.CanOpenReadResult<TModel>> ReadStreamWithDiagnosticsAsync(
+        Stream stream,
+        CanOpenFileOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (var diagnostics = Diagnostics.ParseDiagnosticScope.Enter())
+        {
+            var model = await _readStreamAsync(stream, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken)
+                .ConfigureAwait(false);
+            return new Diagnostics.CanOpenReadResult<TModel>(model, diagnostics.Diagnostics);
+        }
     }
 
     /// <summary>

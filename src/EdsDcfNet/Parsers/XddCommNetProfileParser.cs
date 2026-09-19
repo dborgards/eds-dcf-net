@@ -199,13 +199,26 @@ internal static class XddCommNetProfileParser
         var attr = elem.Attribute("index");
         if (attr == null)
         {
+            Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                Diagnostics.ParseSeverity.Warning,
+                Diagnostics.ParseDiagnosticCodes.XddMissingIndex,
+                path: elementName,
+                coercedTo: "0x0000",
+                message: string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} is missing required attribute 'index'; treated as 0x0000.",
+                    elementName)));
+
             if (StrictParsingScope.IsEnabled)
             {
                 throw new EdsParseException(
                     string.Format(
                         CultureInfo.InvariantCulture,
                         "{0} is missing required attribute 'index'.",
-                        elementName));
+                        elementName))
+                {
+                    Code = Diagnostics.ParseDiagnosticCodes.XddMissingIndex
+                };
             }
 
             return ParseHexIndex("0000");
@@ -226,13 +239,26 @@ internal static class XddCommNetProfileParser
         var attr = elem.Attribute("objectType");
         if (attr == null)
         {
+            Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                Diagnostics.ParseSeverity.Warning,
+                Diagnostics.ParseDiagnosticCodes.XddMissingObjectType,
+                path: elementName,
+                coercedTo: "0x7",
+                message: string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} is missing required attribute 'objectType'; treated as VAR (0x7).",
+                    elementName)));
+
             if (StrictParsingScope.IsEnabled)
             {
                 throw new EdsParseException(
                     string.Format(
                         CultureInfo.InvariantCulture,
                         "{0} is missing required attribute 'objectType'.",
-                        elementName));
+                        elementName))
+                {
+                    Code = Diagnostics.ParseDiagnosticCodes.XddMissingObjectType
+                };
             }
 
             return 0x7;
@@ -243,6 +269,18 @@ internal static class XddCommNetProfileParser
         if (byte.TryParse(objTypeStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var objType))
             return objType;
 
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.XddInvalidObjectType,
+            path: elementName,
+            rawValue: objTypeStr,
+            coercedTo: "0x7",
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Invalid objectType '{0}' on {1}; treated as VAR (0x7).",
+                objTypeStr,
+                elementName)));
+
         if (StrictParsingScope.IsEnabled)
         {
             throw new EdsParseException(
@@ -250,7 +288,10 @@ internal static class XddCommNetProfileParser
                     CultureInfo.InvariantCulture,
                     "Invalid objectType '{0}' on {1}. Expected an Unsigned8 decimal integer.",
                     objTypeStr,
-                    elementName));
+                    elementName))
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.XddInvalidObjectType
+            };
         }
 
         return 0x7;
@@ -304,10 +345,27 @@ internal static class XddCommNetProfileParser
                 continue;
             }
 
-            if (keyPart.Length != 9 && StrictParsingScope.IsEnabled)
+            if (keyPart.Length != 9)
             {
-                RejectMalformedDummyUsageEntry(entry);
-                continue;
+                if (StrictParsingScope.IsEnabled)
+                {
+                    // Throws: RejectMalformedDummyUsageEntry always throws in strict mode.
+                    RejectMalformedDummyUsageEntry(entry);
+                }
+                else
+                {
+                    // Lenient mode accepts the overlong key — report the deviation so
+                    // Read*WithDiagnostics surfaces what strict mode would reject.
+                    Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                        Diagnostics.ParseSeverity.Warning,
+                        Diagnostics.ParseDiagnosticCodes.XddInvalidDummyUsage,
+                        path: "dummyUsage/dummy",
+                        rawValue: entry,
+                        message: string.Format(
+                            CultureInfo.InvariantCulture,
+                            "Overlong dummyUsage key '{0}'. Expected exactly DummyXXXX with four hexadecimal digits; accepted in lenient mode.",
+                            entry)));
+                }
             }
 
             var hexPart = keyPart[5..];
@@ -318,14 +376,31 @@ internal static class XddCommNetProfileParser
             }
 
             if (valPart != "0" && valPart != "1")
-                RejectMalformedDummyUsageEntry(entry);
+                RejectMalformedDummyUsageEntry(entry, coercedTo: "false");
 
             dict.DummyUsage[dummyIndex] = valPart == "1";
         }
     }
 
-    private static void RejectMalformedDummyUsageEntry(string entry)
+    private static void RejectMalformedDummyUsageEntry(string entry, string? coercedTo = null)
     {
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.XddInvalidDummyUsage,
+            path: "dummyUsage/dummy",
+            rawValue: entry,
+            coercedTo: coercedTo,
+            message: coercedTo == null
+                ? string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Invalid dummyUsage entry '{0}'. Expected DummyXXXX=0|1 with a hexadecimal index.",
+                    entry)
+                : string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Invalid dummyUsage entry '{0}'. Expected DummyXXXX=0|1 with a hexadecimal index; treated as {1} in lenient mode.",
+                    entry,
+                    coercedTo)));
+
         if (!StrictParsingScope.IsEnabled)
             return;
 
@@ -333,7 +408,10 @@ internal static class XddCommNetProfileParser
             string.Format(
                 CultureInfo.InvariantCulture,
                 "Invalid dummyUsage entry '{0}'. Expected DummyXXXX=0|1 with a hexadecimal index.",
-                entry));
+                entry))
+        {
+            Code = Diagnostics.ParseDiagnosticCodes.XddInvalidDummyUsage
+        };
     }
 
     private static DynamicChannels? ParseDynamicChannels(XElement dynChannels)

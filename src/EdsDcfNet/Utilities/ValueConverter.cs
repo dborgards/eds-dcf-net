@@ -112,8 +112,22 @@ public static class ValueConverter
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "Unknown boolean token '{0}'. Expected one of: 0, 1, true, false, yes, no.",
-                    value));
+                    value))
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.UnknownBooleanToken
+            };
         }
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.UnknownBooleanToken,
+            path: string.Empty,
+            rawValue: value,
+            coercedTo: "false",
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Unknown boolean token '{0}'. Expected one of: 0, 1, true, false, yes, no. Treated as false.",
+                value)));
 
         return false;
     }
@@ -367,9 +381,28 @@ public static class ValueConverter
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "Unknown access type token '{0}'. Expected one of: ro, wo, rw, rwr, rww, const.",
-                    value)),
-            _ => AccessType.ReadOnly
+                    value))
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.UnknownAccessTypeToken
+            },
+            _ => ReportUnknownAccessType(value)
         };
+    }
+
+    private static AccessType ReportUnknownAccessType(string? value)
+    {
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.UnknownAccessTypeToken,
+            path: string.Empty,
+            rawValue: value,
+            coercedTo: "ro",
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Unknown access type token '{0}'. Expected one of: ro, wo, rw, rwr, rww, const. Mapped to ro.",
+                value)));
+
+        return AccessType.ReadOnly;
     }
 
     /// <summary>

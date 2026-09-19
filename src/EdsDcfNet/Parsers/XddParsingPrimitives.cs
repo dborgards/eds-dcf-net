@@ -127,9 +127,28 @@ internal static class XddParsingPrimitives
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "Unknown access type token '{0}'. Expected one of: ro, wo, rw, rwr, rww, const.",
-                    value)),
-            _ => AccessType.ReadOnly
+                    value))
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.XddUnknownAccessType
+            },
+            _ => ReportUnknownAccessType(value)
         };
+    }
+
+    private static AccessType ReportUnknownAccessType(string value)
+    {
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.XddUnknownAccessType,
+            path: string.Empty,
+            rawValue: value,
+            coercedTo: "ro",
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Unknown access type token '{0}'. Expected one of: ro, wo, rw, rwr, rww, const. Mapped to ro.",
+                value)));
+
+        return AccessType.ReadOnly;
     }
 
     internal static PdoMappingMode ParseXddPdoMapping(string? value)
@@ -184,8 +203,22 @@ internal static class XddParsingPrimitives
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "Unknown XML boolean token '{0}'. Expected one of: true, false, 1, 0.",
-                    value));
+                    value))
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.XddUnknownXmlBool
+            };
         }
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.XddUnknownXmlBool,
+            path: string.Empty,
+            rawValue: value,
+            coercedTo: "false",
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Unknown XML boolean token '{0}'. Expected one of: true, false, 1, 0. Treated as false.",
+                value)));
 
         return false;
     }
@@ -225,8 +258,22 @@ internal static class XddParsingPrimitives
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "Unknown baud-rate string '{0}'. Expected one of: 10 Kbps, 20 Kbps, 50 Kbps, 125 Kbps, 250 Kbps, 500 Kbps, 800 Kbps, 1000 Kbps.",
-                    value));
+                    value))
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.XddUnknownBaudRate
+            };
         }
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.XddUnknownBaudRate,
+            path: string.Empty,
+            rawValue: value,
+            coercedTo: "0",
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Unknown baud-rate string '{0}'. Expected one of: 10 Kbps, 20 Kbps, 50 Kbps, 125 Kbps, 250 Kbps, 500 Kbps, 800 Kbps, 1000 Kbps. Treated as 0.",
+                value)));
 
         return 0;
     }
@@ -259,6 +306,19 @@ internal static class XddParsingPrimitives
         if (string.IsNullOrEmpty(raw) || parsed)
             return;
 
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.XddInvalidNumericAttribute,
+            path: attributeName,
+            rawValue: raw,
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                signed
+                    ? "Invalid {0} '{1}'. Value cannot be parsed as a signed integer. The attribute is ignored."
+                    : "Invalid {0} '{1}'. Value cannot be parsed as an unsigned integer. The attribute is ignored.",
+                attributeName,
+                raw)));
+
         if (!StrictParsingScope.IsEnabled)
             return;
 
@@ -269,7 +329,10 @@ internal static class XddParsingPrimitives
                     ? "Invalid {0} '{1}'. Value cannot be parsed as a signed integer."
                     : "Invalid {0} '{1}'. Value cannot be parsed as an unsigned integer.",
                 attributeName,
-                raw));
+                raw))
+        {
+            Code = Diagnostics.ParseDiagnosticCodes.XddInvalidNumericAttribute
+        };
     }
 
     /// <summary>
