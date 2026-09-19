@@ -16,8 +16,6 @@ using Xunit;
 /// </summary>
 public class RealWorldCorpusTests
 {
-    private static readonly string CorpusRoot = Path.Combine("Fixtures", "Corpus");
-
     /// <summary>
     /// Validation issues that are known and accepted for a specific corpus file,
     /// keyed by path relative to the corpus root. Real-world files can legitimately
@@ -34,19 +32,19 @@ public class RealWorldCorpusTests
             },
         };
 
-    public static IEnumerable<object[]> EdsCorpusFiles() => EnumerateCorpus("eds");
+    public static IEnumerable<object[]> EdsCorpusFiles() => CorpusFiles.Enumerate("eds");
 
-    public static IEnumerable<object[]> DcfCorpusFiles() => EnumerateCorpus("dcf");
+    public static IEnumerable<object[]> DcfCorpusFiles() => CorpusFiles.Enumerate("dcf");
 
-    public static IEnumerable<object[]> XddCorpusFiles() => EnumerateCorpus("xdd");
+    public static IEnumerable<object[]> XddCorpusFiles() => CorpusFiles.Enumerate("xdd");
 
-    public static IEnumerable<object[]> XdcCorpusFiles() => EnumerateCorpus("xdc");
+    public static IEnumerable<object[]> XdcCorpusFiles() => CorpusFiles.Enumerate("xdc");
 
     [Theory]
     [MemberData(nameof(EdsCorpusFiles))]
     public void EdsCorpusFile_ReadsValidatesAndRoundTrips(string filePath)
     {
-        if (NoCorpusFileYet(filePath))
+        if (CorpusFiles.IsSentinel(filePath))
             return;
 
         var model = CanOpenFile.Eds.ReadFile(filePath);
@@ -61,7 +59,7 @@ public class RealWorldCorpusTests
     [MemberData(nameof(DcfCorpusFiles))]
     public void DcfCorpusFile_ReadsValidatesAndRoundTrips(string filePath)
     {
-        if (NoCorpusFileYet(filePath))
+        if (CorpusFiles.IsSentinel(filePath))
             return;
 
         var model = CanOpenFile.Dcf.ReadFile(filePath);
@@ -76,7 +74,7 @@ public class RealWorldCorpusTests
     [MemberData(nameof(XddCorpusFiles))]
     public void XddCorpusFile_ReadsAndRoundTrips(string filePath)
     {
-        if (NoCorpusFileYet(filePath))
+        if (CorpusFiles.IsSentinel(filePath))
             return;
 
         var model = CanOpenFile.Xdd.ReadFile(filePath);
@@ -91,7 +89,7 @@ public class RealWorldCorpusTests
     [MemberData(nameof(XdcCorpusFiles))]
     public void XdcCorpusFile_ReadsAndRoundTrips(string filePath)
     {
-        if (NoCorpusFileYet(filePath))
+        if (CorpusFiles.IsSentinel(filePath))
             return;
 
         var model = CanOpenFile.Xdc.ReadFile(filePath);
@@ -102,48 +100,11 @@ public class RealWorldCorpusTests
             s => CanOpenFile.Xdc.ReadString(s));
     }
 
-    private static IEnumerable<object[]> EnumerateCorpus(string extension)
-    {
-        var found = new List<string>();
-        if (Directory.Exists(CorpusRoot))
-        {
-            var dottedExtension = "." + extension;
-            foreach (var sourceDir in Directory.EnumerateDirectories(CorpusRoot))
-                found.AddRange(Directory.EnumerateFiles(sourceDir, "*.*")
-                    .Where(file => string.Equals(Path.GetExtension(file), dottedExtension, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        // xUnit errors on empty MemberData; emit a sentinel row the theories turn
-        // into a documented early return so adding the first corpus file for a
-        // format requires no test-code change.
-        if (found.Count == 0)
-            yield return new object[] { string.Empty };
-
-        foreach (var file in found)
-            yield return new object[] { file };
-    }
-
-    private static bool NoCorpusFileYet(string filePath)
-    {
-        // No corpus files for this format yet — the corpus grows incrementally
-        // (redistributable real-world files only, see Fixtures/Corpus/*/NOTICE.md).
-        return string.IsNullOrEmpty(filePath);
-    }
-
-    private static string CorpusRelativeKey(string filePath)
-    {
-        // Path.GetRelativePath is unavailable on net48; Uri.MakeRelativeUri works
-        // on every target and already yields forward slashes.
-        var rootUri = new Uri(Path.GetFullPath(CorpusRoot) + Path.DirectorySeparatorChar);
-        var relative = rootUri.MakeRelativeUri(new Uri(Path.GetFullPath(filePath)));
-        return Uri.UnescapeDataString(relative.ToString());
-    }
-
     private static void AssertValidAsAllowListed(
         string filePath,
         IReadOnlyList<Validation.ValidationIssue> issues)
     {
-        var key = CorpusRelativeKey(filePath);
+        var key = CorpusFiles.RelativeKey(filePath);
         var allowed = ValidationAllowList.TryGetValue(key, out var entries)
             ? entries
             : Array.Empty<string>();
