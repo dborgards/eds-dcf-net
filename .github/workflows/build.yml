@@ -214,23 +214,27 @@ jobs:
     - name: Install ApiCompat tool
       run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool
 
-    # Differences are a failure by default. They are tolerated when the PR opts
-    # in to a conscious Major bump: the `breaking` label or a `!` /
-    # `BREAKING CHANGE:` commit footer. In that case the job passes and the diff
-    # is posted as a PR comment so the decision is visible in review.
+    # Differences are a failure by default. They are tolerated only when a PR
+    # commit carries a signal that semantic-release itself (.releaserc.json)
+    # treats as a Major bump: a `!` after the type, the `breaking`/`major`
+    # commit type, or a `BREAKING CHANGE:`/`BREAKING CHANGES:`/`BREAKING:`
+    # footer (commit-analyzer's `parserOpts.noteKeywords`). A GitHub label has
+    # no effect on semantic-release's version calculation, so it is
+    # deliberately not accepted here — that would let apicompat pass while the
+    # release still ships as a Minor/Patch, silently breaking consumers.
     - name: Detect explicit breaking-change intent
       id: breaking
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         pr="${{ github.event.pull_request.number }}"
+        if ! messages=$(gh api --paginate "repos/${{ github.repository }}/pulls/$pr/commits" --jq '.[].commit.message'); then
+          echo "::error::Failed to fetch PR commits from the GitHub API — cannot determine breaking-change intent."
+          exit 1
+        fi
         intent="false"
-        if gh pr view "$pr" --json labels --jq '.labels[].name' | grep -qx 'breaking'; then
-          echo "PR carries the 'breaking' label."
-          intent="true"
-        elif gh api "repos/${{ github.repository }}/pulls/$pr/commits" --jq '.[].commit.message' \
-             | grep -Eq '^[a-zA-Z]+(\([^)]*\))?!:|^BREAKING[ -]CHANGE:'; then
-          echo "PR contains a '!'/BREAKING CHANGE commit."
+        if echo "$messages" | grep -Eq '^[a-zA-Z]+(\([^)]*\))?!:|^(breaking|major)(\([^)]*\))?:|^(BREAKING CHANGE|BREAKING CHANGES|BREAKING):'; then
+          echo "PR contains a commit that triggers a semantic-release Major bump."
           intent="true"
         fi
         echo "intent=${intent}" >> "$GITHUB_OUTPUT"
@@ -256,8 +260,8 @@ jobs:
           echo "## Public API compatibility diff"
           echo
           echo "ApiCompat reports breaking changes against the latest stable package."
-          echo "This PR explicitly opts in ('breaking' label or BREAKING CHANGE commit),"
-          echo "so the check passes — the diff is recorded here for review:"
+          echo "This PR explicitly opts in via a commit that triggers a semantic-release"
+          echo "Major bump, so the check passes — the diff is recorded here for review:"
           echo
           cat "$RUNNER_TEMP/apicompat/apicompat-diff.md"
         } > "$RUNNER_TEMP/apicompat-comment.md"
