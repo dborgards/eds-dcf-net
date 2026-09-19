@@ -631,6 +631,22 @@ Guidance:
 - Increase `MaxInputSize` only for trusted sources and known use cases.
 - Set the limit just high enough for your expected maximum file size.
 
+### Thread safety
+
+- **Entry points are safe for concurrent use.** `CanOpenFile.Eds` / `.Dcf` /
+  `.Cpj` / `.Xdd` / `.Xdc` and their `Read*` / `Write*` / `Validate` operations
+  may be called from multiple threads or async flows simultaneously. The readers
+  and writers behind them are stateless singletons, and `StrictParsing` state is
+  scoped per call via `AsyncLocal`, so concurrent calls with different options do
+  not interfere. This contract is guarded by a concurrency test
+  (`tests/EdsDcfNet.Tests/Integration/ThreadSafetyTests.cs`).
+- **Models are not thread-safe.** `ElectronicDataSheet`, `DeviceConfigurationFile`,
+  `NodelistProject`, `ObjectDictionary`, etc. are plain mutable objects. Do not
+  mutate a model while it is being written or validated; give each thread its own
+  model instance.
+- **Options may be shared.** `CanOpenFileOptions` and `CanOpenWriteOptions` are
+  immutable (`init`-only); a single instance can be reused across threads.
+
 ### Options extension pattern (format-specific options)
 
 `CanOpenFileOptions` (read) and `CanOpenWriteOptions` (write) are intentionally

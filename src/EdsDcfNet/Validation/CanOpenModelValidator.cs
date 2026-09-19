@@ -7,6 +7,11 @@ using EdsDcfNet.Models;
 /// <summary>
 /// Validates CANopen models against common CiA 306 and CiA 311 constraints.
 /// </summary>
+/// <threadsafety>
+/// All members are safe to call concurrently — the validator is stateless. Models are plain
+/// mutable objects and are <b>not</b> thread-safe: a model must not be mutated while it is
+/// being validated.
+/// </threadsafety>
 public static class CanOpenModelValidator
 {
     private static readonly ushort[] AllowedBaudrateValues = { 10, 20, 50, 125, 250, 500, 800, 1000 };

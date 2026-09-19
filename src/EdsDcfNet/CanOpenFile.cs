@@ -21,6 +21,16 @@ using EdsDcfNet.Validation;
 /// Legacy <c>Read*</c>/<c>Write*</c> static overloads remain for backward compatibility; they delegate
 /// to these entry points and default-parameter-only write overloads are marked obsolete (advisory).
 /// </remarks>
+/// <threadsafety>
+/// All members of <see cref="CanOpenFile"/> and the format entry points are safe to call
+/// concurrently: the underlying readers and writers are stateless singletons, and strict-mode
+/// state is scoped per call via <see cref="AsyncLocal{T}"/>. Model instances
+/// (<see cref="ElectronicDataSheet"/>, <c>DeviceConfigurationFile</c>, <c>NodelistProject</c>,
+/// <c>ObjectDictionary</c>, …) are plain mutable objects and are <b>not</b> thread-safe — a model
+/// must not be mutated while it is being written or validated.
+/// <see cref="CanOpenFileOptions"/> and <see cref="CanOpenWriteOptions"/> are immutable
+/// (<c>init</c>-only) and may be shared across threads.
+/// </threadsafety>
 public static class CanOpenFile
 {
     /// <summary>

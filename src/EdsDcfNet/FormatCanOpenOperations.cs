@@ -6,6 +6,14 @@ using EdsDcfNet.Exceptions;
 /// Shared read/write operations for a CiA CANopen file format model.
 /// </summary>
 /// <typeparam name="TModel">The in-memory model type for the format.</typeparam>
+/// <threadsafety>
+/// Instances are immutable after construction (only <c>readonly</c> delegate fields) and
+/// all read/write operations are safe to call concurrently. Strict-mode state is scoped per
+/// call via <see cref="AsyncLocal{T}"/>, so concurrent calls with different
+/// <see cref="CanOpenFileOptions.StrictParsing"/> values do not interfere. The models passed
+/// to and returned from these operations are plain mutable objects and are <b>not</b>
+/// thread-safe — a model must not be mutated while it is being written or validated.
+/// </threadsafety>
 #pragma warning disable CA1822 // Instance API exposed via CanOpenFile format entry points.
 public class FormatCanOpenOperations<TModel>
 {
