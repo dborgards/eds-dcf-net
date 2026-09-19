@@ -4,7 +4,7 @@
 		<TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<PackageId>EdsDcfNet</PackageId>
-		<Version>1.12.2</Version>
+		<Version>1.13.0-beta.1</Version>
 		<Authors>Dietmar Borgards</Authors>
 		<Description>A comprehensive C# .NET library for reading and writing CiA DS 306 (EDS, DCF, CPJ) and CiA 311 (XDD, XDC) files for CANopen devices.</Description>
 		<PackageTags>CANopen;EDS;DCF;CPJ;XDD;XDC;CiA;DS306;CiA311;Industrial Automation</PackageTags>
@@ -17,6 +17,19 @@
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<Deterministic>true</Deterministic>
 		<ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+		<!-- Strong-named as of 1.13.0. The key is committed and public: it provides
+		     assembly identity only, not authenticity. The SNK contains the private
+		     key, so assemblies are fully signed on every platform (no PublicSign);
+		     public signing would produce assemblies that fail strong-name
+		     verification on .NET Framework. -->
+		<SignAssembly>true</SignAssembly>
+		<AssemblyOriginatorKeyFile>EdsDcfNet.snk</AssemblyOriginatorKeyFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<!-- Strong-name public key of EdsDcfNet.snk, for the InternalsVisibleTo grant
+		     to the (equally signed) test assembly. -->
+		<EdsDcfNetPublicKey>0024000004800000140100000602000000240000525341310008000001000100318d2dfbdce624f9c7c7d852a7f33ad520f55efabc062bbe99f79cf3a9de2ec7c39caf404fe269451f011ad0dfd0052fb45fa7129d7c05ffa2e7f38642e847075bfe116138345c3fe554a6d1f4d9b977adfea7f14e1815dc46d6dd747df72849cc00f40de08ff43ef322a36ccf40f385818e199e4f4b311e93e14673ef106d3776a802e8034841e148a2f3cc6c4233a86cf1e1fbc0179a9d4a3d8bd46fe3117824cdda5819c5a00638ab7eb14dacd2b5babfcfb68f8ddd1a0354acb81a81c8a60f826181d342f0954c1a72e69e528f7414eb885e984fd38e82070f262075cb5c44b760011a64b71ba8d64644d35da252947ebc9bd9e51b4ae672a3cd3cd83386</EdsDcfNetPublicKey>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -25,7 +38,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<InternalsVisibleTo Include="EdsDcfNet.Tests" />
+		<InternalsVisibleTo Include="EdsDcfNet.Tests" Key="$(EdsDcfNetPublicKey)" />
 	</ItemGroup>
 
 	<ItemGroup>
