@@ -243,6 +243,26 @@ know why it matters.
   on touched public members before opening the PR.
   *(Enforced by existing build policy; easy to miss during large refactors.)*
 
+- [ ] **Thread-safety contract** — The format entry points
+  (`CanOpenFile.{Eds,Dcf,Cpj,Xdd,Xdc}`) guarantee safe concurrent use: the
+  operation objects are singletons holding only immutable delegates, each call
+  constructs its own reader/writer, and strict-mode state is `AsyncLocal`-scoped
+  (see README § Thread safety). The prohibition is therefore narrow: no mutable
+  instance state on `FormatCanOpenOperations<TModel>` or the singleton
+  `*CanOpenOperations` subclasses, and no mutable *static* state anywhere in
+  the call path (`CanOpenModelValidator` included). Per-call instance state
+  inside a reader/writer is fine — the object is created fresh for every
+  operation and does not outlive the call — with one exception:
+  `EdsWriter`/`DcfWriter` route object serialization through a shared
+  static `Instance`, so instance state on `EdsWriter`, `DcfWriter`, or
+  `IniWriterBase` is shared across concurrent calls and must stay
+  immutable. Ambient state that must survive
+  `await` boundaries must be `AsyncLocal`-scoped, never `[ThreadStatic]`.
+  Violating this is a **behavioural breaking change** for consumers that call
+  the entry points concurrently. The contract is guarded by `ThreadSafetyTests`.
+  *(Guarantee established for the 1.13.0 cycle — see
+  [#527](https://github.com/dborgards/eds-dcf-net/issues/527).)*
+
 > **Note:** Full-assembly `Microsoft.CodeAnalysis.PublicApiAnalyzers` remains
 > optional for broader surface tracking; the format entry-point parameter-name
 > baseline above is the required named-argument gate.
