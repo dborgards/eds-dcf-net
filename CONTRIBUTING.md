@@ -234,7 +234,11 @@ know why it matters.
   `*CanOpenOperations` subclasses, and no mutable *static* state anywhere in
   the call path (`CanOpenModelValidator` included). Per-call instance state
   inside a reader/writer is fine — the object is created fresh for every
-  operation and does not outlive the call — but ambient state that must survive
+  operation and does not outlive the call — with one exception:
+  `EdsWriter`/`DcfWriter` route object serialization through a shared
+  static `Instance`, so instance state on `EdsWriter`, `DcfWriter`, or
+  `IniWriterBase` is shared across concurrent calls and must stay
+  immutable. Ambient state that must survive
   `await` boundaries must be `AsyncLocal`-scoped, never `[ThreadStatic]`.
   Violating this is a **behavioural breaking change** for consumers that call
   the entry points concurrently. The contract is guarded by `ThreadSafetyTests`.
