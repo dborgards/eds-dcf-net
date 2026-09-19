@@ -260,6 +260,26 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         pr="${{ github.event.pull_request.number }}"
+        # The REST pulls/{pr}/commits endpoint below is documented to return
+        # at most 250 commits, even with --paginate: pagination pages through
+        # what the endpoint has, not past its own hard cap. Check the PR's
+        # real commit count via GraphQL's totalCount (uncapped) first, so a
+        # marker past commit #250 fails loudly instead of silently landing on
+        # "no breaking intent" from a truncated view.
+        if ! total_commits=$(gh api graphql -f query='
+          query($owner: String!, $repo: String!, $pr: Int!) {
+            repository(owner: $owner, name: $repo) {
+              pullRequest(number: $pr) { commits { totalCount } }
+            }
+          }' -F owner="${{ github.repository_owner }}" -F repo="${{ github.event.repository.name }}" -F pr="$pr" \
+          --jq '.data.repository.pullRequest.commits.totalCount'); then
+          echo "::error::Failed to determine the PR's total commit count — cannot determine breaking-change intent."
+          exit 1
+        fi
+        if [ "$total_commits" -gt 250 ]; then
+          echo "::error::This PR has ${total_commits} commits, past the GitHub REST API's 250-commit cap on the pull-request commits endpoint. Automated breaking-change detection cannot see the full commit list; squash/rebase the PR or verify manually."
+          exit 1
+        fi
         # Evaluated per commit, header vs. body/footer, matching how the
         # conventionalcommits parser actually derives type/notes: a bare
         # grep over the flattened, concatenated commit messages would also
