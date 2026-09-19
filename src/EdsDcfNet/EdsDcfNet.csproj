@@ -18,11 +18,12 @@
 		<Deterministic>true</Deterministic>
 		<ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
 		<!-- Strong-named as of 1.13.0. The key is committed and public: it provides
-		     assembly identity only, not authenticity. PublicSign keeps cross-platform
-		     builds reproducible on Linux/macOS runners. -->
+		     assembly identity only, not authenticity. The SNK contains the private
+		     key, so assemblies are fully signed on every platform (no PublicSign);
+		     public signing would produce assemblies that fail strong-name
+		     verification on .NET Framework. -->
 		<SignAssembly>true</SignAssembly>
 		<AssemblyOriginatorKeyFile>EdsDcfNet.snk</AssemblyOriginatorKeyFile>
-		<PublicSign Condition="'$(OS)' != 'Windows_NT'">true</PublicSign>
 	</PropertyGroup>
 
 	<PropertyGroup>
