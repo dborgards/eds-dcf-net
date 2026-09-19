@@ -9,7 +9,7 @@ using Xunit;
 /// Real-world corpus guard (#525, phase 1): redistributable vendor/community device
 /// files under Fixtures/Corpus must read without exception in lenient mode, validate
 /// with no unexpected issues, and round-trip structurally stable (write -> re-read
-/// preserves object count, index set, and DeviceInfo).
+/// preserves object count, index set, and the complete DeviceInfo graph).
 ///
 /// Lenient-mode regressions on real-world files are invisible with hand-written
 /// fixtures alone — this theory is the safety net before parser changes land.
@@ -184,9 +184,10 @@ public class RealWorldCorpusTests
             model.ObjectDictionary.Objects.Keys,
             "round-trip must preserve the index set");
 
-        reserialized.DeviceInfo.VendorName.Should().Be(model.DeviceInfo.VendorName);
-        reserialized.DeviceInfo.ProductName.Should().Be(model.DeviceInfo.ProductName);
-        reserialized.DeviceInfo.VendorNumber.Should().Be(model.DeviceInfo.VendorNumber);
-        reserialized.DeviceInfo.ProductNumber.Should().Be(model.DeviceInfo.ProductNumber);
+        // Full DeviceInfo graph (revision, order code, baud rates, boot-up flags,
+        // PDO counts, …) — a dropped writer/reader field must fail here.
+        reserialized.DeviceInfo.Should().BeEquivalentTo(
+            model.DeviceInfo,
+            "round-trip must preserve the complete DeviceInfo graph");
     }
 }
