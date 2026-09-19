@@ -212,7 +212,9 @@ jobs:
       run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
 
     - name: Install ApiCompat tool
-      run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool
+      # Pinned to the global.json SDK version so a new tool release can't silently
+      # change diagnostics or CLI flags underneath an unrelated PR.
+      run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool --version 10.0.400
 
     # Differences are a failure by default. They are tolerated when the PR opts
     # in to a conscious Major bump: the `breaking` label or a `!` /
