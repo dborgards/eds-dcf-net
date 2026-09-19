@@ -249,8 +249,8 @@ jobs:
     # Differences are a failure by default. They are tolerated only when a PR
     # commit carries a signal that semantic-release itself (.releaserc.json)
     # treats as a Major bump: a `!` after the type, the `breaking`/`major`
-    # commit type, or a `BREAKING CHANGE:`/`BREAKING CHANGES:`/`BREAKING:`
-    # footer (commit-analyzer's `parserOpts.noteKeywords`). A GitHub label has
+    # commit type, or a `BREAKING CHANGE:`/`BREAKING CHANGES:` footer
+    # (commit-analyzer's `parserOpts.noteKeywords`). A GitHub label has
     # no effect on semantic-release's version calculation, so it is
     # deliberately not accepted here — that would let apicompat pass while the
     # release still ships as a Minor/Patch, silently breaking consumers.
@@ -284,9 +284,13 @@ jobs:
         # conventionalcommits parser actually derives type/notes: a bare
         # grep over the flattened, concatenated commit messages would also
         # match a `!`/`breaking:`/`major:`-looking line inside some other
-        # commit's body, or a `BREAKING:`-looking commit *subject* (which
-        # parses as an unrecognized type, not a note) — both false positives
-        # that would incorrectly let an unannounced breaking change through.
+        # commit's body, or a `BREAKING CHANGE:`-looking commit *subject*
+        # (which parses as an unrecognized type, not a note) — both false
+        # positives that would incorrectly let an unannounced breaking change
+        # through. Conversely, `noteKeywords` deliberately excludes a bare
+        # `BREAKING` alternative: it matched ordinary prose describing these
+        # very keywords in a commit body and triggered an unintended Major
+        # release, the opposite false positive.
         jq_program='
           [.[].commit.message] | any(
             . as $msg |
@@ -294,7 +298,7 @@ jobs:
             ((($lines[0] // "") | test("^[a-zA-Z]+(\\([^)]*\\))?!: "))
               or (($lines[0] // "") | test("^(breaking|major)(\\([^)]*\\))?: ")))
             or
-            (($lines[1:] | join("\n")) | test("(?mi)^[\\s|*]*(BREAKING CHANGE|BREAKING CHANGES|BREAKING)[:\\s]+"))
+            (($lines[1:] | join("\n")) | test("(?mi)^[\\s|*]*(BREAKING CHANGE|BREAKING CHANGES)[:\\s]+"))
           )
         '
         if ! results=$(gh api --paginate "repos/${{ github.repository }}/pulls/$pr/commits" --jq "$jq_program"); then
@@ -345,7 +349,7 @@ jobs:
       if: steps.apicompat.outputs.result == 'incompatible' && steps.breaking.outputs.intent != 'true'
       run: |
         cat "$RUNNER_TEMP/apicompat/apicompat-diff.md"
-        echo "::error::Public API is not compatible with this PR's base branch. Either revert the breaking change or add a commit with a '!' after the type, the 'breaking'/'major' type, or a BREAKING CHANGE/BREAKING CHANGES/BREAKING footer (Major release)."
+        echo "::error::Public API is not compatible with this PR's base branch. Either revert the breaking change or add a commit with a '!' after the type, the 'breaking'/'major' type, or a BREAKING CHANGE/BREAKING CHANGES footer (Major release)."
         exit 1
 
   # Relays required check statuses for release commits that carry [skip ci].
