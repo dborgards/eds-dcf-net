@@ -246,23 +246,64 @@ jobs:
       # change diagnostics or CLI flags underneath an unrelated PR.
       run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool --version 10.0.400
 
-    # Differences are a failure by default. They are tolerated when the PR opts
-    # in to a conscious Major bump: the `breaking` label or a `!` /
-    # `BREAKING CHANGE:` commit footer. In that case the job passes and the diff
-    # is posted as a PR comment so the decision is visible in review.
+    # Differences are a failure by default. They are tolerated only when a PR
+    # commit carries a signal that semantic-release itself (.releaserc.json)
+    # treats as a Major bump: a `!` after the type, the `breaking`/`major`
+    # commit type, or a `BREAKING CHANGE:`/`BREAKING CHANGES:`/`BREAKING:`
+    # footer (commit-analyzer's `parserOpts.noteKeywords`). A GitHub label has
+    # no effect on semantic-release's version calculation, so it is
+    # deliberately not accepted here — that would let apicompat pass while the
+    # release still ships as a Minor/Patch, silently breaking consumers.
     - name: Detect explicit breaking-change intent
       id: breaking
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         pr="${{ github.event.pull_request.number }}"
+        # The REST pulls/{pr}/commits endpoint below is documented to return
+        # at most 250 commits, even with --paginate: pagination pages through
+        # what the endpoint has, not past its own hard cap. Check the PR's
+        # real commit count via GraphQL's totalCount (uncapped) first, so a
+        # marker past commit #250 fails loudly instead of silently landing on
+        # "no breaking intent" from a truncated view.
+        if ! total_commits=$(gh api graphql -f query='
+          query($owner: String!, $repo: String!, $pr: Int!) {
+            repository(owner: $owner, name: $repo) {
+              pullRequest(number: $pr) { commits { totalCount } }
+            }
+          }' -F owner="${{ github.repository_owner }}" -F repo="${{ github.event.repository.name }}" -F pr="$pr" \
+          --jq '.data.repository.pullRequest.commits.totalCount'); then
+          echo "::error::Failed to determine the PR's total commit count — cannot determine breaking-change intent."
+          exit 1
+        fi
+        if [ "$total_commits" -gt 250 ]; then
+          echo "::error::This PR has ${total_commits} commits, past the GitHub REST API's 250-commit cap on the pull-request commits endpoint. Automated breaking-change detection cannot see the full commit list; squash/rebase the PR or verify manually."
+          exit 1
+        fi
+        # Evaluated per commit, header vs. body/footer, matching how the
+        # conventionalcommits parser actually derives type/notes: a bare
+        # grep over the flattened, concatenated commit messages would also
+        # match a `!`/`breaking:`/`major:`-looking line inside some other
+        # commit's body, or a `BREAKING:`-looking commit *subject* (which
+        # parses as an unrecognized type, not a note) — both false positives
+        # that would incorrectly let an unannounced breaking change through.
+        jq_program='
+          [.[].commit.message] | any(
+            . as $msg |
+            ($msg | split("\n")) as $lines |
+            ((($lines[0] // "") | test("^[a-zA-Z]+(\\([^)]*\\))?!: "))
+              or (($lines[0] // "") | test("^(breaking|major)(\\([^)]*\\))?: ")))
+            or
+            (($lines[1:] | join("\n")) | test("(?mi)^[\\s|*]*(BREAKING CHANGE|BREAKING CHANGES|BREAKING)[:\\s]+"))
+          )
+        '
+        if ! results=$(gh api --paginate "repos/${{ github.repository }}/pulls/$pr/commits" --jq "$jq_program"); then
+          echo "::error::Failed to fetch PR commits from the GitHub API — cannot determine breaking-change intent."
+          exit 1
+        fi
         intent="false"
-        if gh pr view "$pr" --json labels --jq '.labels[].name' | grep -qx 'breaking'; then
-          echo "PR carries the 'breaking' label."
-          intent="true"
-        elif gh api "repos/${{ github.repository }}/pulls/$pr/commits" --jq '.[].commit.message' \
-             | grep -Eq '^[a-zA-Z]+(\([^)]*\))?!:|^BREAKING[ -]CHANGE:'; then
-          echo "PR contains a '!'/BREAKING CHANGE commit."
+        if echo "$results" | grep -qx true; then
+          echo "PR contains a commit that triggers a semantic-release Major bump."
           intent="true"
         fi
         echo "intent=${intent}" >> "$GITHUB_OUTPUT"
@@ -293,8 +334,8 @@ jobs:
           echo "## Public API compatibility diff"
           echo
           echo "ApiCompat reports breaking changes against this PR's base branch."
-          echo "This PR explicitly opts in ('breaking' label or BREAKING CHANGE commit),"
-          echo "so the check passes — the diff is recorded here for review:"
+          echo "This PR explicitly opts in via a commit that triggers a semantic-release"
+          echo "Major bump, so the check passes — the diff is recorded here for review:"
           echo
           cat "$RUNNER_TEMP/apicompat/apicompat-diff.md"
         } > "$RUNNER_TEMP/apicompat-comment.md"
@@ -304,7 +345,7 @@ jobs:
       if: steps.apicompat.outputs.result == 'incompatible' && steps.breaking.outputs.intent != 'true'
       run: |
         cat "$RUNNER_TEMP/apicompat/apicompat-diff.md"
-        echo "::error::Public API is not compatible with this PR's base branch. Either revert the breaking change or mark the PR with the 'breaking' label / a BREAKING CHANGE commit footer (Major release)."
+        echo "::error::Public API is not compatible with this PR's base branch. Either revert the breaking change or add a commit with a '!' after the type, the 'breaking'/'major' type, or a BREAKING CHANGE/BREAKING CHANGES/BREAKING footer (Major release)."
         exit 1
 
   # Relays required check statuses for release commits that carry [skip ci].
