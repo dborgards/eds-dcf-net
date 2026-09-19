@@ -5,6 +5,10 @@
     <TargetFrameworks>net10.0;net48</TargetFrameworks>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <!-- Signed with the same key as EdsDcfNet so the InternalsVisibleTo grant holds.
+         The SNK contains the private key, so full signing works cross-platform. -->
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>..\..\src\EdsDcfNet\EdsDcfNet.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <ItemGroup>

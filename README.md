@@ -631,6 +631,29 @@ Guidance:
 - Increase `MaxInputSize` only for trusted sources and known use cases.
 - Set the limit just high enough for your expected maximum file size.
 
+### Thread safety
+
+- **Entry points are safe for concurrent use.** `CanOpenFile.Eds` / `.Dcf` /
+  `.Cpj` / `.Xdd` / `.Xdc` and their `Read*` / `Write*` / `Validate` operations
+  may be called from multiple threads or async flows simultaneously. The
+  operation objects behind them are stateless singletons whose delegates
+  construct a fresh reader/writer per call, and `StrictParsing` state is scoped
+  per call via `AsyncLocal`, so concurrent calls with different options do not
+  interfere. This contract is guarded by a concurrency test
+  (`tests/EdsDcfNet.Tests/Integration/ThreadSafetyTests.cs`).
+- **Models are not thread-safe.** `ElectronicDataSheet`, `DeviceConfigurationFile`,
+  `NodelistProject`, `ObjectDictionary`, etc. are plain mutable objects. Do not
+  mutate a model while it is being written, validated, or converted
+  (`EdsToDcf` / `ConvertToDcf`); give each thread its own model instance.
+- **Caller-owned streams and files are not synchronized.** The `ReadStream*` /
+  `WriteStream*` overloads operate directly on the `Stream` you pass, and the
+  file-based overloads contend on the external file system. Concurrent calls must
+  each use their own stream and target distinct paths — sharing one stream races
+  its position, and concurrent writes to the same path (or a read overlapping a
+  write) can throw a sharing `IOException` or expose truncated content.
+- **Options may be shared.** `CanOpenFileOptions` and `CanOpenWriteOptions` are
+  immutable (`init`-only); a single instance can be reused across threads.
+
 ### Options extension pattern (format-specific options)
 
 `CanOpenFileOptions` (read) and `CanOpenWriteOptions` (write) are intentionally
@@ -751,6 +774,12 @@ eds-dcf-net/
 
 - Any .NET implementation compatible with .NET Standard 2.0
   (e.g., .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5+, Unity, Xamarin)
+
+**Strong naming:** `EdsDcfNet.dll` is strong-named as of **1.13.0**. The key
+(`src/EdsDcfNet/EdsDcfNet.snk`) is committed and public — it provides assembly
+identity only, not authenticity. On .NET (Core) 5+ nothing changes; .NET
+Framework consumers that referenced the previously unsigned assembly must
+**rebuild** against 1.13.0 (no source changes required).
 
 **For building this repository (library, tests, examples):**
 
