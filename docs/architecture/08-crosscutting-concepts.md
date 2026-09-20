@@ -287,8 +287,12 @@ The public entry points are safe for concurrent use; models are not:
   and `NodelistProject` are mutable object graphs — give each thread its own
   instance, e.g. one conversion (`ConvertToDcf`) per thread.
 
-The contract is enforced by saturation tests (`ThreadSafetyTests`) that run
-concurrent reads/writes across all five formats and both strict modes.
+The contract is enforced by saturation tests (`ThreadSafetyTests`): concurrent
+read/write/validate saturation with mixed strict modes for EDS and XDD (the INI and
+XML reader/writer paths), plus strict-scope isolation tests proving that
+`StrictParsing` state leaks neither across concurrent sync calls nor across `await`
+boundaries. DCF, CPJ, and XDC share the same stateless entry-point implementation
+but are not yet exercised by the saturation tests.
 
 ## 8.9 Assembly Identity (Strong Naming)
 

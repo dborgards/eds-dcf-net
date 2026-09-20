@@ -16,7 +16,7 @@ sequenceDiagram
     participant IP as IniParser
     participant VC as ValueConverter
 
-    App->>CF: ReadFile(filePath) / ReadFileAsync(filePath, ct)
+    App->>CF: ReadFile(filePath) / ReadFileAsync(filePath, cancellationToken: ct)
     CF->>ER: new EdsReader()
     CF->>ER: ReadFile(filePath) / ReadFileAsync(filePath, ct)
     ER->>IP: ParseFile(filePath) / ParseFileAsync(filePath, ct)
@@ -120,7 +120,7 @@ sequenceDiagram
     participant DW as DcfWriter
     participant VC as ValueConverter
 
-    App->>CF: WriteFile(dcf, filePath) / WriteFileAsync(dcf, filePath, ct)
+    App->>CF: WriteFile(dcf, filePath) / WriteFileAsync(dcf, filePath, cancellationToken: ct)
     CF->>DW: new DcfWriter()
     CF->>DW: WriteFile(dcf, filePath) / WriteFileAsync(dcf, filePath, ct)
     DW->>DW: GenerateDcfContent(dcf)
@@ -146,7 +146,7 @@ sequenceDiagram
     participant CW as CpjWriter
     participant IP as IniParser
 
-    App->>CF: ReadFile(filePath) / ReadFileAsync(filePath, ct)
+    App->>CF: ReadFile(filePath) / ReadFileAsync(filePath, cancellationToken: ct)
     CF->>CR: new CpjReader()
     CR->>IP: ParseFile(filePath) / ParseFileAsync(filePath, ct)
     IP-->>CR: sections dictionary
@@ -154,7 +154,7 @@ sequenceDiagram
     CR-->>CF: NodelistProject
     CF-->>App: NodelistProject
 
-    App->>CF: WriteFile(cpj, filePath) / WriteFileAsync(cpj, filePath, ct)
+    App->>CF: WriteFile(cpj, filePath) / WriteFileAsync(cpj, filePath, cancellationToken: ct)
     CF->>CW: new CpjWriter()
     CW->>CW: GenerateCpjContent()
     CW->>CW: Write topology sections ordered by node ID
@@ -172,7 +172,7 @@ sequenceDiagram
     participant XR as XddReader
     participant XML as XDocument
 
-    App->>CF: ReadFile(filePath) / ReadFileAsync(filePath, ct)
+    App->>CF: ReadFile(filePath) / ReadFileAsync(filePath, cancellationToken: ct)
     CF->>XR: new XddReader()
     XR->>XR: Read file content (sync or async)
     XR->>XML: XDocument.Parse(content)
@@ -192,7 +192,7 @@ sequenceDiagram
     participant XR as XdcReader
     participant XW as XdcWriter
 
-    App->>CF: ReadFile(filePath) / ReadFileAsync(filePath, ct)
+    App->>CF: ReadFile(filePath) / ReadFileAsync(filePath, cancellationToken: ct)
     CF->>XR: new XdcReader()
     XR->>XR: Read file content (sync or async)
     XR->>XR: Parse via XddReader(includeActualValues: true)
@@ -200,7 +200,7 @@ sequenceDiagram
     XR-->>CF: DeviceConfigurationFile
     CF-->>App: DeviceConfigurationFile
 
-    App->>CF: WriteFile(dcf, filePath) / WriteFileAsync(dcf, filePath, ct)
+    App->>CF: WriteFile(dcf, filePath) / WriteFileAsync(dcf, filePath, cancellationToken: ct)
     CF->>XW: new XdcWriter()
     XW->>XW: GenerateString(dcf)
     XW->>XW: Validate NodeId when commissioning is emitted (1..127)
