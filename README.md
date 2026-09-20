@@ -728,13 +728,14 @@ lookup helpers for the raw `ushort` values stored in
 
 ```csharp
 using EdsDcfNet;
+using EdsDcfNet.Extensions;
 
-ushort dataType = dictionary.GetObject(0x1018)?.DataType ?? 0;
+ushort dataType = dictionary.GetObject(0x1000)?.DataType ?? 0; // Device Type: UNSIGNED32
 
-CanOpenDataType.IsStandardType(dataType); // false for reserved/manufacturer-specific codes
-CanOpenDataType.TryGetBitLength(dataType); // e.g. 32 for UNSIGNED32; null for variable-length types
-CanOpenDataType.IsSigned(dataType);        // true for INTEGER8..INTEGER64
-CanOpenDataType.IsUnsigned(dataType);      // true for UNSIGNED8..UNSIGNED64
+CanOpenDataType.IsStandardType(dataType);  // true
+CanOpenDataType.TryGetBitLength(dataType); // 32; null for variable-length types
+CanOpenDataType.IsSigned(dataType);        // false
+CanOpenDataType.IsUnsigned(dataType);      // true
 CanOpenDataType.GetName(dataType);         // "UNSIGNED32", or null when unknown
 ```
 
