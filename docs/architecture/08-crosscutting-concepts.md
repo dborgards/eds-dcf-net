@@ -69,6 +69,25 @@ trusted, known-large payloads.
 high CPU cost under the size limit alone. Typical CiA 311 profiles are far shallower
 (around depth 8). Exceeding the limit fails with `EdsParseException` during parse.
 
+### Parse Diagnostics Channel
+
+Between "leniently coerce and continue" and "`StrictParsing` throws" there is a third
+path for import UIs and device-file validators: the `Read*WithDiagnostics` entry
+points return the model together with every lenient repair as a `ParseDiagnostic`
+(`Severity`, stable machine-readable `Code` from `ParseDiagnosticCodes`, `Path`,
+`Line`, `RawValue`, `CoercedTo`, `Message`).
+
+- Collection runs through an internal `AsyncLocal` sink (`ParseDiagnosticScope`)
+  scoped to the single facade call, so concurrent reads with and without
+  diagnostics do not interfere and readers/parsers report without signature changes.
+- Direct `*Reader` calls (no facade) stay silent — no collector is active.
+- Strict mode and the diagnostics channel carry the **same codes**: an instrumented
+  throw site sets `EdsParseException.Code` to the value the lenient path would
+  report, so both surfaces can be matched in tests.
+- The emitted diagnostics per real-world corpus file are snapshotted and asserted
+  (`CorpusDiagnosticsSnapshotTests`), so any parser change that alters lenient
+  behaviour shows up as a snapshot diff.
+
 ## 8.2 Culture Independence (InvariantCulture)
 
 CANopen INI/XML files are culture-independent. Numeric values use deterministic formats and must not depend on OS locale.
@@ -250,3 +269,38 @@ graph TD
 | `ReadWriteInput`     | `rwr`        | Read/write (process input)     |
 | `ReadWriteOutput`    | `rww`        | Read/write (process output)    |
 | `Constant`           | `const`      | Constant, not modifiable       |
+| `Constant`           | `const`      | Constant, not modifiable       |
+
+## 8.8 Thread Safety
+
+The public entry points are safe for concurrent use; models are not:
+
+- **Entry points are concurrent-safe.** `CanOpenFile` statics and the format entry
+  points (`CanOpenFile.Eds`, `.Dcf`, `.Cpj`, `.Xdd`, `.Xdc`) may be called from
+  multiple threads or async flows simultaneously. The operation objects are
+  stateless singletons that construct a fresh reader/writer per call; strict-mode
+  and diagnostics state is scoped per call via `AsyncLocal` (`StrictParsingScope`,
+  `ParseDiagnosticScope`).
+- **Caller-owned inputs need caller care.** Each concurrent call must use its own
+  `Stream`, and file-based calls must target distinct paths.
+- **Models are not thread-safe.** `ElectronicDataSheet`, `DeviceConfigurationFile`,
+  and `NodelistProject` are mutable object graphs — give each thread its own
+  instance, e.g. one conversion (`ConvertToDcf`) per thread.
+
+The contract is enforced by saturation tests (`ThreadSafetyTests`): concurrent
+read/write/validate saturation with mixed strict modes for EDS and XDD (the INI and
+XML reader/writer paths), plus strict-scope isolation tests proving that
+`StrictParsing` state leaks neither across concurrent sync calls nor across `await`
+boundaries. DCF, CPJ, and XDC share the same stateless entry-point implementation
+but are not yet exercised by the saturation tests.
+
+## 8.9 Assembly Identity (Strong Naming)
+
+As of 1.13.0, `EdsDcfNet.dll` is **strong-named**. The signing key
+(`src/EdsDcfNet/EdsDcfNet.snk`) is public in the repository: strong naming here is
+about *identity* (binding, GAC-style disambiguation, `InternalsVisibleTo` grants),
+not trust. The test assembly is signed with the same key so the
+`InternalsVisibleTo` grant holds cross-platform with full signing (no PublicSign).
+
+Consumers that referenced the pre-1.13 unsigned assembly must recompile — the
+assembly identity changed. API surface and behaviour are unchanged.

@@ -10,6 +10,9 @@ graph LR
         Writers["Writers<br/><i>EdsWriter, DcfWriter, CpjWriter,<br/>XddWriter, XdcWriter</i>"]
         Models["Models<br/><i>Domain Models</i>"]
         Utilities["Utilities<br/><i>ValueConverter, TextFileIo</i>"]
+        Diagnostics["Diagnostics<br/><i>ParseDiagnostic, CanOpenReadResult&lt;T&gt;,<br/>ParseDiagnosticScope (AsyncLocal)</i>"]
+        Validation["Validation<br/><i>CanOpenModelValidator, ValidationIssue</i>"]
+        Metadata["Metadata<br/><i>CanOpenDataType, CanOpenObjectType<br/>(constants, bit lengths)</i>"]
         Extensions["Extensions<br/><i>ObjectDictionaryExtensions</i>"]
         Exceptions["Exceptions<br/><i>EdsParseException, EdsWriteException,<br/>DcfWriteException</i>"]
     end
@@ -26,10 +29,12 @@ graph LR
     API --> XDC_Out["XDC File"]
     API --> Parsers
     API --> Writers
+    API --> Validation
     Parsers --> Models
     Writers --> Models
     Parsers --> Utilities
     Writers --> Utilities
+    Parsers --> Diagnostics
     Extensions --> Models
 
     style API fill:#4A90D9,color:#fff
@@ -37,6 +42,9 @@ graph LR
     style Writers fill:#7AB648,color:#fff
     style Models fill:#E74C3C,color:#fff
     style Utilities fill:#9B59B6,color:#fff
+    style Diagnostics fill:#1ABC9C,color:#fff
+    style Validation fill:#1ABC9C,color:#fff
+    style Metadata fill:#1ABC9C,color:#fff
     style Extensions fill:#F39C12,color:#fff
     style Exceptions fill:#95A5A6,color:#fff
 ```
@@ -50,6 +58,9 @@ graph LR
 | `Writers/`            | Serializing models back to EDS/DCF/CPJ (INI) and XDD/XDC (XML)                    |
 | `Models/`             | Domain models representing the structure of CANopen description/configuration data |
 | `Utilities/`          | Helper functions for type conversion and shared UTF-8 file I/O (`ValueConverter`, `TextFileIo`) |
+| `Diagnostics/`        | Parse-diagnostics channel: `ParseDiagnostic` records plus the call-scoped `AsyncLocal` sink used by the `Read*WithDiagnostics` entry points |
+| `Validation/`         | Model validation (`CanOpenModelValidator`, `ValidationIssue`); optional write guard via `CanOpenWriteOptions.ValidateBeforeWrite` |
+| Metadata constants    | `CanOpenDataType` / `CanOpenObjectType`: CiA 301 constants, bit lengths, signedness — single source of truth for `CanOpenValueConverter` widths |
 | `Extensions/`         | Extension methods for convenient ObjectDictionary access                           |
 | `Exceptions/`         | Specific exception types for parse and write errors                                |
 
@@ -287,6 +298,7 @@ classDiagram
     class EdsParseException {
         +int? LineNumber
         +string? SectionName
+        +string? Code
     }
 
     class EdsWriteException {
@@ -310,9 +322,45 @@ classDiagram
     }
 ```
 
-`EdsParseException` is used for EDS/DCF/XDD/XDC parsing errors.  
+`EdsParseException` is used for EDS/DCF/CPJ/XDD/XDC parsing errors; its `Code` carries the stable
+diagnostic identifier (see §8.1 parse diagnostics) when the error corresponds to an instrumented
+lenient-mode repair.  
 `EdsWriteException` is used for EDS write/generation failures.  
 `DcfWriteException` is used for DCF write/generation failures.  
 `CpjWriteException` is used for CPJ write/generation failures.  
 `XddWriteException` is used for XDD write/generation failures.  
 `XdcWriteException` is used for XDC write/generation failures.
+
+### 5.2.7 Diagnostics
+
+```mermaid
+classDiagram
+    class ParseDiagnostic {
+        +ParseSeverity Severity
+        +string Code
+        +string Path
+        +string Message
+        +int? Line
+        +string? RawValue
+        +string? CoercedTo
+    }
+
+    class CanOpenReadResult~TModel~ {
+        +TModel Model
+        +IReadOnlyList~ParseDiagnostic~ Diagnostics
+        +bool HasDiagnostics
+    }
+
+    class ParseDiagnosticCodes {
+        <<static>>
+        +IniDuplicateKey, UnknownBooleanToken, ...
+    }
+
+    CanOpenReadResult~TModel~ o-- ParseDiagnostic
+    ParseDiagnostic --> ParseDiagnosticCodes : Code
+```
+
+**ParseDiagnostic** describes one lenient-mode repair (what was read, what it became, where).
+**CanOpenReadResult&lt;TModel&gt;** bundles model + diagnostics from the `Read*WithDiagnostics`
+entry points. **ParseDiagnosticScope** (internal) is the `AsyncLocal` sink that collectors report
+into for the duration of one facade call — direct `*Reader` calls without the facade stay silent.
