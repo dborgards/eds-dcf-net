@@ -1,6 +1,6 @@
 # EdsDcfNet.Tests
 
-Comprehensive unit and integration tests for the EdsDcfNet library using XUnit and FluentAssertions.
+Comprehensive unit and integration tests for the EdsDcfNet library using XUnit and AwesomeAssertions.
 
 ## Test Structure
 
@@ -189,7 +189,7 @@ The `Fixtures/` directory contains:
 ## Dependencies
 
 - **xunit** (v2.9.3) - Test framework
-- **FluentAssertions** (v7.2.1) - Fluent assertion library
+- **AwesomeAssertions** (v9.6.0) - Fluent assertion library (Apache-2.0 fork of FluentAssertions)
 - **Microsoft.NET.Test.Sdk** (v18.0.1) - Test platform
 - **coverlet.collector** (v8.0.0) - Code coverage collector
 
@@ -197,7 +197,7 @@ The `Fixtures/` directory contains:
 
 - Test class names end with `Tests` (e.g., `ValueConverterTests`)
 - Test method names follow the pattern: `MethodName_Scenario_ExpectedBehavior`
-- FluentAssertions is used for all assertions for better readability
+- AwesomeAssertions is used for all assertions for better readability
 - Arrange-Act-Assert (AAA) pattern is used consistently
 - Each test is independent and doesn't rely on test execution order
 

@@ -5,7 +5,7 @@ using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Writers;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 public class CpjWriterTests

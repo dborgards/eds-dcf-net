@@ -4,7 +4,7 @@ using System.Text;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 /// <summary>

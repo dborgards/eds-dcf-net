@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using EdsDcfNet;
 using EdsDcfNet.Diagnostics;
 using EdsDcfNet.Exceptions;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 using AccessType = EdsDcfNet.Models.AccessType;
 

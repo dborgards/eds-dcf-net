@@ -2,7 +2,7 @@ namespace EdsDcfNet.Tests.Integration;
 
 using EdsDcfNet;
 using EdsDcfNet.Models;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 /// <summary>

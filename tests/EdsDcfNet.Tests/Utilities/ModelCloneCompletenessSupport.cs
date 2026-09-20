@@ -4,7 +4,7 @@ using System.Collections;
 using System.Reflection;
 using EdsDcfNet;
 using EdsDcfNet.Models;
-using FluentAssertions;
+using AwesomeAssertions;
 
 /// <summary>
 /// Builds model instances with every public settable property and collection entry

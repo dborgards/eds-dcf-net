@@ -4,7 +4,7 @@ using System.Globalization;
 using EdsDcfNet.Extensions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 public class TypedObjectDictionaryValueTests

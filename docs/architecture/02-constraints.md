@@ -39,4 +39,4 @@ The following .NET APIs are not available and must be worked around:
 | **File-scoped namespaces**   | Use of `namespace Foo;` instead of block syntax.                          |
 | **Test naming convention**   | `MethodName_Scenario_ExpectedBehavior` (e.g., `ParseInteger_HexValue_ReturnsCorrectResult`) |
 | **AAA test pattern**         | Tests follow the Arrange-Act-Assert pattern.                              |
-| **XUnit + FluentAssertions** | Test framework and assertion library.                                     |
+| **XUnit + AwesomeAssertions** | Test framework and assertion library.                                     |
