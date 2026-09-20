@@ -2,7 +2,7 @@ namespace EdsDcfNet.Tests.Parsers;
 
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 public class CpjReaderTests

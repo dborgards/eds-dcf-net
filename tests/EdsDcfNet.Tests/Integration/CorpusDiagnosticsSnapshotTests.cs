@@ -3,7 +3,7 @@ namespace EdsDcfNet.Tests.Integration;
 using System.Text;
 using EdsDcfNet;
 using EdsDcfNet.Diagnostics;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 /// <summary>

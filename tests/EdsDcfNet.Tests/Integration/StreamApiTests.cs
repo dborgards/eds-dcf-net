@@ -2,7 +2,7 @@ namespace EdsDcfNet.Tests.Integration;
 
 using System.Text;
 using EdsDcfNet;
-using FluentAssertions;
+using AwesomeAssertions;
 
 public class StreamApiTests
 {

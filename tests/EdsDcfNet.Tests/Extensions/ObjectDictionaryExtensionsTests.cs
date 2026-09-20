@@ -2,7 +2,7 @@ namespace EdsDcfNet.Tests.Extensions;
 
 using EdsDcfNet.Extensions;
 using EdsDcfNet.Models;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 public class ObjectDictionaryExtensionsTests

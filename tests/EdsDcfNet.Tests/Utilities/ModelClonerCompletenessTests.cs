@@ -3,7 +3,7 @@ namespace EdsDcfNet.Tests.Utilities;
 using System.Reflection;
 using EdsDcfNet;
 using EdsDcfNet.Models;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 /// <summary>

@@ -2,7 +2,7 @@ namespace EdsDcfNet.Tests.Utilities;
 
 using EdsDcfNet;
 using EdsDcfNet.Utilities;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 public class CanOpenDataTypeTests
