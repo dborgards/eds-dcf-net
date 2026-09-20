@@ -1,48 +1,37 @@
 # Changelog
 
-## [1.13.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.13.0-beta.4...v1.13.0-beta.5) (2026-09-20)
+## [1.13.0](https://github.com/dborgards/eds-dcf-net/compare/v1.12.2...v1.13.0) (2026-09-20)
 
-### 🐛 Bug Fixes
+### ⚠ BREAKING CHANGES
 
-* stop changelog title duplication and deduplicate CHANGELOG.md ([#545](https://github.com/dborgards/eds-dcf-net/issues/545)) ([#550](https://github.com/dborgards/eds-dcf-net/issues/550)) ([0ab0a69](https://github.com/dborgards/eds-dcf-net/commit/0ab0a699466d6d5788cfb308a0e86833034cff7a)), closes [#540](https://github.com/dborgards/eds-dcf-net/issues/540)
+* **release:** intent" step - the apicompat gate's hand-rolled
+reimplementation of the same detection logic - and updated
+CONTRIBUTING.md's description of both mechanisms.
 
-### 📚 Documentation
-
-* document CanOpenDataType metadata API in README ([#549](https://github.com/dborgards/eds-dcf-net/issues/549)) ([a32257f](https://github.com/dborgards/eds-dcf-net/commit/a32257fd5269680f2bbf548a0c1f12a1ae61fd3c)), closes [#538](https://github.com/dborgards/eds-dcf-net/issues/538)
-
-## [1.13.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.13.0-beta.3...v1.13.0-beta.4) (2026-09-20)
-
-### 🐛 Bug Fixes
-
-* accept hex boolean tokens 0x0/0x1 in ParseBoolean ([#543](https://github.com/dborgards/eds-dcf-net/issues/543)) ([#544](https://github.com/dborgards/eds-dcf-net/issues/544)) ([c288872](https://github.com/dborgards/eds-dcf-net/commit/c288872462c306d89c2dbc82462320a61a0344d9))
-
-## [1.13.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.13.0-beta.2...v1.13.0-beta.3) (2026-09-19)
-
-### ✨ Features
-
-* parse-diagnostics channel — report lenient-mode repairs ([#523](https://github.com/dborgards/eds-dcf-net/issues/523)) ([#541](https://github.com/dborgards/eds-dcf-net/issues/541)) ([776bfd1](https://github.com/dborgards/eds-dcf-net/commit/776bfd11a7ebd1a1b258a82e1dc6ba0c99903c76))
-
-## [1.13.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.13.0-beta.1...v1.13.0-beta.2) (2026-09-19)
-
-### ✨ Features
-
-* expose CANopen data-type and object-type metadata (bit lengths, constants) ([#538](https://github.com/dborgards/eds-dcf-net/issues/538)) ([c6fb3fc](https://github.com/dborgards/eds-dcf-net/commit/c6fb3fce5e08ae2d72494f677320076855261ff2)), closes [#524](https://github.com/dborgards/eds-dcf-net/issues/524) [#524](https://github.com/dborgards/eds-dcf-net/issues/524) [#524](https://github.com/dborgards/eds-dcf-net/issues/524)
-
-## [1.13.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.12.3-beta.1...v1.13.0-beta.1) (2026-09-19)
+Verified with jq against: the incident text (no longer matches), a
+real footer and a `feat!:`/`breaking:` header (still match), and every
+commit since v1.12.2 (no other line in that range matches the
+tightened pattern, so the next run correctly plans no release instead
+of a Major one).
 
 ### ✨ Features
 
 * **build:** strong-name EdsDcfNet ([#535](https://github.com/dborgards/eds-dcf-net/issues/535)) ([35b2bca](https://github.com/dborgards/eds-dcf-net/commit/35b2bca91f25ee1fd72497b1e6f8c6a3e65e4355)), closes [#528](https://github.com/dborgards/eds-dcf-net/issues/528) [#528](https://github.com/dborgards/eds-dcf-net/issues/528) [#528](https://github.com/dborgards/eds-dcf-net/issues/528)
-
-## [1.12.3-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.12.2...v1.12.3-beta.1) (2026-09-19)
+* expose CANopen data-type and object-type metadata (bit lengths, constants) ([#538](https://github.com/dborgards/eds-dcf-net/issues/538)) ([c6fb3fc](https://github.com/dborgards/eds-dcf-net/commit/c6fb3fce5e08ae2d72494f677320076855261ff2)), closes [#524](https://github.com/dborgards/eds-dcf-net/issues/524) [#524](https://github.com/dborgards/eds-dcf-net/issues/524) [#524](https://github.com/dborgards/eds-dcf-net/issues/524)
+* parse-diagnostics channel — report lenient-mode repairs ([#523](https://github.com/dborgards/eds-dcf-net/issues/523)) ([#541](https://github.com/dborgards/eds-dcf-net/issues/541)) ([776bfd1](https://github.com/dborgards/eds-dcf-net/commit/776bfd11a7ebd1a1b258a82e1dc6ba0c99903c76))
 
 ### 🐛 Bug Fixes
 
+* accept hex boolean tokens 0x0/0x1 in ParseBoolean ([#543](https://github.com/dborgards/eds-dcf-net/issues/543)) ([#544](https://github.com/dborgards/eds-dcf-net/issues/544)) ([c288872](https://github.com/dborgards/eds-dcf-net/commit/c288872462c306d89c2dbc82462320a61a0344d9))
 * **release:** drop bare BREAKING keyword to stop false-positive major bumps ([#540](https://github.com/dborgards/eds-dcf-net/issues/540)) ([fffcb2c](https://github.com/dborgards/eds-dcf-net/commit/fffcb2c8f20cada2a7964aa3f280c1bebcc2f248))
+* stop changelog title duplication and deduplicate CHANGELOG.md ([#545](https://github.com/dborgards/eds-dcf-net/issues/545)) ([#550](https://github.com/dborgards/eds-dcf-net/issues/550)) ([0ab0a69](https://github.com/dborgards/eds-dcf-net/commit/0ab0a699466d6d5788cfb308a0e86833034cff7a)), closes [#540](https://github.com/dborgards/eds-dcf-net/issues/540)
 
 ### 📚 Documentation
 
+* align architecture docs, remarks, examples, README with 1.13 surface ([#547](https://github.com/dborgards/eds-dcf-net/issues/547)) ([#552](https://github.com/dborgards/eds-dcf-net/issues/552)) ([ed5d1cd](https://github.com/dborgards/eds-dcf-net/commit/ed5d1cd1ed058b751adca522b460662e955aa281)), closes [#452](https://github.com/dborgards/eds-dcf-net/issues/452)
 * document and test the thread-safety contract of the entry points ([#531](https://github.com/dborgards/eds-dcf-net/issues/531)) ([2a3df13](https://github.com/dborgards/eds-dcf-net/commit/2a3df13318a1202c6c21ab40ca09b6bb42e51c3c)), closes [#527](https://github.com/dborgards/eds-dcf-net/issues/527) [#527](https://github.com/dborgards/eds-dcf-net/issues/527)
+* document CanOpenDataType metadata API in README ([#549](https://github.com/dborgards/eds-dcf-net/issues/549)) ([a32257f](https://github.com/dborgards/eds-dcf-net/commit/a32257fd5269680f2bbf548a0c1f12a1ae61fd3c)), closes [#538](https://github.com/dborgards/eds-dcf-net/issues/538)
+* replace duplicated datatype-metadata paragraph with cross-reference ([#553](https://github.com/dborgards/eds-dcf-net/issues/553)) ([88f4956](https://github.com/dborgards/eds-dcf-net/commit/88f4956e905617eb85a5161905a085d8265e9890)), closes [#552](https://github.com/dborgards/eds-dcf-net/issues/552) [#549](https://github.com/dborgards/eds-dcf-net/issues/549)
 
 ## [1.12.2](https://github.com/dborgards/eds-dcf-net/compare/v1.12.1...v1.12.2) (2026-09-19)
 
