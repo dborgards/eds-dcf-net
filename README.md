@@ -730,6 +730,9 @@ lookup helpers for the raw `ushort` values stored in
 using EdsDcfNet;
 using EdsDcfNet.Extensions;
 
+var eds = CanOpenFile.Eds.ReadFile("device.eds");
+var dictionary = eds.ObjectDictionary;
+
 ushort dataType = dictionary.GetObject(0x1000)?.DataType ?? 0; // Device Type: UNSIGNED32
 
 CanOpenDataType.IsStandardType(dataType);  // true
