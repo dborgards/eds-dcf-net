@@ -184,6 +184,18 @@ public class ValueConverterTests
     }
 
     [Theory]
+    [InlineData("0x0", false)]
+    [InlineData("0X0", false)]
+    [InlineData("0x1", true)]
+    [InlineData("0X1", true)]
+    [InlineData("  0x1  ", true)]
+    public void ParseBoolean_HexTokens_ReturnsExpected(string input, bool expected)
+    {
+        // Real-world writers (e.g. python-canopen) emit booleans as 0x0/0x1 (#543).
+        ValueConverter.ParseBoolean(input).Should().Be(expected);
+    }
+
+    [Theory]
     [InlineData("0", false)]
     [InlineData("false", false)]
     [InlineData("False", false)]
@@ -192,6 +204,7 @@ public class ValueConverterTests
     [InlineData("", false)]
     [InlineData("   ", false)]
     [InlineData("2", false)]
+    [InlineData("0x2", false)]
     [InlineData("random", false)]
     public void ParseBoolean_FalseValues_ReturnsFalse(string input, bool expected)
     {
@@ -217,6 +230,7 @@ public class ValueConverterTests
 
     [Theory]
     [InlineData("2")]
+    [InlineData("0x2")]
     [InlineData("random")]
     [InlineData("yeah")]
     public void ParseBoolean_UnknownToken_StrictParsing_ThrowsEdsParseException(string input)
@@ -233,9 +247,11 @@ public class ValueConverterTests
     [InlineData("0", false)]
     [InlineData("false", false)]
     [InlineData("no", false)]
+    [InlineData("0x0", false)]
     [InlineData("1", true)]
     [InlineData("true", true)]
     [InlineData("yes", true)]
+    [InlineData("0x1", true)]
     public void ParseBoolean_KnownTokens_StrictParsing_Parses(string input, bool expected)
     {
         using (StrictParsingScope.Enter(true))

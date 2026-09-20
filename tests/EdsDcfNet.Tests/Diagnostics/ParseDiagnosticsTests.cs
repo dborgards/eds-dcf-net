@@ -69,6 +69,21 @@ public class ParseDiagnosticsTests
     }
 
     [Fact]
+    public void HexBooleanToken_RecognizedWithoutDiagnostic()
+    {
+        // Real-world writers (e.g. python-canopen) emit booleans as 0x0/0x1 (#543):
+        // a recognized token is not a deviation, so neither lenient nor strict
+        // mode reports — and 0x1 must map to true, not be coerced to false.
+        var content = File.ReadAllText("Fixtures/sample_device.eds")
+            .Replace("SimpleBootUpMaster=0", "SimpleBootUpMaster=0x1");
+
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content, Strict);
+
+        result.HasDiagnostics.Should().BeFalse();
+        result.Model.DeviceInfo.SimpleBootUpMaster.Should().BeTrue();
+    }
+
+    [Fact]
     public void UnknownAccessType_LenientReports_StrictThrowsSameCode()
     {
         var content = new Regex("(?m)^AccessType=ro(\r?)$")
