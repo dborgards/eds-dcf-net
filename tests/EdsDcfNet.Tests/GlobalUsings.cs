@@ -1,5 +1,5 @@
 global using Xunit;
-global using FluentAssertions;
+global using AwesomeAssertions;
 #if NETFRAMEWORK
 global using EdsDcfNet.Tests.Infrastructure;
 #endif

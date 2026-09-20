@@ -54,7 +54,7 @@ EDS/DCF file → IniParser → EdsReader/DcfReader → Models → DcfWriter → 
 
 ## Testing Conventions
 
-- **Framework:** XUnit + FluentAssertions
+- **Framework:** XUnit + AwesomeAssertions
 - **Naming:** `MethodName_Scenario_ExpectedBehavior`
 - **Pattern:** Arrange-Act-Assert (AAA)
 - **Fixture data:** `tests/EdsDcfNet.Tests/Fixtures/sample_device.eds`
@@ -109,7 +109,7 @@ BREAKING CHANGE: CanOpenFile.Eds.ReadFile now returns a Result type
 feat: add support for CompactPDO mapping
 fix: correct hex parsing for negative values
 docs: update README with new API examples
-build: bump FluentAssertions to 7.x
+build: bump AwesomeAssertions to 9.x
 ci: add codecov upload to build workflow
 refactor(parser): simplify IniParser section lookup
 test: add round-trip tests for modular devices

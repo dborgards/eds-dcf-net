@@ -79,7 +79,10 @@ public static class ValueConverter
     /// only <c>"1"</c>, <c>"true"</c>, and <c>"yes"</c> (case-insensitive) are treated as
     /// <see langword="true"/>. Recognized false tokens are <c>"0"</c>, <c>"false"</c>, and
     /// <c>"no"</c> (case-insensitive); empty/whitespace maps to <see langword="false"/>.
-    /// Other values silently map to <see langword="false"/> when lenient. With
+    /// Real-world writers (e.g. python-canopen) also emit hex booleans, so <c>"0x0"</c>
+    /// and <c>"0x1"</c> (case-insensitive) are recognized as well (#543); larger hex
+    /// values such as <c>"0x2"</c> remain unknown tokens. Other values silently map to
+    /// <see langword="false"/> when lenient. With
     /// <see cref="CanOpenFileOptions.StrictParsing"/> enabled (via
     /// <see cref="StrictParsingScope"/>), unrecognized non-empty tokens throw
     /// <see cref="EdsParseException"/>.
@@ -98,12 +101,14 @@ public static class ValueConverter
 
         if (value == "1" ||
             value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-            value.Equals("yes", StringComparison.OrdinalIgnoreCase))
+            value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("0x1", StringComparison.OrdinalIgnoreCase))
             return true;
 
         if (value == "0" ||
             value.Equals("false", StringComparison.OrdinalIgnoreCase) ||
-            value.Equals("no", StringComparison.OrdinalIgnoreCase))
+            value.Equals("no", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("0x0", StringComparison.OrdinalIgnoreCase))
             return false;
 
         if (StrictParsingScope.IsEnabled)
@@ -111,9 +116,23 @@ public static class ValueConverter
             throw new EdsParseException(
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "Unknown boolean token '{0}'. Expected one of: 0, 1, true, false, yes, no.",
-                    value));
+                    "Unknown boolean token '{0}'. Expected one of: 0, 1, true, false, yes, no, 0x0, 0x1.",
+                    value))
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.UnknownBooleanToken
+            };
         }
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.UnknownBooleanToken,
+            path: string.Empty,
+            rawValue: value,
+            coercedTo: "false",
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Unknown boolean token '{0}'. Expected one of: 0, 1, true, false, yes, no, 0x0, 0x1. Treated as false.",
+                value)));
 
         return false;
     }
@@ -367,9 +386,28 @@ public static class ValueConverter
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "Unknown access type token '{0}'. Expected one of: ro, wo, rw, rwr, rww, const.",
-                    value)),
-            _ => AccessType.ReadOnly
+                    value))
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.UnknownAccessTypeToken
+            },
+            _ => ReportUnknownAccessType(value)
         };
+    }
+
+    private static AccessType ReportUnknownAccessType(string? value)
+    {
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.UnknownAccessTypeToken,
+            path: string.Empty,
+            rawValue: value,
+            coercedTo: "ro",
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Unknown access type token '{0}'. Expected one of: ro, wo, rw, rwr, rww, const. Mapped to ro.",
+                value)));
+
+        return AccessType.ReadOnly;
     }
 
     /// <summary>

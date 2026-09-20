@@ -23,6 +23,9 @@ class Program
         // Example 4: Working with Object Dictionary
         Example4_ObjectDictionary();
 
+        // Example 5: Parse diagnostics and validated write
+        Example5_DiagnosticsAndValidatedWrite();
+
         Console.WriteLine("\n=== Examples Complete ===");
     }
 
@@ -65,14 +68,15 @@ class Program
         eds.DeviceInfo.SupportedBaudRates.BaudRate500 = true;
         eds.DeviceInfo.SupportedBaudRates.BaudRate1000 = true;
 
-        // Add mandatory object 0x1000 (Device Type)
+        // Add mandatory object 0x1000 (Device Type).
+        // ObjectType/DataType take the CiA 301 constants instead of magic numbers.
         eds.ObjectDictionary.MandatoryObjects.Add(0x1000);
         eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
         {
             Index = 0x1000,
             ParameterName = "Device Type",
-            ObjectType = 0x7, // VAR
-            DataType = 0x0007, // UNSIGNED32
+            ObjectType = CanOpenObjectType.Var,
+            DataType = CanOpenDataType.Unsigned32,
             AccessType = AccessType.ReadOnly,
             DefaultValue = "0x00000000",
             PdoMapping = false
@@ -84,12 +88,15 @@ class Program
         {
             Index = 0x1001,
             ParameterName = "Error Register",
-            ObjectType = 0x7, // VAR
-            DataType = 0x0005, // UNSIGNED8
+            ObjectType = CanOpenObjectType.Var,
+            DataType = CanOpenDataType.Unsigned8,
             AccessType = AccessType.ReadOnly,
             DefaultValue = "0",
             PdoMapping = true
         };
+
+        // Data-type metadata is available for import UIs and validators:
+        Console.WriteLine($"UNSIGNED32 is {CanOpenDataType.TryGetBitLength(CanOpenDataType.Unsigned32)} bit");
 
         Console.WriteLine($"Created EDS for: {eds.DeviceInfo.ProductName}");
         Console.WriteLine($"Vendor: {eds.DeviceInfo.VendorName}");
@@ -259,7 +266,7 @@ PDOMapping=1
         {
             Index = 0x1000,
             ParameterName = "Device Type",
-            DataType = 0x0007,
+            DataType = CanOpenDataType.Unsigned32,
             AccessType = AccessType.ReadOnly,
             DefaultValue = "0x00000000",
             ParameterValue = "0x00000191" // Configured value
@@ -270,7 +277,7 @@ PDOMapping=1
         {
             Index = 0x1018,
             ParameterName = "Identity Object",
-            ObjectType = 0x9, // RECORD
+            ObjectType = CanOpenObjectType.Record,
             SubNumber = 4
         };
 
@@ -279,7 +286,7 @@ PDOMapping=1
         {
             SubIndex = 0,
             ParameterName = "Number of Entries",
-            DataType = 0x0005,
+            DataType = CanOpenDataType.Unsigned8,
             AccessType = AccessType.ReadOnly,
             DefaultValue = "4"
         };
@@ -288,7 +295,7 @@ PDOMapping=1
         {
             SubIndex = 1,
             ParameterName = "Vendor ID",
-            DataType = 0x0007,
+            DataType = CanOpenDataType.Unsigned32,
             AccessType = AccessType.ReadOnly,
             DefaultValue = "0x00000100",
             ParameterValue = "0x00000100"
@@ -315,6 +322,65 @@ PDOMapping=1
         dcf.ObjectDictionary.SetParameterValue(0x1000, "0x00000192");
         Console.WriteLine($"\nModified 0x1000 value: {dcf.ObjectDictionary.GetParameterValue(0x1000)}");
 
+        Console.WriteLine();
+    }
+
+    static void Example5_DiagnosticsAndValidatedWrite()
+    {
+        Console.WriteLine("Example 5: Parse diagnostics and validated write");
+        Console.WriteLine("-------------------------------------------------");
+
+        // Real-world files often deviate from CiA 306 — here a duplicate key.
+        // Read*WithDiagnostics returns the repaired model plus every coercion
+        // as a ParseDiagnostic with a stable code, instead of throwing.
+        var deviantEds = @"[FileInfo]
+FileName=device.eds
+FileName=device-revised.eds
+FileVersion=1
+FileRevision=0
+EDSVersion=4.0
+
+[DeviceInfo]
+VendorName=Example Inc.
+VendorNumber=0x100
+ProductName=IO Module 4x4
+ProductNumber=0x1001
+RevisionNumber=0x1
+OrderCode=IO-4X4-001
+BaudRate_250=1
+SimpleBootUpSlave=1
+Granularity=8
+NrOfRXPDO=1
+NrOfTXPDO=1
+LSS_Supported=0
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0x00000191
+PDOMapping=0
+";
+
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(deviantEds);
+
+        Console.WriteLine($"Model read, {result.Diagnostics.Count} diagnostic(s):");
+        foreach (var diagnostic in result.Diagnostics)
+            Console.WriteLine($"  {diagnostic}");
+        Console.WriteLine($"Effective FileName: {result.Model.FileInfo.FileName}");
+
+        // Opt-in write guard: refuse to persist a model with validation errors.
+        CanOpenFile.Eds.WriteFile(
+            result.Model,
+            "device_validated.eds",
+            new CanOpenWriteOptions { ValidateBeforeWrite = true });
+
+        Console.WriteLine("Validated write succeeded.");
         Console.WriteLine();
     }
 }

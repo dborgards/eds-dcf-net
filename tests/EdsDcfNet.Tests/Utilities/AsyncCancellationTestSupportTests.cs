@@ -1,6 +1,6 @@
 namespace EdsDcfNet.Tests.Utilities;
 
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 public class AsyncCancellationTestSupportTests

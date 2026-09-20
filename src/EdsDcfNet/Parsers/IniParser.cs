@@ -494,17 +494,38 @@ public static class IniParser
             : string.Empty;
 
         var section = sections[currentSection];
-        if (StrictParsingScope.IsEnabled && section.ContainsKey(key))
+        if (section.TryGetValue(key, out var previousValue))
         {
-            throw new EdsParseException(
-                string.Format(
+            Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                Diagnostics.ParseSeverity.Warning,
+                Diagnostics.ParseDiagnosticCodes.IniDuplicateKey,
+                path: currentSection + "." + key,
+                line: lineNumber,
+                rawValue: value,
+                coercedTo: value,
+                message: string.Format(
                     CultureInfo.InvariantCulture,
-                    "Duplicate key '{0}' in section '{1}' at line {2}.",
+                    "Duplicate key '{0}' in section '{1}' at line {2}; the earlier value '{3}' is overwritten (last write wins).",
                     key,
                     currentSection,
-                    lineNumber),
-                currentSection,
-                lineNumber);
+                    lineNumber,
+                    previousValue)));
+
+            if (StrictParsingScope.IsEnabled)
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Duplicate key '{0}' in section '{1}' at line {2}.",
+                        key,
+                        currentSection,
+                        lineNumber),
+                    currentSection,
+                    lineNumber)
+                {
+                    Code = Diagnostics.ParseDiagnosticCodes.IniDuplicateKey
+                };
+            }
         }
 
         section[key] = value;

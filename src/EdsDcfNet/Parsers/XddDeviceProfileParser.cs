@@ -29,7 +29,7 @@ internal static class XddDeviceProfileParser
         {
             try
             {
-                if (ValueConverter.TrySplitMajorMinorDecimal(fileVersionStr, out _))
+                if (ValueConverter.TrySplitMajorMinorDecimal(fileVersionStr, out var major))
                 {
                     if (StrictParsingScope.IsEnabled)
                     {
@@ -37,8 +37,23 @@ internal static class XddDeviceProfileParser
                             string.Format(
                                 CultureInfo.InvariantCulture,
                                 "Invalid byte value: '{0}'.",
-                                fileVersionStr));
+                                fileVersionStr))
+                        {
+                            Code = Diagnostics.ParseDiagnosticCodes.XddFileVersionMajorMinor
+                        };
                     }
+
+                    Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                        Diagnostics.ParseSeverity.Warning,
+                        Diagnostics.ParseDiagnosticCodes.XddFileVersionMajorMinor,
+                        path: "ProfileBody.fileVersion",
+                        rawValue: fileVersionStr,
+                        coercedTo: major,
+                        message: string.Format(
+                            CultureInfo.InvariantCulture,
+                            "fileVersion '{0}' uses a major/minor tooling form; the major component {1} is used.",
+                            fileVersionStr,
+                            major)));
 
                     // Leading-zero majors stay decimal (e.g. "012.5" → 12).
                     fileInfo.FileVersion = ValueConverter.ParseByteAllowingMajorMinor(fileVersionStr);
@@ -63,7 +78,10 @@ internal static class XddDeviceProfileParser
                         CultureInfo.InvariantCulture,
                         "ProfileBody fileVersion: {0}",
                         ex.Message),
-                    ex);
+                    ex)
+                {
+                    Code = ex.Code
+                };
             }
         }
 

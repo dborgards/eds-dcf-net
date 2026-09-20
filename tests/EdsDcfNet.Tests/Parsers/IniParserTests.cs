@@ -2,7 +2,7 @@ namespace EdsDcfNet.Tests.Parsers;
 
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Parsers;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 public class IniParserTests

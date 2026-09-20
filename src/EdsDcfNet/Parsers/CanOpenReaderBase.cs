@@ -196,13 +196,26 @@ public abstract class CanOpenReaderBase
                     continue;
                 }
 
+                Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                    Diagnostics.ParseSeverity.Warning,
+                    Diagnostics.ParseDiagnosticCodes.IniInvalidDummyUsageKey,
+                    path: "DummyUsage." + key,
+                    rawValue: key,
+                    message: string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Invalid DummyUsage key '{0}'. Expected DummyXXXX with a hexadecimal index. The entry is ignored.",
+                        key)));
+
                 if (StrictParsingScope.IsEnabled)
                 {
                     throw new EdsParseException(
                         string.Format(
                             CultureInfo.InvariantCulture,
                             "Invalid DummyUsage key '{0}'. Expected DummyXXXX with a hexadecimal index.",
-                            key));
+                            key))
+                    {
+                        Code = Diagnostics.ParseDiagnosticCodes.IniInvalidDummyUsageKey
+                    };
                 }
             }
         }

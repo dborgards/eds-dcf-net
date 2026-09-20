@@ -166,20 +166,44 @@ public class XddReader : IFileReader<ElectronicDataSheet>
                 var xsiType = GetXsiType(profileBody);
                 if (xsiType.Contains("ProfileBody_Device_CANopen", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (deviceProfileBody != null && StrictParsingScope.IsEnabled)
+                    if (deviceProfileBody != null)
                     {
-                        throw new EdsParseException(
-                            "XDD document contains more than one ProfileBody_Device_CANopen.");
+                        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                            Diagnostics.ParseSeverity.Warning,
+                            Diagnostics.ParseDiagnosticCodes.XddDuplicateDeviceProfile,
+                            path: "ISO15745Profile/ProfileBody",
+                            message: "XDD document contains more than one ProfileBody_Device_CANopen; the last occurrence is used."));
+
+                        if (StrictParsingScope.IsEnabled)
+                        {
+                            throw new EdsParseException(
+                                "XDD document contains more than one ProfileBody_Device_CANopen.")
+                            {
+                                Code = Diagnostics.ParseDiagnosticCodes.XddDuplicateDeviceProfile
+                            };
+                        }
                     }
 
                     deviceProfileBody = profileBody;
                 }
                 else if (xsiType.Contains("ProfileBody_CommunicationNetwork_CANopen", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (commNetProfileBody != null && StrictParsingScope.IsEnabled)
+                    if (commNetProfileBody != null)
                     {
-                        throw new EdsParseException(
-                            "XDD document contains more than one ProfileBody_CommunicationNetwork_CANopen.");
+                        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                            Diagnostics.ParseSeverity.Warning,
+                            Diagnostics.ParseDiagnosticCodes.XddDuplicateCommNetProfile,
+                            path: "ISO15745Profile/ProfileBody",
+                            message: "XDD document contains more than one ProfileBody_CommunicationNetwork_CANopen; the last occurrence is used."));
+
+                        if (StrictParsingScope.IsEnabled)
+                        {
+                            throw new EdsParseException(
+                                "XDD document contains more than one ProfileBody_CommunicationNetwork_CANopen.")
+                            {
+                                Code = Diagnostics.ParseDiagnosticCodes.XddDuplicateCommNetProfile
+                            };
+                        }
                     }
 
                     commNetProfileBody = profileBody;

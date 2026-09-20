@@ -85,13 +85,14 @@ if (!dictionary.SetParameterValue(0x1A00, 0x01, 0x60000108U))
     throw new InvalidOperationException("TPDO mapping entry 0x1A00:01 is missing.");
 
 // Create a manufacturer-specific object programmatically.
+// ObjectType/DataType take the CiA 301 constants instead of magic numbers.
 dictionary.ManufacturerObjects.Add(0x2000);
 dictionary.Objects[0x2000] = new CanOpenObject
 {
     Index = 0x2000,
     ParameterName = "Application mode",
-    ObjectType = 0x07,       // VAR
-    DataType = 0x0005,       // UNSIGNED8
+    ObjectType = CanOpenObjectType.Var,
+    DataType = CanOpenDataType.Unsigned8,
     AccessType = AccessType.ReadWrite,
     DefaultValue = "0",
     ParameterValue = "1",
@@ -100,6 +101,9 @@ dictionary.Objects[0x2000] = new CanOpenObject
 
 CanOpenFile.Dcf.WriteFile(dcf, "configured_device_updated.dcf");
 ```
+
+The constants also carry metadata (bit length, signedness, display name) — see
+[Data-type metadata](#data-type-metadata-canopendatatype) below.
 
 The model distinguishes mandatory, optional, and manufacturer-specific object lists and
 represents ARRAY and RECORD entries through typed `CanOpenSubObject` instances. Convenience
@@ -631,6 +635,59 @@ Guidance:
 - Increase `MaxInputSize` only for trusted sources and known use cases.
 - Set the limit just high enough for your expected maximum file size.
 
+### Parse diagnostics (report repairs, keep the model)
+
+Between lenient (silently coerce) and strict (throw on the first deviation)
+there is a third path: the `Read*WithDiagnostics` methods on the format entry
+points return the parsed model **and** report every repair as a
+`ParseDiagnostic` — for import UIs and device-file validators that need to
+answer "what did the parser silently fix?" without giving up the model.
+
+```csharp
+var result = CanOpenFile.Eds.ReadFileWithDiagnostics("device.eds");
+
+foreach (var diagnostic in result.Diagnostics)
+    Console.WriteLine(diagnostic);   // [Warning] INI_DUPLICATE_KEY at FileInfo.FileName:42: ...
+
+var model = result.Model;            // fully parsed, coercions applied
+```
+
+Each `ParseDiagnostic` carries:
+
+- `Code` — stable machine-readable identifier (`ParseDiagnosticCodes`, e.g.
+  `INI_DUPLICATE_KEY`, `XDD_MISSING_INDEX`). In strict mode the same condition
+  throws an `EdsParseException` whose `Code` property carries the same value.
+- `Severity` (`Info` / `Warning` / `Error`), `Message`, `Path` (section/key for
+  INI formats, XPath-like for XML formats), `Line` (INI formats), `RawValue`,
+  and `CoercedTo` (what lenient mode substituted).
+
+Diagnostics are collected through an `AsyncLocal` sink scoped to the call, so
+concurrent reads do not interfere. Direct `*Reader` APIs stay lenient and
+silent — collection happens only through the `CanOpenFile` entry points.
+
+### Thread safety
+
+- **Entry points are safe for concurrent use.** `CanOpenFile.Eds` / `.Dcf` /
+  `.Cpj` / `.Xdd` / `.Xdc` and their `Read*` / `Write*` / `Validate` operations
+  may be called from multiple threads or async flows simultaneously. The
+  operation objects behind them are stateless singletons whose delegates
+  construct a fresh reader/writer per call, and `StrictParsing` state is scoped
+  per call via `AsyncLocal`, so concurrent calls with different options do not
+  interfere. This contract is guarded by a concurrency test
+  (`tests/EdsDcfNet.Tests/Integration/ThreadSafetyTests.cs`).
+- **Models are not thread-safe.** `ElectronicDataSheet`, `DeviceConfigurationFile`,
+  `NodelistProject`, `ObjectDictionary`, etc. are plain mutable objects. Do not
+  mutate a model while it is being written, validated, or converted
+  (`EdsToDcf` / `ConvertToDcf`); give each thread its own model instance.
+- **Caller-owned streams and files are not synchronized.** The `ReadStream*` /
+  `WriteStream*` overloads operate directly on the `Stream` you pass, and the
+  file-based overloads contend on the external file system. Concurrent calls must
+  each use their own stream and target distinct paths — sharing one stream races
+  its position, and concurrent writes to the same path (or a read overlapping a
+  write) can throw a sharing `IOException` or expose truncated content.
+- **Options may be shared.** `CanOpenFileOptions` and `CanOpenWriteOptions` are
+  immutable (`init`-only); a single instance can be reused across threads.
+
 ### Options extension pattern (format-specific options)
 
 `CanOpenFileOptions` (read) and `CanOpenWriteOptions` (write) are intentionally
@@ -667,6 +724,35 @@ Rules for adding such an option:
 - No format-specific option type is added before a concrete requirement
   exists.
 
+### Data-type metadata (`CanOpenDataType`)
+
+`CanOpenDataType` exposes CiA 301 (§7.4.7) data-type index constants and
+lookup helpers for the raw `ushort` values stored in
+`CanOpenObject.DataType` / `CanOpenSubObject.DataType`:
+
+```csharp
+using EdsDcfNet;
+using EdsDcfNet.Extensions;
+
+var eds = CanOpenFile.Eds.ReadFile("device.eds");
+var dictionary = eds.ObjectDictionary;
+
+ushort dataType = dictionary.GetObject(0x1000)?.DataType ?? 0; // Device Type: UNSIGNED32
+
+CanOpenDataType.IsStandardType(dataType);  // true
+CanOpenDataType.TryGetBitLength(dataType); // 32; null for variable-length types
+CanOpenDataType.IsSigned(dataType);        // false
+CanOpenDataType.IsUnsigned(dataType);      // true
+CanOpenDataType.GetName(dataType);         // "UNSIGNED32", or null when unknown
+```
+
+`TryGetBitLength` is the single source of truth for fixed bit widths and backs
+`CanOpenValueConverter`'s own conversion widths, so consumers get the same
+answer the library uses internally. It returns `null` for variable-length
+types (`VISIBLE_STRING`, `OCTET_STRING`, `UNICODE_STRING`, `DOMAIN`), reserved
+codes, and manufacturer-specific or unknown types (0x0040 and above) — do not
+assume a fixed width when the result is `null`.
+
 ## Supported Features
 
 - ✅ First-class, editable CANopen Object Dictionary model for EDS, DCF, XDD, and XDC
@@ -674,6 +760,7 @@ Rules for adding such an option:
 - ✅ Mandatory, optional, and manufacturer-specific object lists
 - ✅ Default values and DCF/XDC configured parameter values
 - ✅ Automatic conversion between OD data types and .NET values, with range validation
+- ✅ CiA 301 data-type metadata lookup (bit length, signedness, display name via `CanOpenDataType`)
 - ✅ Helpers for RPDO/TPDO communication and mapping parameters
 - ✅ Complete EDS parsing and writing
 - ✅ Complete DCF parsing and writing
@@ -751,6 +838,12 @@ eds-dcf-net/
 
 - Any .NET implementation compatible with .NET Standard 2.0
   (e.g., .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5+, Unity, Xamarin)
+
+**Strong naming:** `EdsDcfNet.dll` is strong-named as of **1.13.0**. The key
+(`src/EdsDcfNet/EdsDcfNet.snk`) is committed and public — it provides assembly
+identity only, not authenticity. On .NET (Core) 5+ nothing changes; .NET
+Framework consumers that referenced the previously unsigned assembly must
+**rebuild** against 1.13.0 (no source changes required).
 
 **For building this repository (library, tests, examples):**
 
