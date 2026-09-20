@@ -720,6 +720,35 @@ Rules for adding such an option:
 - No format-specific option type is added before a concrete requirement
   exists.
 
+### Data-type metadata (`CanOpenDataType`)
+
+`CanOpenDataType` exposes CiA 301 (§7.4.7) data-type index constants and
+lookup helpers for the raw `ushort` values stored in
+`CanOpenObject.DataType` / `CanOpenSubObject.DataType`:
+
+```csharp
+using EdsDcfNet;
+using EdsDcfNet.Extensions;
+
+var eds = CanOpenFile.Eds.ReadFile("device.eds");
+var dictionary = eds.ObjectDictionary;
+
+ushort dataType = dictionary.GetObject(0x1000)?.DataType ?? 0; // Device Type: UNSIGNED32
+
+CanOpenDataType.IsStandardType(dataType);  // true
+CanOpenDataType.TryGetBitLength(dataType); // 32; null for variable-length types
+CanOpenDataType.IsSigned(dataType);        // false
+CanOpenDataType.IsUnsigned(dataType);      // true
+CanOpenDataType.GetName(dataType);         // "UNSIGNED32", or null when unknown
+```
+
+`TryGetBitLength` is the single source of truth for fixed bit widths and backs
+`CanOpenValueConverter`'s own conversion widths, so consumers get the same
+answer the library uses internally. It returns `null` for variable-length
+types (`VISIBLE_STRING`, `OCTET_STRING`, `UNICODE_STRING`, `DOMAIN`), reserved
+codes, and manufacturer-specific or unknown types (0x0040 and above) — do not
+assume a fixed width when the result is `null`.
+
 ## Supported Features
 
 - ✅ First-class, editable CANopen Object Dictionary model for EDS, DCF, XDD, and XDC
@@ -727,6 +756,7 @@ Rules for adding such an option:
 - ✅ Mandatory, optional, and manufacturer-specific object lists
 - ✅ Default values and DCF/XDC configured parameter values
 - ✅ Automatic conversion between OD data types and .NET values, with range validation
+- ✅ CiA 301 data-type metadata lookup (bit length, signedness, display name via `CanOpenDataType`)
 - ✅ Helpers for RPDO/TPDO communication and mapping parameters
 - ✅ Complete EDS parsing and writing
 - ✅ Complete DCF parsing and writing
