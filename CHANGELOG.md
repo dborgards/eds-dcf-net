@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.13.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.13.0-beta.4...v1.13.0-beta.5) (2026-09-20)
+
+### 🐛 Bug Fixes
+
+* stop changelog title duplication and deduplicate CHANGELOG.md ([#545](https://github.com/dborgards/eds-dcf-net/issues/545)) ([#550](https://github.com/dborgards/eds-dcf-net/issues/550)) ([0ab0a69](https://github.com/dborgards/eds-dcf-net/commit/0ab0a699466d6d5788cfb308a0e86833034cff7a)), closes [#540](https://github.com/dborgards/eds-dcf-net/issues/540)
+
+### 📚 Documentation
+
+* document CanOpenDataType metadata API in README ([#549](https://github.com/dborgards/eds-dcf-net/issues/549)) ([a32257f](https://github.com/dborgards/eds-dcf-net/commit/a32257fd5269680f2bbf548a0c1f12a1ae61fd3c)), closes [#538](https://github.com/dborgards/eds-dcf-net/issues/538)
+
 ## [1.13.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.13.0-beta.3...v1.13.0-beta.4) (2026-09-20)
 
 ### 🐛 Bug Fixes
