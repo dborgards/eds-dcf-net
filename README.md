@@ -102,10 +102,8 @@ dictionary.Objects[0x2000] = new CanOpenObject
 CanOpenFile.Dcf.WriteFile(dcf, "configured_device_updated.dcf");
 ```
 
-`CanOpenDataType` / `CanOpenObjectType` also carry metadata for import UIs and
-validators: `CanOpenDataType.TryGetBitLength`, `IsSigned`/`IsUnsigned`, `GetName`,
-and `IsStandardType` (manufacturer-specific values ≥ 0x0040 stay representable
-because the constants are `ushort`, not an enum).
+The constants also carry metadata (bit length, signedness, display name) — see
+[Data-type metadata](#data-type-metadata-canopendatatype) below.
 
 The model distinguishes mandatory, optional, and manufacturer-specific object lists and
 represents ARRAY and RECORD entries through typed `CanOpenSubObject` instances. Convenience
