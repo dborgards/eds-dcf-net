@@ -90,11 +90,11 @@ sequenceDiagram
     participant EW as EdsWriter
     participant VC as ValueConverter
 
-    App->>CF: WriteFile(eds, filePath, options) / WriteFileAsync(eds, filePath, ct)
+    App->>CF: WriteFile(eds, filePath, options) / WriteFileAsync(eds, filePath, options, ct)
     opt CanOpenWriteOptions.ValidateBeforeWrite
         CF->>V: Validate(eds)
         V-->>CF: IReadOnlyList~ValidationIssue~
-        note over CF: throws ModelValidationException<br/>when Error-level issues exist
+        note over CF: throws ModelValidationException<br/>when any issue is found
     end
     CF->>EW: new EdsWriter()
     CF->>EW: WriteFile(eds, filePath) / WriteFileAsync(eds, filePath, ct)
