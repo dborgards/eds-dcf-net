@@ -85,13 +85,14 @@ if (!dictionary.SetParameterValue(0x1A00, 0x01, 0x60000108U))
     throw new InvalidOperationException("TPDO mapping entry 0x1A00:01 is missing.");
 
 // Create a manufacturer-specific object programmatically.
+// ObjectType/DataType take the CiA 301 constants instead of magic numbers.
 dictionary.ManufacturerObjects.Add(0x2000);
 dictionary.Objects[0x2000] = new CanOpenObject
 {
     Index = 0x2000,
     ParameterName = "Application mode",
-    ObjectType = 0x07,       // VAR
-    DataType = 0x0005,       // UNSIGNED8
+    ObjectType = CanOpenObjectType.Var,
+    DataType = CanOpenDataType.Unsigned8,
     AccessType = AccessType.ReadWrite,
     DefaultValue = "0",
     ParameterValue = "1",
@@ -100,6 +101,11 @@ dictionary.Objects[0x2000] = new CanOpenObject
 
 CanOpenFile.Dcf.WriteFile(dcf, "configured_device_updated.dcf");
 ```
+
+`CanOpenDataType` / `CanOpenObjectType` also carry metadata for import UIs and
+validators: `CanOpenDataType.TryGetBitLength`, `IsSigned`/`IsUnsigned`, `GetName`,
+and `IsStandardType` (manufacturer-specific values ≥ 0x0040 stay representable
+because the constants are `ushort`, not an enum).
 
 The model distinguishes mandatory, optional, and manufacturer-specific object lists and
 represents ARRAY and RECORD entries through typed `CanOpenSubObject` instances. Convenience

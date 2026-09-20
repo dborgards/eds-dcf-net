@@ -19,7 +19,8 @@ using EdsDcfNet.Validation;
 /// For format-specific operations with shared options, use the canonical entry points
 /// <see cref="Eds"/>, <see cref="Dcf"/>, <see cref="Cpj"/>, <see cref="Xdd"/>, and <see cref="Xdc"/>.
 /// Legacy <c>Read*</c>/<c>Write*</c> static overloads remain for backward compatibility; they delegate
-/// to these entry points and default-parameter-only write overloads are marked obsolete (advisory).
+/// to these entry points and are marked obsolete (advisory). The timestamped <c>EdsToDcf</c> overload
+/// is the documented exception: a retained, non-obsolete shim for deterministic timestamps.
 /// </remarks>
 /// <threadsafety>
 /// All members of <see cref="CanOpenFile"/> and the format entry points are safe to call

@@ -43,3 +43,6 @@
 | **Dynamic Channels**          | Mechanism per CiA 302-4 for programmable devices that can dynamically extend their Object Dictionary. |
 | **CPJ (Nodelist Project)**    | CiA 306-3 file format describing the network topology of a CANopen system. Lists all nodes with their node IDs and associated DCF files. Uses the same INI-based syntax as EDS/DCF. |
 | **Network Topology**          | Description of a CANopen network within a CPJ file, including network name, referenced nodes (1-127), and optional base path for EDS/DCF files. |
+| **StrictParsing**             | Opt-in mode (`CanOpenFileOptions.StrictParsing`) that turns lenient coercions (unknown tokens, duplicate keys, malformed attributes) into `EdsParseException`. Scoped per call via `AsyncLocal`. |
+| **ParseDiagnostic**           | Record of one lenient-mode repair emitted by the `Read*WithDiagnostics` entry points: severity, stable code (`ParseDiagnosticCodes`), path/line, raw value, and the coerced replacement. |
+| **CanOpenDataType**           | Static CiA 301 data-type constants (`ushort`) with metadata (bit length, signedness, display name); companion `CanOpenObjectType` holds the object-type constants (`byte`). Constants instead of enums so manufacturer-specific values remain representable. |

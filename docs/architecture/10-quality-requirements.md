@@ -116,3 +116,8 @@ Quality is ensured through automated tests:
 | **Integration tests**    | `RoundTripDcfTests`              | Read -> write -> read again                       |
 | **Integration tests**    | `CpjIntegrationTests`            | CPJ end-to-end via CanOpenFile facade              |
 | **Integration tests**    | `XddXdcIntegrationTests`         | XDD/XDC round-trip and cross-format conversion     |
+| **Integration tests**    | `ThreadSafetyTests`              | Concurrent entry-point saturation, scope isolation |
+| **Integration tests**    | `ParseDiagnosticsTests`          | One test per strict-mode throw site; lenient/strict code parity |
+| **Integration tests**    | `RealWorldCorpusTests`           | Redistributable vendor files read/validate/round-trip (#525) |
+| **Integration tests**    | `CorpusDiagnosticsSnapshotTests` | Per-file `ParseDiagnostic` snapshots; lenient-behaviour diffs surface in PRs |
+| **Unit tests**           | `CanOpenDataTypeTests`           | Data-type/object-type constants and bit-length metadata (#524) |
