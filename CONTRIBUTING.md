@@ -165,10 +165,20 @@ Contributing a corpus file:
 4. **Validation allow-list** — if the file legitimately deviates from CiA 306,
    add its known issues to `ValidationAllowList` in `RealWorldCorpusTests` with
    a comment explaining why the deviation is accepted.
-5. **Diagnostics snapshots** — once the parse-diagnostics channel exists
-   (#523), each corpus file carries a `<file>.diagnostics.json` snapshot
-   (#525 phase 2); regenerate snapshots with the corpus test update switch
-   documented there when lenient behaviour changes intentionally.
+5. **Diagnostics snapshots** — every corpus file carries a
+   `<file>.diagnostics.json` snapshot of the `ParseDiagnostic` list emitted by
+   the lenient read (#525 phase 2, `CorpusDiagnosticsSnapshotTests`). A new
+   corpus file fails its test until the snapshot exists. Generate or refresh
+   snapshots with:
+
+   ```
+   UPDATE_CORPUS_SNAPSHOTS=1 dotnet test --filter CorpusDiagnosticsSnapshotTests
+   ```
+
+   Commit the snapshot diff together with the parser or corpus change that
+   caused it, and review it like any other source change — the diff is the
+   visible record of a lenient-behaviour change. Snapshots whose corpus file
+   was removed are flagged as orphans; delete them with the file.
 
 ## Commit convention
 
