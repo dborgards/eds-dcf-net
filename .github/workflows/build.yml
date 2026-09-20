@@ -70,7 +70,7 @@ jobs:
 
     - name: Upload coverage reports to Codecov
       if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
-      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
+      uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ${{ steps.coverage_gate.outputs.coverage_files }}
@@ -174,7 +174,7 @@ jobs:
       with:
         # Keep in sync with semantic-release.yml — this job exists to reproduce
         # that workflow's install step.
-        node-version: '24.20.x'
+        node-version: '24.21.x'
 
     # Same command as semantic-release.yml. Fails on any package.json /
     # package-lock.json mismatch (npm error code EUSAGE).
