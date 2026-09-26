@@ -410,6 +410,139 @@ public class OrderedStringDictionaryTests
         enumerator.MoveNext().Should().BeFalse();
     }
 
+    [Fact]
+    public void KeyView_UsesComparerAndRejectsMutation()
+    {
+        var map = new OrderedStringDictionary { ["Group"] = "Motion", ["Lang"] = "Hinweis" };
+        var keys = (IList<string>)map.Keys;
+        IList list = (IList)((IDictionary)map).Keys;
+        ICollection collection = list;
+
+        keys.Count.Should().Be(2);
+        keys.IsReadOnly.Should().BeTrue();
+        list.IsReadOnly.Should().BeTrue();
+        list.IsFixedSize.Should().BeTrue();
+        collection.IsSynchronized.Should().BeFalse();
+        collection.SyncRoot.Should().BeSameAs(map);
+
+        keys[0].Should().Be("Group");
+        keys[1].Should().Be("Lang");
+        list[1].Should().Be("Lang");
+        keys.IndexOf("lang").Should().Be(1);
+        keys.IndexOf("missing").Should().Be(-1);
+        keys.Contains("GROUP").Should().BeTrue();
+        keys.Contains("missing").Should().BeFalse();
+        list.IndexOf("GROUP").Should().Be(0);
+        list.IndexOf("missing").Should().Be(-1);
+        list.IndexOf(42).Should().Be(-1);
+        list.Contains("lang").Should().BeTrue();
+        list.Contains("missing").Should().BeFalse();
+        list.Contains(42).Should().BeFalse();
+
+        var copied = new string[4];
+        keys.CopyTo(copied, 1);
+        copied.Should().Equal(null, "Group", "Lang", null);
+
+        var objects = new object[4];
+        collection.CopyTo(objects, 1);
+        objects.Should().Equal(new object[] { null!, "Group", "Lang", null! });
+
+        var seen = new List<string>();
+        foreach (var key in keys)
+            seen.Add(key);
+        foreach (var key in (IEnumerable)keys)
+            seen.Add((string)key);
+        seen.Should().Equal("Group", "Lang", "Group", "Lang");
+
+        var assign = () => keys[0] = "Other";
+        var assignNonGeneric = () => list[0] = "Other";
+        var add = () => keys.Add("Other");
+        var clear = () => keys.Clear();
+        var insert = () => keys.Insert(0, "Other");
+        var remove = () => keys.Remove("Group");
+        var removeAt = () => keys.RemoveAt(0);
+        var addNonGeneric = () => list.Add("Other");
+        var insertNonGeneric = () => list.Insert(0, "Other");
+        var removeNonGeneric = () => list.Remove("Group");
+        var nullIndex = () => keys.IndexOf(null!);
+        var outOfRange = () => keys[2];
+        var outOfRangeNonGeneric = () => list[2];
+
+        assign.Should().Throw<NotSupportedException>();
+        assignNonGeneric.Should().Throw<NotSupportedException>();
+        add.Should().Throw<NotSupportedException>();
+        clear.Should().Throw<NotSupportedException>();
+        insert.Should().Throw<NotSupportedException>();
+        remove.Should().Throw<NotSupportedException>();
+        removeAt.Should().Throw<NotSupportedException>();
+        addNonGeneric.Should().Throw<NotSupportedException>();
+        insertNonGeneric.Should().Throw<NotSupportedException>();
+        removeNonGeneric.Should().Throw<NotSupportedException>();
+        nullIndex.Should().Throw<ArgumentNullException>().WithParameterName("item");
+        outOfRange.Should().Throw<ArgumentOutOfRangeException>();
+        outOfRangeNonGeneric.Should().Throw<ArgumentOutOfRangeException>();
+        map.Keys.Should().Equal("Group", "Lang");
+    }
+
+    [Fact]
+    public void KeyView_CopyTo_RejectsInvalidDestination()
+    {
+        var map = new OrderedStringDictionary { ["Group"] = "Motion", ["Lang"] = "Hinweis" };
+        var keys = (IList<string>)map.Keys;
+        ICollection collection = (IList)((IDictionary)map).Keys;
+        var multiRank = new string[1, 1];
+
+        var nullArray = () => keys.CopyTo(null!, 0);
+        var negative = () => keys.CopyTo(new string[2], -1);
+        var pastEnd = () => keys.CopyTo(new string[2], 3);
+        var tooSmall = () => keys.CopyTo(new string[1], 0);
+        var nullNonGeneric = () => collection.CopyTo(null!, 0);
+        var rank = () => collection.CopyTo(multiRank, 0);
+        var negativeNonGeneric = () => collection.CopyTo(new string[2], -1);
+        var tooSmallNonGeneric = () => collection.CopyTo(new string[2], 1);
+
+        nullArray.Should().Throw<ArgumentNullException>().WithParameterName("array");
+        negative.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("arrayIndex");
+        pastEnd.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("arrayIndex");
+        tooSmall.Should().Throw<ArgumentException>().WithParameterName("array");
+        nullNonGeneric.Should().Throw<ArgumentNullException>().WithParameterName("array");
+        rank.Should().Throw<ArgumentException>().WithParameterName("array");
+        negativeNonGeneric.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("index");
+        tooSmallNonGeneric.Should().Throw<ArgumentException>().WithParameterName("array");
+    }
+
+    [Fact]
+    public void KeyView_CopyTo_EmptyMapAtEndOfArray_Succeeds()
+    {
+        var keys = (IList<string>)new OrderedStringDictionary().Keys;
+        ICollection collection = (ICollection)((IDictionary)new OrderedStringDictionary()).Keys;
+        var strings = new string[1];
+        var objects = new object[1];
+
+        var generic = () => keys.CopyTo(strings, strings.Length);
+        var nonGeneric = () => collection.CopyTo(objects, objects.Length);
+
+        generic.Should().NotThrow();
+        nonGeneric.Should().NotThrow();
+        strings[0].Should().BeNull();
+        objects[0].Should().BeNull();
+    }
+
+    [Fact]
+    public void KeyView_OrdinalComparer_DistinguishesCase()
+    {
+        var map = new OrderedStringDictionary(StringComparer.Ordinal) { ["Group"] = "Motion", ["group"] = "other" };
+        var keys = (IList<string>)map.Keys;
+        IList list = (IList)((IDictionary)map).Keys;
+
+        keys.IndexOf("Group").Should().Be(0);
+        keys.IndexOf("group").Should().Be(1);
+        keys.IndexOf("GROUP").Should().Be(-1);
+        list.IndexOf("group").Should().Be(1);
+        list.Contains("GROUP").Should().BeFalse();
+        keys.Should().Equal("Group", "group");
+    }
+
     private static void AssertExactArgumentException(Action act, string parameterName)
     {
         var exception = act.Should().Throw<ArgumentException>().Which;
