@@ -29,7 +29,7 @@
 | **ARRAY**                     | Object Dictionary object type (0x08) for an array with homogeneous sub-objects.                   |
 | **RECORD**                    | Object Dictionary object type (0x09) for a structure with heterogeneous sub-objects.              |
 | **INI format**                | Simple text format with sections (`[Section]`) and key-value pairs (`Key=Value`). Basis for EDS/DCF files. |
-| **$NODEID formula**           | Expression in DCF files (e.g., `$NODEID+0x600`) evaluated relative to the device's node ID.      |
+| **$NODEID formula**           | Expression in EDS/DCF files (e.g., `$NODEID+0x600`, CiA 306 syntax `$NODEID {"+" number}`) evaluated relative to the device's node ID; a single `$NODEID-n` is accepted as an extension. |
 | **PDOmapping**                | CiA 311 object attribute: `no` \| `default` \| `optional` \| `TPDO` \| `RPDO`. Modelled as `PdoMappingMode` (EDS/DCF bool view via `PdoMapping`). |
 | **CompactSubObj**             | Compact array storage (CiA 306 §4.5.2.4.2): parent object is the template for sub-indexes `0..N`; individual `[xxxsubN]` sections are optional. Values/denotations/names use `[xxxxValue]`, `[xxxxDenotation]`, `[xxxxName]`. |
 | **CompactPDO**                | Compact storage of PDO value and denotation information in dedicated sections.                    |

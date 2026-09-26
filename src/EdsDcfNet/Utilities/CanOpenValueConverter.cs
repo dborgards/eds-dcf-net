@@ -414,6 +414,11 @@ public static class CanOpenValueConverter
     /// input consistently surfaces as <see cref="FormatException"/> like other literals in
     /// this converter.
     /// </summary>
+    /// <remarks>
+    /// CiA 306-1 §6.3 defines <c>IntEntryValue = $NODEID {"+" number}</c>, so several <c>+</c>
+    /// offsets are summed into one operand (#560). A single <c>-</c> offset is an EdsDcfNet
+    /// extension; mixing operators is rejected.
+    /// </remarks>
     private static (char? Operator, ulong Operand) SplitNodeIdFormula(string formula, byte? nodeId)
     {
         if (!nodeId.HasValue)
@@ -429,21 +434,46 @@ public static class CanOpenValueConverter
             return (null, 0);
         }
 
-        if (suffix[0] is '+' or '-')
+        if (suffix[0] == '-')
         {
             var rightSide = suffix[1..].Trim();
             if (rightSide.Length == 0 || rightSide.Contains('+') || rightSide.Contains('-'))
             {
-                throw new FormatException(
-                    $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
+                throw UnsupportedFormula(formula);
             }
 
-            return (suffix[0], ParseUnsignedLiteral(rightSide));
+            return ('-', ParseUnsignedLiteral(rightSide));
         }
 
-        throw new FormatException(
-            $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
+        if (suffix[0] == '+')
+        {
+            ulong sum = 0;
+            foreach (var term in suffix[1..].Split('+'))
+            {
+                var trimmedTerm = term.Trim();
+                if (trimmedTerm.Length == 0 || trimmedTerm.Contains('-'))
+                {
+                    throw UnsupportedFormula(formula);
+                }
+
+                try
+                {
+                    sum = checked(sum + ParseUnsignedLiteral(trimmedTerm));
+                }
+                catch (OverflowException ex)
+                {
+                    throw new OverflowException($"$NODEID formula '{formula}' overflows the unsigned 64-bit range.", ex);
+                }
+            }
+
+            return ('+', sum);
+        }
+
+        throw UnsupportedFormula(formula);
     }
+
+    private static FormatException UnsupportedFormula(string formula) =>
+        new($"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>[+<number>...]' or '$NODEID-<number>'.");
 
     /// <summary>
     /// Evaluates a <c>$NODEID</c> formula in signed 64-bit arithmetic so subtraction can yield

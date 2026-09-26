@@ -120,6 +120,8 @@ public class ValueConverterTests
     [InlineData("$NODEID+512", 10, 522u)] // 10 + 512
     [InlineData("$nodeid+0x200", 5, 517u)] // 5 + 512, lowercase with operator
     [InlineData("$NODEID-0x5", 10, 5u)] // 10 - 5, subtraction operation
+    [InlineData("$NODEID+0x200+1", 5, 518u)] // CiA 306 allows several "+" offsets (#560)
+    [InlineData("$NODEID + 0x180 + 0x80 + 1", 1, 514u)] // whitespace around operators
     public void ParseInteger_NodeIdFormula_EvaluatesCorrectly(string formula, byte nodeId, uint expected)
     {
         // Act
@@ -145,7 +147,11 @@ public class ValueConverterTests
 
     [Theory]
     [InlineData("$NODEID*2")]
-    [InlineData("$NODEID+0x200+1")]
+    [InlineData("$NODEID+0x200+")]
+    [InlineData("$NODEID++1")]
+    [InlineData("$NODEID+1-1")]
+    [InlineData("$NODEID-1+1")]
+    [InlineData("$NODEID-1-1")]
     [InlineData("$NODEID+")]
     [InlineData("$NODEID+   ")]
     [InlineData("$NODEID-")]
@@ -160,6 +166,21 @@ public class ValueConverterTests
         // Assert
         act.Should().Throw<EdsParseException>()
             .WithMessage($"*Unsupported $NODEID formula*'{normalizedFormula}'*");
+    }
+
+    [Fact]
+    public void ParseInteger_NodeIdFormulaWithSeveralOffsets_AtMaxValue()
+    {
+        // 1 + 0xFFFFFF00 + 0xFE == uint.MaxValue
+        ValueConverter.ParseInteger("$NODEID+0xFFFFFF00+0xFE", 1).Should().Be(uint.MaxValue);
+    }
+
+    [Fact]
+    public void ParseInteger_NodeIdFormulaWithSeveralOffsets_OverflowingSum_ThrowsEdsParseException()
+    {
+        var act = () => ValueConverter.ParseInteger("$NODEID+0xFFFFFF00+0xFF", 1);
+
+        act.Should().Throw<EdsParseException>().WithMessage("*overflows uint range*");
     }
 
     #endregion
