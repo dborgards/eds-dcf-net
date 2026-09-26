@@ -1370,10 +1370,6 @@ CompactSubObj=1
     [InlineData("0040value", "[40Value]")]
     [InlineData("0040Denotation", "[40Denotation]")]
     [InlineData("00040Denotation", "[40Denotation]")]
-    [InlineData("0040Name", "[40Name]")]
-    [InlineData("00040Name", "[40Name]")]
-    [InlineData("0040ObjectLinks", "[40ObjectLinks]")]
-    [InlineData("00040ObjectLinks", "[40ObjectLinks]")]
     public void Check_OrphanPaddedDcfAuxiliarySection_ReportsObj011(string sectionName, string readerName)
     {
         // Arrange — [1000] is a real object. Index 0x40 has no parent section.
@@ -1460,6 +1456,7 @@ PDOMapping=0
     public void Check_OrphanPaddedValue_AtMinIndex_ReportsObj011()
     {
         // Arrange — index 0. [00Value] is not the unpadded [0Value], and [0] is absent.
+        // [00Name] and [00ObjectLinks] stay additional sections, so they are not OBJ011.
         const string content = @"
 [DeviceComissioning]
 NodeID=1
@@ -1484,18 +1481,23 @@ ObjectLinks=1
         // Assert
         findings.Should().Contain(f => f.Code == "OBJ011" && f.Severity == Severity.Error && f.Section == "00Value");
         findings.Should().Contain(f => f.Code == "OBJ011" && f.Severity == Severity.Error && f.Section == "00Denotation");
-        findings.Should().Contain(f => f.Code == "OBJ011" && f.Severity == Severity.Error && f.Section == "00Name");
-        findings.Should().Contain(f => f.Code == "OBJ011" && f.Severity == Severity.Error && f.Section == "00ObjectLinks");
+        findings.Should().NotContain(f => f.Code == "OBJ011" && f.Section == "00Name");
+        findings.Should().NotContain(f => f.Code == "OBJ011" && f.Section == "00ObjectLinks");
     }
 
     [Theory]
-    [InlineData("0040Name", "[40Name]")]
-    [InlineData("00040Name", "[40Name]")]
-    [InlineData("0040ObjectLinks", "[40ObjectLinks]")]
-    [InlineData("00040ObjectLinks", "[40ObjectLinks]")]
-    public void Check_OrphanPaddedEdsAuxiliarySection_ReportsObj011(string sectionName, string readerName)
+    [InlineData(true, "0040Name")]
+    [InlineData(true, "00040Name")]
+    [InlineData(true, "0040ObjectLinks")]
+    [InlineData(true, "00040ObjectLinks")]
+    [InlineData(false, "0040Name")]
+    [InlineData(false, "00040Name")]
+    [InlineData(false, "0040ObjectLinks")]
+    [InlineData(false, "00040ObjectLinks")]
+    public void Check_OrphanPaddedNameAndObjectLinks_DoNotReportObj011(bool isDcf, string sectionName)
     {
-        // Arrange — EDS probes [40Name] and [40ObjectLinks]. No [40] parent exists.
+        // Arrange — no [40] parent. The reader keeps [xxxxName] and [xxxxObjectLinks]
+        // in AdditionalSections, so the padding is not OBJ011.
         var content = @"
 [OptionalObjects]
 SupportedObjects=1
@@ -1512,16 +1514,16 @@ PDOMapping=0
 [" + sectionName + @"]
 1=Custom
 ";
+        if (isDcf)
+        {
+            content = "[DeviceComissioning]\nNodeID=1\n" + content;
+        }
 
         // Act
-        var findings = Check(content);
+        var findings = Check(content, isDcf);
 
         // Assert
-        findings.Should().Contain(f =>
-            f.Code == "OBJ011" &&
-            f.Severity == Severity.Error &&
-            f.Section == sectionName &&
-            f.Message.Contains(readerName, StringComparison.Ordinal));
+        findings.Should().NotContain(f => f.Code == "OBJ011" && f.Section == sectionName);
     }
 
     [Fact]
@@ -1629,6 +1631,61 @@ PDOMapping=0
         loaded.ObjectDictionary.Objects.Should().NotContainKey((ushort)0x40);
         loaded.AdditionalSections.Should().NotContainKey("0040Value");
         loaded.AdditionalSections.Should().NotContainKey("00040Denotation");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ReadString_OrphanPaddedNameAndObjectLinks_ReaderKeepsThem(bool isDcf)
+    {
+        // Arrange — no parent object. These sections are not known, so they round-trip.
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=DeviceType
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[0040Name]
+1=Custom
+
+[0040ObjectLinks]
+ObjectLinks=1
+1=0x1000
+";
+        if (isDcf)
+        {
+            content = "[DeviceComissioning]\nNodeID=1\n" + content;
+        }
+
+        // Act / Assert — both formats keep the orphan sections.
+        if (isDcf)
+        {
+            var loaded = CanOpenFile.Dcf.ReadString(content);
+            loaded.ObjectDictionary.Objects.Should().NotContainKey((ushort)0x40);
+            loaded.AdditionalSections.Should().ContainKey("0040Name");
+            loaded.AdditionalSections["0040Name"]["1"].Should().Be("Custom");
+            loaded.AdditionalSections.Should().ContainKey("0040ObjectLinks");
+            loaded.AdditionalSections["0040ObjectLinks"]["1"].Should().Be("0x1000");
+        }
+        else
+        {
+            var loaded = CanOpenFile.Eds.ReadString(content);
+            loaded.ObjectDictionary.Objects.Should().NotContainKey((ushort)0x40);
+            loaded.AdditionalSections.Should().ContainKey("0040Name");
+            loaded.AdditionalSections["0040Name"]["1"].Should().Be("Custom");
+            loaded.AdditionalSections.Should().ContainKey("0040ObjectLinks");
+            loaded.AdditionalSections["0040ObjectLinks"]["1"].Should().Be("0x1000");
+        }
     }
 
     [Fact]

@@ -63,8 +63,7 @@ public sealed class RawObjectChecker
     {
         CollectObjectSections();
         // Padded [0040Value] / [0040Name] / [0040Denotation] / [0040ObjectLinks] are not
-        // stand-ins for the unpadded names the reader probes, including when no
-        // parent object section exists for that index.
+        // stand-ins for the unpadded names the reader probes.
         ReportPaddedIndexSections();
 
         CheckObjectLists();
@@ -1573,10 +1572,10 @@ public sealed class RawObjectChecker
     /// <summary>
     /// Flags index-prefixed sections whose index is not the unpadded form the reader
     /// probes (<c>[0040Value]</c>, <c>[0040Name]</c>, <c>[0040Denotation]</c>,
-    /// <c>[0040ObjectLinks]</c>). Those spellings are not applied. A missing parent
-    /// object section does not skip the report: <c>DcfReader.IsKnownSection</c> still
-    /// drops every hex-prefixed Value and Denotation section, and padded Name and
-    /// ObjectLinks sections are not the names the reader probes.
+    /// <c>[0040ObjectLinks]</c>). Those spellings are not applied when a parent
+    /// object exists. Orphan <c>[xxxxName]</c> and <c>[xxxxObjectLinks]</c> stay in
+    /// AdditionalSections. Orphan DCF Value and Denotation sections are still
+    /// reported: <c>DcfReader.IsKnownSection</c> drops them.
     /// </summary>
     private void ReportPaddedIndexSections()
     {
@@ -1588,12 +1587,9 @@ public sealed class RawObjectChecker
             }
 
             if (suffix == "Name" &&
-                _objects.TryGetValue(index, out var parent) &&
-                ParseOptionalByte(parent, "CompactSubObj", report: false) is not > 0)
+                ParseOptionalByte(_objects[index], "CompactSubObj", report: false) is not > 0)
             {
-                // A loaded parent without compact storage keeps [xxxxName] in
-                // AdditionalSections. No parent is not that case: the padded
-                // spelling is still not what the reader probes.
+                // Without compact storage the reader keeps [xxxxName] in AdditionalSections.
                 continue;
             }
 
@@ -1626,10 +1622,12 @@ public sealed class RawObjectChecker
             }
 
             var prefix = name[..^candidate.Suffix.Length];
-            // Parent presence is not required. An orphan [0040Value] still parses as
-            // index 0x40, and DcfReader.IsKnownSection drops it without a [40] section.
+            // Name and ObjectLinks without a parent stay in AdditionalSections.
+            // Value and Denotation do not: IsKnownSection drops them with no [40].
+            var requiresParent = candidate.Suffix is "Name" or "ObjectLinks";
             if (!IsHexDigits(prefix) ||
                 !TryParseObjectIndex(prefix, out index) ||
+                (requiresParent && !_objects.ContainsKey(index)) ||
                 IsUnpaddedHex(prefix, index))
             {
                 return false;
