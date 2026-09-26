@@ -1279,9 +1279,19 @@ public sealed class RawObjectChecker
         {
             Add(Severity.Error, "PDO002", section, entry, "Mapped object " + target + " is " + access + " and cannot be written by an RPDO.");
         }
+        else if (!isTx && access is "rwr")
+        {
+            // rwr is ReadWriteInput: process input, mapped in a TPDO only.
+            Add(Severity.Error, "PDO002", section, entry, "Mapped object " + target + " is rwr (process input) and cannot be written by an RPDO.");
+        }
         else if (isTx && access is "wo")
         {
             Add(Severity.Error, "PDO002", section, entry, "Mapped object " + target + " is write-only and cannot be sent in a TPDO.");
+        }
+        else if (isTx && access is "rww")
+        {
+            // rww is ReadWriteOutput: process output, mapped in an RPDO only.
+            Add(Severity.Error, "PDO002", section, entry, "Mapped object " + target + " is rww (process output) and cannot be sent in a TPDO.");
         }
 
         var dataTypeText = mapped.GetValue("DataType");

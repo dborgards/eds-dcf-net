@@ -81,7 +81,7 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | LST006 | error | Invalid object-list entry |
 | LST007 | warning | Object listed in the wrong list (2000h-5FFFh belong in `[ManufacturerObjects]`) |
 | PDO001 | error | PDO mapping references a missing object or invalid dummy type (compact `[XXXXValue]` maps included) |
-| PDO002 | error/warning | Mapped object not PDO-mappable, wrong access direction, dummy in TPDO (compact maps included; synthesized compact sub-index 0 is UNSIGNED8, read-only, not mappable) |
+| PDO002 | error/warning | Mapped object not PDO-mappable, wrong access direction (`ro`/`const`/`rwr` not in an RPDO, `wo`/`rww` not in a TPDO), dummy in TPDO (compact maps included; synthesized compact sub-index 0 is UNSIGNED8, read-only, not mappable) |
 | PDO003 | error | Mapping length does not match the mapped data type (compact maps included; synthesized compact sub-index 0 is 8 bits) |
 | PDO004 | error | PDO maps more than 64 bits (compact `[XXXXValue]` maps included) |
 | MND001 | error | Mandatory section missing (`[FileInfo]`, `[DeviceInfo]`, `[MandatoryObjects]`, DCF `[DeviceComissioning]`) |
