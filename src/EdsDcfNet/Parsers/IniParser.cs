@@ -529,6 +529,7 @@ public static class IniParser
         }
 
         section[key] = value;
+        IniKeyLines.Record(sections, currentSection, key, lineNumber);
     }
 
     private static void ThrowIfNull(object? value, string parameterName)
