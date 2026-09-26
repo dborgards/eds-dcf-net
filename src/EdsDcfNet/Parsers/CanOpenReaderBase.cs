@@ -291,8 +291,8 @@ public abstract class CanOpenReaderBase
         Func<string, bool> isKnownKey,
         OrderedStringDictionary destination)
     {
-        if (!sections.TryGetValue(sectionName, out var section))
-            return;
+        // Callers already confirmed the section exists (HasSection).
+        var section = sections[sectionName];
 
         IEnumerable<KeyValuePair<string, string>> entries = section is IniSectionDictionary ordered
             ? ordered.EntriesInOrder()
