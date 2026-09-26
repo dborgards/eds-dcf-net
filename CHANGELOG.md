@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0-beta.6](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.5...v1.14.0-beta.6) (2026-09-26)
+
+### 🐛 Bug Fixes
+
+* **checker:** report orphaned DCF compact values ([#574](https://github.com/dborgards/eds-dcf-net/issues/574)) ([d0d28d7](https://github.com/dborgards/eds-dcf-net/commit/d0d28d7b7c85b141ff6f6a1c847a106ca4f84dbe))
+* require mandatory entries on DEFSTRUCT members ([#573](https://github.com/dborgards/eds-dcf-net/issues/573)) ([e885be5](https://github.com/dborgards/eds-dcf-net/commit/e885be5c195b34d38dbf07edc1dcf4cc6829c9de))
+
 ## [1.14.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.4...v1.14.0-beta.5) (2026-09-26)
 
 ### 🐛 Bug Fixes
