@@ -15,15 +15,17 @@ public sealed class RawObjectChecker
 {
     private const int MaxParameterNameLength = 241;
 
-    // 1..4 hex digits. ParseObject probes only the unpadded form ([20], not [0020]);
-    // a leading zero is reported as OBJ011.
+    // Any hex length that still fits in a ushort, including over-width leading zeros
+    // ([00020] is 0x20; [10000] is not an index). ParseObject probes only the
+    // unpadded form ([20], not [0020] or [00020]); a leading zero is OBJ011.
     private static readonly Regex ObjectSectionPattern = new(
-        "^(?<index>[0-9A-Fa-f]{1,4})$", RegexOptions.CultureInvariant);
+        "^(?<index>[0-9A-Fa-f]+)$", RegexOptions.CultureInvariant);
 
-    // Index and sub-index are unpadded hex. ParseSubObject probes [20sub1], not
-    // [0020sub1] or [20sub01]; a leading zero is reported as OBJ011.
+    // Index (ushort) and sub-index (byte), including over-width leading zeros.
+    // ParseSubObject probes [20sub1], not [00020sub1] or [20sub001]; a leading
+    // zero is OBJ011. A part that does not fit the integer width is not a sub-index.
     private static readonly Regex SubSectionPattern = new(
-        "^(?<index>[0-9A-Fa-f]{1,4})sub(?<sub>[0-9A-Fa-f]{1,2})$",
+        "^(?<index>[0-9A-Fa-f]+)sub(?<sub>[0-9A-Fa-f]+)$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static readonly HashSet<string> AccessTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -139,10 +141,10 @@ public sealed class RawObjectChecker
         foreach (var section in _doc.Sections.Values)
         {
             var objectMatch = ObjectSectionPattern.Match(section.Name);
-            if (objectMatch.Success)
+            if (objectMatch.Success &&
+                TryParseObjectIndex(objectMatch.Groups["index"].Value, out var index))
             {
                 var indexText = objectMatch.Groups["index"].Value;
-                var index = ushort.Parse(indexText, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
                 if (!IsUnpaddedHex(indexText, index))
                 {
                     // CanOpenReaderBase.ParseObject probes only ToHexInvariant(index).
@@ -166,26 +168,26 @@ public sealed class RawObjectChecker
             }
 
             var subMatch = SubSectionPattern.Match(section.Name);
-            if (subMatch.Success)
+            if (subMatch.Success &&
+                TryParseObjectIndex(subMatch.Groups["index"].Value, out var subObjectIndex) &&
+                TryParseSubIndex(subMatch.Groups["sub"].Value, out var sub))
             {
                 var indexText = subMatch.Groups["index"].Value;
-                var index = ushort.Parse(indexText, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
                 var subSuffix = subMatch.Groups["sub"].Value;
-                var sub = byte.Parse(subSuffix, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-                if (!IsUnpaddedHex(indexText, index) || !IsUnpaddedHex(subSuffix, sub))
+                if (!IsUnpaddedHex(indexText, subObjectIndex) || !IsUnpaddedHex(subSuffix, sub))
                 {
                     // CanOpenReaderBase.ParseSubObject probes only "{index:X}sub{sub:X}".
                     Add(Severity.Error, "OBJ011", section, null, null, string.Format(CultureInfo.InvariantCulture,
                         "Sub-index section [{0}] is zero-padded. EdsDcfNet reads only [{1}sub{2}].",
                         section.Name,
-                        UnpaddedIndex(index),
+                        UnpaddedIndex(subObjectIndex),
                         sub.ToString("X", CultureInfo.InvariantCulture)));
                 }
 
-                if (!_subObjects.TryGetValue(index, out var subs))
+                if (!_subObjects.TryGetValue(subObjectIndex, out var subs))
                 {
                     subs = new SortedDictionary<byte, RawSection>();
-                    _subObjects[index] = subs;
+                    _subObjects[subObjectIndex] = subs;
                 }
 
                 if (subs.TryGetValue(sub, out var existing))
@@ -193,10 +195,10 @@ public sealed class RawObjectChecker
                     // e.g. [1018sub1] and [1018sub01]: different INI sections, same sub-index.
                     Add(Severity.Error, "INI002", section, null, null, string.Format(CultureInfo.InvariantCulture,
                         "Sub-index 0x{0:X2} of {1} is already described by [{2}] (line {3}); readers keep only one of them.",
-                        sub, Hex4(index), existing.Name, existing.Line));
+                        sub, Hex4(subObjectIndex), existing.Name, existing.Line));
 
                     // Keep the first section; the duplicate is still checked on its own in Run().
-                    _duplicateSubSections.Add((index, sub, section));
+                    _duplicateSubSections.Add((subObjectIndex, sub, section));
                     continue;
                 }
 
@@ -1424,6 +1426,20 @@ public sealed class RawObjectChecker
         a.IsFormula || b.IsFormula
             ? string.Format(CultureInfo.InvariantCulture, " (node-ID {0})", nodeId)
             : string.Empty;
+
+    /// <summary>
+    /// Parses a hexadecimal object index, including over-width leading zeros
+    /// (<c>00020</c> is 0x20). Returns <see langword="false"/> above <see cref="ushort.MaxValue"/>.
+    /// </summary>
+    private static bool TryParseObjectIndex(string text, out ushort index) =>
+        ushort.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out index);
+
+    /// <summary>
+    /// Parses a hexadecimal sub-index, including over-width leading zeros
+    /// (<c>001</c> is 0x1). Returns <see langword="false"/> above <see cref="byte.MaxValue"/>.
+    /// </summary>
+    private static bool TryParseSubIndex(string text, out byte subIndex) =>
+        byte.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out subIndex);
 
     /// <summary>
     /// True when <paramref name="text"/> is the unpadded hex form <c>ToHexInvariant</c> writes

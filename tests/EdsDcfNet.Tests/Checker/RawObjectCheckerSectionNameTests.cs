@@ -9,7 +9,9 @@ using Xunit;
 /// Object, sub-index, and compact-value section names the checker accepts must follow
 /// <c>CanOpenReaderBase</c>: unpadded hex (<c>[40]</c>, <c>[40sub0]</c>, <c>[40Value]</c>).
 /// A leading zero is OBJ011 because <c>ParseObject</c>, <c>ParseSubObject</c>, and
-/// <c>ApplyCompactListSection</c> never probe the padded spelling.
+/// <c>ApplyCompactListSection</c> never probe the padded spelling. Over-width leading
+/// zeros that still fit the index (<c>[00020]</c>, <c>[00020sub1]</c>, <c>[20sub001]</c>)
+/// are the same error.
 /// </summary>
 public class RawObjectCheckerSectionNameTests
 {
@@ -50,10 +52,13 @@ PDOMapping=0
     [InlineData("0040", "[40]")]
     [InlineData("020", "[20]")]
     [InlineData("0020", "[20]")]
+    [InlineData("00020", "[20]")]
     [InlineData("0100", "[100]")]
     [InlineData("0A", "[A]")]
     [InlineData("00", "[0]")]
+    [InlineData("00000", "[0]")]
     [InlineData("0FFF", "[FFF]")]
+    [InlineData("0FFFF", "[FFFF]")]
     public void Check_PaddedIndex_ReportsObj011_AndStillChecksTheSection(string sectionName, string readerName)
     {
         // Arrange — the section is still validated, but the padded name is an error
@@ -199,14 +204,126 @@ PDOMapping=0
         findings.Should().Contain(f => f.Code == "OBJ011" && f.Section == "0040");
     }
 
+    [Fact]
+    public void Check_UnlistedOverWidthPaddedIndex_ReportsObj011()
+    {
+        // Arrange — five hex digits used to miss the object pattern, so an unlisted
+        // [00020] produced no OBJ011 even though the reader never loads index 0x20 from it.
+        const string content = @"
+[00020]
+ParameterName=Custom
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().Contain(f =>
+            f.Code == "OBJ011" &&
+            f.Severity == Severity.Error &&
+            f.Section == "00020" &&
+            f.Message.Contains("[20]", StringComparison.Ordinal));
+        findings.Should().Contain(f => f.Code == "LST003" && f.Section == "00020");
+    }
+
+    [Fact]
+    public void Check_OverWidthAndCanonicalIndex_ReportsObj011AndIni002()
+    {
+        // Arrange
+        const string content = @"
+[20]
+ParameterName=First
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[00020]
+ParameterName=Second
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().Contain(f =>
+            f.Code == "INI002" &&
+            f.Section == "00020" &&
+            f.Message.Contains("[20]", StringComparison.Ordinal));
+        findings.Should().Contain(f => f.Code == "OBJ011" && f.Section == "00020");
+    }
+
+    [Theory]
+    [InlineData("10000")]
+    [InlineData("00010000")]
+    public void Check_IndexBeyondUInt16_DoesNotReportObj011(string sectionName)
+    {
+        // Arrange — zero-prefixed only counts when the text still parses as a ushort.
+        var content = "[" + sectionName + @"]
+ParameterName=TooWide
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().NotContain(f => f.Code == "OBJ011");
+        findings.Should().NotContain(f => f.Section == sectionName && f.Code == "LST003");
+        findings.Should().NotContain(f => f.Section == sectionName && f.Code == "VAL001");
+    }
+
+    [Theory]
+    [InlineData("20sub100")]
+    [InlineData("10000sub1")]
+    public void Check_SubIndexBeyondIntegerWidth_DoesNotReportObj011(string sectionName)
+    {
+        // Arrange — [20sub100] is above a byte; [10000sub1] is above a ushort.
+        var content = "[" + sectionName + @"]
+ParameterName=TooWide
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().NotContain(f => f.Code == "OBJ011");
+        findings.Should().NotContain(f => f.Section == sectionName && f.Code == "OBJ008");
+    }
+
     [Theory]
     [InlineData("1018sub01", "[1018sub1]")]
     [InlineData("1018sub0A", "[1018subA]")]
     [InlineData("1018sub00", "[1018sub0]")]
     [InlineData("40sub01", "[40sub1]")]
     [InlineData("0020sub1", "[20sub1]")]
+    [InlineData("00020sub1", "[20sub1]")]
+    [InlineData("20sub001", "[20sub1]")]
+    [InlineData("00020sub001", "[20sub1]")]
     [InlineData("0040sub0", "[40sub0]")]
     [InlineData("020sub01", "[20sub1]")]
+    [InlineData("0FFFFsubFF", "[FFFFsubFF]")]
+    [InlineData("20sub0FF", "[20subFF]")]
     public void Check_PaddedSubIndex_ReportsObj011(string sectionName, string readerName)
     {
         // Arrange
@@ -326,8 +443,11 @@ CompactSubObj=1
     [Theory]
     [InlineData("40", "0040Value", "[40Value]")]
     [InlineData("40", "040Value", "[40Value]")]
+    [InlineData("40", "00040Value", "[40Value]")]
     [InlineData("A", "000AValue", "[AValue]")]
     [InlineData("1018", "01018Value", "[1018Value]")]
+    [InlineData("FFFF", "0FFFFValue", "[FFFFValue]")]
+    [InlineData("0", "00000Value", "[0Value]")]
     public void Check_PaddedCompactValue_ReportsObj011_AndDoesNotApplyIt(
         string objectSection,
         string valueSection,
@@ -402,6 +522,50 @@ CompactSubObj=1
             f.Section == "0040Value" &&
             f.Message.Contains("[40Value]", StringComparison.Ordinal));
         findings.Should().NotContain(f => f.Code == "VAL001" && f.Section == "0040Value");
+    }
+
+    [Fact]
+    public void Check_OverWidthObjectAndCompactValue_ReportsObj011ForBoth()
+    {
+        // Arrange — [00040] must be collected before the compact-value scan can see
+        // [00040Value]. 999 does not fit UNSIGNED8 and must not be applied.
+        const string content = @"
+[DeviceComissioning]
+NodeID=1
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[00040]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+PDOMapping=0
+CompactSubObj=1
+
+[00040Value]
+1=999
+";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        findings.Should().Contain(f =>
+            f.Code == "OBJ011" &&
+            f.Severity == Severity.Error &&
+            f.Section == "00040" &&
+            f.Message.Contains("[40]", StringComparison.Ordinal));
+        findings.Should().Contain(f =>
+            f.Code == "OBJ011" &&
+            f.Severity == Severity.Error &&
+            f.Section == "00040Value" &&
+            f.Message.Contains("[40Value]", StringComparison.Ordinal));
+        findings.Should().NotContain(f => f.Code == "VAL001");
+        findings.Should().NotContain(f => f.Code == "LST002");
     }
 
     [Fact]
@@ -564,6 +728,115 @@ PDOMapping=0
         dropped.ObjectDictionary.Objects.Should().NotContainKey(0x20);
         loaded.ObjectDictionary.Objects.Should().ContainKey(0x20);
         loaded.ObjectDictionary.Objects[0x20].ParameterName.Should().Be("Custom");
+    }
+
+    [Fact]
+    public void ReadString_OverWidthPaddedObjectIndex_ReaderDropsIt()
+    {
+        // Arrange — [00020] is the same index as [20], with one extra leading zero.
+        const string content = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x20
+
+[00020]
+ParameterName=Custom
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+";
+
+        // Act
+        var dropped = CanOpenFile.Eds.ReadString(content);
+
+        // Assert
+        dropped.ObjectDictionary.Objects.Should().NotContainKey(0x20);
+    }
+
+    [Fact]
+    public void ReadString_OverWidthPaddedIndexAtMaxValue_ReaderDropsIt()
+    {
+        // Arrange — 0xFFFF is the largest object index. [0FFFF] is not [FFFF].
+        const string padded = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0xFFFF
+
+[0FFFF]
+ParameterName=Custom
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+";
+        const string unpadded = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0xFFFF
+
+[FFFF]
+ParameterName=Custom
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+";
+
+        // Act
+        var dropped = CanOpenFile.Eds.ReadString(padded);
+        var loaded = CanOpenFile.Eds.ReadString(unpadded);
+
+        // Assert
+        dropped.ObjectDictionary.Objects.Should().NotContainKey(ushort.MaxValue);
+        loaded.ObjectDictionary.Objects.Should().ContainKey(ushort.MaxValue);
+        loaded.ObjectDictionary.Objects[ushort.MaxValue].ParameterName.Should().Be("Custom");
+    }
+
+    [Fact]
+    public void ReadString_OverWidthPaddedSubIndex_ReaderDropsIt()
+    {
+        // Arrange
+        const string content = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x20
+
+[20]
+ParameterName=Parent
+ObjectType=0x9
+SubNumber=1
+
+[00020sub1]
+ParameterName=Child
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+";
+
+        // Act
+        var dropped = CanOpenFile.Eds.ReadString(content);
+
+        // Assert
+        dropped.ObjectDictionary.Objects.Should().ContainKey(0x20);
+        dropped.ObjectDictionary.Objects[0x20].SubObjects.Should().BeEmpty();
     }
 
     [Fact]

@@ -60,7 +60,7 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | OBJ008 | error | `[XXXXsubY]` without parent `[XXXX]` |
 | OBJ009 | error/warning | `SubNumber`/`CompactSubObj` not UNSIGNED8, `PDOMapping` not 0/1 |
 | OBJ010 | error | `ParameterName` missing or longer than 241 characters |
-| OBJ011 | error | Zero-padded section name the reader does not probe: object `[0020]` (reads `[20]`), sub-index `[1018sub01]` / `[0020sub1]` (reads `[1018sub1]` / `[20sub1]`), DCF compact value `[0040Value]` (reads `[40Value]`) |
+| OBJ011 | error | Zero-padded section name the reader does not probe, including over-width leading zeros that still fit the index: object `[0020]` / `[00020]` (reads `[20]`), sub-index `[1018sub01]` / `[00020sub1]` / `[20sub001]` (reads `[1018sub1]` / `[20sub1]`), DCF compact value `[0040Value]` / `[00040Value]` (reads `[40Value]`) |
 | VAL001 | error | `DefaultValue`/`LowLimit`/`HighLimit`/`ParameterValue` invalid or out of range for the data type (e.g. `1000` for UNSIGNED8, `08`), including DCF `[XXXXValue]` entries on compact and expanded objects |
 | VAL002 | error | `LowLimit` > `HighLimit` |
 | VAL003 | error | `DefaultValue` outside `LowLimit`..`HighLimit` |
