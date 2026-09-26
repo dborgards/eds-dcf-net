@@ -57,9 +57,10 @@ public sealed class OrderedStringDictionary : IDictionary<string, string>, IDict
     public bool IsReadOnly => false;
 
     /// <summary>
-    /// Gets the keys in insertion order.
+    /// Gets the keys in insertion order. Membership tests use <see cref="Comparer"/>,
+    /// so <c>Keys.Contains</c> agrees with <see cref="ContainsKey"/>.
     /// </summary>
-    public ICollection<string> Keys => _order.AsReadOnly();
+    public ICollection<string> Keys => new KeyCollection(this);
 
     /// <summary>
     /// Gets the values in insertion order.
@@ -225,7 +226,7 @@ public sealed class OrderedStringDictionary : IDictionary<string, string>, IDict
 
     bool IDictionary.IsFixedSize => false;
 
-    ICollection IDictionary.Keys => _order.AsReadOnly();
+    ICollection IDictionary.Keys => new KeyCollection(this);
 
     ICollection IDictionary.Values
     {
@@ -327,6 +328,125 @@ public sealed class OrderedStringDictionary : IDictionary<string, string>, IDict
     {
         if (value is null)
             throw new ArgumentNullException(parameterName);
+    }
+
+    /// <summary>
+    /// Insertion-ordered key view. Membership uses the parent comparer, including the
+    /// non-generic <see cref="System.Collections.IList"/> implementation returned from
+    /// <see cref="IDictionary.Keys"/>.
+    /// </summary>
+    private sealed class KeyCollection : IList<string>, System.Collections.IList
+    {
+        private readonly OrderedStringDictionary _dictionary;
+
+        public KeyCollection(OrderedStringDictionary dictionary) => _dictionary = dictionary;
+
+        public int Count => _dictionary._order.Count;
+
+        public bool IsReadOnly => true;
+
+        public bool IsFixedSize => true;
+
+        string IList<string>.this[int index]
+        {
+            get => _dictionary._order[index];
+            set => throw new NotSupportedException();
+        }
+
+        public bool Contains(string item) => _dictionary.ContainsKey(item);
+
+        public int IndexOf(string item)
+        {
+            ThrowIfNull(item, nameof(item));
+            var comparer = _dictionary._comparer;
+            var order = _dictionary._order;
+            for (var i = 0; i < order.Count; i++)
+            {
+                if (comparer.Equals(order[i], item))
+                    return i;
+            }
+
+            return -1;
+        }
+
+        public void CopyTo(string[] array, int arrayIndex)
+        {
+            ThrowIfNull(array, nameof(array));
+            if ((uint)arrayIndex > (uint)array.Length)
+                throw new ArgumentOutOfRangeException(nameof(arrayIndex));
+            if (array.Length - arrayIndex < Count)
+                throw new ArgumentException("Destination array is not long enough.", nameof(array));
+
+            foreach (var key in _dictionary._order)
+                array[arrayIndex++] = key;
+        }
+
+        public IEnumerator<string> GetEnumerator()
+        {
+            foreach (var key in _dictionary._order)
+                yield return key;
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public void Add(string item) => throw new NotSupportedException();
+
+        public void Clear() => throw new NotSupportedException();
+
+        public void Insert(int index, string item) => throw new NotSupportedException();
+
+        public bool Remove(string item) => throw new NotSupportedException();
+
+        public void RemoveAt(int index) => throw new NotSupportedException();
+
+        bool System.Collections.ICollection.IsSynchronized => false;
+
+        object System.Collections.ICollection.SyncRoot => _dictionary;
+
+        object? System.Collections.IList.this[int index]
+        {
+            get => _dictionary._order[index];
+            set => throw new NotSupportedException();
+        }
+
+        int System.Collections.IList.Add(object? value) => throw new NotSupportedException();
+
+        bool System.Collections.IList.Contains(object? value) => IndexOfNonGeneric(value) >= 0;
+
+        int System.Collections.IList.IndexOf(object? value) => IndexOfNonGeneric(value);
+
+        void System.Collections.IList.Insert(int index, object? value) => throw new NotSupportedException();
+
+        void System.Collections.IList.Remove(object? value) => throw new NotSupportedException();
+
+        void System.Collections.ICollection.CopyTo(Array array, int index)
+        {
+            ThrowIfNull(array, nameof(array));
+            if (array.Rank != 1)
+                throw new ArgumentException("Array must be one-dimensional.", nameof(array));
+#if NET10_0_OR_GREATER
+            ArgumentOutOfRangeException.ThrowIfNegative(index);
+#else
+            if (index < 0)
+                throw new ArgumentOutOfRangeException(nameof(index));
+#endif
+            if (array.Length - index < Count)
+                throw new ArgumentException("Destination array is not long enough.", nameof(array));
+
+            foreach (var key in _dictionary._order)
+                array.SetValue(key, index++);
+        }
+
+        private int IndexOfNonGeneric(object? value)
+        {
+            if (value is not string typed)
+            {
+                ThrowIfNull(value, nameof(value));
+                return -1;
+            }
+
+            return IndexOf(typed);
+        }
     }
 
     private sealed class DictionaryEnumerator : IDictionaryEnumerator

@@ -34,8 +34,17 @@ public class OrderedStringDictionaryTests
         map.Add("a", "lower");
 
         map.Keys.Should().Equal("A", "a");
+        map.Keys.Contains("A").Should().BeTrue();
+        map.Keys.Contains("a").Should().BeTrue();
+        map.ContainsKey("A").Should().Be(map.Keys.Contains("A"));
         map["A"].Should().Be("upper");
         map["a"].Should().Be("lower");
+
+        var group = new OrderedStringDictionary(StringComparer.Ordinal) { ["Group"] = "Motion" };
+        group.ContainsKey("group").Should().BeFalse();
+        group.Keys.Contains("group").Should().BeFalse();
+        group.Keys.Contains("Group").Should().BeTrue();
+        ((IList)((IDictionary)group).Keys).Contains("group").Should().BeFalse();
     }
 
     [Fact]
@@ -112,9 +121,20 @@ public class OrderedStringDictionaryTests
         map.Contains(default(KeyValuePair<string, string>)).Should().BeFalse();
         map.ContainsKey("GROUP").Should().BeTrue();
         map.ContainsKey("Other").Should().BeFalse();
+        map.Keys.Contains("group").Should().BeTrue();
+        map.Keys.Contains("GROUP").Should().BeTrue();
+        map.Keys.Contains("Other").Should().BeFalse();
+        ((IList<string>)map.Keys).IndexOf("group").Should().Be(0);
+        ((IList)((IDictionary)map).Keys).Contains("group").Should().BeTrue();
+        ((IList)((IDictionary)map).Keys).IndexOf("GROUP").Should().Be(0);
+        ((IList)((IDictionary)map).Keys).Contains(42).Should().BeFalse();
 
         var nullKey = () => map.ContainsKey(null!);
+        var nullKeyView = () => map.Keys.Contains(null!);
+        var nullNonGeneric = () => ((IList)((IDictionary)map).Keys).Contains(null!);
         nullKey.Should().Throw<ArgumentNullException>().WithParameterName("key");
+        nullKeyView.Should().Throw<ArgumentNullException>().WithParameterName("key");
+        nullNonGeneric.Should().Throw<ArgumentNullException>().WithParameterName("value");
     }
 
     [Fact]
