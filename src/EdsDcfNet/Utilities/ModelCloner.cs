@@ -94,6 +94,7 @@ internal static class ModelCloner
         };
 
         clone.ObjectLinks.AddRange(source.ObjectLinks);
+        CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
 
         foreach (var kvp in source.SubObjects)
         {
@@ -108,7 +109,7 @@ internal static class ModelCloner
     /// </summary>
     internal static CanOpenSubObject CloneSubObject(CanOpenSubObject source)
     {
-        return new CanOpenSubObject
+        var clone = new CanOpenSubObject
         {
             SubIndex = source.SubIndex,
             ParameterName = source.ParameterName,
@@ -125,6 +126,55 @@ internal static class ModelCloner
             InvertedSrad = source.InvertedSrad,
             ParamRefd = source.ParamRefd
         };
+
+        CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
+        return clone;
+    }
+
+    private static void CopyRemainingEntries(OrderedStringDictionary source, OrderedStringDictionary destination)
+    {
+        foreach (var entry in source)
+            destination.Add(entry.Key, entry.Value);
+    }
+
+    /// <summary>
+    /// Moves DCF-only keywords from <see cref="CanOpenObject.RemainingEntries"/> onto the
+    /// matching properties. A property that already has a value is left unchanged.
+    /// The keyword is removed either way so a later commissioned value cannot be
+    /// shadowed when the object is written as DCF.
+    /// </summary>
+    internal static void AdoptDcfKeywords(CanOpenObject obj)
+    {
+        Adopt(obj.RemainingEntries, "ParameterValue", obj.ParameterValue, value => obj.ParameterValue = value);
+        Adopt(obj.RemainingEntries, "Denotation", obj.Denotation, value => obj.Denotation = value);
+        Adopt(obj.RemainingEntries, "ParamRefd", obj.ParamRefd, value => obj.ParamRefd = value);
+        Adopt(obj.RemainingEntries, "UploadFile", obj.UploadFile, value => obj.UploadFile = value);
+        Adopt(obj.RemainingEntries, "DownloadFile", obj.DownloadFile, value => obj.DownloadFile = value);
+
+        foreach (var sub in obj.SubObjects.Values)
+            AdoptDcfKeywords(sub);
+    }
+
+    private static void AdoptDcfKeywords(CanOpenSubObject sub)
+    {
+        Adopt(sub.RemainingEntries, "ParameterValue", sub.ParameterValue, value => sub.ParameterValue = value);
+        Adopt(sub.RemainingEntries, "Denotation", sub.Denotation, value => sub.Denotation = value);
+        Adopt(sub.RemainingEntries, "ParamRefd", sub.ParamRefd, value => sub.ParamRefd = value);
+    }
+
+    private static void Adopt(
+        OrderedStringDictionary entries,
+        string key,
+        string? current,
+        Action<string> assign)
+    {
+        if (!entries.TryGetValue(key, out var value))
+            return;
+
+        if (string.IsNullOrEmpty(current))
+            assign(value);
+
+        entries.Remove(key);
     }
 
     /// <summary>

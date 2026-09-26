@@ -146,6 +146,12 @@ public class DcfWriter : IniWriterBase
     #region DCF-specific section overrides
 
     /// <inheritdoc/>
+    protected override bool IsDedicatedObjectEntryKey(string key) => SectionEntryKeys.IsDcfObjectKey(key);
+
+    /// <inheritdoc/>
+    protected override bool IsDedicatedSubObjectEntryKey(string key) => SectionEntryKeys.IsDcfSubObjectKey(key);
+
+    /// <inheritdoc/>
     protected override void WriteObjectExtension(StringBuilder sb, CanOpenObject obj)
     {
         if (!string.IsNullOrEmpty(obj.ParameterValue))

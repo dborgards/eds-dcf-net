@@ -137,10 +137,43 @@ internal static class ModelCloneSampleBuilder
         list.Add(CreateCollectionElement(elementType, ref seed, depth));
     }
 
+    private static (Type KeyType, Type ValueType) GetDictionaryTypeArguments(Type dictionaryType)
+    {
+        var current = dictionaryType;
+        while (current != null)
+        {
+            if (current.IsGenericType && current.GetGenericArguments().Length == 2)
+            {
+                var definition = current.GetGenericTypeDefinition();
+                if (definition == typeof(Dictionary<,>)
+                    || definition == typeof(IDictionary<,>)
+                    || definition == typeof(SortedDictionary<,>)
+                    || definition == typeof(IReadOnlyDictionary<,>))
+                {
+                    var genericArguments = current.GetGenericArguments();
+                    return (genericArguments[0], genericArguments[1]);
+                }
+            }
+
+            current = current.BaseType;
+        }
+
+        foreach (var candidate in dictionaryType.GetInterfaces())
+        {
+            if (candidate.IsGenericType && candidate.GetGenericTypeDefinition() == typeof(IDictionary<,>))
+            {
+                var genericArguments = candidate.GetGenericArguments();
+                return (genericArguments[0], genericArguments[1]);
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Cannot determine key and value types for dictionary '{dictionaryType.FullName}'.");
+    }
+
     private static void PopulateDictionary(IDictionary dictionary, Type dictionaryType, ref int seed, int depth)
     {
-        var keyType = dictionaryType.GenericTypeArguments[0];
-        var valueType = dictionaryType.GenericTypeArguments[1];
+        var (keyType, valueType) = GetDictionaryTypeArguments(dictionaryType);
 
         var key = CreateDictionaryKey(keyType, ref seed);
         var value = IsModelType(valueType)

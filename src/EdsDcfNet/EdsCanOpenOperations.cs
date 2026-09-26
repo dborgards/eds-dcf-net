@@ -99,6 +99,12 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
         foreach (var kvp in ModelCloner.CloneAdditionalSections(eds.AdditionalSections))
             dcf.AdditionalSections[kvp.Key] = kvp.Value;
 
+        // EDS stores DCF-only keywords in RemainingEntries. Move them onto the
+        // properties so a commissioned value assigned after conversion is the
+        // only copy written.
+        foreach (var obj in dcf.ObjectDictionary.Objects.Values)
+            ModelCloner.AdoptDcfKeywords(obj);
+
         return dcf;
     }
 

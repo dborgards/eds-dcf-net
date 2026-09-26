@@ -163,6 +163,12 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
     }
 
     /// <inheritdoc/>
+    protected override bool IsKnownObjectEntryKey(string key) => SectionEntryKeys.IsDcfObjectKey(key);
+
+    /// <inheritdoc/>
+    protected override bool IsKnownSubObjectEntryKey(string key) => SectionEntryKeys.IsDcfSubObjectKey(key);
+
+    /// <inheritdoc/>
     protected override CanOpenObject? ParseObject(Dictionary<string, Dictionary<string, string>> sections, ushort index)
     {
         var obj = base.ParseObject(sections, index);

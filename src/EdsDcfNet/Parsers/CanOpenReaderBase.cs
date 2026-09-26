@@ -235,6 +235,48 @@ public abstract class CanOpenReaderBase
     }
 
     /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="key"/> is mapped onto a
+    /// <see cref="CanOpenObject"/> property. Comparison is case-insensitive.
+    /// DCF overrides this to include configured-value keywords.
+    /// </summary>
+    /// <param name="key">INI key from the object section.</param>
+    protected virtual bool IsKnownObjectEntryKey(string key) => SectionEntryKeys.IsEdsObjectKey(key);
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="key"/> is mapped onto a
+    /// <see cref="CanOpenSubObject"/> property. Comparison is case-insensitive.
+    /// DCF overrides this to include configured-value keywords.
+    /// </summary>
+    /// <param name="key">INI key from the sub-object section.</param>
+    protected virtual bool IsKnownSubObjectEntryKey(string key) => SectionEntryKeys.IsEdsSubObjectKey(key);
+
+    /// <summary>
+    /// Copies section keys that are not mapped onto dedicated properties into
+    /// <paramref name="destination"/>, preserving file order.
+    /// </summary>
+    internal static void CaptureRemainingEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        Func<string, bool> isKnownKey,
+        OrderedStringDictionary destination)
+    {
+        // Callers already confirmed the section exists (HasSection).
+        var section = sections[sectionName];
+
+        IEnumerable<KeyValuePair<string, string>> entries = section is IniSectionDictionary ordered
+            ? ordered.EntriesInOrder()
+            : section;
+
+        foreach (var entry in entries)
+        {
+            if (isKnownKey(entry.Key))
+                continue;
+
+            destination.Add(entry.Key, entry.Value);
+        }
+    }
+
+    /// <summary>
     /// Parses a single CANopen object at the given <paramref name="index"/> from the INI sections.
     /// Returns <see langword="null"/> if no section exists for that index.
     /// Derived classes may override this to read additional format-specific fields.
@@ -326,6 +368,8 @@ public abstract class CanOpenReaderBase
         {
             ParseSubObjects(sections, index, obj);
         }
+
+        CaptureRemainingEntries(sections, sectionName, IsKnownObjectEntryKey, obj.RemainingEntries);
 
         // Parse object links
         var linksSectionName = string.Concat(ToHexInvariant(index), "ObjectLinks");
@@ -529,6 +573,8 @@ public abstract class CanOpenReaderBase
             SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
         };
+
+        CaptureRemainingEntries(sections, sectionName, IsKnownSubObjectEntryKey, subObj.RemainingEntries);
 
         return subObj;
     }

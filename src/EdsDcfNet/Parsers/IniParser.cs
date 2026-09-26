@@ -472,7 +472,7 @@ public static class IniParser
 
             if (!sections.ContainsKey(currentSection))
             {
-                sections[currentSection] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                sections[currentSection] = new IniSectionDictionary();
             }
 
             return;
@@ -493,7 +493,7 @@ public static class IniParser
             ? line[(equalIndex + 1)..].Trim()
             : string.Empty;
 
-        var section = sections[currentSection];
+        var section = (IniSectionDictionary)sections[currentSection];
         if (section.TryGetValue(key, out var previousValue))
         {
             Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
@@ -528,7 +528,7 @@ public static class IniParser
             }
         }
 
-        section[key] = value;
+        section.Set(key, value);
         IniKeyLines.Record(sections, currentSection, key, lineNumber);
     }
 
