@@ -274,7 +274,8 @@ public sealed class RawObjectChecker
         CheckParameterName(section);
 
         _subObjects.TryGetValue(index, out var subs);
-        var subCount = subs?.Count ?? 0;
+        // SubNumber does not count the reserved sub-index FFh (CiA 306-1 Table 6).
+        var subCount = subs?.Keys.Count(k => k != 0xFF) ?? 0;
         var compactSubObj = ParseOptionalByte(section, "CompactSubObj");
         var subNumber = ParseOptionalByte(section, "SubNumber");
 
@@ -449,7 +450,8 @@ public sealed class RawObjectChecker
             return; // reported by the value checks
         }
 
-        var maxSub = subs.Keys.Max();
+        // Sub-index 0 gives the highest sub-index not counting FFh (CiA 301).
+        var maxSub = subs.Keys.Where(k => k != 0xFF).DefaultIfEmpty((byte)0).Max();
         if (highest < maxSub)
         {
             Add(Severity.Error, "OBJ007", sub0, value, string.Format(CultureInfo.InvariantCulture,
