@@ -331,10 +331,12 @@ public abstract class CanOpenReaderBase
     /// </summary>
     protected virtual void ParseSubObjects(Dictionary<string, Dictionary<string, string>> sections, ushort index, CanOpenObject obj)
     {
-        // Scan every sub-index the object can describe: an explicit [xxxxsubFF] section is
-        // parsed even when it is only reachable through CompactSubObj=0xFF.
+        // Scan every possible sub-index. SubNumber is the *number* of described sub-indexes
+        // (CiA 306-1 clause 6.6.3.2), not the highest one: lists may have gaps (e.g. sub0,
+        // sub1, sub4 with SubNumber=3, CiA 306-1 Figure 16), so bounding the scan by
+        // SubNumber silently dropped the trailing sub-indexes (#563).
         var compactSubObj = (int)obj.CompactSubObj.GetValueOrDefault();
-        var maxSubIndex = Math.Max((int)(obj.SubNumber ?? 0), compactSubObj);
+        const int maxSubIndex = byte.MaxValue;
 
         // CiA 306 compact lists cover sub-indexes 1..254, so 0xFF is never *synthesized*
         // from the template — only an explicit section can populate it.

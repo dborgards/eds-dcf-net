@@ -1032,6 +1032,60 @@ PDOMapping=0
         obj.InvertedSrad.Should().BeNullOrEmpty();
     }
 
+    private static string EdsWithSubIndexes(ushort index, string subNumber, params byte[] subIndexes)
+    {
+        var hex = index.ToString("X4", System.Globalization.CultureInfo.InvariantCulture);
+        var sb = new System.Text.StringBuilder();
+        sb.Append("[FileInfo]\nFileName=gap.eds\n[DeviceInfo]\nVendorName=V\n");
+        sb.Append("[OptionalObjects]\nSupportedObjects=1\n1=0x").Append(hex).Append('\n');
+        sb.Append('[').Append(hex).Append("]\nParameterName=List\nObjectType=0x8\nSubNumber=").Append(subNumber).Append('\n');
+        foreach (var sub in subIndexes)
+        {
+            sb.Append('[').Append(hex).Append("sub").Append(sub.ToString("X", System.Globalization.CultureInfo.InvariantCulture)).Append("]\n")
+              .Append("ParameterName=Sub").Append(sub).Append('\n')
+              .Append("ObjectType=0x7\nDataType=0x0007\nAccessType=ro\nDefaultValue=0x1\n");
+        }
+
+        return sb.ToString();
+    }
+
+    [Fact]
+    public void ReadString_SubIndexListWithGaps_ParsesSubIndexesAboveSubNumber()
+    {
+        // CiA 306-1 Figure 16: SubNumber=3 describes sub0, sub1 and sub4 (#563).
+        var content = EdsWithSubIndexes(0x1010, "3", 0, 1, 4);
+
+        var result = _reader.ReadString(content);
+
+        var obj = result.ObjectDictionary.Objects[0x1010];
+        obj.SubNumber.Should().Be(3);
+        obj.SubObjects.Keys.Should().BeEquivalentTo(new byte[] { 0, 1, 4 });
+    }
+
+    [Fact]
+    public void ReadString_SubIndexListWithGapToSubFF_AtMaxValue()
+    {
+        var content = EdsWithSubIndexes(0x2000, "3", 0, 1, 0xFF);
+
+        var result = _reader.ReadString(content);
+
+        result.ObjectDictionary.Objects[0x2000].SubObjects.Keys
+            .Should().BeEquivalentTo(new byte[] { 0, 1, 0xFF });
+    }
+
+    [Fact]
+    public void ReadString_SubIndexListWithGaps_ValidatedRoundTrip()
+    {
+        var content = EdsWithSubIndexes(0x1010, "3", 0, 1, 4);
+        var model = _reader.ReadString(content);
+
+        var written = CanOpenFile.Eds.WriteToString(model, CanOpenWriteOptions.Validated);
+        var reloaded = _reader.ReadString(written);
+
+        reloaded.ObjectDictionary.Objects[0x1010].SubObjects.Keys
+            .Should().BeEquivalentTo(new byte[] { 0, 1, 4 });
+    }
+
     #endregion
 
     #region Comments Parsing Tests
