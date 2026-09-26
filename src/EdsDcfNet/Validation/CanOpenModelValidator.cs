@@ -204,7 +204,7 @@ public static class CanOpenModelValidator
         ValidateDeviceInfo(eds.DeviceInfo, issues);
         ValidateObjectDictionary(eds.ObjectDictionary, options, ObjectValueValidator.ResolveNodeIds(null), issues, cancellationToken);
         if (options.RequireMandatoryEntries)
-            ValidateMandatoryEntries(eds.FileInfo, eds.DeviceInfo, eds.ObjectDictionary, issues);
+            ValidateMandatoryEntries(eds.FileInfo, eds.DeviceInfo, eds.ObjectDictionary, issues, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         if (eds.ApplicationProcess != null)
             ValidateApplicationProcess(eds.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
@@ -227,7 +227,7 @@ public static class CanOpenModelValidator
         ValidateDeviceCommissioning(dcf.DeviceCommissioning, issues);
         if (options.RequireMandatoryEntries)
         {
-            ValidateMandatoryEntries(dcf.FileInfo, dcf.DeviceInfo, dcf.ObjectDictionary, issues);
+            ValidateMandatoryEntries(dcf.FileInfo, dcf.DeviceInfo, dcf.ObjectDictionary, issues, cancellationToken);
             if (commissioningOmitted || dcf.DeviceCommissioning.Baudrate == 0)
             {
                 issues.Add(new ValidationIssue(
@@ -541,7 +541,8 @@ public static class CanOpenModelValidator
         EdsFileInfo fileInfo,
         DeviceInfo deviceInfo,
         ObjectDictionary objectDictionary,
-        List<ValidationIssue> issues)
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
     {
         RequireText(fileInfo.FileName, "FileInfo.FileName", "CiA 306-1 Table 1", issues);
         RequireText(deviceInfo.VendorName, "DeviceInfo.VendorName", "CiA 306-1 Table 2", issues);
@@ -566,8 +567,12 @@ public static class CanOpenModelValidator
             }
         }
 
+        // Strict rules rescan the dictionary after ValidateObjectDictionary.
+        // Observe cancellation at each object and sub-object so a canceled
+        // ValidateAsync does not finish this second pass.
         foreach (var kvp in objectDictionary.Objects)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var obj = kvp.Value;
             var objectPath = string.Format(CultureInfo.InvariantCulture, "ObjectDictionary.Objects[0x{0:X4}]", kvp.Key);
             RequireText(obj.ParameterName, objectPath + ".ParameterName", "CiA 306-1 Table 7", issues);
@@ -587,6 +592,7 @@ public static class CanOpenModelValidator
 
             foreach (var sub in obj.SubObjects)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var subPath = string.Format(CultureInfo.InvariantCulture, "{0}.SubObjects[0x{1:X2}]", objectPath, sub.Key);
                 RequireText(sub.Value.ParameterName, subPath + ".ParameterName", "CiA 306-1 Table 7", issues);
                 if (sub.Value.ObjectType == CanOpenObjectType.Var && sub.Value.DataType == 0)
