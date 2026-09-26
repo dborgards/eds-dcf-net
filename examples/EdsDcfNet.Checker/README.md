@@ -3,6 +3,9 @@
 Command-line example that validates CiA 306 **EDS** and **DCF** files (INI format only —
 XDD/XDC are out of scope) and prints every problem with file, line, section, key and value.
 
+Rules follow CiA 306-1 v1.4 ("If not otherwise specified, all sections and entries in this
+document are mandatory") and CiA 301 for the data types of well-known objects.
+
 It combines two passes:
 
 1. **Raw pass** — a line-aware INI scan that never aborts on bad values, so *all* problems in
@@ -52,11 +55,11 @@ device.eds: INVALID (3 error(s), 1 warning(s))
 | OBJ003 | error/warning | `DataType` not a basic type / not defined by a DEFTYPE/DEFSTRUCT |
 | OBJ004 | error | `DataType` missing |
 | OBJ005 | error | `AccessType` missing or not `ro/wo/rw/rwr/rww/const` |
-| OBJ006 | error | `SubNumber` does not match the sub-index sections (sub-index 0 included) |
+| OBJ006 | error | `SubNumber` missing or not matching the sub-index sections (sub-index 0 included); `SubNumber` together with non-zero `CompactSubObj` |
 | OBJ007 | error/warning | Sub-index 0 value vs. highest defined sub-index (read-only sub-index 0 only) |
 | OBJ008 | error | `[XXXXsubY]` without parent `[XXXX]` |
 | OBJ009 | error/warning | `SubNumber`/`CompactSubObj` not UNSIGNED8, `PDOMapping` not 0/1 |
-| OBJ010 | error/warning | `ParameterName` missing or longer than 241 characters |
+| OBJ010 | error | `ParameterName` missing or longer than 241 characters |
 | VAL001 | error | `DefaultValue`/`LowLimit`/`HighLimit`/`ParameterValue` invalid or out of range for the data type (e.g. `1000` for UNSIGNED8, `08`) |
 | VAL002 | error | `LowLimit` > `HighLimit` |
 | VAL003 | error | `DefaultValue` outside `LowLimit`..`HighLimit` |
@@ -65,9 +68,11 @@ device.eds: INVALID (3 error(s), 1 warning(s))
 | VAL006 | warning | Limits on a non-numeric data type |
 | VAL007 | warning | Hex literal for REAL32/REAL64 |
 | FRM001 | error | Invalid `$NODEID` formula or operand |
-| FRM002 | warning | `0x180+$NODEID` form — not understood by the EdsDcfNet reader |
+| FRM002 | error | `0x180+$NODEID` — `$NODEID` must come first, otherwise it is no formula |
 | FRM003 | error | `$NODEID` formula on a non-integer data type |
 | FRM004 | error | Formula result out of range (EDS: checked for node-ID 1 and 127, DCF: configured NodeID) |
+| FRM005 | warning | `$NODEID-n` — subtraction is not part of the CiA 306 syntax |
+| FRM006 | warning | `$NODEID+a+b` — valid CiA 306, but not evaluated by the EdsDcfNet reader |
 | STD001 | error | Well-known CiA 301 entry (0x1000, 0x1018, PDO parameters, …) has the wrong `DataType` |
 | LST001 | error | `SupportedObjects` missing or not matching the number of entries |
 | LST002 | error | Object list references a missing section |
@@ -75,10 +80,16 @@ device.eds: INVALID (3 error(s), 1 warning(s))
 | LST004 | error | Object listed more than once |
 | LST005 | error/warning | Mandatory object 0x1000/0x1001/0x1018 missing or in the wrong list |
 | LST006 | error | Invalid object-list entry |
+| LST007 | warning | Object listed in the wrong list (2000h-5FFFh belong in `[ManufacturerObjects]`) |
 | PDO001 | error | PDO mapping references a missing object or invalid dummy type |
 | PDO002 | error/warning | Mapped object not PDO-mappable, wrong access direction, dummy in TPDO |
 | PDO003 | error | Mapping length does not match the mapped data type |
 | PDO004 | error | PDO maps more than 64 bits |
+| MND001 | error | Mandatory section missing (`[FileInfo]`, `[DeviceInfo]`, `[MandatoryObjects]`, DCF `[DeviceComissioning]`) |
+| MND002 | warning | Mandatory `[FileInfo]`/`[DeviceInfo]`/`[DeviceComissioning]` entry missing or empty |
+| MND003 | error/warning | Entry value has the wrong type/format (UNSIGNED8/16/32, BOOLEAN 0/1, `X.Y`, `hh:mm(AM\|PM)`, `mm-dd-yyyy`, max. length, Granularity 0..64, Baudrate) |
+| MND004 | warning | No `BaudRate_xxx=1` |
+| MND005 | error/warning | `VendorNumber`/`ProductNumber`/`RevisionNumber` differ from `[1018subN]`; more PDOs described than `NrOfRxPDO`/`NrOfTxPDO` |
 | DCF001 | warning | DCF without configured `NodeID` |
 | DCF002 | error | DCF `NodeID` outside 1..127 |
 | LIB001–003 | | EdsDcfNet reader diagnostics / reader abort / model validator |

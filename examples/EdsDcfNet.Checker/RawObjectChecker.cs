@@ -207,6 +207,13 @@ public sealed class RawObjectChecker
 
                 listed[index] = listName;
 
+                var expectedList = index is >= 0x2000 and <= 0x5FFF ? "ManufacturerObjects" : "OptionalObjects";
+                if (listName != "MandatoryObjects" && listName != expectedList)
+                {
+                    Add(Severity.Warning, "LST007", list, entry,
+                        "Object " + Hex4(index) + " belongs in [" + expectedList + "] (CiA 306-1 Table 4: 2000h-5FFFh manufacturer, others optional).");
+                }
+
                 if (!_objects.ContainsKey(index))
                 {
                     Add(Severity.Error, "LST002", list, entry,
@@ -220,7 +227,7 @@ public sealed class RawObjectChecker
             if (!listed.ContainsKey(index))
             {
                 Add(Severity.Error, "LST003", section, null, null,
-                    "Object is not listed in [MandatoryObjects], [OptionalObjects] or [ManufacturerObjects]; readers will ignore it.");
+                    "Object is not listed in [MandatoryObjects], [OptionalObjects] or [ManufacturerObjects]; EdsDcfNet and other list-driven tools ignore it.");
             }
         }
 
@@ -255,6 +262,12 @@ public sealed class RawObjectChecker
         {
             if (compactSubObj is > 0)
             {
+                if (subNumber is > 0)
+                {
+                    Add(Severity.Error, "OBJ006", section, section.Get("SubNumber"),
+                        "SubNumber is not supported together with a non-zero CompactSubObj; it shall be 0, empty or absent.");
+                }
+
                 // Compact array: sub-indices are generated, only the parent carries type info.
                 CheckEntryValues(section, index, null);
             }
@@ -340,7 +353,7 @@ public sealed class RawObjectChecker
         var entry = section.Get("ParameterName");
         if (entry is null || string.IsNullOrWhiteSpace(entry.Value))
         {
-            Add(Severity.Warning, "OBJ010", section, entry, "ParameterName is missing or empty.");
+            Add(Severity.Error, "OBJ010", section, entry, "Mandatory entry ParameterName is missing or empty (CiA 306-1 Table 7).");
         }
         else if (entry.Value.Length > MaxParameterNameLength)
         {
@@ -556,19 +569,26 @@ public sealed class RawObjectChecker
             return null;
         }
 
-        if (!ValueSupport.TrySplitFormula(value, out var sign, out var operandText, out var prefixForm))
+        if (!ValueSupport.TrySplitFormula(value, out var terms, out var prefixForm))
         {
             Add(Severity.Error, "FRM001", section, entry,
-                "Invalid $NODEID formula. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
+                "Invalid $NODEID formula. CiA 306 allows only '$NODEID' followed by '+<number>' offsets.");
             return null;
         }
 
-        long operand = 0;
-        if (operandText is not null)
+        if (prefixForm)
+        {
+            Add(Severity.Error, "FRM002", section, entry,
+                "$NODEID must appear at the beginning (CiA 306-1 clause 6.3); otherwise the entry is not a formula and not a valid number. Write '$NODEID+" + terms[0].Operand + "'.");
+            return null;
+        }
+
+        long offset = 0;
+        foreach (var (termSign, operandText) in terms)
         {
             try
             {
-                operand = ValueSupport.ParseOperand(operandText);
+                offset += termSign * ValueSupport.ParseOperand(operandText);
             }
             catch (Exception ex) when (ex is EdsParseException or FormatException or OverflowException)
             {
@@ -577,16 +597,22 @@ public sealed class RawObjectChecker
             }
         }
 
-        if (prefixForm)
+        if (terms.Any(t => t.Sign < 0))
         {
-            Add(Severity.Warning, "FRM002", section, entry,
-                "Formula form '<number>+$NODEID' is not understood by the EdsDcfNet reader; write '$NODEID+" + operandText + "'.");
+            Add(Severity.Warning, "FRM005", section, entry,
+                "Subtraction is not part of the CiA 306 formula syntax ($NODEID {\"+\" number}); other tools may reject it.");
+        }
+
+        if (terms.Count > 1)
+        {
+            Add(Severity.Warning, "FRM006", section, entry,
+                "Several offsets are valid CiA 306, but the EdsDcfNet reader only evaluates a single '$NODEID+<number>'.");
         }
 
         var evaluation = new ValueEvaluation { IsFormula = true };
         foreach (var nodeId in _nodeIds)
         {
-            var result = nodeId + (sign * operand);
+            var result = nodeId + offset;
             try
             {
                 var parsed = ValueSupport.ParseLiteral(result.ToString(CultureInfo.InvariantCulture), dataType);

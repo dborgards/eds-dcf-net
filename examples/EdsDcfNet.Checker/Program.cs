@@ -137,6 +137,7 @@ internal static class Program
         var isDcf = IsDcf(file);
 
         var document = RawIniDocument.Parse(file, findings);
+        new MandatoryFieldsChecker(file, document, isDcf, findings).Run();
         new RawObjectChecker(file, document, isDcf, findings).Run();
 
         if (runLibrary)

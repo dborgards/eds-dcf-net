@@ -44,8 +44,11 @@ public sealed class ValueEvaluation
 public static class ValueSupport
 {
     private static readonly Regex NodeIdSuffixFormula = new(
-        @"^\$NODEID\s*(?:(?<op>[+-])\s*(?<operand>\S+))?$",
+        @"^\$NODEID(?<terms>(?:\s*[+-]\s*[^\s+-]+)*)$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static readonly Regex FormulaTerm = new(
+        @"(?<op>[+-])\s*(?<operand>[^\s+-]+)", RegexOptions.CultureInvariant);
 
     private static readonly Regex NodeIdPrefixFormula = new(
         @"^(?<operand>[^\s+$]+)\s*\+\s*\$NODEID$",
@@ -101,27 +104,27 @@ public static class ValueSupport
         value.Length > 1 && value[0] == '0' && char.IsDigit(value[1]);
 
     /// <summary>
-    /// Tries to split a <c>$NODEID</c> formula into operator and operand.
+    /// Tries to split a <c>$NODEID</c> formula into its offset terms.
+    /// CiA 306-1 clause 6.3 (EBNF): <c>IntEntryValue = $NODEID {"+" number}</c>; <c>$NODEID</c> shall
+    /// appear at the beginning.
     /// </summary>
     /// <param name="value">Raw value.</param>
-    /// <param name="sign">+1 or -1 for the operand.</param>
-    /// <param name="operand">Operand literal, or <see langword="null"/> for a plain <c>$NODEID</c>.</param>
+    /// <param name="terms">Offset terms as (sign, operand literal); empty for a plain <c>$NODEID</c>.</param>
     /// <param name="prefixForm">
-    /// <see langword="true"/> for the <c>0x180+$NODEID</c> form, which EdsDcfNet cannot evaluate.
+    /// <see langword="true"/> for the <c>0x180+$NODEID</c> form. CiA 306 does not treat this as a
+    /// formula, so the value is an invalid number.
     /// </param>
-    public static bool TrySplitFormula(string value, out int sign, out string? operand, out bool prefixForm)
+    public static bool TrySplitFormula(string value, out List<(int Sign, string Operand)> terms, out bool prefixForm)
     {
-        sign = 1;
-        operand = null;
+        terms = new List<(int Sign, string Operand)>();
         prefixForm = false;
 
         var suffix = NodeIdSuffixFormula.Match(value);
         if (suffix.Success)
         {
-            if (suffix.Groups["op"].Success)
+            foreach (Match term in FormulaTerm.Matches(suffix.Groups["terms"].Value))
             {
-                sign = suffix.Groups["op"].Value == "-" ? -1 : 1;
-                operand = suffix.Groups["operand"].Value;
+                terms.Add((term.Groups["op"].Value == "-" ? -1 : 1, term.Groups["operand"].Value));
             }
 
             return true;
@@ -130,7 +133,7 @@ public static class ValueSupport
         var prefix = NodeIdPrefixFormula.Match(value);
         if (prefix.Success)
         {
-            operand = prefix.Groups["operand"].Value;
+            terms.Add((1, prefix.Groups["operand"].Value));
             prefixForm = true;
             return true;
         }
