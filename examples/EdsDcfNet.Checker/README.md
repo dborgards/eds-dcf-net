@@ -47,7 +47,7 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | Code | Severity | Check |
 |---|---|---|
 | INI001 | error | Malformed section header or line without `Key=Value` |
-| INI002 | error | Duplicate section |
+| INI002 | error | Duplicate section, including two spellings of the same object or sub-index (`[40]` and `[0040]`, `[1018sub1]` and `[1018sub01]`) |
 | INI003 | warning | Duplicate key within a section |
 | INI004 | error | Entry outside of any section |
 | OBJ001 | error | `ObjectType` not a number or not a CiA 306 object code |
@@ -60,6 +60,7 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | OBJ008 | error | `[XXXXsubY]` without parent `[XXXX]` |
 | OBJ009 | error/warning | `SubNumber`/`CompactSubObj` not UNSIGNED8, `PDOMapping` not 0/1 |
 | OBJ010 | error | `ParameterName` missing or longer than 241 characters |
+| OBJ011 | error | Zero-padded sub-index name (`[1018sub01]`, `[1018sub0A]`). EdsDcfNet reads only the unpadded name (`[1018sub1]`, `[1018subA]`) |
 | VAL001 | error | `DefaultValue`/`LowLimit`/`HighLimit`/`ParameterValue` invalid or out of range for the data type (e.g. `1000` for UNSIGNED8, `08`), including DCF `[XXXXValue]` entries on compact and expanded objects |
 | VAL002 | error | `LowLimit` > `HighLimit` |
 | VAL003 | error | `DefaultValue` outside `LowLimit`..`HighLimit` |
@@ -74,7 +75,7 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | FRM005 | warning | `$NODEID-n` — subtraction is not part of the CiA 306 syntax |
 | STD001 | error | Well-known CiA 301 entry (0x1000, 0x1018, PDO parameters, …) has the wrong `DataType` |
 | LST001 | error | `SupportedObjects` missing or not matching the number of entries |
-| LST002 | error | Object list references a missing section |
+| LST002 | error | Object list references a missing section. Object sections use 1–4 hex digits (`[20]` and `[0020]` are the same index; EdsDcfNet writes the unpadded form) |
 | LST003 | error | Object section not listed in any object list |
 | LST004 | error | Object listed more than once |
 | LST005 | error/warning | Mandatory object 0x1000/0x1001/0x1018 missing or in the wrong list |
