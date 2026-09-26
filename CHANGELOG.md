@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.13.0...v1.14.0-beta.1) (2026-09-26)
+
+### ✨ Features
+
+* CiA 306 conformance fixes for DCF writer, $NODEID formulas, reader, fixtures and validator ([#564](https://github.com/dborgards/eds-dcf-net/issues/564)) ([22a3239](https://github.com/dborgards/eds-dcf-net/commit/22a323933d8ecab014a25a116895dbd01f27dfb2)), closes [#559](https://github.com/dborgards/eds-dcf-net/issues/559) [#560](https://github.com/dborgards/eds-dcf-net/issues/560) [#561](https://github.com/dborgards/eds-dcf-net/issues/561) [#563](https://github.com/dborgards/eds-dcf-net/issues/563) [#562](https://github.com/dborgards/eds-dcf-net/issues/562) [#562](https://github.com/dborgards/eds-dcf-net/issues/562) [#562](https://github.com/dborgards/eds-dcf-net/issues/562)
+
 ## [1.13.0](https://github.com/dborgards/eds-dcf-net/compare/v1.12.2...v1.13.0) (2026-09-20)
 
 ### ⚠ BREAKING CHANGES
