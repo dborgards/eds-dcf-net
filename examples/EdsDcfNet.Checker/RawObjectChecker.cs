@@ -678,6 +678,8 @@ public sealed class RawObjectChecker
     /// and must fit the parent template's data type and limits. An explicit
     /// <c>[XXXXsubN]</c> above that range still receives the override
     /// (<c>DcfReader.ApplyCompactListSection</c>) and is checked against its own type and limits.
+    /// A nonempty key in <c>1..254</c> above that range with no reader-visible sub-object is
+    /// discarded; that loss is reported as <c>VAL008</c> because default library validation does not.
     /// </summary>
     private void CheckCompactValueEntries(
         RawSection template,
@@ -736,7 +738,19 @@ public sealed class RawObjectChecker
 
             if (subIndex > compactMax)
             {
-                // No synthesized sub-object and no explicit section: the reader ignores the key.
+                // No synthesized sub-object. ApplyCompactListSection drops the entry when
+                // ParseSubObject did not load [XXXXsubN] either (a padded alias is not that
+                // section). Default library validation does not report the discarded value.
+                if (!HasReaderVisibleSubObject(index, subIndex))
+                {
+                    Add(Severity.Error, "VAL008", valueSection, entry, string.Format(CultureInfo.InvariantCulture,
+                        "ParameterValue for sub-index {0} is above CompactSubObj range 1..{1} and has no [{2}sub{3}] section, so EdsDcfNet discards it.",
+                        subIndex,
+                        compactMax,
+                        UnpaddedIndex(index),
+                        subIndex.ToString("X", CultureInfo.InvariantCulture)));
+                }
+
                 continue;
             }
 
@@ -1479,6 +1493,16 @@ public sealed class RawObjectChecker
         name.Equals(
             string.Concat(UnpaddedIndex(index), "sub", sub.ToString("X", CultureInfo.InvariantCulture)),
             StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// True when <c>ParseSubObject</c> loads this sub-index. Only the unpadded section
+    /// name is probed; a padded alias is reported as OBJ011 and does not keep a compact
+    /// value entry.
+    /// </summary>
+    private bool HasReaderVisibleSubObject(ushort index, byte subIndex) =>
+        _subObjects.TryGetValue(index, out var subs) &&
+        subs.TryGetValue(subIndex, out var section) &&
+        IsCanonicalSubSection(section.Name, index, subIndex);
 
     /// <summary>
     /// DCF <c>[xxxxValue]</c> section. <c>ApplyCompactListSection</c> probes only the
