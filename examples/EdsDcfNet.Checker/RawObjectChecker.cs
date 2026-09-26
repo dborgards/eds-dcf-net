@@ -792,12 +792,19 @@ public sealed class RawObjectChecker
             return null;
         }
 
-        long offset = 0;
+        if (terms.Count > 1 && terms.Any(t => t.Sign < 0))
+        {
+            Add(Severity.Error, "FRM001", section, entry,
+                "Mixed or repeated '-' offsets are not supported; use '$NODEID' with '+<number>' offsets (CiA 306) or a single '$NODEID-<number>'.");
+            return null;
+        }
+
+        var offset = BigInteger.Zero;
         foreach (var (termSign, operandText) in terms)
         {
             try
             {
-                offset += termSign * ValueSupport.ParseOperand(operandText);
+                offset += termSign * new BigInteger(ValueSupport.ParseOperand(operandText));
             }
             catch (Exception ex) when (ex is EdsParseException or FormatException or OverflowException or NotSupportedException)
             {

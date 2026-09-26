@@ -68,8 +68,8 @@ public sealed class MandatoryFieldsChecker
         }
 
         RequireText(section, "FileName", maxLength: null);
-        RequireUnsigned(section, "FileVersion", 8);
-        RequireUnsigned(section, "FileRevision", 8);
+        RequireVersionByte(section, "FileVersion");
+        RequireVersionByte(section, "FileRevision");
 
         var edsVersion = section.Get("EDSVersion");
         if (edsVersion is null || string.IsNullOrWhiteSpace(edsVersion.Value))
@@ -290,6 +290,41 @@ public sealed class MandatoryFieldsChecker
         if (entry is not null && !pattern.IsMatch(entry.Value))
         {
             Add(Severity.Warning, "MND003", section, entry, key, key + " must have the format \"" + format + "\".");
+        }
+    }
+
+    /// <summary>
+    /// FileVersion/FileRevision are plain decimal UNSIGNED8 values for the EdsDcfNet reader
+    /// (<c>08</c> is 8 and <c>010</c> is 10, no CiA octal); a major/minor form such as
+    /// <c>1.0</c> is tolerated by the lenient reader, which keeps the major part.
+    /// </summary>
+    private void RequireVersionByte(RawSection section, string key)
+    {
+        var entry = RequireEntry(section, key);
+        if (entry is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ValueConverter.ParseByteDecimalPlain(entry.Value);
+            return;
+        }
+        catch (EdsParseException)
+        {
+            // fall through to the major/minor form
+        }
+
+        try
+        {
+            var major = ValueConverter.ParseByteAllowingMajorMinor(entry.Value);
+            Add(Severity.Warning, "MND003", section, entry, key, string.Format(CultureInfo.InvariantCulture,
+                "{0} should be a decimal UNSIGNED8 number; the major/minor form is read as {1} by lenient readers.", key, major));
+        }
+        catch (EdsParseException)
+        {
+            Add(Severity.Error, "MND003", section, entry, key, key + " must be a decimal UNSIGNED8 number (0..255).");
         }
     }
 

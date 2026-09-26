@@ -168,5 +168,10 @@ public static class ValueSupport
     }
 
     /// <summary>Parses the operand of a <c>$NODEID</c> formula (decimal, hex or octal).</summary>
-    public static long ParseOperand(string operand) => ValueConverter.ParseInteger(operand);
+    /// <remarks>
+    /// Parsed with 64-bit width (like <see cref="CanOpenValueConverter"/>) so offsets for
+    /// UNSIGNED40..64 entries such as <c>$NODEID+0xFF00000000</c> do not overflow.
+    /// </remarks>
+    public static ulong ParseOperand(string operand) =>
+        (ulong)CanOpenValueConverter.Parse(operand, CanOpenDataType.Unsigned64);
 }
