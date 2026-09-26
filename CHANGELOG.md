@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.2...v1.14.0-beta.3) (2026-09-26)
+
+### 🐛 Bug Fixes
+
+* **checker:** accept short object indexes and flag padded subs ([f05fa57](https://github.com/dborgards/eds-dcf-net/commit/f05fa573f69cfc341f7bda189cee4db8618d48d2))
+
 ## [1.14.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.1...v1.14.0-beta.2) (2026-09-26)
 
 ### 🐛 Bug Fixes
