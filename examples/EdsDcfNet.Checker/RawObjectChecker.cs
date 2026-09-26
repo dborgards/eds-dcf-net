@@ -299,6 +299,9 @@ public sealed class RawObjectChecker
             if (subs is not null)
             {
                 CheckSubIndexZero(index, subs, compactSubObj);
+                // Compact lists are checked against the parent template above.
+                // Expanded objects still receive [XXXXValue] overrides on each explicit sub.
+                var expandedValues = compactSubObj is > 0 ? null : new Dictionary<byte, CheckedValues>();
                 foreach (var (subIndex, subSection) in subs)
                 {
                     CheckObjectType(subSection);
@@ -307,8 +310,17 @@ public sealed class RawObjectChecker
                     // DEFSTRUCT sub-indices describe member types, not values.
                     if (objectType != CanOpenObjectType.DefStruct)
                     {
-                        CheckEntryValues(subSection, index, subIndex);
+                        var checkedSub = CheckEntryValues(subSection, index, subIndex);
+                        if (expandedValues is not null && checkedSub is not null)
+                        {
+                            expandedValues[subIndex] = checkedSub.Value;
+                        }
                     }
+                }
+
+                if (expandedValues is not null)
+                {
+                    CheckExpandedValueOverrides(index, expandedValues);
                 }
             }
         }
@@ -580,36 +592,85 @@ public sealed class RawObjectChecker
                 continue;
             }
 
-            var evaluation = EvaluateValue(valueSection, entry, dataType);
-            if (evaluation is null)
+            CheckAppliedListValue(valueSection, entry, dataType, low, high);
+        }
+    }
+
+    /// <summary>
+    /// Validates DCF <c>[xxxxValue]</c> overrides on an expanded object (no nonzero
+    /// <c>CompactSubObj</c>). <c>DcfReader</c> still applies those entries to each matching
+    /// explicit sub-object, using that sub-object's own data type and limits.
+    /// </summary>
+    private void CheckExpandedValueOverrides(ushort index, Dictionary<byte, CheckedValues> subs)
+    {
+        if (!_isDcf || subs.Count == 0)
+        {
+            return;
+        }
+
+        var valueSection = _doc.Get(Hex4(index) + "Value");
+        if (valueSection is null)
+        {
+            return;
+        }
+
+        foreach (var entry in valueSection.Entries.Values.OrderBy(e => e.Line))
+        {
+            if (!TryParseCompactListSubIndex(entry.Key, out var subIndex) ||
+                string.IsNullOrWhiteSpace(entry.Value) ||
+                !subs.TryGetValue(subIndex, out var checkedSub))
             {
                 continue;
             }
 
-            foreach (var nodeId in _nodeIds)
+            ValueEvaluation? low = null;
+            ValueEvaluation? high = null;
+            if (ValueSupport.IsNumeric(checkedSub.DataType))
             {
-                NumericValue lowValue = default, highValue = default;
-                var hasLow = low is not null && low.TryGet(nodeId, out lowValue);
-                var hasHigh = high is not null && high.TryGet(nodeId, out highValue);
-                if (evaluation.TryGet(nodeId, out var value))
-                {
-                    if (hasLow && value.CompareTo(lowValue) < 0)
-                    {
-                        Add(Severity.Error, "VAL004", valueSection, entry,
-                            "ParameterValue " + value + " is below LowLimit " + lowValue + NodeSuffix(evaluation, low!, nodeId) + ".");
-                    }
+                checkedSub.Evaluations.TryGetValue("LowLimit", out low);
+                checkedSub.Evaluations.TryGetValue("HighLimit", out high);
+            }
 
-                    if (hasHigh && value.CompareTo(highValue) > 0)
-                    {
-                        Add(Severity.Error, "VAL004", valueSection, entry,
-                            "ParameterValue " + value + " is above HighLimit " + highValue + NodeSuffix(evaluation, high!, nodeId) + ".");
-                    }
+            CheckAppliedListValue(valueSection, entry, checkedSub.DataType, low, high);
+        }
+    }
+
+    private void CheckAppliedListValue(
+        RawSection valueSection,
+        RawEntry entry,
+        ushort dataType,
+        ValueEvaluation? low,
+        ValueEvaluation? high)
+    {
+        var evaluation = EvaluateValue(valueSection, entry, dataType);
+        if (evaluation is null)
+        {
+            return;
+        }
+
+        foreach (var nodeId in _nodeIds)
+        {
+            NumericValue lowValue = default, highValue = default;
+            var hasLow = low is not null && low.TryGet(nodeId, out lowValue);
+            var hasHigh = high is not null && high.TryGet(nodeId, out highValue);
+            if (evaluation.TryGet(nodeId, out var value))
+            {
+                if (hasLow && value.CompareTo(lowValue) < 0)
+                {
+                    Add(Severity.Error, "VAL004", valueSection, entry,
+                        "ParameterValue " + value + " is below LowLimit " + lowValue + NodeSuffix(evaluation, low!, nodeId) + ".");
                 }
 
-                if (!evaluation.IsFormula && low?.IsFormula != true && high?.IsFormula != true)
+                if (hasHigh && value.CompareTo(highValue) > 0)
                 {
-                    break;
+                    Add(Severity.Error, "VAL004", valueSection, entry,
+                        "ParameterValue " + value + " is above HighLimit " + highValue + NodeSuffix(evaluation, high!, nodeId) + ".");
                 }
+            }
+
+            if (!evaluation.IsFormula && low?.IsFormula != true && high?.IsFormula != true)
+            {
+                break;
             }
         }
     }

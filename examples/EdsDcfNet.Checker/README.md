@@ -60,10 +60,10 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | OBJ008 | error | `[XXXXsubY]` without parent `[XXXX]` |
 | OBJ009 | error/warning | `SubNumber`/`CompactSubObj` not UNSIGNED8, `PDOMapping` not 0/1 |
 | OBJ010 | error | `ParameterName` missing or longer than 241 characters |
-| VAL001 | error | `DefaultValue`/`LowLimit`/`HighLimit`/`ParameterValue` invalid or out of range for the data type (e.g. `1000` for UNSIGNED8, `08`), including DCF `[XXXXValue]` compact entries |
+| VAL001 | error | `DefaultValue`/`LowLimit`/`HighLimit`/`ParameterValue` invalid or out of range for the data type (e.g. `1000` for UNSIGNED8, `08`), including DCF `[XXXXValue]` entries on compact and expanded objects |
 | VAL002 | error | `LowLimit` > `HighLimit` |
 | VAL003 | error | `DefaultValue` outside `LowLimit`..`HighLimit` |
-| VAL004 | error | `ParameterValue` outside `LowLimit`..`HighLimit`, including DCF `[XXXXValue]` compact entries |
+| VAL004 | error | `ParameterValue` outside `LowLimit`..`HighLimit`, including DCF `[XXXXValue]` entries on compact and expanded objects |
 | VAL005 | warning | Leading zero → value is read as octal (`010` = 8) |
 | VAL006 | warning | Limits on a non-numeric data type |
 | VAL007 | warning | Hex literal for REAL32/REAL64 |
