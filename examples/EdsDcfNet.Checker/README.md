@@ -72,7 +72,6 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | FRM003 | error | `$NODEID` formula on a non-integer data type |
 | FRM004 | error | Formula result out of range (EDS: checked for node-ID 1 and 127, DCF: configured NodeID) |
 | FRM005 | warning | `$NODEID-n` — subtraction is not part of the CiA 306 syntax |
-| FRM006 | warning | `$NODEID+a+b` — valid CiA 306, but not evaluated by the EdsDcfNet reader |
 | STD001 | error | Well-known CiA 301 entry (0x1000, 0x1018, PDO parameters, …) has the wrong `DataType` |
 | LST001 | error | `SupportedObjects` missing or not matching the number of entries |
 | LST002 | error | Object list references a missing section |

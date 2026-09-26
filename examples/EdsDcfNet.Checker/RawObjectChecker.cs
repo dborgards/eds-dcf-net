@@ -699,12 +699,6 @@ public sealed class RawObjectChecker
                 "Subtraction is not part of the CiA 306 formula syntax ($NODEID {\"+\" number}); other tools may reject it.");
         }
 
-        if (terms.Count > 1)
-        {
-            Add(Severity.Warning, "FRM006", section, entry,
-                "Several offsets are valid CiA 306, but the EdsDcfNet reader only evaluates a single '$NODEID+<number>'.");
-        }
-
         var evaluation = new ValueEvaluation { IsFormula = true };
         foreach (var nodeId in _nodeIds)
         {
