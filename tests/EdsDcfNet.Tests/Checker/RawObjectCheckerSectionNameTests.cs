@@ -6,18 +6,21 @@ using AwesomeAssertions;
 using Xunit;
 
 /// <summary>
-/// Object and sub-index section names the checker accepts must follow
-/// <c>CanOpenReaderBase</c>: unpadded hex (<c>[40]</c>, <c>[40sub0]</c>, <c>[1018sub1]</c>).
-/// Four-digit index spellings stay valid. Zero-padded sub names are an error because
-/// <c>ParseSubObject</c> never probes them.
+/// Object, sub-index, and compact-value section names the checker accepts must follow
+/// <c>CanOpenReaderBase</c>: unpadded hex (<c>[40]</c>, <c>[40sub0]</c>, <c>[40Value]</c>).
+/// A leading zero is OBJ011 because <c>ParseObject</c>, <c>ParseSubObject</c>, and
+/// <c>ApplyCompactListSection</c> never probe the padded spelling.
 /// </summary>
 public class RawObjectCheckerSectionNameTests
 {
     [Theory]
     [InlineData("40")]
-    [InlineData("0040")]
     [InlineData("20")]
-    public void Check_IndexSpelling_ChecksTheSection(string sectionName)
+    [InlineData("1000")]
+    [InlineData("A")]
+    [InlineData("a")]
+    [InlineData("0")]
+    public void Check_UnpaddedIndex_ChecksTheSection_WithoutObj011(string sectionName)
     {
         // Arrange — UNSIGNED8 DefaultValue 999 is VAL001 only when the section is collected.
         var content = @"
@@ -40,6 +43,97 @@ PDOMapping=0
         // Assert
         findings.Should().Contain(f => f.Code == "VAL001" && f.Section == sectionName);
         findings.Should().NotContain(f => f.Code == "LST002");
+        findings.Should().NotContain(f => f.Code == "OBJ011");
+    }
+
+    [Theory]
+    [InlineData("0040", "[40]")]
+    [InlineData("020", "[20]")]
+    [InlineData("0020", "[20]")]
+    [InlineData("0100", "[100]")]
+    [InlineData("0A", "[A]")]
+    [InlineData("00", "[0]")]
+    [InlineData("0FFF", "[FFF]")]
+    public void Check_PaddedIndex_ReportsObj011_AndStillChecksTheSection(string sectionName, string readerName)
+    {
+        // Arrange — the section is still validated, but the padded name is an error
+        // even when every value would otherwise be accepted.
+        var content = @"
+[OptionalObjects]
+SupportedObjects=1
+1=0x" + sectionName + @"
+
+[" + sectionName + @"]
+ParameterName=Custom
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=999
+PDOMapping=0
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().Contain(f => f.Code == "VAL001" && f.Section == sectionName);
+        findings.Should().NotContain(f => f.Code == "LST002");
+        findings.Should().Contain(f =>
+            f.Code == "OBJ011" &&
+            f.Severity == Severity.Error &&
+            f.Section == sectionName &&
+            f.Message.Contains(readerName, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Check_PaddedIndexWithValidValues_ReportsObj011()
+    {
+        // Arrange — in-range values used to let edsdcf-check exit 0 while the reader
+        // dropped [0020] (it only probes [20]).
+        const string content = @"
+[OptionalObjects]
+SupportedObjects=1
+1=0x20
+
+[0020]
+ParameterName=Custom
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().Contain(f =>
+            f.Code == "OBJ011" &&
+            f.Severity == Severity.Error &&
+            f.Section == "0020" &&
+            f.Message.Contains("[20]", StringComparison.Ordinal));
+        findings.Should().NotContain(f => f.Code == "VAL001");
+        findings.Should().NotContain(f => f.Code == "LST002");
+    }
+
+    [Fact]
+    public void Check_MissingLowIndex_Lst002NamesUnpaddedSection()
+    {
+        // Arrange
+        const string content = @"
+[OptionalObjects]
+SupportedObjects=1
+1=0x20
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().Contain(f =>
+            f.Code == "LST002" &&
+            f.Message.Contains("no [20] section", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -102,6 +196,7 @@ PDOMapping=0
             f.Code == "INI002" &&
             f.Section == "0040" &&
             f.Message.Contains("[40]", StringComparison.Ordinal));
+        findings.Should().Contain(f => f.Code == "OBJ011" && f.Section == "0040");
     }
 
     [Theory]
@@ -109,6 +204,9 @@ PDOMapping=0
     [InlineData("1018sub0A", "[1018subA]")]
     [InlineData("1018sub00", "[1018sub0]")]
     [InlineData("40sub01", "[40sub1]")]
+    [InlineData("0020sub1", "[20sub1]")]
+    [InlineData("0040sub0", "[40sub0]")]
+    [InlineData("020sub01", "[20sub1]")]
     public void Check_PaddedSubIndex_ReportsObj011(string sectionName, string readerName)
     {
         // Arrange
@@ -138,7 +236,10 @@ PDOMapping=0
     [InlineData("1018suba")]
     [InlineData("1018sub0")]
     [InlineData("1018sub10")]
+    [InlineData("1018subFF")]
     [InlineData("40sub0")]
+    [InlineData("20sub1")]
+    [InlineData("Asub1")]
     public void Check_UnpaddedSubIndex_DoesNotReportObj011(string sectionName)
     {
         // Arrange
@@ -219,6 +320,146 @@ CompactSubObj=1
 
         // Assert
         findings.Should().Contain(f => f.Code == "VAL001" && f.Section == "40Value");
+        findings.Should().NotContain(f => f.Code == "OBJ011");
+    }
+
+    [Theory]
+    [InlineData("40", "0040Value", "[40Value]")]
+    [InlineData("40", "040Value", "[40Value]")]
+    [InlineData("A", "000AValue", "[AValue]")]
+    [InlineData("1018", "01018Value", "[1018Value]")]
+    public void Check_PaddedCompactValue_ReportsObj011_AndDoesNotApplyIt(
+        string objectSection,
+        string valueSection,
+        string readerName)
+    {
+        // Arrange — 999 does not fit UNSIGNED8. Accepting the padded section as a
+        // fallback would report VAL001; the reader never applies it.
+        var content = @"
+[DeviceComissioning]
+NodeID=1
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x" + objectSection + @"
+
+[" + objectSection + @"]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+PDOMapping=0
+CompactSubObj=1
+
+[" + valueSection + @"]
+1=999
+";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        findings.Should().Contain(f =>
+            f.Code == "OBJ011" &&
+            f.Severity == Severity.Error &&
+            f.Section == valueSection &&
+            f.Message.Contains(readerName, StringComparison.Ordinal));
+        findings.Should().NotContain(f => f.Code == "VAL001");
+    }
+
+    [Fact]
+    public void Check_PaddedAndUnpaddedValue_ReportsObj011_AndChecksUnpadded()
+    {
+        // Arrange
+        const string content = @"
+[DeviceComissioning]
+NodeID=1
+
+[40]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+PDOMapping=0
+CompactSubObj=1
+
+[40Value]
+1=999
+
+[0040Value]
+1=1
+";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        findings.Should().Contain(f => f.Code == "VAL001" && f.Section == "40Value");
+        findings.Should().Contain(f =>
+            f.Code == "OBJ011" &&
+            f.Section == "0040Value" &&
+            f.Message.Contains("[40Value]", StringComparison.Ordinal));
+        findings.Should().NotContain(f => f.Code == "VAL001" && f.Section == "0040Value");
+    }
+
+    [Fact]
+    public void Check_CanonicalValueSection_DoesNotReportObj011()
+    {
+        // Arrange — 0x1018 is already four digits, so [1018Value] is the reader name.
+        const string content = @"
+[DeviceComissioning]
+NodeID=1
+
+[1018]
+ParameterName=Identity
+ObjectType=0x8
+DataType=0x0007
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+CompactSubObj=1
+
+[1018Value]
+1=1
+";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        findings.Should().NotContain(f => f.Code == "OBJ011");
+        findings.Should().NotContain(f => f.Code == "VAL001");
+    }
+
+    [Fact]
+    public void Check_ValueSuffixCase_IsTheCanonicalSection()
+    {
+        // Arrange — section lookup is case-insensitive, so [40value] is [40Value].
+        const string content = @"
+[DeviceComissioning]
+NodeID=1
+
+[40]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+PDOMapping=0
+CompactSubObj=1
+
+[40value]
+1=999
+";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        findings.Should().Contain(f => f.Code == "VAL001" && f.Section == "40value");
+        findings.Should().NotContain(f => f.Code == "OBJ011");
     }
 
     [Fact]
@@ -276,6 +517,113 @@ PDOMapping=0
         dropped.ObjectDictionary.Objects[0x1018].SubObjects.Should().BeEmpty();
         loaded.ObjectDictionary.Objects[0x1018].SubObjects.Should().ContainKey(1);
         loaded.ObjectDictionary.Objects[0x1018].SubObjects[1].ParameterName.Should().Be("Vendor");
+    }
+
+    [Fact]
+    public void ReadString_PaddedObjectIndex_ReaderDropsIt_UnpaddedIsLoaded()
+    {
+        // Arrange
+        const string padded = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x20
+
+[0020]
+ParameterName=Custom
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+";
+        const string unpadded = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x20
+
+[20]
+ParameterName=Custom
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+";
+
+        // Act
+        var dropped = CanOpenFile.Eds.ReadString(padded);
+        var loaded = CanOpenFile.Eds.ReadString(unpadded);
+
+        // Assert
+        dropped.ObjectDictionary.Objects.Should().NotContainKey(0x20);
+        loaded.ObjectDictionary.Objects.Should().ContainKey(0x20);
+        loaded.ObjectDictionary.Objects[0x20].ParameterName.Should().Be("Custom");
+    }
+
+    [Fact]
+    public void ReadString_PaddedCompactValue_ReaderIgnoresIt_UnpaddedIsApplied()
+    {
+        // Arrange
+        const string padded = @"
+[DeviceInfo]
+VendorName=Test
+
+[DeviceComissioning]
+NodeID=1
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[40]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+PDOMapping=0
+CompactSubObj=1
+
+[0040Value]
+1=7
+";
+        const string unpadded = @"
+[DeviceInfo]
+VendorName=Test
+
+[DeviceComissioning]
+NodeID=1
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[40]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+PDOMapping=0
+CompactSubObj=1
+
+[40Value]
+1=7
+";
+
+        // Act
+        var dropped = CanOpenFile.Dcf.ReadString(padded);
+        var loaded = CanOpenFile.Dcf.ReadString(unpadded);
+
+        // Assert
+        dropped.ObjectDictionary.Objects[0x40].SubObjects[1].ParameterValue.Should().BeNull();
+        loaded.ObjectDictionary.Objects[0x40].SubObjects[1].ParameterValue.Should().Be("7");
     }
 
     private static List<Finding> Check(string content, bool isDcf = false)
