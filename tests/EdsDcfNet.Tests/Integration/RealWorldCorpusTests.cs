@@ -30,6 +30,15 @@ public class RealWorldCorpusTests
             {
                 "ObjectDictionary.OptionalObjects: Object list references missing object 0x6505.",
             },
+
+            // sample.eds announces more sub-indexes than it describes (SubNumber must count the
+            // described sub-indexes including sub0, CiA 306-1 clause 6.6.3.2, #562): [1018] has
+            // sub0/1/2/4 with SubNumber=5, [1003] has six sections with SubNumber=9.
+            ["python-canopen/sample.eds"] = new[]
+            {
+                "ObjectDictionary.Objects[0x1018].SubNumber: SubNumber is 5 but 4 sub-objects are defined; SubNumber counts every described sub-index including sub-index 00h.",
+                "ObjectDictionary.Objects[0x1003].SubNumber: SubNumber is 9 but 6 sub-objects are defined; SubNumber counts every described sub-index including sub-index 00h.",
+            },
         };
 
     public static IEnumerable<object[]> EdsCorpusFiles() => CorpusFiles.Enumerate("eds");

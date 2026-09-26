@@ -31,6 +31,9 @@ public static class CanOpenModelValidator
     private const int MaxReferenceNameLength = 249;
     private const byte MaxGranularity = 64;
 
+    /// <summary>Objects that CiA 306-1 Table 4 / CiA 301 require in every device description.</summary>
+    private static readonly ushort[] MandatoryObjectIndexes = { 0x1000, 0x1001, 0x1018 };
+
     /// <summary>
     /// Validates an <see cref="ElectronicDataSheet"/> instance.
     /// </summary>
@@ -40,7 +43,7 @@ public static class CanOpenModelValidator
     {
         ThrowIfNull(eds, nameof(eds));
 
-        return ValidateEdsCore(eds, CancellationToken.None);
+        return ValidateEdsCore(eds, CanOpenValidationOptions.Default, CancellationToken.None);
     }
 
     /// <summary>
@@ -54,7 +57,43 @@ public static class CanOpenModelValidator
     public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
         ElectronicDataSheet eds,
         CancellationToken cancellationToken = default)
-        => RunValidationAsync(eds, nameof(eds), ValidateEdsCore, cancellationToken);
+        => RunValidationAsync(eds, nameof(eds), (m, ct) => ValidateEdsCore(m, CanOpenValidationOptions.Default, ct), cancellationToken);
+
+    /// <summary>
+    /// Validates a <see cref="ElectronicDataSheet"/> instance with the given options.
+    /// </summary>
+    /// <param name="eds">Model instance to validate.</param>
+    /// <param name="options">
+    /// Opt-in rule sets to apply; <see langword="null"/> is the same as <see cref="CanOpenValidationOptions.Default"/>.
+    /// </param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(ElectronicDataSheet eds, CanOpenValidationOptions? options)
+    {
+        ThrowIfNull(eds, nameof(eds));
+
+        return ValidateEdsCore(eds, options ?? CanOpenValidationOptions.Default, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Validates a <see cref="ElectronicDataSheet"/> instance with the given options asynchronously on a
+    /// thread-pool thread with cooperative cancellation.
+    /// </summary>
+    /// <param name="eds">Model instance to validate.</param>
+    /// <param name="options">
+    /// Opt-in rule sets to apply; <see langword="null"/> is the same as <see cref="CanOpenValidationOptions.Default"/>.
+    /// </param>
+    /// <param name="cancellationToken">Token observed at iteration boundaries during validation.</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    /// <remarks>
+    /// <paramref name="cancellationToken"/> has no default value so that existing calls such as
+    /// <c>ValidateAsync(model, default)</c> keep binding to the overload without options.
+    /// </remarks>
+    public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
+        ElectronicDataSheet eds,
+        CanOpenValidationOptions? options,
+        CancellationToken cancellationToken)
+        => RunValidationAsync(eds, nameof(eds), (m, ct) => ValidateEdsCore(m, options ?? CanOpenValidationOptions.Default, ct), cancellationToken);
 
     /// <summary>
     /// Validates a <see cref="DeviceConfigurationFile"/> instance.
@@ -65,7 +104,7 @@ public static class CanOpenModelValidator
     {
         ThrowIfNull(dcf, nameof(dcf));
 
-        return ValidateDcfCore(dcf, CancellationToken.None);
+        return ValidateDcfCore(dcf, CanOpenValidationOptions.Default, CancellationToken.None);
     }
 
     /// <summary>
@@ -79,7 +118,43 @@ public static class CanOpenModelValidator
     public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
         DeviceConfigurationFile dcf,
         CancellationToken cancellationToken = default)
-        => RunValidationAsync(dcf, nameof(dcf), ValidateDcfCore, cancellationToken);
+        => RunValidationAsync(dcf, nameof(dcf), (m, ct) => ValidateDcfCore(m, CanOpenValidationOptions.Default, ct), cancellationToken);
+
+    /// <summary>
+    /// Validates a <see cref="DeviceConfigurationFile"/> instance with the given options.
+    /// </summary>
+    /// <param name="dcf">Model instance to validate.</param>
+    /// <param name="options">
+    /// Opt-in rule sets to apply; <see langword="null"/> is the same as <see cref="CanOpenValidationOptions.Default"/>.
+    /// </param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf, CanOpenValidationOptions? options)
+    {
+        ThrowIfNull(dcf, nameof(dcf));
+
+        return ValidateDcfCore(dcf, options ?? CanOpenValidationOptions.Default, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Validates a <see cref="DeviceConfigurationFile"/> instance with the given options asynchronously on a
+    /// thread-pool thread with cooperative cancellation.
+    /// </summary>
+    /// <param name="dcf">Model instance to validate.</param>
+    /// <param name="options">
+    /// Opt-in rule sets to apply; <see langword="null"/> is the same as <see cref="CanOpenValidationOptions.Default"/>.
+    /// </param>
+    /// <param name="cancellationToken">Token observed at iteration boundaries during validation.</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    /// <remarks>
+    /// <paramref name="cancellationToken"/> has no default value so that existing calls such as
+    /// <c>ValidateAsync(model, default)</c> keep binding to the overload without options.
+    /// </remarks>
+    public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
+        DeviceConfigurationFile dcf,
+        CanOpenValidationOptions? options,
+        CancellationToken cancellationToken)
+        => RunValidationAsync(dcf, nameof(dcf), (m, ct) => ValidateDcfCore(m, options ?? CanOpenValidationOptions.Default, ct), cancellationToken);
 
     /// <summary>
     /// Validates a <see cref="NodelistProject"/> instance.
@@ -119,6 +194,7 @@ public static class CanOpenModelValidator
 
     private static ReadOnlyCollection<ValidationIssue> ValidateEdsCore(
         ElectronicDataSheet eds,
+        CanOpenValidationOptions options,
         CancellationToken cancellationToken)
     {
         // No entry check: Task.Run in RunValidationAsync already observes a
@@ -126,7 +202,9 @@ public static class CanOpenModelValidator
         // CancellationToken.None.
         var issues = new List<ValidationIssue>();
         ValidateDeviceInfo(eds.DeviceInfo, issues);
-        ValidateObjectDictionary(eds.ObjectDictionary, issues, cancellationToken);
+        ValidateObjectDictionary(eds.ObjectDictionary, ObjectValueValidator.ResolveNodeIds(null), issues, cancellationToken);
+        if (options.RequireMandatoryEntries)
+            ValidateMandatoryEntries(eds.FileInfo, eds.DeviceInfo, eds.ObjectDictionary, issues);
         cancellationToken.ThrowIfCancellationRequested();
         if (eds.ApplicationProcess != null)
             ValidateApplicationProcess(eds.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
@@ -137,12 +215,26 @@ public static class CanOpenModelValidator
 
     private static ReadOnlyCollection<ValidationIssue> ValidateDcfCore(
         DeviceConfigurationFile dcf,
+        CanOpenValidationOptions options,
         CancellationToken cancellationToken)
     {
         var issues = new List<ValidationIssue>();
         ValidateDeviceInfo(dcf.DeviceInfo, issues);
-        ValidateObjectDictionary(dcf.ObjectDictionary, issues, cancellationToken);
+        var commissioningOmitted = DeviceCommissioningSemantics.IsOmitted(dcf.DeviceCommissioning);
+        var nodeIds = ObjectValueValidator.ResolveNodeIds(
+            commissioningOmitted ? null : dcf.DeviceCommissioning.NodeId);
+        ValidateObjectDictionary(dcf.ObjectDictionary, nodeIds, issues, cancellationToken);
         ValidateDeviceCommissioning(dcf.DeviceCommissioning, issues);
+        if (options.RequireMandatoryEntries)
+        {
+            ValidateMandatoryEntries(dcf.FileInfo, dcf.DeviceInfo, dcf.ObjectDictionary, issues);
+            if (commissioningOmitted || dcf.DeviceCommissioning.Baudrate == 0)
+            {
+                issues.Add(new ValidationIssue(
+                    "DeviceCommissioning",
+                    "Mandatory [DeviceComissioning] section with NodeID and Baudrate is missing or not configured (CiA 306-1 Table 12)."));
+            }
+        }
         cancellationToken.ThrowIfCancellationRequested();
         if (dcf.ApplicationProcess != null)
             ValidateApplicationProcess(dcf.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
@@ -228,6 +320,7 @@ public static class CanOpenModelValidator
 
     private static void ValidateObjectDictionary(
         ObjectDictionary objectDictionary,
+        byte[] nodeIds,
         List<ValidationIssue> issues,
         CancellationToken cancellationToken)
     {
@@ -258,7 +351,7 @@ public static class CanOpenModelValidator
         foreach (var kvp in objectDictionary.Objects)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            ValidateObject(kvp.Key, kvp.Value, issues);
+            ValidateObject(kvp.Key, kvp.Value, nodeIds, issues);
         }
 
         // Per-element check stays: every unclassified object formats and
@@ -318,6 +411,7 @@ public static class CanOpenModelValidator
     private static void ValidateObject(
         ushort index,
         CanOpenObject obj,
+        byte[] nodeIds,
         List<ValidationIssue> issues)
     {
         var objectPath = string.Format(CultureInfo.InvariantCulture, "ObjectDictionary.Objects[0x{0:X4}]", index);
@@ -370,18 +464,127 @@ public static class CanOpenModelValidator
                     "Sub-objects are defined but SubNumber is missing or zero."));
             }
         }
+        else if (obj.SubObjects.Count > 0 &&
+                 obj.SubNumber.HasValue &&
+                 obj.SubNumber.Value != obj.SubObjects.Count &&
+                 !hasCompactSubObjects)
+        {
+            // CiA 306-1 clause 6.6.3.2: "the EDS entry SubNumber shall contain the number of
+            // sub-indexes implemented, including the sub-index 00h" (#562).
+            issues.Add(new ValidationIssue(
+                objectPath + ".SubNumber",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "SubNumber is {0} but {1} sub-objects are defined; SubNumber counts every described sub-index including sub-index 00h.",
+                    obj.SubNumber.Value,
+                    obj.SubObjects.Count)));
+        }
+
+        // DEFTYPE/DEFSTRUCT entries describe types, not values.
+        var describesValues = obj.ObjectType != CanOpenObjectType.DefType && obj.ObjectType != CanOpenObjectType.DefStruct;
+        if (describesValues)
+        {
+            ObjectValueValidator.Validate(
+                objectPath,
+                obj.DataType,
+                obj.DefaultValue,
+                obj.LowLimit,
+                obj.HighLimit,
+                obj.ParameterValue,
+                nodeIds,
+                issues);
+        }
 
         foreach (var subObject in obj.SubObjects)
         {
+            var subPath = string.Format(
+                CultureInfo.InvariantCulture,
+                "{0}.SubObjects[0x{1:X2}]",
+                objectPath,
+                subObject.Key);
+
             ValidateMaxLength(
                 subObject.Value.ParameterName,
                 MaxParameterNameLength,
-                string.Format(
-                    CultureInfo.InvariantCulture,
-                    "{0}.SubObjects[0x{1:X2}].ParameterName",
-                    objectPath,
-                    subObject.Key),
+                subPath + ".ParameterName",
                 issues);
+
+            if (describesValues)
+            {
+                ObjectValueValidator.Validate(
+                    subPath,
+                    subObject.Value.DataType,
+                    subObject.Value.DefaultValue,
+                    subObject.Value.LowLimit,
+                    subObject.Value.HighLimit,
+                    subObject.Value.ParameterValue,
+                    nodeIds,
+                    issues);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Opt-in checks for mandatory CiA 306 content (<see cref="CanOpenValidationOptions.RequireMandatoryEntries"/>).
+    /// </summary>
+    private static void ValidateMandatoryEntries(
+        EdsFileInfo fileInfo,
+        DeviceInfo deviceInfo,
+        ObjectDictionary objectDictionary,
+        List<ValidationIssue> issues)
+    {
+        RequireText(fileInfo.FileName, "FileInfo.FileName", "CiA 306-1 Table 1", issues);
+        RequireText(deviceInfo.VendorName, "DeviceInfo.VendorName", "CiA 306-1 Table 2", issues);
+        RequireText(deviceInfo.ProductName, "DeviceInfo.ProductName", "CiA 306-1 Table 2", issues);
+
+        foreach (var mandatoryIndex in MandatoryObjectIndexes)
+        {
+            if (!objectDictionary.Objects.ContainsKey(mandatoryIndex))
+            {
+                issues.Add(new ValidationIssue(
+                    string.Format(CultureInfo.InvariantCulture, "ObjectDictionary.Objects[0x{0:X4}]", mandatoryIndex),
+                    string.Format(CultureInfo.InvariantCulture, "Mandatory object 0x{0:X4} is missing (CiA 306-1 Table 4).", mandatoryIndex)));
+            }
+        }
+
+        foreach (var kvp in objectDictionary.Objects)
+        {
+            var obj = kvp.Value;
+            var objectPath = string.Format(CultureInfo.InvariantCulture, "ObjectDictionary.Objects[0x{0:X4}]", kvp.Key);
+            RequireText(obj.ParameterName, objectPath + ".ParameterName", "CiA 306-1 Table 7", issues);
+
+            var isCompact = obj.CompactSubObj.HasValue && obj.CompactSubObj.Value > 0;
+            if ((obj.ObjectType == CanOpenObjectType.Var || isCompact) && (!obj.DataType.HasValue || obj.DataType.Value == 0))
+            {
+                issues.Add(new ValidationIssue(
+                    objectPath + ".DataType",
+                    "Mandatory entry DataType is missing (CiA 306-1 Table 7)."));
+            }
+
+            if (obj.ObjectType == CanOpenObjectType.DefStruct)
+            {
+                continue;
+            }
+
+            foreach (var sub in obj.SubObjects)
+            {
+                var subPath = string.Format(CultureInfo.InvariantCulture, "{0}.SubObjects[0x{1:X2}]", objectPath, sub.Key);
+                RequireText(sub.Value.ParameterName, subPath + ".ParameterName", "CiA 306-1 Table 7", issues);
+                if (sub.Value.ObjectType == CanOpenObjectType.Var && sub.Value.DataType == 0)
+                {
+                    issues.Add(new ValidationIssue(
+                        subPath + ".DataType",
+                        "Mandatory entry DataType is missing (CiA 306-1 Table 7)."));
+                }
+            }
+        }
+    }
+
+    private static void RequireText(string? value, string path, string reference, List<ValidationIssue> issues)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            issues.Add(new ValidationIssue(path, "Mandatory entry is empty (" + reference + ")."));
         }
     }
 

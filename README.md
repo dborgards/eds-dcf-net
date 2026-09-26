@@ -415,7 +415,17 @@ Current checks include:
 - commissioning constraints (Node-ID range `1..127` for commissioned nodes; `NodeId == 0` is accepted only when commissioning is omitted, baudrate range with `0` accepted for that omitted state, key string limits)
 - device info constraints (name/order-code length, granularity limit)
 - object dictionary consistency (list membership, duplicates, missing entries)
-- object-level constraints (object type validity, parameter-name length, SubNumber mismatch)
+- object-level constraints (object type validity, parameter-name length, SubNumber must equal the number of described sub-indexes including sub-index 00h)
+- values vs. data type: `DefaultValue`, `LowLimit`, `HighLimit` and `ParameterValue` must fit the entry's integer/BOOLEAN/REAL `DataType` (e.g. `1000` is rejected for UNSIGNED8), `LowLimit <= HighLimit`, and default/parameter values must lie within the limits; `$NODEID` formulas are evaluated with the DCF node-ID, or for node-IDs 1 and 127 in an EDS
+
+Mandatory CiA 306 content (objects 1000h/1001h/1018h, non-empty `ParameterName`,
+`DataType` for VAR entries, `FileName`/`VendorName`/`ProductName`, configured DCF
+commissioning) is checked only on request, so minimal or programmatically built
+models keep validating clean:
+
+```csharp
+var strictIssues = CanOpenModelValidator.Validate(dcf, CanOpenValidationOptions.Strict);
+```
 
 The CiA 306 Node-ID range used by these checks is exposed publicly via
 `CanOpenNodeId`, so consumers can validate or document node IDs without
