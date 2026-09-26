@@ -4,11 +4,21 @@ using EdsDcfNet.Models;
 using EdsDcfNet.Validation;
 
 /// <summary>
-/// CiA 306 conformance checks added for #562: SubNumber count, values vs. data type,
-/// limit consistency and the opt-in mandatory-entry rule set.
+/// Opt-in CiA 306 conformance rule sets added for #562 (<see cref="CanOpenValidationOptions"/>):
+/// SubNumber count, values vs. data type, limit consistency and mandatory entries.
 /// </summary>
 public class CanOpenModelValidatorConformanceTests
 {
+    /// <summary>The two structural/value rule sets, without mandatory-entry checks.</summary>
+    private static readonly CanOpenValidationOptions Checks = new()
+    {
+        CheckSubNumberCount = true,
+        CheckValueRanges = true,
+    };
+
+    private static IReadOnlyList<ValidationIssue> Check(ElectronicDataSheet eds) => CanOpenModelValidator.Validate(eds, Checks);
+
+    private static IReadOnlyList<ValidationIssue> Check(DeviceConfigurationFile dcf) => CanOpenModelValidator.Validate(dcf, Checks);
     private static ElectronicDataSheet EdsWithVar(ushort dataType, string? defaultValue, string? low = null, string? high = null)
     {
         var eds = new ElectronicDataSheet();
@@ -58,13 +68,13 @@ public class CanOpenModelValidatorConformanceTests
     [Fact]
     public void Validate_SubNumberCountsSubIndexZero_ReturnsNoIssues()
     {
-        CanOpenModelValidator.Validate(EdsWithArray(3, 0, 1, 4)).Should().BeEmpty();
+        Check(EdsWithArray(3, 0, 1, 4)).Should().BeEmpty();
     }
 
     [Fact]
     public void Validate_SubNumberExcludesSubIndexZero_ReportsIssue()
     {
-        var issues = CanOpenModelValidator.Validate(EdsWithArray(4, 0, 1, 2, 3, 4));
+        var issues = Check(EdsWithArray(4, 0, 1, 2, 3, 4));
 
         issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2100].SubNumber")
             .Which.Message.Should().Contain("SubNumber is 4 but 5 sub-objects");
@@ -73,7 +83,7 @@ public class CanOpenModelValidatorConformanceTests
     [Fact]
     public void Validate_SubNumberZeroWithOnlySubIndexZero_KeepsExistingTolerance()
     {
-        CanOpenModelValidator.Validate(EdsWithArray(0, 0)).Should().BeEmpty();
+        Check(EdsWithArray(0, 0)).Should().BeEmpty();
     }
 
     [Fact]
@@ -82,7 +92,7 @@ public class CanOpenModelValidatorConformanceTests
         var eds = EdsWithArray(16, 0);
         eds.ObjectDictionary.Objects[0x2100].CompactSubObj = 16;
 
-        CanOpenModelValidator.Validate(eds).Should()
+        Check(eds).Should()
             .NotContain(i => i.Path == "ObjectDictionary.Objects[0x2100].SubNumber");
     }
 
@@ -101,7 +111,7 @@ public class CanOpenModelValidatorConformanceTests
     [InlineData(CanOpenDataType.Real64, "0x3FF0000000000000")]
     public void Validate_DefaultValue_AtMaxValue_ReturnsNoIssues(ushort dataType, string value)
     {
-        CanOpenModelValidator.Validate(EdsWithVar(dataType, value)).Should().BeEmpty();
+        Check(EdsWithVar(dataType, value)).Should().BeEmpty();
     }
 
     [Theory]
@@ -114,7 +124,7 @@ public class CanOpenModelValidatorConformanceTests
     [InlineData(CanOpenDataType.Real32, "abc", "REAL32")]
     public void Validate_DefaultValueOutsideDataType_ReportsIssue(ushort dataType, string value, string expectedType)
     {
-        var issues = CanOpenModelValidator.Validate(EdsWithVar(dataType, value));
+        var issues = Check(EdsWithVar(dataType, value));
 
         issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].DefaultValue")
             .Which.Message.Should().Contain(expectedType);
@@ -123,7 +133,7 @@ public class CanOpenModelValidatorConformanceTests
     [Fact]
     public void Validate_HighLimitOutsideDataType_ReportsIssue()
     {
-        var issues = CanOpenModelValidator.Validate(EdsWithVar(CanOpenDataType.Unsigned8, "0", "0", "1000"));
+        var issues = Check(EdsWithVar(CanOpenDataType.Unsigned8, "0", "0", "1000"));
 
         issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].HighLimit");
     }
@@ -133,13 +143,13 @@ public class CanOpenModelValidatorConformanceTests
     [InlineData(CanOpenDataType.VisibleString, "text")]
     public void Validate_NonComparableDataType_SkipsValueCheck(ushort dataType, string value)
     {
-        CanOpenModelValidator.Validate(EdsWithVar(dataType, value, "x", "y")).Should().BeEmpty();
+        Check(EdsWithVar(dataType, value, "x", "y")).Should().BeEmpty();
     }
 
     [Fact]
     public void Validate_LowLimitGreaterThanHighLimit_ReportsIssue()
     {
-        var issues = CanOpenModelValidator.Validate(EdsWithVar(CanOpenDataType.Unsigned16, null, "500", "100"));
+        var issues = Check(EdsWithVar(CanOpenDataType.Unsigned16, null, "500", "100"));
 
         issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].LowLimit")
             .Which.Message.Should().Be("LowLimit 500 is greater than HighLimit 100.");
@@ -150,7 +160,7 @@ public class CanOpenModelValidatorConformanceTests
     [InlineData("-11", "below LowLimit -10")]
     public void Validate_DefaultValueOutsideLimits_ReportsIssue(string value, string expected)
     {
-        var issues = CanOpenModelValidator.Validate(EdsWithVar(CanOpenDataType.Integer16, value, "-10", "10"));
+        var issues = Check(EdsWithVar(CanOpenDataType.Integer16, value, "-10", "10"));
 
         issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].DefaultValue")
             .Which.Message.Should().Contain(expected);
@@ -161,19 +171,19 @@ public class CanOpenModelValidatorConformanceTests
     [InlineData("-10")]
     public void Validate_DefaultValueOnLimit_AtMaxValue_ReturnsNoIssues(string value)
     {
-        CanOpenModelValidator.Validate(EdsWithVar(CanOpenDataType.Integer16, value, "-10", "10")).Should().BeEmpty();
+        Check(EdsWithVar(CanOpenDataType.Integer16, value, "-10", "10")).Should().BeEmpty();
     }
 
     [Fact]
     public void Validate_EmptyLowLimit_IsNotTreatedAsZero()
     {
-        CanOpenModelValidator.Validate(EdsWithVar(CanOpenDataType.Integer16, "-5", "", "10")).Should().BeEmpty();
+        Check(EdsWithVar(CanOpenDataType.Integer16, "-5", "", "10")).Should().BeEmpty();
     }
 
     [Fact]
     public void Validate_RealLimits_ComparesAsFloatingPoint()
     {
-        var issues = CanOpenModelValidator.Validate(EdsWithVar(CanOpenDataType.Real64, "1.5", "0.5", "1.25"));
+        var issues = Check(EdsWithVar(CanOpenDataType.Real64, "1.5", "0.5", "1.25"));
 
         issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].DefaultValue");
     }
@@ -182,7 +192,7 @@ public class CanOpenModelValidatorConformanceTests
     public void Validate_EdsNodeIdFormula_IsCheckedForHighestNodeId()
     {
         // 127 + 0x81 = 256 does not fit UNSIGNED8, while node-ID 1 would.
-        var issues = CanOpenModelValidator.Validate(EdsWithVar(CanOpenDataType.Unsigned8, "$NODEID+0x81"));
+        var issues = Check(EdsWithVar(CanOpenDataType.Unsigned8, "$NODEID+0x81"));
 
         issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].DefaultValue")
             .Which.Message.Should().Contain("for node-ID 127");
@@ -203,7 +213,7 @@ public class CanOpenModelValidatorConformanceTests
             DefaultValue = "$NODEID+0x81",
         };
 
-        CanOpenModelValidator.Validate(dcf).Should().BeEmpty();
+        Check(dcf).Should().BeEmpty();
     }
 
     [Fact]
@@ -222,7 +232,7 @@ public class CanOpenModelValidatorConformanceTests
             ParameterValue = "200",
         };
 
-        var issues = CanOpenModelValidator.Validate(dcf);
+        var issues = Check(dcf);
 
         issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].ParameterValue")
             .Which.Message.Should().Contain("above HighLimit 100");
@@ -234,7 +244,7 @@ public class CanOpenModelValidatorConformanceTests
         var eds = EdsWithArray(2, 0, 1);
         eds.ObjectDictionary.Objects[0x2100].SubObjects[1].DefaultValue = "300";
 
-        var issues = CanOpenModelValidator.Validate(eds);
+        var issues = Check(eds);
 
         issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2100].SubObjects[0x01].DefaultValue");
     }
@@ -247,7 +257,66 @@ public class CanOpenModelValidatorConformanceTests
         obj.ObjectType = CanOpenObjectType.DefStruct;
         obj.SubObjects[1].DefaultValue = "0x0707"; // member type/length encoding, not a value
 
+        Check(eds).Should().BeEmpty();
+    }
+
+    // ------------------------------------------------------------------ opt-in behavior
+
+    [Fact]
+    public void Validate_DefaultOptions_DoNotReportSubNumberOrValueRangeIssues()
+    {
+        var eds = EdsWithArray(4, 0, 1, 2, 3, 4);
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[1].DefaultValue = "1000";
+
         CanOpenModelValidator.Validate(eds).Should().BeEmpty();
+        CanOpenFile.Validate(eds).Should().BeEmpty();
+        CanOpenModelValidator.Validate(eds, CanOpenValidationOptions.Default).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Validate_CheckSubNumberCountOnly_DoesNotCheckValues()
+    {
+        var eds = EdsWithArray(4, 0, 1, 2, 3, 4);
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[1].DefaultValue = "1000";
+
+        var issues = CanOpenModelValidator.Validate(eds, new CanOpenValidationOptions { CheckSubNumberCount = true });
+
+        issues.Select(i => i.Path).Should().Equal("ObjectDictionary.Objects[0x2100].SubNumber");
+    }
+
+    [Fact]
+    public void Validate_CheckValueRangesOnly_DoesNotCheckSubNumber()
+    {
+        var eds = EdsWithArray(4, 0, 1, 2, 3, 4);
+        eds.ObjectDictionary.Objects[0x2100].SubObjects[1].DefaultValue = "1000";
+
+        var issues = CanOpenModelValidator.Validate(eds, new CanOpenValidationOptions { CheckValueRanges = true });
+
+        issues.Select(i => i.Path).Should().Equal("ObjectDictionary.Objects[0x2100].SubObjects[0x01].DefaultValue");
+    }
+
+    [Fact]
+    public void Strict_EnablesEveryRuleSet()
+    {
+        CanOpenValidationOptions.Strict.CheckSubNumberCount.Should().BeTrue();
+        CanOpenValidationOptions.Strict.CheckValueRanges.Should().BeTrue();
+        CanOpenValidationOptions.Strict.RequireMandatoryEntries.Should().BeTrue();
+        CanOpenValidationOptions.Default.CheckSubNumberCount.Should().BeFalse();
+        CanOpenValidationOptions.Default.CheckValueRanges.Should().BeFalse();
+        CanOpenValidationOptions.Default.RequireMandatoryEntries.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CanOpenFile_ValidateWithOptions_RoutesToValidator()
+    {
+        var eds = EdsWithVar(CanOpenDataType.Unsigned8, "1000");
+        var dcf = new DeviceConfigurationFile();
+
+        CanOpenFile.Validate(eds, Checks).Should().ContainSingle();
+        CanOpenFile.Validate(dcf, CanOpenValidationOptions.Strict).Should().Contain(i => i.Path == "DeviceCommissioning");
+        (await CanOpenFile.ValidateAsync(eds, Checks, CancellationToken.None)).Should().ContainSingle();
+        (await CanOpenFile.ValidateAsync(dcf, null, CancellationToken.None)).Should().BeEmpty();
+        (await CanOpenFile.ValidateAsync(eds, default)).Should().BeEmpty();
     }
 
     // ------------------------------------------------------------------ opt-in mandatory entries

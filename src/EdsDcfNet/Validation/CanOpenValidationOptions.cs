@@ -4,9 +4,10 @@ namespace EdsDcfNet.Validation;
 /// Options that control which optional rule sets <see cref="CanOpenModelValidator"/> applies.
 /// </summary>
 /// <remarks>
-/// The default options keep the historic behavior: a freshly constructed model validates
-/// clean, so <see cref="CanOpenWriteOptions.Validated"/> writes of minimal or programmatically
-/// built models keep working. Stricter CiA 306 conformance checks are opt-in.
+/// The default options keep the historic behavior, so existing
+/// <see cref="CanOpenWriteOptions.Validated"/> writes and <c>Validate</c> calls report exactly
+/// what they reported before. The stricter CiA 306 conformance rule sets are opt-in, either
+/// individually or all at once via <see cref="Strict"/>.
 /// </remarks>
 public sealed class CanOpenValidationOptions
 {
@@ -18,7 +19,30 @@ public sealed class CanOpenValidationOptions
     /// <summary>
     /// Gets options with every opt-in CiA 306 conformance rule set enabled.
     /// </summary>
-    public static CanOpenValidationOptions Strict { get; } = new() { RequireMandatoryEntries = true };
+    public static CanOpenValidationOptions Strict { get; } = new()
+    {
+        CheckSubNumberCount = true,
+        CheckValueRanges = true,
+        RequireMandatoryEntries = true,
+    };
+
+    /// <summary>
+    /// Gets a value indicating whether <c>SubNumber</c> must equal the number of described
+    /// sub-indexes including sub-index 00h (CiA 306-1 clause 6.6.3.2). Objects with a non-zero
+    /// <c>CompactSubObj</c> and the tolerated <c>SubNumber=0</c> with only sub-index 00h are
+    /// not reported.
+    /// </summary>
+    public bool CheckSubNumberCount { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether <c>DefaultValue</c>, <c>LowLimit</c>, <c>HighLimit</c>
+    /// and <c>ParameterValue</c> are checked against the entry's integer, BOOLEAN or REAL
+    /// <c>DataType</c> (e.g. <c>1000</c> for UNSIGNED8), and whether <c>LowLimit</c> &lt;=
+    /// <c>HighLimit</c> holds and default/parameter values lie within the limits.
+    /// <c>$NODEID</c> formulas are evaluated with the DCF node-ID, or for node-IDs 1 and 127
+    /// in an EDS.
+    /// </summary>
+    public bool CheckValueRanges { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether mandatory CiA 306 content is required: the objects

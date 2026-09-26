@@ -202,7 +202,7 @@ public static class CanOpenModelValidator
         // CancellationToken.None.
         var issues = new List<ValidationIssue>();
         ValidateDeviceInfo(eds.DeviceInfo, issues);
-        ValidateObjectDictionary(eds.ObjectDictionary, ObjectValueValidator.ResolveNodeIds(null), issues, cancellationToken);
+        ValidateObjectDictionary(eds.ObjectDictionary, options, ObjectValueValidator.ResolveNodeIds(null), issues, cancellationToken);
         if (options.RequireMandatoryEntries)
             ValidateMandatoryEntries(eds.FileInfo, eds.DeviceInfo, eds.ObjectDictionary, issues);
         cancellationToken.ThrowIfCancellationRequested();
@@ -223,7 +223,7 @@ public static class CanOpenModelValidator
         var commissioningOmitted = DeviceCommissioningSemantics.IsOmitted(dcf.DeviceCommissioning);
         var nodeIds = ObjectValueValidator.ResolveNodeIds(
             commissioningOmitted ? null : dcf.DeviceCommissioning.NodeId);
-        ValidateObjectDictionary(dcf.ObjectDictionary, nodeIds, issues, cancellationToken);
+        ValidateObjectDictionary(dcf.ObjectDictionary, options, nodeIds, issues, cancellationToken);
         ValidateDeviceCommissioning(dcf.DeviceCommissioning, issues);
         if (options.RequireMandatoryEntries)
         {
@@ -320,6 +320,7 @@ public static class CanOpenModelValidator
 
     private static void ValidateObjectDictionary(
         ObjectDictionary objectDictionary,
+        CanOpenValidationOptions options,
         byte[] nodeIds,
         List<ValidationIssue> issues,
         CancellationToken cancellationToken)
@@ -351,7 +352,7 @@ public static class CanOpenModelValidator
         foreach (var kvp in objectDictionary.Objects)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            ValidateObject(kvp.Key, kvp.Value, nodeIds, issues);
+            ValidateObject(kvp.Key, kvp.Value, options, nodeIds, issues);
         }
 
         // Per-element check stays: every unclassified object formats and
@@ -411,6 +412,7 @@ public static class CanOpenModelValidator
     private static void ValidateObject(
         ushort index,
         CanOpenObject obj,
+        CanOpenValidationOptions options,
         byte[] nodeIds,
         List<ValidationIssue> issues)
     {
@@ -464,7 +466,8 @@ public static class CanOpenModelValidator
                     "Sub-objects are defined but SubNumber is missing or zero."));
             }
         }
-        else if (obj.SubObjects.Count > 0 &&
+        else if (options.CheckSubNumberCount &&
+                 obj.SubObjects.Count > 0 &&
                  obj.SubNumber.HasValue &&
                  obj.SubNumber.Value != obj.SubObjects.Count &&
                  !hasCompactSubObjects)
@@ -481,7 +484,9 @@ public static class CanOpenModelValidator
         }
 
         // DEFTYPE/DEFSTRUCT entries describe types, not values.
-        var describesValues = obj.ObjectType != CanOpenObjectType.DefType && obj.ObjectType != CanOpenObjectType.DefStruct;
+        var describesValues = options.CheckValueRanges &&
+                              obj.ObjectType != CanOpenObjectType.DefType &&
+                              obj.ObjectType != CanOpenObjectType.DefStruct;
         if (describesValues)
         {
             ObjectValueValidator.Validate(
