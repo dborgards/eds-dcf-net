@@ -280,9 +280,9 @@ public sealed class RawObjectChecker
                 // Compact array: sub-indices are generated from the parent template.
                 // DCF stores commissioned sub-object values in [XXXXValue].
                 var template = CheckEntryValues(section, index, null);
-                if (template is { } checked)
+                if (template is not null)
                 {
-                    CheckCompactValueEntries(section, index, compactSubObj.Value, checked.DataType, checked.Evaluations);
+                    CheckCompactValueEntries(section, index, compactSubObj.Value, template.Value.DataType, template.Value.Evaluations);
                 }
             }
             else if (subNumber is null)
