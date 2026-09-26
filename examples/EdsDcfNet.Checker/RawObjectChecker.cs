@@ -15,15 +15,17 @@ public sealed class RawObjectChecker
 {
     private const int MaxParameterNameLength = 241;
 
-    // 1..4 hex digits. ParseObject probes only the unpadded form ([20], not [0020]);
-    // a leading zero is reported as OBJ011.
+    // Any hex length that still fits in a ushort, including over-width leading zeros
+    // ([00020] is 0x20; [10000] is not an index). ParseObject probes only the
+    // unpadded form ([20], not [0020] or [00020]); a leading zero is OBJ011.
     private static readonly Regex ObjectSectionPattern = new(
-        "^(?<index>[0-9A-Fa-f]{1,4})$", RegexOptions.CultureInvariant);
+        "^(?<index>[0-9A-Fa-f]+)$", RegexOptions.CultureInvariant);
 
-    // Index and sub-index are unpadded hex. ParseSubObject probes [20sub1], not
-    // [0020sub1] or [20sub01]; a leading zero is reported as OBJ011.
+    // Index (ushort) and sub-index (byte), including over-width leading zeros.
+    // ParseSubObject probes [20sub1], not [00020sub1] or [20sub001]; a leading
+    // zero is OBJ011. A part that does not fit the integer width is not a sub-index.
     private static readonly Regex SubSectionPattern = new(
-        "^(?<index>[0-9A-Fa-f]{1,4})sub(?<sub>[0-9A-Fa-f]{1,2})$",
+        "^(?<index>[0-9A-Fa-f]+)sub(?<sub>[0-9A-Fa-f]+)$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static readonly HashSet<string> AccessTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -60,12 +62,9 @@ public sealed class RawObjectChecker
     public void Run()
     {
         CollectObjectSections();
-        if (_isDcf)
-        {
-            // Padded [0040Value] is not a stand-in for [40Value]; report it before
-            // value checks so a valid-looking fallback cannot exit clean.
-            ReportPaddedCompactValueSections();
-        }
+        // Padded [0040Value] / [0040Name] / [0040Denotation] / [0040ObjectLinks] are not
+        // stand-ins for the unpadded names the reader probes.
+        ReportPaddedIndexSections();
 
         CheckObjectLists();
 
@@ -139,10 +138,10 @@ public sealed class RawObjectChecker
         foreach (var section in _doc.Sections.Values)
         {
             var objectMatch = ObjectSectionPattern.Match(section.Name);
-            if (objectMatch.Success)
+            if (objectMatch.Success &&
+                TryParseObjectIndex(objectMatch.Groups["index"].Value, out var index))
             {
                 var indexText = objectMatch.Groups["index"].Value;
-                var index = ushort.Parse(indexText, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
                 if (!IsUnpaddedHex(indexText, index))
                 {
                     // CanOpenReaderBase.ParseObject probes only ToHexInvariant(index).
@@ -158,6 +157,14 @@ public sealed class RawObjectChecker
                     Add(Severity.Error, "INI002", section, null, null, string.Format(CultureInfo.InvariantCulture,
                         "Object {0} is already described by [{1}] (line {2}); readers keep only one of them.",
                         Hex4(index), existingObject.Name, existingObject.Line));
+
+                    // ParseObject loads the unpadded name. A padded section seen first must not
+                    // hide [40] from the later value checks (including --no-library).
+                    if (IsUnpaddedHex(indexText, index) && !IsUnpaddedHex(existingObject.Name, index))
+                    {
+                        _objects[index] = section;
+                    }
+
                     continue;
                 }
 
@@ -166,26 +173,26 @@ public sealed class RawObjectChecker
             }
 
             var subMatch = SubSectionPattern.Match(section.Name);
-            if (subMatch.Success)
+            if (subMatch.Success &&
+                TryParseObjectIndex(subMatch.Groups["index"].Value, out var subObjectIndex) &&
+                TryParseSubIndex(subMatch.Groups["sub"].Value, out var sub))
             {
                 var indexText = subMatch.Groups["index"].Value;
-                var index = ushort.Parse(indexText, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
                 var subSuffix = subMatch.Groups["sub"].Value;
-                var sub = byte.Parse(subSuffix, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-                if (!IsUnpaddedHex(indexText, index) || !IsUnpaddedHex(subSuffix, sub))
+                if (!IsUnpaddedHex(indexText, subObjectIndex) || !IsUnpaddedHex(subSuffix, sub))
                 {
                     // CanOpenReaderBase.ParseSubObject probes only "{index:X}sub{sub:X}".
                     Add(Severity.Error, "OBJ011", section, null, null, string.Format(CultureInfo.InvariantCulture,
                         "Sub-index section [{0}] is zero-padded. EdsDcfNet reads only [{1}sub{2}].",
                         section.Name,
-                        UnpaddedIndex(index),
+                        UnpaddedIndex(subObjectIndex),
                         sub.ToString("X", CultureInfo.InvariantCulture)));
                 }
 
-                if (!_subObjects.TryGetValue(index, out var subs))
+                if (!_subObjects.TryGetValue(subObjectIndex, out var subs))
                 {
                     subs = new SortedDictionary<byte, RawSection>();
-                    _subObjects[index] = subs;
+                    _subObjects[subObjectIndex] = subs;
                 }
 
                 if (subs.TryGetValue(sub, out var existing))
@@ -193,10 +200,22 @@ public sealed class RawObjectChecker
                     // e.g. [1018sub1] and [1018sub01]: different INI sections, same sub-index.
                     Add(Severity.Error, "INI002", section, null, null, string.Format(CultureInfo.InvariantCulture,
                         "Sub-index 0x{0:X2} of {1} is already described by [{2}] (line {3}); readers keep only one of them.",
-                        sub, Hex4(index), existing.Name, existing.Line));
+                        sub, Hex4(subObjectIndex), existing.Name, existing.Line));
 
-                    // Keep the first section; the duplicate is still checked on its own in Run().
-                    _duplicateSubSections.Add((index, sub, section));
+                    // ParseSubObject loads the unpadded name. A padded section seen first must
+                    // not hide [20sub1] from later cross-checks (sub-index 0, DCF overrides, PDO
+                    // mapping). The displaced section is still checked on its own in Run().
+                    if (IsCanonicalSubSection(section.Name, subObjectIndex, sub) &&
+                        !IsCanonicalSubSection(existing.Name, subObjectIndex, sub))
+                    {
+                        subs[sub] = section;
+                        _duplicateSubSections.Add((subObjectIndex, sub, existing));
+                    }
+                    else
+                    {
+                        _duplicateSubSections.Add((subObjectIndex, sub, section));
+                    }
+
                     continue;
                 }
 
@@ -1426,6 +1445,20 @@ public sealed class RawObjectChecker
             : string.Empty;
 
     /// <summary>
+    /// Parses a hexadecimal object index, including over-width leading zeros
+    /// (<c>00020</c> is 0x20). Returns <see langword="false"/> above <see cref="ushort.MaxValue"/>.
+    /// </summary>
+    private static bool TryParseObjectIndex(string text, out ushort index) =>
+        ushort.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out index);
+
+    /// <summary>
+    /// Parses a hexadecimal sub-index, including over-width leading zeros
+    /// (<c>001</c> is 0x1). Returns <see langword="false"/> above <see cref="byte.MaxValue"/>.
+    /// </summary>
+    private static bool TryParseSubIndex(string text, out byte subIndex) =>
+        byte.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out subIndex);
+
+    /// <summary>
     /// True when <paramref name="text"/> is the unpadded hex form <c>ToHexInvariant</c> writes
     /// (<c>0</c>, <c>20</c>, <c>A</c>, <c>100</c>, <c>1018</c>). Comparison is case-insensitive,
     /// matching the reader's section dictionary.
@@ -1438,44 +1471,101 @@ public sealed class RawObjectChecker
         text.Equals(value.ToString("X", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
+    /// True when <paramref name="name"/> is the sub-index section
+    /// <c>ParseSubObject</c> probes (<c>20sub1</c>, not <c>00020sub1</c> or <c>20sub001</c>).
+    /// Comparison is case-insensitive, matching the reader's section dictionary.
+    /// </summary>
+    private static bool IsCanonicalSubSection(string name, ushort index, byte sub) =>
+        name.Equals(
+            string.Concat(UnpaddedIndex(index), "sub", sub.ToString("X", CultureInfo.InvariantCulture)),
+            StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// DCF <c>[xxxxValue]</c> section. <c>ApplyCompactListSection</c> probes only the
     /// unpadded name (<c>40Value</c>). Padded spellings are reported by
-    /// <see cref="ReportPaddedCompactValueSections"/> and are not applied.
+    /// <see cref="ReportPaddedIndexSections"/> and are not applied.
     /// </summary>
     private RawSection? GetValueSection(ushort index) =>
         _doc.Get(string.Concat(UnpaddedIndex(index), "Value"));
 
     /// <summary>
-    /// Flags DCF compact-value sections whose index prefix is not the unpadded form
-    /// the reader looks up. A section such as <c>[0040Value]</c> used to be accepted
-    /// as a fallback for <c>[40Value]</c>; the reader never reads it.
+    /// Index-prefixed sections <c>ParseObject</c> / <c>ApplyCompactListSection</c> look up
+    /// by the unpadded index. Longer suffixes are listed first. Value and Denotation exist
+    /// only on DCF; Name is consumed only when <c>CompactSubObj</c> is non-zero.
     /// </summary>
-    private void ReportPaddedCompactValueSections()
+    private static readonly (string Suffix, string Label, bool DcfOnly)[] IndexSectionSuffixes =
     {
-        const string suffix = "Value";
+        ("ObjectLinks", "Object links", false),
+        ("Denotation", "Compact denotation", true),
+        ("Value", "Compact value", true),
+        ("Name", "Compact name", false),
+    };
+
+    /// <summary>
+    /// Flags index-prefixed sections whose index is not the unpadded form the reader
+    /// probes (<c>[0040Value]</c>, <c>[0040Name]</c>, <c>[0040Denotation]</c>,
+    /// <c>[0040ObjectLinks]</c>). Those spellings are not applied, and the reader's
+    /// known-section checks still drop them.
+    /// </summary>
+    private void ReportPaddedIndexSections()
+    {
         foreach (var section in _doc.Sections.Values)
         {
-            var name = section.Name;
-            if (name.Length <= suffix.Length ||
-                !name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            if (!TryMatchPaddedIndexSection(section.Name, out var suffix, out var label, out var index))
             {
                 continue;
             }
 
-            var prefix = name[..^suffix.Length];
-            if (!IsHexDigits(prefix) ||
-                !ushort.TryParse(prefix, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index) ||
-                !_objects.ContainsKey(index) ||
-                IsUnpaddedHex(prefix, index))
+            if (suffix == "Name" &&
+                ParseOptionalByte(_objects[index], "CompactSubObj", report: false) is not > 0)
             {
+                // Without compact storage the reader keeps [xxxxName] in AdditionalSections.
                 continue;
             }
 
             Add(Severity.Error, "OBJ011", section, null, null, string.Format(CultureInfo.InvariantCulture,
-                "Compact value section [{0}] is zero-padded. EdsDcfNet reads only [{1}Value].",
-                name,
-                UnpaddedIndex(index)));
+                "{0} section [{1}] is zero-padded. EdsDcfNet reads only [{2}{3}].",
+                label,
+                section.Name,
+                UnpaddedIndex(index),
+                suffix));
         }
+    }
+
+    private bool TryMatchPaddedIndexSection(string name, out string suffix, out string label, out ushort index)
+    {
+        suffix = string.Empty;
+        label = string.Empty;
+        index = 0;
+
+        foreach (var candidate in IndexSectionSuffixes)
+        {
+            if (candidate.DcfOnly && !_isDcf)
+            {
+                continue;
+            }
+
+            if (name.Length <= candidate.Suffix.Length ||
+                !name.EndsWith(candidate.Suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var prefix = name[..^candidate.Suffix.Length];
+            if (!IsHexDigits(prefix) ||
+                !TryParseObjectIndex(prefix, out index) ||
+                !_objects.ContainsKey(index) ||
+                IsUnpaddedHex(prefix, index))
+            {
+                return false;
+            }
+
+            suffix = candidate.Suffix;
+            label = candidate.Label;
+            return true;
+        }
+
+        return false;
     }
 
     private static bool IsHexDigits(string value)
