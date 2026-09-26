@@ -1363,6 +1363,331 @@ CompactSubObj=1
             f.Message.Contains(readerName, StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("0040Value", "[40Value]")]
+    [InlineData("040Value", "[40Value]")]
+    [InlineData("00040Value", "[40Value]")]
+    [InlineData("0040value", "[40Value]")]
+    [InlineData("0040Denotation", "[40Denotation]")]
+    [InlineData("00040Denotation", "[40Denotation]")]
+    public void Check_OrphanPaddedDcfAuxiliarySection_ReportsObj011(string sectionName, string readerName)
+    {
+        // Arrange — [1000] is a real object. Index 0x40 has no parent section.
+        // The padded auxiliary spelling used to be ignored because
+        // TryMatchPaddedIndexSection required _objects to contain that index,
+        // so edsdcf-check exited 0 after DcfReader dropped Value/Denotation.
+        var content = @"
+[DeviceComissioning]
+NodeID=1
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=DeviceType
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[" + sectionName + @"]
+1=7
+";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        findings.Should().Contain(f =>
+            f.Code == "OBJ011" &&
+            f.Severity == Severity.Error &&
+            f.Section == sectionName &&
+            f.Message.Contains(readerName, StringComparison.Ordinal));
+        findings.Should().NotContain(f => f.Code == "OBJ011" && f.Section == "1000");
+    }
+
+    [Fact]
+    public void Check_OrphanPaddedValue_AtMaxValue_ReportsObj011()
+    {
+        // Arrange — 0xFFFF is the largest object index. [0FFFFValue] is not [FFFFValue],
+        // and no [FFFF] parent exists.
+        const string content = @"
+[DeviceComissioning]
+NodeID=1
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=DeviceType
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[0FFFFValue]
+1=7
+
+[0FFFFDenotation]
+1=Label
+";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        findings.Should().Contain(f =>
+            f.Code == "OBJ011" &&
+            f.Severity == Severity.Error &&
+            f.Section == "0FFFFValue" &&
+            f.Message.Contains("[FFFFValue]", StringComparison.Ordinal));
+        findings.Should().Contain(f =>
+            f.Code == "OBJ011" &&
+            f.Severity == Severity.Error &&
+            f.Section == "0FFFFDenotation" &&
+            f.Message.Contains("[FFFFDenotation]", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Check_OrphanPaddedValue_AtMinIndex_ReportsObj011()
+    {
+        // Arrange — index 0. [00Value] is not the unpadded [0Value], and [0] is absent.
+        // [00Name] and [00ObjectLinks] stay additional sections, so they are not OBJ011.
+        const string content = @"
+[DeviceComissioning]
+NodeID=1
+
+[00Value]
+1=7
+
+[00Denotation]
+1=Label
+
+[00Name]
+1=Custom
+
+[00ObjectLinks]
+ObjectLinks=1
+1=0x1000
+";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        findings.Should().Contain(f => f.Code == "OBJ011" && f.Severity == Severity.Error && f.Section == "00Value");
+        findings.Should().Contain(f => f.Code == "OBJ011" && f.Severity == Severity.Error && f.Section == "00Denotation");
+        findings.Should().NotContain(f => f.Code == "OBJ011" && f.Section == "00Name");
+        findings.Should().NotContain(f => f.Code == "OBJ011" && f.Section == "00ObjectLinks");
+    }
+
+    [Theory]
+    [InlineData(true, "0040Name")]
+    [InlineData(true, "00040Name")]
+    [InlineData(true, "0040ObjectLinks")]
+    [InlineData(true, "00040ObjectLinks")]
+    [InlineData(false, "0040Name")]
+    [InlineData(false, "00040Name")]
+    [InlineData(false, "0040ObjectLinks")]
+    [InlineData(false, "00040ObjectLinks")]
+    public void Check_OrphanPaddedNameAndObjectLinks_DoNotReportObj011(bool isDcf, string sectionName)
+    {
+        // Arrange — no [40] parent. The reader keeps [xxxxName] and [xxxxObjectLinks]
+        // in AdditionalSections, so the padding is not OBJ011.
+        var content = @"
+[OptionalObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=DeviceType
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[" + sectionName + @"]
+1=Custom
+";
+        if (isDcf)
+        {
+            content = "[DeviceComissioning]\nNodeID=1\n" + content;
+        }
+
+        // Act
+        var findings = Check(content, isDcf);
+
+        // Assert
+        findings.Should().NotContain(f => f.Code == "OBJ011" && f.Section == sectionName);
+    }
+
+    [Fact]
+    public void Check_OrphanEdsPaddedValueAndDenotation_DoNotReportObj011()
+    {
+        // Arrange — EDS does not construct [xxxxValue] or [xxxxDenotation],
+        // so an orphan padded spelling stays an additional section.
+        const string content = @"
+[1000]
+ParameterName=DeviceType
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[0040Value]
+1=7
+
+[0040Denotation]
+1=Label
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().NotContain(f => f.Section == "0040Value" && f.Code == "OBJ011");
+        findings.Should().NotContain(f => f.Section == "0040Denotation" && f.Code == "OBJ011");
+    }
+
+    [Fact]
+    public void Check_OrphanUnpaddedDcfValue_DoesNotReportObj011()
+    {
+        // Arrange — [40Value] is the spelling ApplyCompactListSection probes.
+        // Padding is the OBJ011 condition; a missing parent does not rename it.
+        const string content = @"
+[DeviceComissioning]
+NodeID=1
+
+[1000]
+ParameterName=DeviceType
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[40Value]
+1=7
+
+[40Denotation]
+1=Label
+
+[40Name]
+1=Custom
+
+[40ObjectLinks]
+ObjectLinks=1
+1=0x1000
+";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        findings.Should().NotContain(f => f.Code == "OBJ011");
+    }
+
+    [Fact]
+    public void ReadString_OrphanPaddedValueAndDenotation_ReaderDropsThem()
+    {
+        // Arrange — IsKnownSection accepts any hex-prefixed Value/Denotation
+        // section, then ApplyCompactListSection never runs without a parent object.
+        const string content = @"
+[DeviceInfo]
+VendorName=Test
+
+[DeviceComissioning]
+NodeID=1
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=DeviceType
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[0040Value]
+1=7
+
+[00040Denotation]
+1=Label
+";
+
+        // Act
+        var loaded = CanOpenFile.Dcf.ReadString(content);
+
+        // Assert
+        loaded.ObjectDictionary.Objects.Should().NotContainKey((ushort)0x40);
+        loaded.AdditionalSections.Should().NotContainKey("0040Value");
+        loaded.AdditionalSections.Should().NotContainKey("00040Denotation");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ReadString_OrphanPaddedNameAndObjectLinks_ReaderKeepsThem(bool isDcf)
+    {
+        // Arrange — no parent object. These sections are not known, so they round-trip.
+        var content = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=DeviceType
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[0040Name]
+1=Custom
+
+[0040ObjectLinks]
+ObjectLinks=1
+1=0x1000
+";
+        if (isDcf)
+        {
+            content = "[DeviceComissioning]\nNodeID=1\n" + content;
+        }
+
+        // Act / Assert — both formats keep the orphan sections.
+        if (isDcf)
+        {
+            var loaded = CanOpenFile.Dcf.ReadString(content);
+            loaded.ObjectDictionary.Objects.Should().NotContainKey((ushort)0x40);
+            loaded.AdditionalSections.Should().ContainKey("0040Name");
+            loaded.AdditionalSections["0040Name"]["1"].Should().Be("Custom");
+            loaded.AdditionalSections.Should().ContainKey("0040ObjectLinks");
+            loaded.AdditionalSections["0040ObjectLinks"]["1"].Should().Be("0x1000");
+        }
+        else
+        {
+            var loaded = CanOpenFile.Eds.ReadString(content);
+            loaded.ObjectDictionary.Objects.Should().NotContainKey((ushort)0x40);
+            loaded.AdditionalSections.Should().ContainKey("0040Name");
+            loaded.AdditionalSections["0040Name"]["1"].Should().Be("Custom");
+            loaded.AdditionalSections.Should().ContainKey("0040ObjectLinks");
+            loaded.AdditionalSections["0040ObjectLinks"]["1"].Should().Be("0x1000");
+        }
+    }
+
     [Fact]
     public void Check_CanonicalNameAndObjectLinks_DoNotReportObj011()
     {

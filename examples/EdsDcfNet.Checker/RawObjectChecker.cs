@@ -1572,8 +1572,10 @@ public sealed class RawObjectChecker
     /// <summary>
     /// Flags index-prefixed sections whose index is not the unpadded form the reader
     /// probes (<c>[0040Value]</c>, <c>[0040Name]</c>, <c>[0040Denotation]</c>,
-    /// <c>[0040ObjectLinks]</c>). Those spellings are not applied, and the reader's
-    /// known-section checks still drop them.
+    /// <c>[0040ObjectLinks]</c>). Those spellings are not applied when a parent
+    /// object exists. Orphan <c>[xxxxName]</c> and <c>[xxxxObjectLinks]</c> stay in
+    /// AdditionalSections. Orphan DCF Value and Denotation sections are still
+    /// reported: <c>DcfReader.IsKnownSection</c> drops them.
     /// </summary>
     private void ReportPaddedIndexSections()
     {
@@ -1620,9 +1622,12 @@ public sealed class RawObjectChecker
             }
 
             var prefix = name[..^candidate.Suffix.Length];
+            // Name and ObjectLinks without a parent stay in AdditionalSections.
+            // Value and Denotation do not: IsKnownSection drops them with no [40].
+            var requiresParent = candidate.Suffix is "Name" or "ObjectLinks";
             if (!IsHexDigits(prefix) ||
                 !TryParseObjectIndex(prefix, out index) ||
-                !_objects.ContainsKey(index) ||
+                (requiresParent && !_objects.ContainsKey(index)) ||
                 IsUnpaddedHex(prefix, index))
             {
                 return false;
