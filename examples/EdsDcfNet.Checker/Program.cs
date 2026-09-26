@@ -75,9 +75,19 @@ internal static class Program
         {
             if (Directory.Exists(input))
             {
-                files.AddRange(Directory.EnumerateFiles(input, "*.*", SearchOption.AllDirectories)
-                    .Where(f => IsEds(f) || IsDcf(f))
-                    .OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
+                try
+                {
+                    // EnumerateFiles is lazy; AddRange is what walks the tree, so I/O failures
+                    // surface here rather than inside the per-file read handler below.
+                    files.AddRange(Directory.EnumerateFiles(input, "*.*", SearchOption.AllDirectories)
+                        .Where(f => IsEds(f) || IsDcf(f))
+                        .OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Console.Error.WriteLine("Cannot read '" + input + "': " + ex.Message);
+                    return 2;
+                }
             }
             else if (File.Exists(input))
             {
