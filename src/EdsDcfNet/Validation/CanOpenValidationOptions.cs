@@ -47,7 +47,8 @@ public sealed class CanOpenValidationOptions
 
     /// <summary>
     /// Gets a value indicating whether mandatory CiA 306 content is required: the objects
-    /// 1000h, 1001h and 1018h (CiA 306-1 Table 4), a non-empty <c>ParameterName</c> for every
+    /// 1000h, 1001h and 1018h present and listed in <c>MandatoryObjects</c> (CiA 306-1 Table 4),
+    /// a non-empty <c>ParameterName</c> for every
     /// object and sub-object and a <c>DataType</c> for VAR entries (CiA 306-1 Table 7),
     /// <c>FileName</c>, <c>VendorName</c> and <c>ProductName</c> (CiA 306-1 Tables 1 and 2),
     /// and for DCF files a configured <c>[DeviceComissioning]</c> section with node-ID and

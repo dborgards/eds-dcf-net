@@ -411,11 +411,53 @@ public class CanOpenModelValidatorConformanceTests
     }
 
     [Fact]
-    public void Validate_StrictOptions_ValidDcf_ReturnsNoIssues()
+    public void Validate_StrictOptions_IdentityListedAsOptional_ReportsMandatoryListMembership()
     {
         var dcf = CanOpenFile.Dcf.ReadFile("Fixtures/full_features.dcf");
 
+        var issues = CanOpenModelValidator.Validate(dcf, CanOpenValidationOptions.Strict);
+
+        issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.MandatoryObjects")
+            .Which.Message.Should().Contain("0x1018").And.Contain("MandatoryObjects");
+    }
+
+    [Fact]
+    public void Validate_StrictOptions_MandatoryIndexesListed_ReturnsNoIssues()
+    {
+        var dcf = CanOpenFile.Dcf.ReadFile("Fixtures/full_features.dcf");
+        dcf.ObjectDictionary.OptionalObjects.Remove(0x1018);
+        dcf.ObjectDictionary.MandatoryObjects.Add(0x1018);
+
         CanOpenModelValidator.Validate(dcf, CanOpenValidationOptions.Strict).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Validate_StrictOptions_MandatoryIndexInOtherList_ReportsEachIndex(bool useManufacturerList)
+    {
+        var eds = ConformantEdsShell();
+        AddVar(eds, 0x1000, eds.ObjectDictionary.MandatoryObjects);
+        AddVar(eds, 0x1001, useManufacturerList ? eds.ObjectDictionary.ManufacturerObjects : eds.ObjectDictionary.OptionalObjects);
+        AddVar(eds, 0x1018, eds.ObjectDictionary.OptionalObjects);
+
+        var issues = CanOpenModelValidator.Validate(eds, CanOpenValidationOptions.Strict);
+
+        issues.Where(i => i.Path == "ObjectDictionary.MandatoryObjects")
+            .Select(i => i.Message)
+            .Should().BeEquivalentTo(
+                "Mandatory object 0x1001 must be listed in MandatoryObjects (CiA 306-1 Table 4).",
+                "Mandatory object 0x1018 must be listed in MandatoryObjects (CiA 306-1 Table 4).");
+        issues.Should().NotContain(i => i.Message.Contains("0x1000 must be listed"));
+    }
+
+    [Fact]
+    public void Validate_StrictOptions_MissingMandatoryObject_DoesNotAlsoRequireListMembership()
+    {
+        var issues = CanOpenModelValidator.Validate(new ElectronicDataSheet(), CanOpenValidationOptions.Strict);
+
+        issues.Should().NotContain(i => i.Path == "ObjectDictionary.MandatoryObjects");
+        issues.Should().Contain(i => i.Path == "ObjectDictionary.Objects[0x1000]");
     }
 
     [Fact]
@@ -448,5 +490,27 @@ public class CanOpenModelValidatorConformanceTests
 
         act.Should().Throw<ArgumentNullException>();
         actDcf.Should().Throw<ArgumentNullException>();
+    }
+
+    private static ElectronicDataSheet ConformantEdsShell()
+    {
+        var eds = new ElectronicDataSheet();
+        eds.FileInfo.FileName = "device.eds";
+        eds.DeviceInfo.VendorName = "Vendor";
+        eds.DeviceInfo.ProductName = "Product";
+        return eds;
+    }
+
+    private static void AddVar(ElectronicDataSheet eds, ushort index, List<ushort> list)
+    {
+        list.Add(index);
+        eds.ObjectDictionary.Objects[index] = new CanOpenObject
+        {
+            Index = index,
+            ParameterName = "Object",
+            ObjectType = CanOpenObjectType.Var,
+            DataType = CanOpenDataType.Unsigned32,
+            DefaultValue = "0",
+        };
     }
 }

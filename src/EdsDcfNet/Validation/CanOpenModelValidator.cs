@@ -555,6 +555,15 @@ public static class CanOpenModelValidator
                     string.Format(CultureInfo.InvariantCulture, "ObjectDictionary.Objects[0x{0:X4}]", mandatoryIndex),
                     string.Format(CultureInfo.InvariantCulture, "Mandatory object 0x{0:X4} is missing (CiA 306-1 Table 4).", mandatoryIndex)));
             }
+            else if (!objectDictionary.MandatoryObjects.Contains(mandatoryIndex))
+            {
+                issues.Add(new ValidationIssue(
+                    "ObjectDictionary.MandatoryObjects",
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Mandatory object 0x{0:X4} must be listed in MandatoryObjects (CiA 306-1 Table 4).",
+                        mandatoryIndex)));
+            }
         }
 
         foreach (var kvp in objectDictionary.Objects)
