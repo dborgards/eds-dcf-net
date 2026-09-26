@@ -9,7 +9,7 @@ using System.Text.Json.Serialization;
 /// </summary>
 /// <remarks>
 /// Exit codes: 0 = no errors, 1 = errors found (or warnings with --warnings-as-errors),
-/// 2 = usage or I/O problem.
+/// 2 = usage or I/O problem, including when every given file is skipped.
 /// </remarks>
 internal static class Program
 {
@@ -30,6 +30,7 @@ internal static class Program
           -h, --help             Show this help.
 
         Exit codes: 0 = valid, 1 = errors found, 2 = usage or I/O problem.
+        Exit code 2 is also used when every given file is skipped (not .eds/.dcf).
         """;
 
     private static int Main(string[] args)
@@ -101,10 +102,12 @@ internal static class Program
         }
 
         var results = new List<(string File, List<Finding> Findings)>();
+        var skipped = 0;
         foreach (var file in files)
         {
             if (!IsEds(file) && !IsDcf(file))
             {
+                skipped++;
                 Console.Error.WriteLine("Skipping '" + file + "': only .eds and .dcf files are supported (XML formats are out of scope).");
                 continue;
             }
@@ -123,6 +126,14 @@ internal static class Program
                 Console.Error.WriteLine("Cannot read '" + file + "': " + ex.Message);
                 return 2;
             }
+        }
+
+        // A wrong-type path must not look like a clean pass to CI. Directories that
+        // simply contain no EDS/DCF files are unchanged (zero files checked, exit 0).
+        if (results.Count == 0 && skipped > 0)
+        {
+            Console.Error.WriteLine("No .eds or .dcf files were checked.");
+            return 2;
         }
 
         var minimum = quiet ? Severity.Error : Severity.Info;
