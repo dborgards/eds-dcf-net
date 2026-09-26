@@ -522,23 +522,25 @@ public sealed class RawObjectChecker
             return EvaluateFormula(section, entry, value, dataType);
         }
 
-        if (ValueSupport.IsInteger(dataType) && ValueSupport.IsOctalLiteral(value) && value.All(c => c is >= '0' and <= '7'))
-        {
-            var octal = Convert.ToUInt64(value, 8);
-            Add(Severity.Warning, "VAL005", section, entry, string.Format(CultureInfo.InvariantCulture,
-                "Leading zero makes this an octal literal (= {0} decimal). Use '{1}' or '0x{0:X}' if decimal was intended.",
-                octal, value.TrimStart('0').Length == 0 ? "0" : value.TrimStart('0')));
-        }
-
-        if (ValueSupport.IsReal(dataType) && value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-        {
-            Add(Severity.Warning, "VAL007", section, entry,
-                "Hexadecimal literal for " + ValueSupport.TypeName(dataType) + "; REAL values should be written as decimal floating point numbers.");
-            return null;
-        }
-
         try
         {
+            // Convert.ToUInt64 throws OverflowException for an all-octal literal that does not fit
+            // in 64 bits. Keep it inside this handler so the checker reports VAL001 and continues.
+            if (ValueSupport.IsInteger(dataType) && ValueSupport.IsOctalLiteral(value) && value.All(c => c is >= '0' and <= '7'))
+            {
+                var octal = Convert.ToUInt64(value, 8);
+                Add(Severity.Warning, "VAL005", section, entry, string.Format(CultureInfo.InvariantCulture,
+                    "Leading zero makes this an octal literal (= {0} decimal). Use '{1}' or '0x{0:X}' if decimal was intended.",
+                    octal, value.TrimStart('0').Length == 0 ? "0" : value.TrimStart('0')));
+            }
+
+            if (ValueSupport.IsReal(dataType) && value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                Add(Severity.Warning, "VAL007", section, entry,
+                    "Hexadecimal literal for " + ValueSupport.TypeName(dataType) + "; REAL values should be written as decimal floating point numbers.");
+                return null;
+            }
+
             var parsed = ValueSupport.ParseLiteral(value, dataType);
             if (parsed is null)
             {
