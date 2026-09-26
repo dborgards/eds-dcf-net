@@ -1,53 +1,21 @@
 # Changelog
 
-## [1.14.0-beta.8](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.7...v1.14.0-beta.8) (2026-09-26)
-
-### 🐛 Bug Fixes
-
-* **checker:** reject orphan padded auxiliary sections ([#576](https://github.com/dborgards/eds-dcf-net/issues/576)) ([c806ae1](https://github.com/dborgards/eds-dcf-net/commit/c806ae15939828d037cd315da2238c46d9d0cb19))
-
-## [1.14.0-beta.7](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.6...v1.14.0-beta.7) (2026-09-26)
-
-### 🐛 Bug Fixes
-
-* **checker:** report discarded DCF values on padded and expanded objects ([#575](https://github.com/dborgards/eds-dcf-net/issues/575)) ([c941b46](https://github.com/dborgards/eds-dcf-net/commit/c941b467035ea9efedffab6d301104bd95fa4838))
-
-## [1.14.0-beta.6](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.5...v1.14.0-beta.6) (2026-09-26)
-
-### 🐛 Bug Fixes
-
-* **checker:** report orphaned DCF compact values ([#574](https://github.com/dborgards/eds-dcf-net/issues/574)) ([d0d28d7](https://github.com/dborgards/eds-dcf-net/commit/d0d28d7b7c85b141ff6f6a1c847a106ca4f84dbe))
-* require mandatory entries on DEFSTRUCT members ([#573](https://github.com/dborgards/eds-dcf-net/issues/573)) ([e885be5](https://github.com/dborgards/eds-dcf-net/commit/e885be5c195b34d38dbf07edc1dcf4cc6829c9de))
-
-## [1.14.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.4...v1.14.0-beta.5) (2026-09-26)
-
-### 🐛 Bug Fixes
-
-* padded section names and dictionary key equality ([#572](https://github.com/dborgards/eds-dcf-net/issues/572)) ([83b6074](https://github.com/dborgards/eds-dcf-net/commit/83b60748002edc4adc88c50fcb084796751b27dc))
-
-## [1.14.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.3...v1.14.0-beta.4) (2026-09-26)
-
-### 🐛 Bug Fixes
-
-* **checker:** reject zero-padded object and compact-value names ([#571](https://github.com/dborgards/eds-dcf-net/issues/571)) ([51e4ea9](https://github.com/dborgards/eds-dcf-net/commit/51e4ea9444ffd19203df758910da60f4c41ef37f))
-
-## [1.14.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.2...v1.14.0-beta.3) (2026-09-26)
-
-### 🐛 Bug Fixes
-
-* **checker:** accept short object indexes and flag padded subs ([f05fa57](https://github.com/dborgards/eds-dcf-net/commit/f05fa573f69cfc341f7bda189cee4db8618d48d2))
-
-## [1.14.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.1...v1.14.0-beta.2) (2026-09-26)
-
-### 🐛 Bug Fixes
-
-* keep objects when lenient EDS/DCF reads hit malformed numeric keys ([#568](https://github.com/dborgards/eds-dcf-net/issues/568)) ([1afaa5b](https://github.com/dborgards/eds-dcf-net/commit/1afaa5bc789b0bfd7d2ed1f97723d00c253ca1e0))
-
-## [1.14.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.13.0...v1.14.0-beta.1) (2026-09-26)
+## [1.14.0](https://github.com/dborgards/eds-dcf-net/compare/v1.13.0...v1.14.0) (2026-09-26)
 
 ### ✨ Features
 
 * CiA 306 conformance fixes for DCF writer, $NODEID formulas, reader, fixtures and validator ([#564](https://github.com/dborgards/eds-dcf-net/issues/564)) ([22a3239](https://github.com/dborgards/eds-dcf-net/commit/22a323933d8ecab014a25a116895dbd01f27dfb2)), closes [#559](https://github.com/dborgards/eds-dcf-net/issues/559) [#560](https://github.com/dborgards/eds-dcf-net/issues/560) [#561](https://github.com/dborgards/eds-dcf-net/issues/561) [#563](https://github.com/dborgards/eds-dcf-net/issues/563) [#562](https://github.com/dborgards/eds-dcf-net/issues/562) [#562](https://github.com/dborgards/eds-dcf-net/issues/562) [#562](https://github.com/dborgards/eds-dcf-net/issues/562)
+
+### 🐛 Bug Fixes
+
+* **checker:** accept short object indexes and flag padded subs ([f05fa57](https://github.com/dborgards/eds-dcf-net/commit/f05fa573f69cfc341f7bda189cee4db8618d48d2))
+* **checker:** reject orphan padded auxiliary sections ([#576](https://github.com/dborgards/eds-dcf-net/issues/576)) ([c806ae1](https://github.com/dborgards/eds-dcf-net/commit/c806ae15939828d037cd315da2238c46d9d0cb19))
+* **checker:** reject zero-padded object and compact-value names ([#571](https://github.com/dborgards/eds-dcf-net/issues/571)) ([51e4ea9](https://github.com/dborgards/eds-dcf-net/commit/51e4ea9444ffd19203df758910da60f4c41ef37f))
+* **checker:** report discarded DCF values on padded and expanded objects ([#575](https://github.com/dborgards/eds-dcf-net/issues/575)) ([c941b46](https://github.com/dborgards/eds-dcf-net/commit/c941b467035ea9efedffab6d301104bd95fa4838))
+* **checker:** report orphaned DCF compact values ([#574](https://github.com/dborgards/eds-dcf-net/issues/574)) ([d0d28d7](https://github.com/dborgards/eds-dcf-net/commit/d0d28d7b7c85b141ff6f6a1c847a106ca4f84dbe))
+* keep objects when lenient EDS/DCF reads hit malformed numeric keys ([#568](https://github.com/dborgards/eds-dcf-net/issues/568)) ([1afaa5b](https://github.com/dborgards/eds-dcf-net/commit/1afaa5bc789b0bfd7d2ed1f97723d00c253ca1e0))
+* padded section names and dictionary key equality ([#572](https://github.com/dborgards/eds-dcf-net/issues/572)) ([83b6074](https://github.com/dborgards/eds-dcf-net/commit/83b60748002edc4adc88c50fcb084796751b27dc))
+* require mandatory entries on DEFSTRUCT members ([#573](https://github.com/dborgards/eds-dcf-net/issues/573)) ([e885be5](https://github.com/dborgards/eds-dcf-net/commit/e885be5c195b34d38dbf07edc1dcf4cc6829c9de))
 
 ## [1.13.0](https://github.com/dborgards/eds-dcf-net/compare/v1.12.2...v1.13.0) (2026-09-20)
 
