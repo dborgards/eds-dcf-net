@@ -676,10 +676,11 @@ public sealed class RawObjectChecker
     /// Validates DCF <c>[xxxxValue]</c> entries (CiA 306 §5.2.3.2). Each decimal key in
     /// <c>1..min(CompactSubObj, 254)</c> is applied as that sub-object's <c>ParameterValue</c>
     /// and must fit the parent template's data type and limits. An explicit
-    /// <c>[XXXXsubN]</c> above that range still receives the override
+    /// <c>[XXXXsubN]</c> the reader loads above that range still receives the override
     /// (<c>DcfReader.ApplyCompactListSection</c>) and is checked against its own type and limits.
-    /// A nonempty key in <c>1..254</c> above that range with no reader-visible sub-object is
-    /// discarded; that loss is reported as <c>VAL008</c> because default library validation does not.
+    /// A zero-padded alias is not that section. A nonempty key in <c>1..254</c> above the
+    /// compact range with no reader-visible sub-object is discarded; that loss is reported
+    /// as <c>VAL008</c> because default library validation does not.
     /// </summary>
     private void CheckCompactValueEntries(
         RawSection template,
@@ -720,10 +721,13 @@ public sealed class RawObjectChecker
                 continue;
             }
 
-            if (explicitSubs.TryGetValue(subIndex, out var explicitSub))
+            if (explicitSubs.TryGetValue(subIndex, out var explicitSub) &&
+                HasReaderVisibleSubObject(index, subIndex))
             {
-                // An explicit [XXXXsubN] keeps its own data type and limits, including
-                // sub-indices above CompactSubObj (DcfReader still applies the value).
+                // An explicit [XXXXsubN] the reader loads keeps its own data type and limits,
+                // including sub-indices above CompactSubObj (DcfReader still applies the value).
+                // A zero-padded alias is already in explicitSubs, but ParseSubObject does not
+                // load it; above the compact range that commissioned value is discarded.
                 ValueEvaluation? subLow = null;
                 ValueEvaluation? subHigh = null;
                 if (ValueSupport.IsNumeric(explicitSub.DataType))
@@ -743,12 +747,7 @@ public sealed class RawObjectChecker
                 // section). Default library validation does not report the discarded value.
                 if (!HasReaderVisibleSubObject(index, subIndex))
                 {
-                    Add(Severity.Error, "VAL008", valueSection, entry, string.Format(CultureInfo.InvariantCulture,
-                        "ParameterValue for sub-index {0} is above CompactSubObj range 1..{1} and has no [{2}sub{3}] section, so EdsDcfNet discards it.",
-                        subIndex,
-                        compactMax,
-                        UnpaddedIndex(index),
-                        subIndex.ToString("X", CultureInfo.InvariantCulture)));
+                    ReportDiscardedParameterValue(valueSection, entry, index, subIndex, compactMax);
                 }
 
                 continue;
@@ -759,13 +758,16 @@ public sealed class RawObjectChecker
     }
 
     /// <summary>
-    /// Validates DCF <c>[xxxxValue]</c> overrides on an expanded object (no nonzero
-    /// <c>CompactSubObj</c>). <c>DcfReader</c> still applies those entries to each matching
-    /// explicit sub-object, using that sub-object's own data type and limits.
+    /// Validates DCF <c>[xxxxValue]</c> overrides on an expanded object (<c>CompactSubObj</c>
+    /// absent or zero). <c>DcfReader.ApplyCompactListSection</c> applies an entry only when
+    /// <c>obj.SubObjects</c> contains that index, which requires a reader-visible
+    /// <c>[XXXXsubN]</c>. A decimal key with no such section is discarded. <c>[xxxxValue]</c>
+    /// is a known section, so the loss is not visible as an additional section and default
+    /// library validation does not report it; the checker reports <c>VAL008</c>.
     /// </summary>
     private void CheckExpandedValueOverrides(ushort index, Dictionary<byte, CheckedValues> subs)
     {
-        if (!_isDcf || subs.Count == 0)
+        if (!_isDcf)
         {
             return;
         }
@@ -779,9 +781,23 @@ public sealed class RawObjectChecker
         foreach (var entry in valueSection.Entries.Values.OrderBy(e => e.Line))
         {
             if (!TryParseCompactListSubIndex(entry.Key, out var subIndex) ||
-                string.IsNullOrWhiteSpace(entry.Value) ||
-                !subs.TryGetValue(subIndex, out var checkedSub))
+                string.IsNullOrWhiteSpace(entry.Value))
             {
+                continue;
+            }
+
+            if (!HasReaderVisibleSubObject(index, subIndex))
+            {
+                // Same discarded-value loss as a key above a nonzero compact range.
+                // A zero-padded [XXXXsubN] alias is not the section ParseSubObject loads.
+                ReportDiscardedParameterValue(valueSection, entry, index, subIndex, compactMax: null);
+                continue;
+            }
+
+            if (!subs.TryGetValue(subIndex, out var checkedSub))
+            {
+                // The section is loaded (for example DataType is missing and already
+                // reported). The commissioned value is still applied.
                 continue;
             }
 
@@ -795,6 +811,34 @@ public sealed class RawObjectChecker
 
             CheckAppliedListValue(valueSection, entry, checkedSub.DataType, low, high);
         }
+    }
+
+    /// <summary>
+    /// Reports a DCF <c>[xxxxValue]</c> entry the reader drops because no sub-object
+    /// exists for that index. <paramref name="compactMax"/> is the inclusive compact
+    /// range when <c>CompactSubObj</c> is nonzero; otherwise the object is expanded.
+    /// </summary>
+    private void ReportDiscardedParameterValue(
+        RawSection valueSection,
+        RawEntry entry,
+        ushort index,
+        byte subIndex,
+        byte? compactMax)
+    {
+        var subName = subIndex.ToString("X", CultureInfo.InvariantCulture);
+        var message = compactMax is not null
+            ? string.Format(CultureInfo.InvariantCulture,
+                "ParameterValue for sub-index {0} is above CompactSubObj range 1..{1} and has no [{2}sub{3}] section, so EdsDcfNet discards it.",
+                subIndex,
+                compactMax.Value,
+                UnpaddedIndex(index),
+                subName)
+            : string.Format(CultureInfo.InvariantCulture,
+                "ParameterValue for sub-index {0} has no [{1}sub{2}] section, so EdsDcfNet discards it.",
+                subIndex,
+                UnpaddedIndex(index),
+                subName);
+        Add(Severity.Error, "VAL008", valueSection, entry, message);
     }
 
     private void CheckAppliedListValue(
