@@ -380,6 +380,13 @@ public sealed class RawObjectChecker
     {
         if (!subs.TryGetValue(0, out var sub0))
         {
+            if (compactSubObj is > 0)
+            {
+                // The reader synthesizes sub-index 0 from CompactSubObj, and the writer omits
+                // [XXXXsub0] when that entry still matches the synthesized template.
+                return;
+            }
+
             _findings.Add(new Finding(Severity.Error, "OBJ007", _file, _objects[index].Line, _objects[index].Name, null, null,
                 "ARRAY/RECORD object has no sub-index 0 section ([" + Hex4(index) + "sub0])."));
             return;
