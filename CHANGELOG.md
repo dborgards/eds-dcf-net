@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.0-beta.8](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.7...v1.14.0-beta.8) (2026-09-26)
+
+### 🐛 Bug Fixes
+
+* **checker:** reject orphan padded auxiliary sections ([#576](https://github.com/dborgards/eds-dcf-net/issues/576)) ([c806ae1](https://github.com/dborgards/eds-dcf-net/commit/c806ae15939828d037cd315da2238c46d9d0cb19))
+
 ## [1.14.0-beta.7](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.6...v1.14.0-beta.7) (2026-09-26)
 
 ### 🐛 Bug Fixes
