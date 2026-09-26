@@ -100,7 +100,7 @@ ParameterValue=Configured Device Name
 
 [1018]
 ParameterName=Identity Object
-SubNumber=4
+SubNumber=5
 ObjectType=0x9
 
 [1018sub0]
@@ -147,7 +147,7 @@ PDOMapping=0
 
 [1400]
 ParameterName=RPDO Communication Parameter
-SubNumber=2
+SubNumber=3
 ObjectType=0x9
 
 [1400sub0]
@@ -196,7 +196,6 @@ ParameterName=Manufacturer Config Array
 ObjectType=0x8
 DataType=0x0005
 AccessType=rw
-SubNumber=3
 CompactSubObj=3
 
 [2100sub0]
