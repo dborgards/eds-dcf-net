@@ -168,6 +168,7 @@ public abstract class IniWriterBase
         }
 
         WriteObjectExtension(sb, obj);
+        WriteRemainingEntries(sb, obj.RemainingEntries);
 
         sb.AppendLine();
 
@@ -320,7 +321,8 @@ public abstract class IniWriterBase
     private static bool HasNonCompactExclusiveFields(CanOpenSubObject subObj)
         => subObj.SrdoMapping
            || !string.IsNullOrEmpty(subObj.InvertedSrad)
-           || !string.IsNullOrEmpty(subObj.ParamRefd);
+           || !string.IsNullOrEmpty(subObj.ParamRefd)
+           || subObj.RemainingEntries.Count > 0;
 
     private static void WriteCompactNameSection(
         StringBuilder sb,
@@ -429,8 +431,18 @@ public abstract class IniWriterBase
         }
 
         WriteSubObjectExtension(sb, subObj);
+        WriteRemainingEntries(sb, subObj.RemainingEntries);
 
         sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Writes unknown section keys in insertion order, after the known keywords.
+    /// </summary>
+    private static void WriteRemainingEntries(StringBuilder sb, OrderedStringDictionary entries)
+    {
+        foreach (var entry in entries)
+            WriteKeyValue(sb, entry.Key, entry.Value);
     }
 
     /// <summary>

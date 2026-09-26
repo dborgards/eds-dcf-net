@@ -234,6 +234,79 @@ public abstract class CanOpenReaderBase
         LenientIniNumber.AppendIndexes(sections, sectionName, "SupportedObjects", targetList);
     }
 
+    private static readonly HashSet<string> ObjectEntryKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "ParameterName",
+        "ObjectType",
+        "DataType",
+        "AccessType",
+        "DefaultValue",
+        "LowLimit",
+        "HighLimit",
+        "PDOMapping",
+        "SRDOMapping",
+        "InvertedSRAD",
+        "ObjFlags",
+        "SubNumber",
+        "CompactSubObj"
+    };
+
+    private static readonly HashSet<string> SubObjectEntryKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "ParameterName",
+        "ObjectType",
+        "DataType",
+        "AccessType",
+        "DefaultValue",
+        "LowLimit",
+        "HighLimit",
+        "PDOMapping",
+        "SRDOMapping",
+        "InvertedSRAD"
+    };
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="key"/> is mapped onto a
+    /// <see cref="CanOpenObject"/> property. Comparison is case-insensitive.
+    /// DCF overrides this to include configured-value keywords.
+    /// </summary>
+    /// <param name="key">INI key from the object section.</param>
+    protected virtual bool IsKnownObjectEntryKey(string key) => ObjectEntryKeys.Contains(key);
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="key"/> is mapped onto a
+    /// <see cref="CanOpenSubObject"/> property. Comparison is case-insensitive.
+    /// DCF overrides this to include configured-value keywords.
+    /// </summary>
+    /// <param name="key">INI key from the sub-object section.</param>
+    protected virtual bool IsKnownSubObjectEntryKey(string key) => SubObjectEntryKeys.Contains(key);
+
+    /// <summary>
+    /// Copies section keys that are not mapped onto dedicated properties into
+    /// <paramref name="destination"/>, preserving file order.
+    /// </summary>
+    private static void CaptureRemainingEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        Func<string, bool> isKnownKey,
+        OrderedStringDictionary destination)
+    {
+        if (!sections.TryGetValue(sectionName, out var section))
+            return;
+
+        IEnumerable<KeyValuePair<string, string>> entries = section is IniSectionDictionary ordered
+            ? ordered.EntriesInOrder()
+            : section;
+
+        foreach (var entry in entries)
+        {
+            if (isKnownKey(entry.Key))
+                continue;
+
+            destination.Add(entry.Key, entry.Value);
+        }
+    }
+
     /// <summary>
     /// Parses a single CANopen object at the given <paramref name="index"/> from the INI sections.
     /// Returns <see langword="null"/> if no section exists for that index.
@@ -326,6 +399,8 @@ public abstract class CanOpenReaderBase
         {
             ParseSubObjects(sections, index, obj);
         }
+
+        CaptureRemainingEntries(sections, sectionName, IsKnownObjectEntryKey, obj.RemainingEntries);
 
         // Parse object links
         var linksSectionName = string.Concat(ToHexInvariant(index), "ObjectLinks");
@@ -529,6 +604,8 @@ public abstract class CanOpenReaderBase
             SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
         };
+
+        CaptureRemainingEntries(sections, sectionName, IsKnownSubObjectEntryKey, subObj.RemainingEntries);
 
         return subObj;
     }

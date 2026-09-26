@@ -162,6 +162,30 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         return fileInfo;
     }
 
+    private static readonly HashSet<string> DcfObjectOnlyKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "ParameterValue",
+        "Denotation",
+        "ParamRefd",
+        "UploadFile",
+        "DownloadFile"
+    };
+
+    private static readonly HashSet<string> DcfSubObjectOnlyKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "ParameterValue",
+        "Denotation",
+        "ParamRefd"
+    };
+
+    /// <inheritdoc/>
+    protected override bool IsKnownObjectEntryKey(string key)
+        => DcfObjectOnlyKeys.Contains(key) || base.IsKnownObjectEntryKey(key);
+
+    /// <inheritdoc/>
+    protected override bool IsKnownSubObjectEntryKey(string key)
+        => DcfSubObjectOnlyKeys.Contains(key) || base.IsKnownSubObjectEntryKey(key);
+
     /// <inheritdoc/>
     protected override CanOpenObject? ParseObject(Dictionary<string, Dictionary<string, string>> sections, ushort index)
     {

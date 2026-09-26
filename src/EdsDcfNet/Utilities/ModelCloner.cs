@@ -94,6 +94,7 @@ internal static class ModelCloner
         };
 
         clone.ObjectLinks.AddRange(source.ObjectLinks);
+        CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
 
         foreach (var kvp in source.SubObjects)
         {
@@ -108,7 +109,7 @@ internal static class ModelCloner
     /// </summary>
     internal static CanOpenSubObject CloneSubObject(CanOpenSubObject source)
     {
-        return new CanOpenSubObject
+        var clone = new CanOpenSubObject
         {
             SubIndex = source.SubIndex,
             ParameterName = source.ParameterName,
@@ -125,6 +126,15 @@ internal static class ModelCloner
             InvertedSrad = source.InvertedSrad,
             ParamRefd = source.ParamRefd
         };
+
+        CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
+        return clone;
+    }
+
+    private static void CopyRemainingEntries(OrderedStringDictionary source, OrderedStringDictionary destination)
+    {
+        foreach (var entry in source)
+            destination.Add(entry.Key, entry.Value);
     }
 
     /// <summary>
