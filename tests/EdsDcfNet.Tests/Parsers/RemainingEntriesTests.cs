@@ -2,6 +2,7 @@ namespace EdsDcfNet.Tests.Parsers;
 
 using EdsDcfNet;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 
 /// <summary>
 /// Unknown keys inside object and sub-object sections are kept on
@@ -293,6 +294,284 @@ Lang-Bemerkung=Sub note
         AssertEntries(againObj.RemainingEntries, ("Group", "Motion"));
         againObj.SubObjects[0].RemainingEntries.Should().BeEmpty();
         AssertEntries(againObj.SubObjects[1].RemainingEntries, ("Lang-Bemerkung", "Sub note"));
+    }
+
+    [Fact]
+    public void WriteToString_DedicatedKeysInRemainingEntries_AreNotEmittedTwice()
+    {
+        var eds = CanOpenFile.Eds.ReadString(
+            """
+            [DeviceInfo]
+            VendorName=Test Vendor
+
+            [ManufacturerObjects]
+            SupportedObjects=1
+            1=0x2000
+
+            [2000]
+            ParameterName=Real Name
+            ObjectType=0x7
+            DataType=0x0007
+            AccessType=rw
+            PDOMapping=0
+            SubNumber=1
+
+            [2000sub1]
+            ParameterName=Real Sub
+            ObjectType=0x7
+            DataType=0x0005
+            AccessType=ro
+            PDOMapping=0
+            """);
+
+        var obj = eds.ObjectDictionary.Objects[0x2000];
+        obj.RemainingEntries.Add("ParameterName", "Shadow");
+        obj.RemainingEntries.Add("ObjectType", "9");
+        obj.RemainingEntries.Add("Group", "Motion");
+        obj.SubObjects[1].RemainingEntries.Add("DataType", "0x0001");
+        obj.SubObjects[1].RemainingEntries.Add("ParameterName", "Shadow Sub");
+        obj.SubObjects[1].RemainingEntries.Add("Group", "Kept");
+
+        var written = CanOpenFile.Eds.WriteToString(eds);
+
+        CountKey(written, "ParameterName").Should().Be(2);
+        written.Should().Contain("ParameterName=Real Name");
+        written.Should().Contain("ParameterName=Real Sub");
+        written.Should().NotContain("ParameterName=Shadow");
+        written.Should().NotContain("ObjectType=9");
+        written.Should().NotContain("DataType=0x0001");
+        written.Should().Contain("Group=Motion");
+        written.Should().Contain("Group=Kept");
+    }
+
+    [Fact]
+    public void ConvertToDcf_DcfOnlyRemainingKeys_MoveOntoProperties()
+    {
+        var eds = ReadEdsWithDcfKeywords();
+        var source = eds.ObjectDictionary.Objects[0x2000];
+        source.Denotation = "keep-denotation";
+        source.SubObjects[1].ParamRefd = "keep-sub-ref";
+
+        var dcf = CanOpenFile.Eds.ConvertToDcf(
+            eds,
+            nodeId: 5,
+            timestamp: new DateTime(2020, 1, 2, 3, 4, 5, DateTimeKind.Utc),
+            baudrate: 250,
+            nodeName: "Node");
+
+        source.ParameterValue.Should().BeNull();
+        source.RemainingEntries.Should().ContainKey("ParameterValue");
+        source.RemainingEntries.Should().ContainKey("Denotation");
+        source.Denotation.Should().Be("keep-denotation");
+
+        var obj = dcf.ObjectDictionary.Objects[0x2000];
+        obj.ParameterValue.Should().Be("eds-value");
+        obj.Denotation.Should().Be("keep-denotation");
+        obj.ParamRefd.Should().Be("eds-ref");
+        obj.UploadFile.Should().Be("up.bin");
+        obj.DownloadFile.Should().Be("down.bin");
+        AssertEntries(obj.RemainingEntries, ("Group", "Motion"));
+
+        var plain = dcf.ObjectDictionary.Objects[0x2001];
+        plain.ParameterValue.Should().BeNull();
+        plain.SubObjects.Should().BeEmpty();
+        AssertEntries(plain.RemainingEntries, ("Group", "OnlyUnknown"));
+
+        var sub = obj.SubObjects[1];
+        sub.ParameterValue.Should().Be("eds-sub-value");
+        sub.Denotation.Should().BeNull();
+        sub.ParamRefd.Should().Be("keep-sub-ref");
+        AssertEntries(sub.RemainingEntries, ("Group", "SubGroup"));
+
+        var edsWritten = CanOpenFile.Eds.WriteToString(eds);
+        edsWritten.Should().Contain("ParameterValue=eds-value");
+        edsWritten.Should().Contain("downloadfile=down.bin");
+    }
+
+    [Fact]
+    public void WriteToString_DcfOnlyRemainingKeys_DoNotShadowCommissionedValues()
+    {
+        var eds = ReadEdsWithDcfKeywords();
+        var dcf = CanOpenFile.Eds.ConvertToDcf(
+            eds,
+            nodeId: 5,
+            timestamp: new DateTime(2020, 1, 2, 3, 4, 5, DateTimeKind.Utc),
+            baudrate: 250,
+            nodeName: "Node");
+
+        var obj = dcf.ObjectDictionary.Objects[0x2000];
+        obj.ParameterValue = "commissioned";
+        obj.Denotation = "commissioned-denotation";
+        obj.ParamRefd = "commissioned-ref";
+        obj.UploadFile = "commissioned-up";
+        obj.DownloadFile = "commissioned-down";
+        obj.RemainingEntries.Add("parameterValue", "stale-value");
+        obj.RemainingEntries.Add("DENOTATION", "stale-denotation");
+        obj.RemainingEntries.Add("ParamRefd", "stale-ref");
+        obj.RemainingEntries.Add("UploadFile", "stale-up");
+        obj.RemainingEntries.Add("downloadfile", "stale-down");
+
+        var sub = obj.SubObjects[1];
+        sub.ParameterValue = "sub-commissioned";
+        sub.Denotation = "sub-commissioned-denotation";
+        sub.ParamRefd = "sub-commissioned-ref";
+        sub.RemainingEntries.Add("ParameterValue", "stale-sub");
+        sub.RemainingEntries.Add("denotation", "stale-sub-denotation");
+        sub.RemainingEntries.Add("ParamRefd", "stale-sub-ref");
+
+        var written = CanOpenFile.Dcf.WriteToString(dcf);
+
+        CountKey(written, "ParameterValue").Should().Be(2);
+        CountKey(written, "Denotation").Should().Be(2);
+        CountKey(written, "ParamRefd").Should().Be(2);
+        CountKey(written, "UploadFile").Should().Be(1);
+        CountKey(written, "DownloadFile").Should().Be(1);
+        written.Should().NotContain("stale-");
+        written.Should().Contain("Group=Motion");
+        written.Should().Contain("Group=SubGroup");
+
+        var again = CanOpenFile.Dcf.ReadString(written, new CanOpenFileOptions { StrictParsing = true });
+        var againObj = again.ObjectDictionary.Objects[0x2000];
+        againObj.ParameterValue.Should().Be("commissioned");
+        againObj.Denotation.Should().Be("commissioned-denotation");
+        againObj.ParamRefd.Should().Be("commissioned-ref");
+        againObj.UploadFile.Should().Be("commissioned-up");
+        againObj.DownloadFile.Should().Be("commissioned-down");
+        AssertEntries(againObj.RemainingEntries, ("Group", "Motion"));
+
+        var againSub = againObj.SubObjects[1];
+        againSub.ParameterValue.Should().Be("sub-commissioned");
+        againSub.Denotation.Should().Be("sub-commissioned-denotation");
+        againSub.ParamRefd.Should().Be("sub-commissioned-ref");
+        AssertEntries(againSub.RemainingEntries, ("Group", "SubGroup"));
+    }
+
+    [Fact]
+    public void CaptureRemainingEntries_PlainDictionaryAndMissingSection_CopiesUnknownKeys()
+    {
+        var plain = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ParameterName"] = "Name",
+            ["Group"] = "Motion",
+            ["PDOMAPPING"] = "1",
+            ["Lang-Bemerkung"] = "Hinweis"
+        };
+        var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["2000"] = plain
+        };
+        var destination = new OrderedStringDictionary { ["Keep"] = "yes" };
+
+        CanOpenReaderBase.CaptureRemainingEntries(
+            sections,
+            "missing",
+            SectionEntryKeys.IsEdsObjectKey,
+            destination);
+        AssertEntries(destination, ("Keep", "yes"));
+
+        destination.Clear();
+        CanOpenReaderBase.CaptureRemainingEntries(
+            sections,
+            "2000",
+            SectionEntryKeys.IsEdsObjectKey,
+            destination);
+
+        destination.Should().NotContainKey("ParameterName");
+        destination.Should().NotContainKey("PDOMapping");
+        destination.Should().ContainKey("Group").WhoseValue.Should().Be("Motion");
+        destination.Should().ContainKey("Lang-Bemerkung").WhoseValue.Should().Be("Hinweis");
+
+        var ordered = new IniSectionDictionary();
+        ordered.Set("Group", "First");
+        ordered.Set("ParameterName", "Name");
+        ordered.Set("Lang-Bemerkung", "Hinweis");
+        ordered.Set("group", "Second");
+        sections["2000"] = ordered;
+        destination.Clear();
+
+        CanOpenReaderBase.CaptureRemainingEntries(
+            sections,
+            "2000",
+            SectionEntryKeys.IsEdsObjectKey,
+            destination);
+        AssertEntries(destination, ("Group", "Second"), ("Lang-Bemerkung", "Hinweis"));
+
+        sections["2000"] = new IniSectionDictionary();
+        destination.Clear();
+        destination.Add("Keep", "yes");
+        CanOpenReaderBase.CaptureRemainingEntries(
+            sections,
+            "2000",
+            SectionEntryKeys.IsEdsSubObjectKey,
+            destination);
+        AssertEntries(destination, ("Keep", "yes"));
+    }
+
+    private static ElectronicDataSheet ReadEdsWithDcfKeywords()
+    {
+        return CanOpenFile.Eds.ReadString(
+            """
+            [FileInfo]
+            FileName=vendor.eds
+            FileVersion=1
+            FileRevision=1
+            EDSVersion=4.0
+
+            [DeviceInfo]
+            VendorName=Test Vendor
+            ProductName=Vendor Product
+
+            [ManufacturerObjects]
+            SupportedObjects=2
+            1=0x2000
+            2=0x2001
+
+            [2000]
+            ParameterName=Vendor Object
+            ObjectType=0x7
+            DataType=0x0007
+            AccessType=rw
+            PDOMapping=0
+            ParameterValue=eds-value
+            Denotation=eds-denotation
+            ParamRefd=eds-ref
+            UploadFile=up.bin
+            downloadfile=down.bin
+            Group=Motion
+            SubNumber=1
+
+            [2000sub1]
+            ParameterName=Vendor Sub
+            ObjectType=0x7
+            DataType=0x0005
+            AccessType=ro
+            PDOMapping=0
+            parametervalue=eds-sub-value
+            ParamRefd=eds-sub-ref
+            Group=SubGroup
+
+            [2001]
+            ParameterName=Plain
+            ObjectType=0x7
+            DataType=0x0007
+            AccessType=ro
+            PDOMapping=0
+            Group=OnlyUnknown
+            """);
+    }
+
+    private static int CountKey(string content, string key)
+    {
+        var prefix = key + "=";
+        var count = 0;
+        foreach (var raw in content.Split('\n'))
+        {
+            var line = raw.TrimEnd('\r').Trim();
+            if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                count++;
+        }
+
+        return count;
     }
 
     private static void AssertEntries(

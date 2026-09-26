@@ -234,44 +234,13 @@ public abstract class CanOpenReaderBase
         LenientIniNumber.AppendIndexes(sections, sectionName, "SupportedObjects", targetList);
     }
 
-    private static readonly HashSet<string> ObjectEntryKeys = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "ParameterName",
-        "ObjectType",
-        "DataType",
-        "AccessType",
-        "DefaultValue",
-        "LowLimit",
-        "HighLimit",
-        "PDOMapping",
-        "SRDOMapping",
-        "InvertedSRAD",
-        "ObjFlags",
-        "SubNumber",
-        "CompactSubObj"
-    };
-
-    private static readonly HashSet<string> SubObjectEntryKeys = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "ParameterName",
-        "ObjectType",
-        "DataType",
-        "AccessType",
-        "DefaultValue",
-        "LowLimit",
-        "HighLimit",
-        "PDOMapping",
-        "SRDOMapping",
-        "InvertedSRAD"
-    };
-
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="key"/> is mapped onto a
     /// <see cref="CanOpenObject"/> property. Comparison is case-insensitive.
     /// DCF overrides this to include configured-value keywords.
     /// </summary>
     /// <param name="key">INI key from the object section.</param>
-    protected virtual bool IsKnownObjectEntryKey(string key) => ObjectEntryKeys.Contains(key);
+    protected virtual bool IsKnownObjectEntryKey(string key) => SectionEntryKeys.IsEdsObjectKey(key);
 
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="key"/> is mapped onto a
@@ -279,13 +248,13 @@ public abstract class CanOpenReaderBase
     /// DCF overrides this to include configured-value keywords.
     /// </summary>
     /// <param name="key">INI key from the sub-object section.</param>
-    protected virtual bool IsKnownSubObjectEntryKey(string key) => SubObjectEntryKeys.Contains(key);
+    protected virtual bool IsKnownSubObjectEntryKey(string key) => SectionEntryKeys.IsEdsSubObjectKey(key);
 
     /// <summary>
     /// Copies section keys that are not mapped onto dedicated properties into
     /// <paramref name="destination"/>, preserving file order.
     /// </summary>
-    private static void CaptureRemainingEntries(
+    internal static void CaptureRemainingEntries(
         Dictionary<string, Dictionary<string, string>> sections,
         string sectionName,
         Func<string, bool> isKnownKey,

@@ -168,7 +168,7 @@ public abstract class IniWriterBase
         }
 
         WriteObjectExtension(sb, obj);
-        WriteRemainingEntries(sb, obj.RemainingEntries);
+        WriteRemainingEntries(sb, obj.RemainingEntries, IsDedicatedObjectEntryKey);
 
         sb.AppendLine();
 
@@ -431,18 +431,42 @@ public abstract class IniWriterBase
         }
 
         WriteSubObjectExtension(sb, subObj);
-        WriteRemainingEntries(sb, subObj.RemainingEntries);
+        WriteRemainingEntries(sb, subObj.RemainingEntries, IsDedicatedSubObjectEntryKey);
 
         sb.AppendLine();
     }
 
     /// <summary>
-    /// Writes unknown section keys in insertion order, after the known keywords.
+    /// Returns <see langword="true"/> when <paramref name="key"/> is written from a
+    /// <see cref="CanOpenObject"/> property. EDS keywords only; DCF adds configured-value keywords.
     /// </summary>
-    private static void WriteRemainingEntries(StringBuilder sb, OrderedStringDictionary entries)
+    /// <param name="key">Remaining-entry key.</param>
+    protected virtual bool IsDedicatedObjectEntryKey(string key) => SectionEntryKeys.IsEdsObjectKey(key);
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="key"/> is written from a
+    /// <see cref="CanOpenSubObject"/> property. EDS keywords only; DCF adds configured-value keywords.
+    /// </summary>
+    /// <param name="key">Remaining-entry key.</param>
+    protected virtual bool IsDedicatedSubObjectEntryKey(string key) => SectionEntryKeys.IsEdsSubObjectKey(key);
+
+    /// <summary>
+    /// Writes unknown section keys in insertion order, after the known keywords.
+    /// Keys that this format already writes from dedicated properties are skipped so they
+    /// cannot be emitted twice or replace a commissioned property value.
+    /// </summary>
+    private static void WriteRemainingEntries(
+        StringBuilder sb,
+        OrderedStringDictionary entries,
+        Func<string, bool> isDedicatedKey)
     {
         foreach (var entry in entries)
+        {
+            if (isDedicatedKey(entry.Key))
+                continue;
+
             WriteKeyValue(sb, entry.Key, entry.Value);
+        }
     }
 
     /// <summary>
