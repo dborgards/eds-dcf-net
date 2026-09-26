@@ -219,7 +219,9 @@ BREAKING CHANGE: CanOpenFile.Eds.ReadFile now returns a Result type
 > treats as a Major bump — a `!` after the type, the `breaking`/`major` commit
 > type, or a `BREAKING CHANGE:`/`BREAKING CHANGES:` footer — in
 > which case the diff is posted as a PR comment so the Major bump is a
-> conscious decision. A GitHub label has no effect on semantic-release's
+> conscious decision. The ApiCompat intent regex only treats that footer as
+> an opt-in when the keyword is followed by a colon (`BREAKING CHANGE:` /
+> `BREAKING CHANGES:`). A GitHub label has no effect on semantic-release's
 > version calculation and is not accepted here. Known, intentional deviations
 > (e.g. `[Obsolete]`
 > removals allowed by the obsoleting policy at the next Major) are suppressed in
