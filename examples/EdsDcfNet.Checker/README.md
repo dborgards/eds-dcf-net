@@ -35,11 +35,11 @@ Exit codes: `0` valid, `1` errors found, `2` usage or I/O problem.
 Example output:
 
 ```
-device.eds: INVALID (3 error(s), 1 warning(s))
+device.eds: INVALID (4 error(s), 0 warning(s))
   device.eds:122: error VAL001 [2000] DefaultValue=1000: Value does not fit UNSIGNED8 (0..255).
   device.eds:132: error VAL003 [2001] DefaultValue=20: DefaultValue 20 is above HighLimit 10.
   device.eds:149: error FRM001 [2003] DefaultValue=$NODEID*2: Invalid $NODEID formula. ...
-  device.eds:1737: warning VAL005 [2021sub3] DefaultValue=010000: Leading zero makes this an octal literal (= 4096 decimal). ...
+  device.eds:50: error VAL001 [1017] DefaultValue=08: Value is not a valid UNSIGNED16 (0..65535) literal. A leading zero marks an octal literal, ...
 ```
 
 ## Rules
