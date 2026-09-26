@@ -456,6 +456,259 @@ PDOMapping=0
         findings.Should().Contain(f => f.Code == "INI002" && f.Section == "1018sub01");
     }
 
+    [Theory]
+    [InlineData("00020sub0")]
+    [InlineData("20sub000")]
+    [InlineData("00020sub000")]
+    public void Check_PaddedSubBeforeCanonical_UsesTheSectionTheReaderLoads(string paddedName)
+    {
+        // Arrange — sub-index 0 is cross-checked only for the section kept in the
+        // sub-object map. The reader loads [20sub0], which announces 9 while only
+        // sub-index 1 exists. The padded alias announces 1 and must not hide that.
+        var content = @"
+[20]
+ParameterName=Record
+ObjectType=0x9
+SubNumber=2
+
+[" + paddedName + @"]
+ParameterName=HighestPadded
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[20sub0]
+ParameterName=HighestCanonical
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=9
+PDOMapping=0
+
+[20sub1]
+ParameterName=Entry
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().Contain(f => f.Code == "OBJ011" && f.Section == paddedName);
+        findings.Should().Contain(f =>
+            f.Code == "INI002" &&
+            f.Section == "20sub0" &&
+            f.Message.Contains("[" + paddedName + "]", StringComparison.Ordinal));
+        findings.Should().Contain(f =>
+            f.Code == "OBJ007" &&
+            f.Section == "20sub0" &&
+            f.Message.Contains("9", StringComparison.Ordinal));
+        findings.Should().NotContain(f => f.Code == "OBJ007" && f.Section == paddedName);
+    }
+
+    [Fact]
+    public void Check_CanonicalSubBeforePadded_KeepsTheCanonicalSection()
+    {
+        // Arrange — the first spelling is already the one the reader loads.
+        const string content = @"
+[20]
+ParameterName=Record
+ObjectType=0x9
+SubNumber=2
+
+[20sub0]
+ParameterName=HighestCanonical
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=9
+PDOMapping=0
+
+[00020sub0]
+ParameterName=HighestPadded
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[20sub1]
+ParameterName=Entry
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().Contain(f => f.Code == "OBJ007" && f.Section == "20sub0");
+        findings.Should().NotContain(f => f.Code == "OBJ007" && f.Section == "00020sub0");
+        findings.Should().Contain(f => f.Code == "INI002" && f.Section == "00020sub0");
+    }
+
+    [Fact]
+    public void Check_TwoPaddedSubs_KeepsTheFirstForCrossChecks()
+    {
+        // Arrange — neither spelling is [20sub0]. The later padded alias must not
+        // replace the first one in the sub-object map.
+        const string content = @"
+[20]
+ParameterName=Record
+ObjectType=0x9
+SubNumber=2
+
+[00020sub0]
+ParameterName=FirstPadded
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=9
+PDOMapping=0
+
+[0020sub0]
+ParameterName=SecondPadded
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[20sub1]
+ParameterName=Entry
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().Contain(f => f.Code == "OBJ007" && f.Section == "00020sub0");
+        findings.Should().NotContain(f => f.Code == "OBJ007" && f.Section == "0020sub0");
+    }
+
+    [Fact]
+    public void Check_PaddedSubBeforeCanonical_PdoMappingUsesCanonical()
+    {
+        // Arrange — [02000sub1] is not PDO-mappable. The reader loads [2000sub1], which is.
+        const string content = @"
+[1600]
+ParameterName=RPDO
+ObjectType=0x9
+SubNumber=2
+
+[1600sub0]
+ParameterName=Number
+ObjectType=0x7
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+PDOMapping=0
+
+[1600sub1]
+ParameterName=Map
+ObjectType=0x7
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x20000108
+PDOMapping=0
+
+[2000]
+ParameterName=Mapped
+ObjectType=0x7
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+PDOMapping=0
+
+[02000sub1]
+ParameterName=Padded
+ObjectType=0x7
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+PDOMapping=0
+
+[2000sub1]
+ParameterName=Canonical
+ObjectType=0x7
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+PDOMapping=1
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().Contain(f => f.Code == "OBJ011" && f.Section == "02000sub1");
+        findings.Should().Contain(f =>
+            f.Code == "INI002" &&
+            f.Section == "2000sub1" &&
+            f.Message.Contains("[02000sub1]", StringComparison.Ordinal));
+        findings.Should().NotContain(f => f.Code == "PDO002");
+    }
+
+    [Fact]
+    public void Check_PaddedSubBeforeCanonical_DcfOverrideUsesCanonicalLimits()
+    {
+        // Arrange — [20Value] entry 1=50 fits the canonical HighLimit and not the padded one.
+        const string content = @"
+[DeviceComissioning]
+NodeID=1
+
+[20]
+ParameterName=Record
+ObjectType=0x9
+SubNumber=1
+
+[00020sub1]
+ParameterName=Padded
+ObjectType=0x7
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+LowLimit=0
+HighLimit=10
+PDOMapping=0
+
+[20sub1]
+ParameterName=Canonical
+ObjectType=0x7
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+LowLimit=0
+HighLimit=100
+PDOMapping=0
+
+[20Value]
+1=50
+";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        findings.Should().Contain(f => f.Code == "OBJ011" && f.Section == "00020sub1");
+        findings.Should().Contain(f => f.Code == "INI002" && f.Section == "20sub1");
+        findings.Should().NotContain(f => f.Code == "VAL004");
+    }
+
     [Fact]
     public void Check_ShortIndex_DcfValueSection_IsChecked()
     {

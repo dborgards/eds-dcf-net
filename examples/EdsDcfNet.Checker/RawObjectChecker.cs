@@ -202,8 +202,20 @@ public sealed class RawObjectChecker
                         "Sub-index 0x{0:X2} of {1} is already described by [{2}] (line {3}); readers keep only one of them.",
                         sub, Hex4(subObjectIndex), existing.Name, existing.Line));
 
-                    // Keep the first section; the duplicate is still checked on its own in Run().
-                    _duplicateSubSections.Add((subObjectIndex, sub, section));
+                    // ParseSubObject loads the unpadded name. A padded section seen first must
+                    // not hide [20sub1] from later cross-checks (sub-index 0, DCF overrides, PDO
+                    // mapping). The displaced section is still checked on its own in Run().
+                    if (IsCanonicalSubSection(section.Name, subObjectIndex, sub) &&
+                        !IsCanonicalSubSection(existing.Name, subObjectIndex, sub))
+                    {
+                        subs[sub] = section;
+                        _duplicateSubSections.Add((subObjectIndex, sub, existing));
+                    }
+                    else
+                    {
+                        _duplicateSubSections.Add((subObjectIndex, sub, section));
+                    }
+
                     continue;
                 }
 
@@ -1457,6 +1469,16 @@ public sealed class RawObjectChecker
     /// <inheritdoc cref="IsUnpaddedHex(string, ushort)"/>
     private static bool IsUnpaddedHex(string text, byte value) =>
         text.Equals(value.ToString("X", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// True when <paramref name="name"/> is the sub-index section
+    /// <c>ParseSubObject</c> probes (<c>20sub1</c>, not <c>00020sub1</c> or <c>20sub001</c>).
+    /// Comparison is case-insensitive, matching the reader's section dictionary.
+    /// </summary>
+    private static bool IsCanonicalSubSection(string name, ushort index, byte sub) =>
+        name.Equals(
+            string.Concat(UnpaddedIndex(index), "sub", sub.ToString("X", CultureInfo.InvariantCulture)),
+            StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// DCF <c>[xxxxValue]</c> section. <c>ApplyCompactListSection</c> probes only the
