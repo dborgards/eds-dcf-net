@@ -28,7 +28,8 @@ public sealed class CanOpenValidationOptions
 
     /// <summary>
     /// Gets a value indicating whether <c>SubNumber</c> must equal the number of described
-    /// sub-indexes including sub-index 00h (CiA 306-1 clause 6.6.3.2). Objects with a non-zero
+    /// sub-indexes including sub-index 00h and excluding sub-index FFh (CiA 306-1 clause 6.6.3.2,
+    /// <see cref="Models.CanOpenObject.SubNumber"/>). Objects with a non-zero
     /// <c>CompactSubObj</c> and the tolerated <c>SubNumber=0</c> with only sub-index 00h are
     /// not reported.
     /// </summary>

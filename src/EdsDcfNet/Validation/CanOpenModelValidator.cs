@@ -469,18 +469,23 @@ public static class CanOpenModelValidator
         else if (options.CheckSubNumberCount &&
                  obj.SubObjects.Count > 0 &&
                  obj.SubNumber.HasValue &&
-                 obj.SubNumber.Value != obj.SubObjects.Count &&
                  !hasCompactSubObjects)
         {
-            // CiA 306-1 clause 6.6.3.2: "the EDS entry SubNumber shall contain the number of
-            // sub-indexes implemented, including the sub-index 00h" (#562).
-            issues.Add(new ValidationIssue(
-                objectPath + ".SubNumber",
-                string.Format(
-                    CultureInfo.InvariantCulture,
-                    "SubNumber is {0} but {1} sub-objects are defined; SubNumber counts every described sub-index including sub-index 00h.",
-                    obj.SubNumber.Value,
-                    obj.SubObjects.Count)));
+            // CanOpenObject.SubNumber does not count sub-index FFh, and a byte cannot
+            // represent a 00h–FFh set. CiA 306-1 clause 6.6.3.2 still counts sub-index 00h.
+            var describedSubObjectCount = obj.SubObjects.ContainsKey(0xFF)
+                ? obj.SubObjects.Count - 1
+                : obj.SubObjects.Count;
+            if (obj.SubNumber.Value != describedSubObjectCount)
+            {
+                issues.Add(new ValidationIssue(
+                    objectPath + ".SubNumber",
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "SubNumber is {0} but {1} sub-objects are defined; SubNumber counts every described sub-index including sub-index 00h and excluding sub-index FFh.",
+                        obj.SubNumber.Value,
+                        describedSubObjectCount)));
+            }
         }
 
         // DEFTYPE/DEFSTRUCT entries describe types, not values.

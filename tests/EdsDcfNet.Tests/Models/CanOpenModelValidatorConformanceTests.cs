@@ -96,6 +96,42 @@ public class CanOpenModelValidatorConformanceTests
             .NotContain(i => i.Path == "ObjectDictionary.Objects[0x2100].SubNumber");
     }
 
+    [Fact]
+    public void Validate_SubNumberExcludesSubIndexFF_ReturnsNoIssues()
+    {
+        Check(EdsWithArray(2, 0, 1, 0xFF)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Validate_SubNumberCountsSubIndexFF_ReportsIssue()
+    {
+        var issues = Check(EdsWithArray(3, 0, 1, 0xFF));
+
+        issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2100].SubNumber")
+            .Which.Message.Should().Contain("SubNumber is 3 but 2 sub-objects");
+    }
+
+    [Fact]
+    public void Validate_OnlySubIndexFF_WithSubNumberOne_ReportsIssue()
+    {
+        var issues = Check(EdsWithArray(1, 0xFF));
+
+        issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2100].SubNumber")
+            .Which.Message.Should().Contain("SubNumber is 1 but 0 sub-objects");
+    }
+
+    [Fact]
+    public void Validate_SubNumberExcludesSubIndexFF_AtMaxValue_ReturnsNoIssues()
+    {
+        var subIndexes = new byte[256];
+        for (var i = 0; i < subIndexes.Length; i++)
+        {
+            subIndexes[i] = (byte)i;
+        }
+
+        Check(EdsWithArray(255, subIndexes)).Should().BeEmpty();
+    }
+
     // ------------------------------------------------------------------ values vs. data type
 
     [Theory]
