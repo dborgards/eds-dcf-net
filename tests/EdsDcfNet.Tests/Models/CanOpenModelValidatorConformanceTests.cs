@@ -380,6 +380,48 @@ public class CanOpenModelValidatorConformanceTests
     }
 
     [Fact]
+    public void Validate_RequireMandatoryEntries_DefStructMembers_ReportEmptyNameAndZeroDataType()
+    {
+        var eds = ConformantEdsWithDefStruct();
+        var members = eds.ObjectDictionary.Objects[0x0040].SubObjects;
+        members[1].ParameterName = string.Empty;
+        members[2].DataType = 0;
+
+        var issues = CanOpenModelValidator.Validate(
+            eds,
+            new CanOpenValidationOptions { RequireMandatoryEntries = true });
+
+        issues.Select(i => (i.Path, i.Message)).Should().BeEquivalentTo(new (string Path, string Message)[]
+        {
+            ("ObjectDictionary.Objects[0x0040].SubObjects[0x01].ParameterName",
+                "Mandatory entry is empty (CiA 306-1 Table 7)."),
+            ("ObjectDictionary.Objects[0x0040].SubObjects[0x02].DataType",
+                "Mandatory entry DataType is missing (CiA 306-1 Table 7)."),
+        });
+        CanOpenModelValidator.Validate(eds).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Validate_DefStructMembers_SkipValueChecksWhenMandatoryEntriesRequired()
+    {
+        var eds = ConformantEdsWithDefStruct();
+        var member = eds.ObjectDictionary.Objects[0x0040].SubObjects[1];
+        member.DataType = CanOpenDataType.Unsigned8;
+        member.DefaultValue = "1000";
+        var options = new CanOpenValidationOptions
+        {
+            CheckValueRanges = true,
+            RequireMandatoryEntries = true,
+        };
+
+        CanOpenModelValidator.Validate(eds, options).Should().BeEmpty();
+
+        eds.ObjectDictionary.Objects[0x0040].ObjectType = CanOpenObjectType.Array;
+        CanOpenModelValidator.Validate(eds, options)
+            .Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x0040].SubObjects[0x01].DefaultValue");
+    }
+
+    [Fact]
     public void Validate_StrictOptions_ReportsVarWithoutDataTypeAndEmptyParameterNames()
     {
         var eds = EdsWithVar(CanOpenDataType.Unsigned8, "1");
@@ -683,6 +725,50 @@ public class CanOpenModelValidatorConformanceTests
 
         integer.CompareTo(real).Should().BePositive();
         real.CompareTo(integer).Should().BeNegative();
+    }
+
+    private static ElectronicDataSheet ConformantEdsWithDefStruct()
+    {
+        var eds = ConformantEdsShell();
+        AddVar(eds, 0x1000, eds.ObjectDictionary.MandatoryObjects);
+        AddVar(eds, 0x1001, eds.ObjectDictionary.MandatoryObjects);
+        AddVar(eds, 0x1018, eds.ObjectDictionary.MandatoryObjects);
+
+        const ushort index = 0x0040;
+        eds.ObjectDictionary.OptionalObjects.Add(index);
+        var defStruct = new CanOpenObject
+        {
+            Index = index,
+            ParameterName = "PDO Communication Parameter",
+            ObjectType = CanOpenObjectType.DefStruct,
+            SubNumber = 3,
+        };
+        defStruct.SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Number of Entries",
+            ObjectType = CanOpenObjectType.Var,
+            DataType = CanOpenDataType.Unsigned8,
+            DefaultValue = "2",
+        };
+        defStruct.SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "COB-ID",
+            ObjectType = CanOpenObjectType.Var,
+            DataType = CanOpenDataType.Unsigned32,
+            DefaultValue = "0",
+        };
+        defStruct.SubObjects[2] = new CanOpenSubObject
+        {
+            SubIndex = 2,
+            ParameterName = "Transmission Type",
+            ObjectType = CanOpenObjectType.Var,
+            DataType = CanOpenDataType.Unsigned8,
+            DefaultValue = "0",
+        };
+        eds.ObjectDictionary.Objects[index] = defStruct;
+        return eds;
     }
 
     private static ElectronicDataSheet ConformantEdsShell()

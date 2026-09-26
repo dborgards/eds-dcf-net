@@ -585,11 +585,9 @@ public static class CanOpenModelValidator
                     "Mandatory entry DataType is missing (CiA 306-1 Table 7)."));
             }
 
-            if (obj.ObjectType == CanOpenObjectType.DefStruct)
-            {
-                continue;
-            }
-
+            // DEFSTRUCT members describe types, so ValidateObject skips their value
+            // checks. ParameterName and a VAR DataType are still mandatory for every
+            // sub-object (CiA 306-1 Table 7), including DEFSTRUCT members.
             foreach (var sub in obj.SubObjects)
             {
                 cancellationToken.ThrowIfCancellationRequested();
