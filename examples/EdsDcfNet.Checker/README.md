@@ -68,7 +68,7 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | VAL005 | warning | Leading zero → value is read as octal (`010` = 8) |
 | VAL006 | warning | Limits on a non-numeric data type |
 | VAL007 | warning | Hex literal for REAL32/REAL64 |
-| VAL008 | error | DCF `[XXXXValue]` entry in `1..254` above `CompactSubObj` with no reader-visible `[XXXXsubN]`; the commissioned value is discarded (for example `CompactSubObj=2` and `[2000Value]` `3=7`) |
+| VAL008 | error | DCF `[XXXXValue]` entry in `1..254` that EdsDcfNet discards: above a nonzero `CompactSubObj` with no reader-visible `[XXXXsubN]` (a zero-padded alias does not count; for example `CompactSubObj=2`, `[2000sub03]` only, and `[2000Value]` `3=7`), or on an expanded object (`CompactSubObj` absent or zero) with no matching sub-object (for example sub-indexes 0 and 1 only, and `2=7`) |
 | FRM001 | error | Invalid `$NODEID` formula or operand |
 | FRM002 | error | `0x180+$NODEID` — `$NODEID` must come first, otherwise it is no formula |
 | FRM003 | error | `$NODEID` formula on a non-integer data type |
