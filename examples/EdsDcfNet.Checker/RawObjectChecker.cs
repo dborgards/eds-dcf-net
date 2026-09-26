@@ -160,6 +160,14 @@ public sealed class RawObjectChecker
                     Add(Severity.Error, "INI002", section, null, null, string.Format(CultureInfo.InvariantCulture,
                         "Object {0} is already described by [{1}] (line {2}); readers keep only one of them.",
                         Hex4(index), existingObject.Name, existingObject.Line));
+
+                    // ParseObject loads the unpadded name. A padded section seen first must not
+                    // hide [40] from the later value checks (including --no-library).
+                    if (IsUnpaddedHex(indexText, index) && !IsUnpaddedHex(existingObject.Name, index))
+                    {
+                        _objects[index] = section;
+                    }
+
                     continue;
                 }
 

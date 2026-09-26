@@ -47,7 +47,7 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | Code | Severity | Check |
 |---|---|---|
 | INI001 | error | Malformed section header or line without `Key=Value` |
-| INI002 | error | Duplicate section, including two spellings of the same object or sub-index (`[40]` and `[0040]`, `[1018sub1]` and `[1018sub01]`) |
+| INI002 | error | Duplicate section, including two spellings of the same object or sub-index (`[40]` and `[0040]`, `[1018sub1]` and `[1018sub01]`). When both an object spelling and a padded alias exist, later value checks use the unpadded section the reader loads |
 | INI003 | warning | Duplicate key within a section |
 | INI004 | error | Entry outside of any section |
 | OBJ001 | error | `ObjectType` not a number or not a CiA 306 object code |

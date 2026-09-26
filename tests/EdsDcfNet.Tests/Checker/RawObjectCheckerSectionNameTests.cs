@@ -204,6 +204,51 @@ PDOMapping=0
         findings.Should().Contain(f => f.Code == "OBJ011" && f.Section == "0040");
     }
 
+    [Theory]
+    [InlineData("0040", "40")]
+    [InlineData("00040", "40")]
+    public void Check_PaddedIndexBeforeCanonical_ValidatesTheSectionTheReaderLoads(
+        string paddedName,
+        string canonicalName)
+    {
+        // Arrange — 999 does not fit UNSIGNED8. The reader loads [40], so that
+        // section must be checked even when the padded alias appears first.
+        var content = @"
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[" + paddedName + @"]
+ParameterName=Padded
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[" + canonicalName + @"]
+ParameterName=Canonical
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=999
+PDOMapping=0
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().Contain(f => f.Code == "OBJ011" && f.Section == paddedName);
+        findings.Should().Contain(f =>
+            f.Code == "INI002" &&
+            f.Section == canonicalName &&
+            f.Message.Contains("[" + paddedName + "]", StringComparison.Ordinal));
+        findings.Should().Contain(f => f.Code == "VAL001" && f.Section == canonicalName);
+        findings.Should().NotContain(f => f.Code == "VAL001" && f.Section == paddedName);
+        findings.Should().NotContain(f => f.Code == "LST002");
+    }
+
     [Fact]
     public void Check_UnlistedOverWidthPaddedIndex_ReportsObj011()
     {
@@ -728,6 +773,43 @@ PDOMapping=0
         dropped.ObjectDictionary.Objects.Should().NotContainKey(0x20);
         loaded.ObjectDictionary.Objects.Should().ContainKey(0x20);
         loaded.ObjectDictionary.Objects[0x20].ParameterName.Should().Be("Custom");
+    }
+
+    [Fact]
+    public void ReadString_PaddedBeforeCanonical_ReaderLoadsCanonical()
+    {
+        // Arrange — ParseObject probes [40] only, whichever spelling appears first.
+        const string content = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[0040]
+ParameterName=Padded
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[40]
+ParameterName=Canonical
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+";
+
+        // Act
+        var loaded = CanOpenFile.Eds.ReadString(content);
+
+        // Assert
+        loaded.ObjectDictionary.Objects.Should().ContainKey(0x40);
+        loaded.ObjectDictionary.Objects[0x40].ParameterName.Should().Be("Canonical");
     }
 
     [Fact]
