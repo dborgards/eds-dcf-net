@@ -187,9 +187,13 @@ public sealed class MandatoryFieldsChecker
             return;
         }
 
-        var identity = _doc.Get(string.Format(CultureInfo.InvariantCulture, "1018sub{0}", sub));
-        var identityValue = identity?.GetValue("DefaultValue");
-        if (identityValue is null || identityValue.Contains('$'))
+        var identity = FindIdentitySubSection(sub);
+        // DCF stores the commissioned identity in ParameterValue; EDS (and a DCF
+        // without that entry) keeps it in DefaultValue. Section names are often
+        // zero-padded ([1018sub01]) as well as unpadded ([1018sub1]).
+        var identityKey = _isDcf && identity?.GetValue("ParameterValue") is not null ? "ParameterValue" : "DefaultValue";
+        var identityValue = identity?.GetValue(identityKey);
+        if (identity is null || identityValue is null || identityValue.Contains('$'))
         {
             return;
         }
@@ -200,13 +204,20 @@ public sealed class MandatoryFieldsChecker
             if (expected != value.Value)
             {
                 Add(Severity.Warning, "MND005", section, section.Get(key), key, string.Format(CultureInfo.InvariantCulture,
-                    "{0}=0x{1:X} differs from [1018sub{2}] DefaultValue=0x{3:X}.", key, value.Value, sub, expected));
+                    "{0}=0x{1:X} differs from [{2}] {3}=0x{4:X}.", key, value.Value, identity.Name, identityKey, expected));
             }
         }
         catch (Exception ex) when (ex is EdsParseException or FormatException or OverflowException)
         {
             // reported by the value checks
         }
+    }
+
+    private RawSection? FindIdentitySubSection(byte sub)
+    {
+        var unpadded = string.Format(CultureInfo.InvariantCulture, "1018sub{0:X}", sub);
+        var padded = string.Format(CultureInfo.InvariantCulture, "1018sub{0:X2}", sub);
+        return _doc.Get(unpadded) ?? _doc.Get(padded);
     }
 
     private void ComparePdoCount(RawSection section, string key, ulong? announced, ushort baseIndex)
