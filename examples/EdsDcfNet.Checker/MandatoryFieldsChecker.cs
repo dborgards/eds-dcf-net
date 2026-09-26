@@ -295,8 +295,9 @@ public sealed class MandatoryFieldsChecker
 
     /// <summary>
     /// FileVersion/FileRevision are plain decimal UNSIGNED8 values for the EdsDcfNet reader
-    /// (<c>08</c> is 8 and <c>010</c> is 10, no CiA octal); a major/minor form such as
-    /// <c>1.0</c> is tolerated by the lenient reader, which keeps the major part.
+    /// (<c>08</c> is 8 and <c>010</c> is 10, no CiA octal). A genuine major/minor form such as
+    /// <c>1.0</c> or <c>1,0</c> is a warning: the lenient reader keeps the major part.
+    /// Hex and signed literals (<c>0x01</c>, <c>+1</c>) are not that form; the reader rejects them.
     /// </summary>
     private void RequireVersionByte(RawSection section, string key)
     {
@@ -313,19 +314,92 @@ public sealed class MandatoryFieldsChecker
         }
         catch (EdsParseException)
         {
-            // fall through to the major/minor form
+            // fall through: either a tooling major/minor form, or a literal the reader cannot load
         }
 
-        try
+        if (TrySplitToolingMajorMinor(entry.Value, out var majorText))
         {
-            var major = ValueConverter.ParseByteAllowingMajorMinor(entry.Value);
-            Add(Severity.Warning, "MND003", section, entry, key, string.Format(CultureInfo.InvariantCulture,
-                "{0} should be a decimal UNSIGNED8 number; the major/minor form is read as {1} by lenient readers.", key, major));
+            try
+            {
+                var major = byte.Parse(majorText, NumberStyles.None, CultureInfo.InvariantCulture);
+                Add(Severity.Warning, "MND003", section, entry, key, string.Format(CultureInfo.InvariantCulture,
+                    "{0} should be a decimal UNSIGNED8 number; the major/minor form is read as {1} by lenient readers.", key, major));
+            }
+            catch (OverflowException)
+            {
+                Add(Severity.Error, "MND003", section, entry, key, key + " must be a decimal UNSIGNED8 number (0..255).");
+            }
+
+            return;
         }
-        catch (EdsParseException)
+
+        Add(Severity.Error, "MND003", section, entry, key, key + " must be a decimal UNSIGNED8 number (0..255).");
+    }
+
+    /// <summary>
+    /// Matches <c>ValueConverter.TrySplitMajorMinorDecimal</c>: one <c>.</c> or <c>,</c>
+    /// between two non-empty ASCII digit runs. Hex prefixes are numeric literals, not versions.
+    /// </summary>
+    private static bool TrySplitToolingMajorMinor(string value, out string major)
+    {
+        major = string.Empty;
+        value = value.Trim();
+
+        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
         {
-            Add(Severity.Error, "MND003", section, entry, key, key + " must be a decimal UNSIGNED8 number (0..255).");
+            return false;
         }
+
+        var separatorIndex = -1;
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (c != '.' && c != ',')
+            {
+                continue;
+            }
+
+            if (separatorIndex >= 0)
+            {
+                return false;
+            }
+
+            separatorIndex = i;
+        }
+
+        if (separatorIndex <= 0 || separatorIndex >= value.Length - 1)
+        {
+            return false;
+        }
+
+        var majorPart = value[..separatorIndex].Trim();
+        var minorPart = value[(separatorIndex + 1)..].Trim();
+        if (majorPart.Length == 0 || minorPart.Length == 0)
+        {
+            return false;
+        }
+
+        if (!IsAllAsciiDigits(majorPart) || !IsAllAsciiDigits(minorPart))
+        {
+            return false;
+        }
+
+        major = majorPart;
+        return true;
+    }
+
+    private static bool IsAllAsciiDigits(string value)
+    {
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (c < '0' || c > '9')
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private ulong? RequireUnsigned(RawSection section, string key, int bits)

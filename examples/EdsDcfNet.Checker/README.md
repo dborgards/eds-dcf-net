@@ -86,7 +86,7 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | PDO004 | error | PDO maps more than 64 bits (compact `[XXXXValue]` maps included) |
 | MND001 | error | Mandatory section missing (`[FileInfo]`, `[DeviceInfo]`, `[MandatoryObjects]`, DCF `[DeviceComissioning]`) |
 | MND002 | warning | Mandatory `[FileInfo]`/`[DeviceInfo]`/`[DeviceComissioning]` entry missing or empty |
-| MND003 | error/warning | Entry value has the wrong type/format (UNSIGNED8/16/32, BOOLEAN 0/1, `X.Y`, `hh:mm(AM\|PM)`, `mm-dd-yyyy`, max. length, Granularity 0..64, Baudrate) |
+| MND003 | error/warning | Entry value has the wrong type/format (UNSIGNED8/16/32, BOOLEAN 0/1, `X.Y`, `hh:mm(AM\|PM)`, `mm-dd-yyyy`, max. length, Granularity 0..64, Baudrate). `FileVersion`/`FileRevision`: warning only for a genuine major.minor form (`1.0`, `1,0`); hex and signed literals are errors |
 | MND004 | warning | No `BaudRate_xxx=1` |
 | MND005 | error/warning | `VendorNumber`/`ProductNumber`/`RevisionNumber` differ from `[1018subN]` (`ParameterValue` on DCF, otherwise `DefaultValue`; padded names such as `[1018sub01]` count); more PDOs described than `NrOfRxPDO`/`NrOfTxPDO` |
 | DCF001 | warning | DCF without configured `NodeID` |
