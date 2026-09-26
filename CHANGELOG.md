@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.4...v1.14.0-beta.5) (2026-09-26)
+
+### 🐛 Bug Fixes
+
+* padded section names and dictionary key equality ([#572](https://github.com/dborgards/eds-dcf-net/issues/572)) ([83b6074](https://github.com/dborgards/eds-dcf-net/commit/83b60748002edc4adc88c50fcb084796751b27dc))
+
 ## [1.14.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.3...v1.14.0-beta.4) (2026-09-26)
 
 ### 🐛 Bug Fixes
