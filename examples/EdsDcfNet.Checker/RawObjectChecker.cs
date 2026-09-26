@@ -293,10 +293,42 @@ public sealed class RawObjectChecker
 
             if (compactSubObj is > 0)
             {
+                // A nonzero SubNumber is valid when it covers explicit sub-indices above
+                // the compact range. IniWriterBase.ResolveSubNumberForWrite emits that
+                // form (CompactSubObj=2, SubNumber=255, [2100subFF]). Without such
+                // entries SubNumber must stay 0, empty or absent. 0/absent is still
+                // accepted: the reader scans every sub-index regardless of SubNumber.
                 if (subNumber is > 0)
                 {
-                    Add(Severity.Error, "OBJ006", section, section.Get("SubNumber"),
-                        "SubNumber is not supported together with a non-zero CompactSubObj; it shall be 0, empty or absent.");
+                    var compactMax = Math.Min(compactSubObj.Value, (byte)254);
+                    byte? highestBeyond = null;
+                    if (subs is not null)
+                    {
+                        foreach (var subIndex in subs.Keys)
+                        {
+                            if (subIndex <= compactMax)
+                            {
+                                continue;
+                            }
+
+                            if (highestBeyond is null || subIndex > highestBeyond.Value)
+                            {
+                                highestBeyond = subIndex;
+                            }
+                        }
+                    }
+
+                    if (highestBeyond is null)
+                    {
+                        Add(Severity.Error, "OBJ006", section, section.Get("SubNumber"),
+                            "SubNumber is not supported together with a non-zero CompactSubObj; it shall be 0, empty or absent.");
+                    }
+                    else if (subNumber.Value < highestBeyond.Value)
+                    {
+                        Add(Severity.Error, "OBJ006", section, section.Get("SubNumber"), string.Format(CultureInfo.InvariantCulture,
+                            "SubNumber={0} does not cover expanded sub-index {1} above CompactSubObj range 1..{2}.",
+                            subNumber.Value, highestBeyond.Value, compactMax));
+                    }
                 }
 
                 // Compact array: sub-indices are generated from the parent template.
