@@ -442,12 +442,53 @@ public class TypedObjectDictionaryValueTests
     [Theory]
     [InlineData("$NODEID+")]
     [InlineData("$NODEID*2")]
-    [InlineData("$NODEID+1+1")]
+    [InlineData("$NODEID+1+")]
+    [InlineData("$NODEID++1")]
+    [InlineData("$NODEID-1+1")]
     public void Parse_MalformedSignedNodeIdFormula_ThrowsFormatException(string formula)
     {
         var act = () => CanOpenValueConverter.Parse(formula, 0x0004, nodeId: 1);
 
         act.Should().Throw<FormatException>();
+    }
+
+    [Theory]
+    [InlineData("$NODEID+1+1", 1, 3)]
+    [InlineData("$NODEID+0x180+0x80", 5, 0x205)]
+    [InlineData("$NODEID + 0x200 + 1", 2, 0x203)]
+    public void Parse_NodeIdFormulaWithSeveralOffsets_SumsOffsets(string formula, byte nodeId, int expected)
+    {
+        // CiA 306-1 §6.3: IntEntryValue = $NODEID {"+" number} (#560)
+        CanOpenValueConverter.Parse(formula, 0x0004, nodeId: nodeId).Should().Be(expected);
+    }
+
+    [Fact]
+    public void Parse_NodeIdFormulaWithSeveralOffsets_Unsigned8_AtMaxValue()
+    {
+        CanOpenValueConverter.Parse("$NODEID+0x7F+0x7F", 0x0005, nodeId: 1).Should().Be((byte)0xFF);
+    }
+
+    [Fact]
+    public void Parse_NodeIdFormulaWithSeveralOffsets_Unsigned8_AboveMaxValue_ThrowsOverflowException()
+    {
+        var act = () => CanOpenValueConverter.Parse("$NODEID+0x7F+0x80", 0x0005, nodeId: 1);
+
+        act.Should().Throw<OverflowException>();
+    }
+
+    [Fact]
+    public void Parse_NodeIdFormulaWithSeveralOffsets_Unsigned64_AtMaxValue()
+    {
+        CanOpenValueConverter.Parse("$NODEID+0xFFFFFFFFFFFFFF00+0xFE", 0x001B, nodeId: 1)
+            .Should().Be(ulong.MaxValue);
+    }
+
+    [Fact]
+    public void Parse_NodeIdFormulaWithSeveralOffsets_OperandSumOverflows64Bit_ThrowsOverflowException()
+    {
+        var act = () => CanOpenValueConverter.Parse("$NODEID+0xFFFFFFFFFFFFFFFF+1", 0x001B, nodeId: 1);
+
+        act.Should().Throw<OverflowException>().WithMessage("*overflows*");
     }
 
     [Fact]

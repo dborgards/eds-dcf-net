@@ -39,6 +39,20 @@
     <ProjectReference Include="..\EdsDcfNet.TestHost\EdsDcfNet.TestHost.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
+  <!-- Checker is net10.0-only. ReferenceOutputAssembly stays on so tests can call it;
+       CS8002 is the unsigned example exe referenced by this signed test assembly. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <ProjectReference Include="..\..\examples\EdsDcfNet.Checker\EdsDcfNet.Checker.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+    <Compile Remove="Checker\**\*.cs" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Update="Fixtures\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

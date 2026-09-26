@@ -176,6 +176,19 @@ public class CanOpenObject
     /// For DCF files: parameter reference designator (max 249 characters).
     /// </summary>
     public string? ParamRefd { get; set; }
+
+    /// <summary>
+    /// Unknown keys from this object's INI section, in file order.
+    /// </summary>
+    /// <remarks>
+    /// CiA 306 allows additional entries inside an object section. Keys are compared
+    /// case-insensitively, and a key that differs from a known keyword only by case
+    /// is not stored here. Known keywords stay on their dedicated properties.
+    /// When the source is a DCF, <see cref="ParameterValue"/>, <see cref="Denotation"/>,
+    /// <see cref="ParamRefd"/>, <see cref="UploadFile"/>, and <see cref="DownloadFile"/>
+    /// are known keywords. In an EDS those names are not keywords, so they are kept here.
+    /// </remarks>
+    public OrderedStringDictionary RemainingEntries { get; } = new();
 }
 
 /// <summary>
@@ -273,6 +286,18 @@ public class CanOpenSubObject
     /// For DCF files: parameter reference designator (max 249 characters).
     /// </summary>
     public string? ParamRefd { get; set; }
+
+    /// <summary>
+    /// Unknown keys from this sub-object's INI section, in file order.
+    /// </summary>
+    /// <remarks>
+    /// Keys are compared case-insensitively. Known sub-object keywords stay on their
+    /// dedicated properties and are not duplicated here, including when the file spells
+    /// them with different casing. DCF-only keywords <see cref="ParameterValue"/>,
+    /// <see cref="Denotation"/>, and <see cref="ParamRefd"/> are excluded for DCF sections.
+    /// The same names in an EDS sub-object section are kept here.
+    /// </remarks>
+    public OrderedStringDictionary RemainingEntries { get; } = new();
 }
 
 /// <summary>

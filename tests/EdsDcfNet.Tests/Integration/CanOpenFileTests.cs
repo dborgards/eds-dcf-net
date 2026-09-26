@@ -320,7 +320,7 @@ PDOMapping=0
         result.Should().Contain("[DeviceInfo]");
         result.Should().Contain("[MandatoryObjects]");
         result.Should().Contain("[1000]");
-        result.Should().NotContain("[DeviceCommissioning]");
+        result.Should().NotContain("[DeviceCommissioning]").And.NotContain("[DeviceComissioning]");
         result.Should().NotContain("ParameterValue=");
     }
 
@@ -482,7 +482,7 @@ PDOMapping=0
         result.Should().NotBeNullOrEmpty();
         result.Should().Contain("[FileInfo]");
         result.Should().Contain("[DeviceInfo]");
-        result.Should().Contain("[DeviceCommissioning]");
+        result.Should().Contain("[DeviceComissioning]").And.NotContain("[DeviceCommissioning]");
         result.Should().Contain("NodeID=5");
         result.Should().Contain("Baudrate=500");
     }

@@ -106,7 +106,7 @@ PDOMapping=0
 
 [1018]
 ParameterName=Identity Object
-SubNumber=4
+SubNumber=5
 ObjectType=0x9
 
 [1018sub0]
@@ -151,7 +151,7 @@ PDOMapping=0
 
 [1400]
 ParameterName=RPDO Communication Parameter
-SubNumber=2
+SubNumber=3
 ObjectType=0x9
 
 [1400sub0]
@@ -182,6 +182,8 @@ PDOMapping=0
 ParameterName=RPDO Mapping Parameter
 SubNumber=0
 ObjectType=0x9
+DataType=0x0007
+AccessType=rw
 CompactSubObj=8
 
 [1600sub0]
@@ -194,7 +196,7 @@ PDOMapping=0
 
 [1800]
 ParameterName=TPDO Communication Parameter
-SubNumber=2
+SubNumber=3
 ObjectType=0x9
 
 [1800sub0]
@@ -225,6 +227,8 @@ PDOMapping=0
 ParameterName=TPDO Mapping Parameter
 SubNumber=0
 ObjectType=0x9
+DataType=0x0007
+AccessType=rw
 CompactSubObj=8
 
 [1A00sub0]
@@ -237,7 +241,6 @@ PDOMapping=0
 
 [6000]
 ParameterName=Digital Input 8-Bit
-SubNumber=16
 ObjectType=0x8
 DataType=0x0005
 AccessType=ro
@@ -255,7 +258,6 @@ PDOMapping=0
 
 [6200]
 ParameterName=Digital Output 8-Bit
-SubNumber=16
 ObjectType=0x8
 DataType=0x0005
 AccessType=rww

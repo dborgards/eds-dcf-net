@@ -77,8 +77,9 @@ public static class CanOpenFile
 
 
     /// <summary>
-    /// Validates an Electronic Data Sheet (EDS) model using the full
-    /// <see cref="CanOpenModelValidator"/> rule set.
+    /// Validates an Electronic Data Sheet (EDS) model using the default
+    /// <see cref="CanOpenModelValidator"/> rule set (see <see cref="CanOpenValidationOptions"/>
+    /// for the opt-in CiA 306 conformance checks).
     /// </summary>
     /// <param name="eds">Model instance to validate</param>
     /// <returns>List of validation issues. Empty when model is valid.</returns>
@@ -88,8 +89,9 @@ public static class CanOpenFile
     }
 
     /// <summary>
-    /// Validates a Device Configuration File (DCF) model using the full
-    /// <see cref="CanOpenModelValidator"/> rule set.
+    /// Validates a Device Configuration File (DCF) model using the default
+    /// <see cref="CanOpenModelValidator"/> rule set (see <see cref="CanOpenValidationOptions"/>
+    /// for the opt-in CiA 306 conformance checks).
     /// </summary>
     /// <param name="dcf">Model instance to validate</param>
     /// <remarks>
@@ -102,6 +104,84 @@ public static class CanOpenFile
     public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf)
     {
         return CanOpenModelValidator.Validate(dcf);
+    }
+
+    /// <summary>
+    /// Validates an Electronic Data Sheet (EDS) model with the given <see cref="CanOpenValidationOptions"/>.
+    /// </summary>
+    /// <param name="eds">Model instance to validate</param>
+    /// <param name="options">
+    /// Opt-in rule sets to apply; <see langword="null"/> is the same as <see cref="CanOpenValidationOptions.Default"/>.
+    /// Use <see cref="CanOpenValidationOptions.Strict"/> for every CiA 306 conformance check.
+    /// </param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(ElectronicDataSheet eds, CanOpenValidationOptions? options)
+    {
+        return CanOpenModelValidator.Validate(eds, options);
+    }
+
+    /// <summary>
+    /// Validates an Electronic Data Sheet (EDS) model asynchronously with the given <see cref="CanOpenValidationOptions"/>.
+    /// Validation runs on a thread-pool thread and observes <paramref name="cancellationToken"/>
+    /// at iteration boundaries.
+    /// </summary>
+    /// <param name="eds">Model instance to validate</param>
+    /// <param name="options">
+    /// Opt-in rule sets to apply; <see langword="null"/> is the same as <see cref="CanOpenValidationOptions.Default"/>.
+    /// Use <see cref="CanOpenValidationOptions.Strict"/> for every CiA 306 conformance check.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token observed during validation</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    /// <remarks>
+    /// <paramref name="cancellationToken"/> has no default value so that existing calls such as
+    /// <c>ValidateAsync(model, default)</c> keep binding to the overload without options.
+    /// </remarks>
+    public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
+        ElectronicDataSheet eds,
+        CanOpenValidationOptions? options,
+        CancellationToken cancellationToken)
+    {
+        return CanOpenModelValidator.ValidateAsync(eds, options, cancellationToken);
+    }
+
+    /// <summary>
+    /// Validates a Device Configuration File (DCF) model with the given <see cref="CanOpenValidationOptions"/>.
+    /// </summary>
+    /// <param name="dcf">Model instance to validate</param>
+    /// <param name="options">
+    /// Opt-in rule sets to apply; <see langword="null"/> is the same as <see cref="CanOpenValidationOptions.Default"/>.
+    /// Use <see cref="CanOpenValidationOptions.Strict"/> for every CiA 306 conformance check.
+    /// </param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    public static IReadOnlyList<ValidationIssue> Validate(DeviceConfigurationFile dcf, CanOpenValidationOptions? options)
+    {
+        return CanOpenModelValidator.Validate(dcf, options);
+    }
+
+    /// <summary>
+    /// Validates a Device Configuration File (DCF) model asynchronously with the given <see cref="CanOpenValidationOptions"/>.
+    /// Validation runs on a thread-pool thread and observes <paramref name="cancellationToken"/>
+    /// at iteration boundaries.
+    /// </summary>
+    /// <param name="dcf">Model instance to validate</param>
+    /// <param name="options">
+    /// Opt-in rule sets to apply; <see langword="null"/> is the same as <see cref="CanOpenValidationOptions.Default"/>.
+    /// Use <see cref="CanOpenValidationOptions.Strict"/> for every CiA 306 conformance check.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token observed during validation</param>
+    /// <returns>List of validation issues. Empty when model is valid.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
+    /// <remarks>
+    /// <paramref name="cancellationToken"/> has no default value so that existing calls such as
+    /// <c>ValidateAsync(model, default)</c> keep binding to the overload without options.
+    /// </remarks>
+    public static Task<IReadOnlyList<ValidationIssue>> ValidateAsync(
+        DeviceConfigurationFile dcf,
+        CanOpenValidationOptions? options,
+        CancellationToken cancellationToken)
+    {
+        return CanOpenModelValidator.ValidateAsync(dcf, options, cancellationToken);
     }
 
     /// <summary>

@@ -417,6 +417,24 @@ Current checks include:
 - object dictionary consistency (list membership, duplicates, missing entries)
 - object-level constraints (object type validity, parameter-name length, SubNumber mismatch)
 
+Stricter CiA 306 conformance checks are opt-in via `CanOpenValidationOptions`, so
+existing `Validate` calls and `CanOpenWriteOptions.Validated` writes keep their
+behavior:
+
+| Option | Checks |
+|---|---|
+| `CheckSubNumberCount` | `SubNumber` equals the number of described sub-indexes including sub-index 00h (CiA 306-1 §6.6.3.2) |
+| `CheckValueRanges` | `DefaultValue`, `LowLimit`, `HighLimit`, `ParameterValue` fit the integer/BOOLEAN/REAL `DataType` (e.g. `1000` is rejected for UNSIGNED8); `LowLimit <= HighLimit`; default/parameter values within the limits. `$NODEID` formulas use the DCF node-ID, or node-IDs 1 and 127 in an EDS |
+| `RequireMandatoryEntries` | objects 1000h/1001h/1018h, non-empty `ParameterName`, `DataType` for VAR entries, `FileName`/`VendorName`/`ProductName`, configured DCF commissioning |
+
+```csharp
+// every opt-in rule set
+var strictIssues = CanOpenFile.Validate(dcf, CanOpenValidationOptions.Strict);
+
+// or pick individual rule sets
+var rangeIssues = CanOpenFile.Validate(dcf, new CanOpenValidationOptions { CheckValueRanges = true });
+```
+
 The CiA 306 Node-ID range used by these checks is exposed publicly via
 `CanOpenNodeId`, so consumers can validate or document node IDs without
 duplicating the `1..127` literals:
@@ -613,6 +631,11 @@ Today this covers:
   tokens (`ValueConverter.ParsePresentFlag`)
 - Unknown access-type tokens (`ValueConverter.ParseAccessType` and XDD
   `ParseXddAccessType`) and unknown XDD XML bools (`ParseXmlBool`)
+- Malformed EDS/DCF numeric object keys (`ObjectType` → VAR / `0x7`, object
+  `DataType` left unset, sub-object `DataType` → `0`, `SubNumber` and
+  `CompactSubObj` left unset, `ObjFlags` → `0`). Object-list counts
+  (`SupportedObjects`, `ObjectLinks`, module `NrOfEntries`) → `0`; a bad
+  index entry is skipped. The object is kept and the rest of the file is read.
 - EDS/DCF `FileVersion` / `FileRevision` and XDD/XDC `fileVersion` major/minor
   tooling forms (`1.0` / `1,0`); zero-padded values such as `010` parse as
   decimal `10` across EDS/DCF/XDD

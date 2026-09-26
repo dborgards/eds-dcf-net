@@ -64,7 +64,7 @@ public abstract class CanOpenReaderBase
 
     /// <summary>
     /// Extension point for format-specific sections that must be parsed after
-    /// <c>[DeviceInfo]</c> but before the object dictionary (DCF: <c>[DeviceCommissioning]</c>).
+    /// <c>[DeviceInfo]</c> but before the object dictionary (DCF: <c>[DeviceComissioning]</c>).
     /// </summary>
     private protected virtual void ParsePreObjectDictionarySections(
         ICanOpenFileModel model,
@@ -231,14 +231,48 @@ public abstract class CanOpenReaderBase
         if (!IniParser.HasSection(sections, sectionName))
             return;
 
-        var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "SupportedObjects", "0"));
-        for (int i = 1; i <= count; i++)
+        LenientIniNumber.AppendIndexes(sections, sectionName, "SupportedObjects", targetList);
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="key"/> is mapped onto a
+    /// <see cref="CanOpenObject"/> property. Comparison is case-insensitive.
+    /// DCF overrides this to include configured-value keywords.
+    /// </summary>
+    /// <param name="key">INI key from the object section.</param>
+    protected virtual bool IsKnownObjectEntryKey(string key) => SectionEntryKeys.IsEdsObjectKey(key);
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="key"/> is mapped onto a
+    /// <see cref="CanOpenSubObject"/> property. Comparison is case-insensitive.
+    /// DCF overrides this to include configured-value keywords.
+    /// </summary>
+    /// <param name="key">INI key from the sub-object section.</param>
+    protected virtual bool IsKnownSubObjectEntryKey(string key) => SectionEntryKeys.IsEdsSubObjectKey(key);
+
+    /// <summary>
+    /// Copies section keys that are not mapped onto dedicated properties into
+    /// <paramref name="destination"/>, preserving file order.
+    /// </summary>
+    internal static void CaptureRemainingEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        Func<string, bool> isKnownKey,
+        OrderedStringDictionary destination)
+    {
+        // Callers already confirmed the section exists (HasSection).
+        var section = sections[sectionName];
+
+        IEnumerable<KeyValuePair<string, string>> entries = section is IniSectionDictionary ordered
+            ? ordered.EntriesInOrder()
+            : section;
+
+        foreach (var entry in entries)
         {
-            var indexStr = IniParser.GetValue(sections, sectionName, i.ToString(CultureInfo.InvariantCulture));
-            if (!string.IsNullOrEmpty(indexStr))
-            {
-                targetList.Add(ValueConverter.ParseUInt16(indexStr));
-            }
+            if (isKnownKey(entry.Key))
+                continue;
+
+            destination.Add(entry.Key, entry.Value);
         }
     }
 
@@ -257,13 +291,27 @@ public abstract class CanOpenReaderBase
         {
             Index = index,
             ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral))
+            ObjectType = LenientIniNumber.ParseByte(
+                sections,
+                sectionName,
+                "ObjectType",
+                IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral),
+                fallback: CanOpenObjectType.Var,
+                code: Diagnostics.ParseDiagnosticCodes.InvalidObjectType,
+                coercedTo: CanOpenObjectType.VarLiteral,
+                fallbackDescription: LenientIniNumber.TreatAsVar)
         };
 
         var dataTypeStr = IniParser.GetValue(sections, sectionName, "DataType");
         if (!string.IsNullOrEmpty(dataTypeStr))
         {
-            obj.DataType = ValueConverter.ParseUInt16(dataTypeStr);
+            obj.DataType = LenientIniNumber.ParseOptionalUInt16(
+                sections,
+                sectionName,
+                "DataType",
+                dataTypeStr,
+                Diagnostics.ParseDiagnosticCodes.InvalidDataType,
+                LenientIniNumber.LeaveUnset);
         }
 
         var accessTypeStr = IniParser.GetValue(sections, sectionName, "AccessType");
@@ -278,18 +326,38 @@ public abstract class CanOpenReaderBase
         obj.PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping"));
         obj.SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping"));
         obj.InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD");
-        obj.ObjFlags = ValueConverter.ParseInteger(IniParser.GetValue(sections, sectionName, "ObjFlags", "0"));
+        obj.ObjFlags = LenientIniNumber.ParseUInt32(
+            sections,
+            sectionName,
+            "ObjFlags",
+            IniParser.GetValue(sections, sectionName, "ObjFlags", "0"),
+            fallback: 0,
+            code: Diagnostics.ParseDiagnosticCodes.InvalidObjFlags,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
 
         var subNumberStr = IniParser.GetValue(sections, sectionName, "SubNumber");
         if (!string.IsNullOrEmpty(subNumberStr))
         {
-            obj.SubNumber = ValueConverter.ParseByte(subNumberStr);
+            obj.SubNumber = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "SubNumber",
+                subNumberStr,
+                Diagnostics.ParseDiagnosticCodes.InvalidSubNumber,
+                LenientIniNumber.LeaveUnset);
         }
 
         var compactSubObjStr = IniParser.GetValue(sections, sectionName, "CompactSubObj");
         if (!string.IsNullOrEmpty(compactSubObjStr))
         {
-            obj.CompactSubObj = ValueConverter.ParseByte(compactSubObjStr);
+            obj.CompactSubObj = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "CompactSubObj",
+                compactSubObjStr,
+                Diagnostics.ParseDiagnosticCodes.InvalidCompactSubObj,
+                LenientIniNumber.LeaveUnset);
         }
 
         // Parse sub-objects for composite types, CompactSubObj templates (CiA 306 §4.5.2.4.2),
@@ -301,19 +369,13 @@ public abstract class CanOpenReaderBase
             ParseSubObjects(sections, index, obj);
         }
 
+        CaptureRemainingEntries(sections, sectionName, IsKnownObjectEntryKey, obj.RemainingEntries);
+
         // Parse object links
         var linksSectionName = string.Concat(ToHexInvariant(index), "ObjectLinks");
         if (IniParser.HasSection(sections, linksSectionName))
         {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, linksSectionName, "ObjectLinks", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var linkStr = IniParser.GetValue(sections, linksSectionName, i.ToString(CultureInfo.InvariantCulture));
-                if (!string.IsNullOrEmpty(linkStr))
-                {
-                    obj.ObjectLinks.Add(ValueConverter.ParseUInt16(linkStr));
-                }
-            }
+            LenientIniNumber.AppendIndexes(sections, linksSectionName, "ObjectLinks", obj.ObjectLinks);
         }
 
         return obj;
@@ -331,10 +393,12 @@ public abstract class CanOpenReaderBase
     /// </summary>
     protected virtual void ParseSubObjects(Dictionary<string, Dictionary<string, string>> sections, ushort index, CanOpenObject obj)
     {
-        // Scan every sub-index the object can describe: an explicit [xxxxsubFF] section is
-        // parsed even when it is only reachable through CompactSubObj=0xFF.
+        // Scan every possible sub-index. SubNumber is the *number* of described sub-indexes
+        // (CiA 306-1 clause 6.6.3.2), not the highest one: lists may have gaps (e.g. sub0,
+        // sub1, sub4 with SubNumber=3, CiA 306-1 Figure 16), so bounding the scan by
+        // SubNumber silently dropped the trailing sub-indexes (#563).
         var compactSubObj = (int)obj.CompactSubObj.GetValueOrDefault();
-        var maxSubIndex = Math.Max((int)(obj.SubNumber ?? 0), compactSubObj);
+        const int maxSubIndex = byte.MaxValue;
 
         // CiA 306 compact lists cover sub-indexes 1..254, so 0xFF is never *synthesized*
         // from the template — only an explicit section can populate it.
@@ -483,8 +547,24 @@ public abstract class CanOpenReaderBase
         {
             SubIndex = subIndex,
             ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral)),
-            DataType = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "DataType", "0")),
+            ObjectType = LenientIniNumber.ParseByte(
+                sections,
+                sectionName,
+                "ObjectType",
+                IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral),
+                fallback: CanOpenObjectType.Var,
+                code: Diagnostics.ParseDiagnosticCodes.InvalidObjectType,
+                coercedTo: CanOpenObjectType.VarLiteral,
+                fallbackDescription: LenientIniNumber.TreatAsVar),
+            DataType = LenientIniNumber.ParseUInt16(
+                sections,
+                sectionName,
+                "DataType",
+                IniParser.GetValue(sections, sectionName, "DataType", "0"),
+                fallback: 0,
+                code: Diagnostics.ParseDiagnosticCodes.InvalidDataType,
+                coercedTo: "0",
+                fallbackDescription: LenientIniNumber.TreatAsZero),
             AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
@@ -493,6 +573,8 @@ public abstract class CanOpenReaderBase
             SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
         };
+
+        CaptureRemainingEntries(sections, sectionName, IsKnownSubObjectEntryKey, subObj.RemainingEntries);
 
         return subObj;
     }

@@ -2373,9 +2373,9 @@ PDOMapping=0
     }
 
     [Fact]
-    public void ReadString_NonHexObjectIndex_ThrowsEdsParseException()
+    public void ReadString_NonHexObjectIndex_SkipsEntry()
     {
-        // Arrange – Non-hex index in object list
+        // Arrange – Non-hex index in object list. Lenient mode skips the entry (#557).
         var content = BuildMinimalDcf(extraSections: @"
 [OptionalObjects]
 SupportedObjects=1
@@ -2383,16 +2383,17 @@ SupportedObjects=1
 ");
 
         // Act
-        var act = () => _reader.ReadString(content);
+        var result = _reader.ReadString(content);
 
         // Assert
-        act.Should().Throw<EdsParseException>();
+        result.DeviceInfo.VendorName.Should().Be("Test Vendor");
+        result.ObjectDictionary.OptionalObjects.Should().BeEmpty();
     }
 
     [Fact]
-    public void ReadString_OverflowObjectIndex_ThrowsEdsParseException()
+    public void ReadString_OverflowObjectIndex_SkipsEntry()
     {
-        // Arrange – Value exceeds ushort range
+        // Arrange – Value exceeds ushort range. Lenient mode skips the entry (#557).
         var content = BuildMinimalDcf(extraSections: @"
 [OptionalObjects]
 SupportedObjects=1
@@ -2400,10 +2401,11 @@ SupportedObjects=1
 ");
 
         // Act
-        var act = () => _reader.ReadString(content);
+        var result = _reader.ReadString(content);
 
         // Assert
-        act.Should().Throw<EdsParseException>();
+        result.DeviceInfo.VendorName.Should().Be("Test Vendor");
+        result.ObjectDictionary.OptionalObjects.Should().BeEmpty();
     }
 
     [Fact]

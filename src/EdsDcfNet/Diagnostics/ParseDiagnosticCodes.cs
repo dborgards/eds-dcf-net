@@ -25,6 +25,42 @@ public static class ParseDiagnosticCodes
     /// <summary>Unknown access-type token; lenient mode maps it to <c>ro</c>.</summary>
     public const string UnknownAccessTypeToken = "UNKNOWN_ACCESS_TYPE_TOKEN";
 
+    /// <summary>
+    /// Malformed EDS/DCF <c>ObjectType</c> on an object or sub-object; lenient mode treats it as VAR (<c>0x7</c>).
+    /// </summary>
+    public const string InvalidObjectType = "INVALID_OBJECT_TYPE";
+
+    /// <summary>
+    /// Malformed EDS/DCF <c>DataType</c>. Lenient mode leaves an object value unset and treats a sub-object value as <c>0</c>.
+    /// </summary>
+    public const string InvalidDataType = "INVALID_DATA_TYPE";
+
+    /// <summary>
+    /// Malformed EDS/DCF <c>SubNumber</c>; lenient mode leaves it unset.
+    /// </summary>
+    public const string InvalidSubNumber = "INVALID_SUB_NUMBER";
+
+    /// <summary>
+    /// Malformed EDS/DCF <c>CompactSubObj</c>; lenient mode leaves it unset.
+    /// </summary>
+    public const string InvalidCompactSubObj = "INVALID_COMPACT_SUB_OBJ";
+
+    /// <summary>
+    /// Malformed EDS/DCF <c>ObjFlags</c>; lenient mode treats it as <c>0</c>.
+    /// </summary>
+    public const string InvalidObjFlags = "INVALID_OBJ_FLAGS";
+
+    /// <summary>
+    /// Malformed object-list count (<c>SupportedObjects</c>, <c>ObjectLinks</c>, or module <c>NrOfEntries</c>);
+    /// lenient mode treats it as <c>0</c>.
+    /// </summary>
+    public const string InvalidObjectListCount = "INVALID_OBJECT_LIST_COUNT";
+
+    /// <summary>
+    /// Malformed object-list index; lenient mode skips that entry and continues with the rest of the list.
+    /// </summary>
+    public const string InvalidObjectIndex = "INVALID_OBJECT_INDEX";
+
     /// <summary>XDD/XDC document contains more than one device profile body; lenient mode uses the last one.</summary>
     public const string XddDuplicateDeviceProfile = "XDD_DUPLICATE_DEVICE_PROFILE";
 

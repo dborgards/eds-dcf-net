@@ -133,15 +133,7 @@ internal static class CanOpenSectionParsers
         var fixedObjSection = string.Format(CultureInfo.InvariantCulture, "M{0}FixedObjects", moduleNumber);
         if (IniParser.HasSection(sections, fixedObjSection))
         {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, fixedObjSection, "NrOfEntries", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var indexStr = IniParser.GetValue(sections, fixedObjSection, i.ToString(CultureInfo.InvariantCulture));
-                if (!string.IsNullOrEmpty(indexStr))
-                {
-                    moduleInfo.FixedObjects.Add(ValueConverter.ParseUInt16(indexStr));
-                }
-            }
+            LenientIniNumber.AppendIndexes(sections, fixedObjSection, "NrOfEntries", moduleInfo.FixedObjects);
         }
 
         return moduleInfo;

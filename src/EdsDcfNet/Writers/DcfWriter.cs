@@ -146,6 +146,12 @@ public class DcfWriter : IniWriterBase
     #region DCF-specific section overrides
 
     /// <inheritdoc/>
+    protected override bool IsDedicatedObjectEntryKey(string key) => SectionEntryKeys.IsDcfObjectKey(key);
+
+    /// <inheritdoc/>
+    protected override bool IsDedicatedSubObjectEntryKey(string key) => SectionEntryKeys.IsDcfSubObjectKey(key);
+
+    /// <inheritdoc/>
     protected override void WriteObjectExtension(StringBuilder sb, CanOpenObject obj)
     {
         if (!string.IsNullOrEmpty(obj.ParameterValue))
@@ -277,7 +283,8 @@ public class DcfWriter : IniWriterBase
                 "DeviceCommissioning");
         }
 
-        sb.AppendLine("[DeviceCommissioning]");
+        // CiA 306-1 Table 12 spells the section with a single "m"; the reader accepts both spellings.
+        sb.AppendLine("[DeviceComissioning]");
         WriteKeyValue(sb, "NodeID", dc.NodeId.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "NodeName", dc.NodeName);
 
