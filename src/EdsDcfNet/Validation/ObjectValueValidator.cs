@@ -138,10 +138,6 @@ internal static class ObjectValueValidator
             {
                 result[n] = ComparableValue.From(CanOpenValueConverter.Parse(value, dataType, nodeIds[n]));
             }
-            catch (NotSupportedException)
-            {
-                return null;
-            }
             catch (Exception ex) when (ex is FormatException or OverflowException or EdsParseException)
             {
                 issues.Add(new ValidationIssue(
@@ -166,7 +162,7 @@ internal static class ObjectValueValidator
         CanOpenDataType.IsUnsigned(dataType) ||
         dataType is CanOpenDataType.Boolean or CanOpenDataType.Real32 or CanOpenDataType.Real64;
 
-    private static string DescribeType(ushort dataType)
+    internal static string DescribeType(ushort dataType)
     {
         var name = CanOpenDataType.GetName(dataType) ?? dataType.ToString("X4", CultureInfo.InvariantCulture);
         var bits = CanOpenDataType.TryGetBitLength(dataType);
@@ -195,14 +191,14 @@ internal static class ObjectValueValidator
             ? string.Format(CultureInfo.InvariantCulture, " (node-ID {0})", nodeId)
             : string.Empty;
 
-    private static bool IsFormula(string? value) =>
+    internal static bool IsFormula(string? value) =>
         value != null && value.TrimStart().StartsWith("$NODEID", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// A parsed value: 64-bit integers are compared exactly as <see cref="decimal"/>, REAL
     /// values as <see cref="double"/>.
     /// </summary>
-    private readonly struct ComparableValue
+    internal readonly struct ComparableValue
     {
         private readonly decimal? _integer;
         private readonly double _real;

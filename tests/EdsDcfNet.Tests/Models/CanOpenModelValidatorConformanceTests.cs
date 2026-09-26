@@ -492,6 +492,199 @@ public class CanOpenModelValidatorConformanceTests
         actDcf.Should().Throw<ArgumentNullException>();
     }
 
+    [Fact]
+    public async Task ValidateAsync_NullAndStrictOptions_CoverBothCoalescingBranches()
+    {
+        var eds = new ElectronicDataSheet();
+        var dcf = new DeviceConfigurationFile();
+
+        (await CanOpenModelValidator.ValidateAsync(eds, null, CancellationToken.None)).Should().BeEmpty();
+        CanOpenModelValidator.Validate(dcf, null).Should().BeEmpty();
+
+        var asyncDcf = await CanOpenModelValidator.ValidateAsync(dcf, CanOpenValidationOptions.Strict, CancellationToken.None);
+        asyncDcf.Select(i => i.Path).Should().BeEquivalentTo(
+            CanOpenModelValidator.Validate(dcf, CanOpenValidationOptions.Strict).Select(i => i.Path));
+    }
+
+    // ------------------------------------------------- value-range branches
+
+    [Theory]
+    [InlineData(CanOpenDataType.Boolean, "0")]
+    [InlineData(CanOpenDataType.Boolean, "0x0")]
+    [InlineData(CanOpenDataType.Boolean, "0X1")]
+    [InlineData(CanOpenDataType.Boolean, "false")]
+    [InlineData(CanOpenDataType.Integer8, "-128")]
+    [InlineData(CanOpenDataType.Integer8, "127")]
+    [InlineData(CanOpenDataType.Integer32, "-2147483648")]
+    [InlineData(CanOpenDataType.Integer32, "2147483647")]
+    [InlineData(CanOpenDataType.Integer24, "-8388608")]
+    [InlineData(CanOpenDataType.Integer24, "8388607")]
+    [InlineData(CanOpenDataType.Integer40, "-549755813888")]
+    [InlineData(CanOpenDataType.Integer48, "140737488355327")]
+    [InlineData(CanOpenDataType.Integer56, "36028797018963967")]
+    [InlineData(CanOpenDataType.Unsigned16, "65535")]
+    [InlineData(CanOpenDataType.Unsigned32, "4294967295")]
+    [InlineData(CanOpenDataType.Unsigned24, "16777215")]
+    [InlineData(CanOpenDataType.Unsigned40, "1099511627775")]
+    [InlineData(CanOpenDataType.Unsigned48, "281474976710655")]
+    [InlineData(CanOpenDataType.Unsigned56, "72057594037927935")]
+    [InlineData(CanOpenDataType.Real32, "-1.5")]
+    [InlineData(CanOpenDataType.Real64, "0")]
+    public void Validate_InRangeTypedValue_AtMaxValue_ReturnsNoIssues(ushort dataType, string value)
+    {
+        Check(EdsWithVar(dataType, value)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Validate_Integer64AboveMax_ReportsSigned64Range()
+    {
+        var issues = Check(EdsWithVar(CanOpenDataType.Integer64, "9223372036854775808"));
+
+        issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].DefaultValue")
+            .Which.Message.Should().Contain("INTEGER64 (-9223372036854775808..9223372036854775807)");
+    }
+
+    [Fact]
+    public void Validate_Unsigned64AboveMax_ReportsUnsigned64Range()
+    {
+        var issues = Check(EdsWithVar(CanOpenDataType.Unsigned64, "18446744073709551616"));
+
+        issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].DefaultValue")
+            .Which.Message.Should().Contain("UNSIGNED64 (0..18446744073709551615)");
+    }
+
+    [Fact]
+    public void Validate_EdsFormulaOutsideHighLimit_ReportsHighestNodeId()
+    {
+        // Node-ID 1 => 11 (inside 0..20); node-ID 127 => 137.
+        var issues = Check(EdsWithVar(CanOpenDataType.Unsigned16, "$NODEID+10", "0", "20"));
+
+        issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].DefaultValue")
+            .Which.Message.Should().Contain("above HighLimit 20").And.Contain("(node-ID 127)");
+    }
+
+    [Fact]
+    public void Validate_LowLimitFormula_ReportsNodeIdForPlainValue()
+    {
+        var issues = Check(EdsWithVar(CanOpenDataType.Unsigned16, "0", "$NODEID", "1000"));
+
+        issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].DefaultValue")
+            .Which.Message.Should().Contain("below LowLimit 1").And.Contain("(node-ID 1)");
+    }
+
+    [Fact]
+    public void Validate_SpacedLowerCaseNodeIdFormula_OutsideLimit_ReportsNodeId()
+    {
+        var issues = Check(EdsWithVar(CanOpenDataType.Unsigned16, "  $nodeid+10", "0", "20"));
+
+        issues.Should().ContainSingle()
+            .Which.Message.Should().Contain("(node-ID 127)");
+    }
+
+    [Fact]
+    public void Validate_ValueAboveHighLimit_WithNoLowLimit_ReportsIssue()
+    {
+        var issues = Check(EdsWithVar(CanOpenDataType.Integer16, "20", null, "10"));
+
+        issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].DefaultValue")
+            .Which.Message.Should().Be("DefaultValue 20 is above HighLimit 10.");
+    }
+
+    [Fact]
+    public void Validate_ParameterValueBelowLowLimit_ReportsIssue()
+    {
+        var dcf = new DeviceConfigurationFile();
+        dcf.DeviceCommissioning.NodeId = 1;
+        dcf.DeviceCommissioning.Baudrate = 250;
+        dcf.ObjectDictionary.ManufacturerObjects.Add(0x2000);
+        dcf.ObjectDictionary.Objects[0x2000] = new CanOpenObject
+        {
+            Index = 0x2000,
+            ParameterName = "Value",
+            DataType = CanOpenDataType.Unsigned16,
+            LowLimit = "10",
+            HighLimit = "20",
+            DefaultValue = "15",
+            ParameterValue = "1",
+        };
+
+        var issues = Check(dcf);
+
+        issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].ParameterValue")
+            .Which.Message.Should().Contain("below LowLimit 10");
+    }
+
+    [Fact]
+    public void Validate_Real32OutsideFiniteRange_ReportsIssue()
+    {
+        var issues = Check(EdsWithVar(CanOpenDataType.Real32, "3.5e40"));
+
+        issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].DefaultValue")
+            .Which.Message.Should().Contain("REAL32");
+    }
+
+    [Fact]
+    public void Validate_BothLimitsAreNodeIdFormulas_LowAboveHigh_ReportsNodeId()
+    {
+        var issues = Check(EdsWithVar(CanOpenDataType.Unsigned16, null, "$NODEID+100", "$NODEID"));
+
+        issues.Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2000].LowLimit")
+            .Which.Message.Should().Contain("greater than HighLimit").And.Contain("(node-ID 1)");
+    }
+
+    [Fact]
+    public void Validate_DcfOutOfRangeNodeId_FormulaUsesNodeIdBounds()
+    {
+        var dcf = new DeviceConfigurationFile();
+        dcf.DeviceCommissioning.NodeId = 200;
+        dcf.DeviceCommissioning.Baudrate = 250;
+        dcf.ObjectDictionary.ManufacturerObjects.Add(0x2000);
+        dcf.ObjectDictionary.Objects[0x2000] = new CanOpenObject
+        {
+            Index = 0x2000,
+            ParameterName = "Value",
+            DataType = CanOpenDataType.Unsigned8,
+            DefaultValue = "$NODEID+0x81",
+        };
+
+        var issues = Check(dcf);
+
+        issues.Should().Contain(i =>
+            i.Path == "ObjectDictionary.Objects[0x2000].DefaultValue" &&
+            i.Message.Contains("for node-ID 127"));
+        issues.Should().Contain(i => i.Path == "DeviceCommissioning.NodeId");
+    }
+
+    [Fact]
+    public void DescribeType_UnknownCode_UsesHexFallback()
+    {
+        ObjectValueValidator.DescribeType(0x0040).Should().Be("0040");
+    }
+
+    [Fact]
+    public void IsFormula_NullPlainAndNodeId_MatchesContract()
+    {
+        ObjectValueValidator.IsFormula(null).Should().BeFalse();
+        ObjectValueValidator.IsFormula("  10").Should().BeFalse();
+        ObjectValueValidator.IsFormula("  $NODEID+1").Should().BeTrue();
+    }
+
+    [Fact]
+    public void ComparableValue_UnexpectedParsedType_IsIgnored()
+    {
+        ObjectValueValidator.ComparableValue.From(new object()).Should().BeNull();
+    }
+
+    [Fact]
+    public void ComparableValue_MixedIntegerAndReal_ComparesAsDouble()
+    {
+        var integer = ObjectValueValidator.ComparableValue.From(2)!.Value;
+        var real = ObjectValueValidator.ComparableValue.From(1.5d)!.Value;
+
+        integer.CompareTo(real).Should().BePositive();
+        real.CompareTo(integer).Should().BeNegative();
+    }
+
     private static ElectronicDataSheet ConformantEdsShell()
     {
         var eds = new ElectronicDataSheet();
