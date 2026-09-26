@@ -613,7 +613,9 @@ public sealed class RawObjectChecker
     /// <summary>
     /// Validates DCF <c>[xxxxValue]</c> entries (CiA 306 §5.2.3.2). Each decimal key in
     /// <c>1..min(CompactSubObj, 254)</c> is applied as that sub-object's <c>ParameterValue</c>
-    /// and must fit the parent template's data type and limits.
+    /// and must fit the parent template's data type and limits. An explicit
+    /// <c>[XXXXsubN]</c> above that range still receives the override
+    /// (<c>DcfReader.ApplyCompactListSection</c>) and is checked against its own type and limits.
     /// </summary>
     private void CheckCompactValueEntries(
         RawSection template,
@@ -648,7 +650,7 @@ public sealed class RawObjectChecker
 
         foreach (var entry in valueSection.Entries.Values.OrderBy(e => e.Line))
         {
-            if (!TryParseCompactListSubIndex(entry.Key, out var subIndex) || subIndex > compactMax ||
+            if (!TryParseCompactListSubIndex(entry.Key, out var subIndex) ||
                 string.IsNullOrWhiteSpace(entry.Value))
             {
                 continue;
@@ -656,7 +658,8 @@ public sealed class RawObjectChecker
 
             if (explicitSubs.TryGetValue(subIndex, out var explicitSub))
             {
-                // An explicit [XXXXsubN] keeps its own data type and limits (DcfReader applies the value to it).
+                // An explicit [XXXXsubN] keeps its own data type and limits, including
+                // sub-indices above CompactSubObj (DcfReader still applies the value).
                 ValueEvaluation? subLow = null;
                 ValueEvaluation? subHigh = null;
                 if (ValueSupport.IsNumeric(explicitSub.DataType))
@@ -666,6 +669,12 @@ public sealed class RawObjectChecker
                 }
 
                 CheckAppliedListValue(valueSection, entry, explicitSub.DataType, subLow, subHigh);
+                continue;
+            }
+
+            if (subIndex > compactMax)
+            {
+                // No synthesized sub-object and no explicit section: the reader ignores the key.
                 continue;
             }
 
