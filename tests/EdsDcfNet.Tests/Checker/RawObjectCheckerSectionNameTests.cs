@@ -981,6 +981,334 @@ CompactSubObj=1
         loaded.ObjectDictionary.Objects[0x40].SubObjects[1].ParameterValue.Should().Be("7");
     }
 
+    [Theory]
+    [InlineData("0040Name", "[40Name]")]
+    [InlineData("00040Name", "[40Name]")]
+    [InlineData("0040ObjectLinks", "[40ObjectLinks]")]
+    [InlineData("00040ObjectLinks", "[40ObjectLinks]")]
+    public void Check_PaddedEdsAuxiliarySection_ReportsObj011(string sectionName, string readerName)
+    {
+        // Arrange — compact name and object-link sections are probed on EDS too.
+        var content = @"
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[40]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+CompactSubObj=1
+
+[" + sectionName + @"]
+1=Custom
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().Contain(f =>
+            f.Code == "OBJ011" &&
+            f.Severity == Severity.Error &&
+            f.Section == sectionName &&
+            f.Message.Contains(readerName, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Check_PaddedNameWithoutCompactSubObj_DoesNotReportObj011()
+    {
+        // Arrange — without CompactSubObj the reader keeps the name section.
+        const string content = @"
+[40]
+ParameterName=Var
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[0040Name]
+1=Custom
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().NotContain(f => f.Code == "OBJ011" && f.Section == "0040Name");
+    }
+
+    [Fact]
+    public void Check_EdsPaddedValueAndDenotation_DoNotReportObj011()
+    {
+        // Arrange — EDS does not construct [xxxxValue] or [xxxxDenotation].
+        const string content = @"
+[40]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+CompactSubObj=1
+
+[0040Value]
+1=7
+
+[0040Denotation]
+1=Label
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().NotContain(f => f.Section == "0040Value" && f.Code == "OBJ011");
+        findings.Should().NotContain(f => f.Section == "0040Denotation" && f.Code == "OBJ011");
+    }
+
+    [Theory]
+    [InlineData("0040Denotation", "[40Denotation]")]
+    [InlineData("00040Denotation", "[40Denotation]")]
+    [InlineData("0040ObjectLinks", "[40ObjectLinks]")]
+    public void Check_PaddedDcfAuxiliarySection_ReportsObj011(string sectionName, string readerName)
+    {
+        // Arrange
+        var content = @"
+[DeviceComissioning]
+NodeID=1
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[40]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=1
+PDOMapping=0
+CompactSubObj=1
+
+[" + sectionName + @"]
+1=Custom
+";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        findings.Should().Contain(f =>
+            f.Code == "OBJ011" &&
+            f.Severity == Severity.Error &&
+            f.Section == sectionName &&
+            f.Message.Contains(readerName, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Check_CanonicalNameAndObjectLinks_DoNotReportObj011()
+    {
+        // Arrange
+        const string content = @"
+[40]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+CompactSubObj=1
+
+[40Name]
+1=Custom
+
+[40ObjectLinks]
+ObjectLinks=1
+1=0x1000
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().NotContain(f => f.Code == "OBJ011");
+    }
+
+    [Fact]
+    public void ReadString_PaddedCompactName_ReaderDropsIt_UnpaddedIsApplied()
+    {
+        // Arrange
+        const string padded = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[40]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=1
+
+[0040Name]
+1=Custom
+";
+        const string unpadded = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[40]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=1
+
+[40Name]
+1=Custom
+";
+
+        // Act
+        var dropped = CanOpenFile.Eds.ReadString(padded);
+        var loaded = CanOpenFile.Eds.ReadString(unpadded);
+
+        // Assert
+        dropped.ObjectDictionary.Objects[0x40].SubObjects[1].ParameterName.Should().Be("Compact1");
+        dropped.AdditionalSections.Should().NotContainKey("0040Name");
+        loaded.ObjectDictionary.Objects[0x40].SubObjects[1].ParameterName.Should().Be("Custom");
+    }
+
+    [Fact]
+    public void ReadString_PaddedDenotation_ReaderDropsIt_UnpaddedIsApplied()
+    {
+        // Arrange
+        const string padded = @"
+[DeviceInfo]
+VendorName=Test
+
+[DeviceComissioning]
+NodeID=1
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[40]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=1
+
+[0040Denotation]
+1=Label
+";
+        const string unpadded = @"
+[DeviceInfo]
+VendorName=Test
+
+[DeviceComissioning]
+NodeID=1
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[40]
+ParameterName=Compact
+ObjectType=0x8
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=1
+
+[40Denotation]
+1=Label
+";
+
+        // Act
+        var dropped = CanOpenFile.Dcf.ReadString(padded);
+        var loaded = CanOpenFile.Dcf.ReadString(unpadded);
+
+        // Assert
+        dropped.ObjectDictionary.Objects[0x40].SubObjects[1].Denotation.Should().BeNull();
+        dropped.AdditionalSections.Should().NotContainKey("0040Denotation");
+        loaded.ObjectDictionary.Objects[0x40].SubObjects[1].Denotation.Should().Be("Label");
+    }
+
+    [Fact]
+    public void ReadString_PaddedObjectLinks_ReaderDropsIt_UnpaddedIsApplied()
+    {
+        // Arrange
+        const string padded = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[40]
+ParameterName=Compact
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[0040ObjectLinks]
+ObjectLinks=1
+1=0x1000
+";
+        const string unpadded = @"
+[DeviceInfo]
+VendorName=Test
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x40
+
+[40]
+ParameterName=Compact
+ObjectType=0x7
+DataType=0x0005
+AccessType=ro
+DefaultValue=1
+PDOMapping=0
+
+[40ObjectLinks]
+ObjectLinks=1
+1=0x1000
+";
+
+        // Act
+        var dropped = CanOpenFile.Eds.ReadString(padded);
+        var loaded = CanOpenFile.Eds.ReadString(unpadded);
+
+        // Assert
+        dropped.ObjectDictionary.Objects[0x40].ObjectLinks.Should().BeEmpty();
+        loaded.ObjectDictionary.Objects[0x40].ObjectLinks.Should().Equal((ushort)0x1000);
+    }
+
     private static List<Finding> Check(string content, bool isDcf = false)
     {
         var path = Path.Combine(

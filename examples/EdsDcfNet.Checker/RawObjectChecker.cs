@@ -62,12 +62,9 @@ public sealed class RawObjectChecker
     public void Run()
     {
         CollectObjectSections();
-        if (_isDcf)
-        {
-            // Padded [0040Value] is not a stand-in for [40Value]; report it before
-            // value checks so a valid-looking fallback cannot exit clean.
-            ReportPaddedCompactValueSections();
-        }
+        // Padded [0040Value] / [0040Name] / [0040Denotation] / [0040ObjectLinks] are not
+        // stand-ins for the unpadded names the reader probes.
+        ReportPaddedIndexSections();
 
         CheckObjectLists();
 
@@ -1464,42 +1461,89 @@ public sealed class RawObjectChecker
     /// <summary>
     /// DCF <c>[xxxxValue]</c> section. <c>ApplyCompactListSection</c> probes only the
     /// unpadded name (<c>40Value</c>). Padded spellings are reported by
-    /// <see cref="ReportPaddedCompactValueSections"/> and are not applied.
+    /// <see cref="ReportPaddedIndexSections"/> and are not applied.
     /// </summary>
     private RawSection? GetValueSection(ushort index) =>
         _doc.Get(string.Concat(UnpaddedIndex(index), "Value"));
 
     /// <summary>
-    /// Flags DCF compact-value sections whose index prefix is not the unpadded form
-    /// the reader looks up. A section such as <c>[0040Value]</c> used to be accepted
-    /// as a fallback for <c>[40Value]</c>; the reader never reads it.
+    /// Index-prefixed sections <c>ParseObject</c> / <c>ApplyCompactListSection</c> look up
+    /// by the unpadded index. Longer suffixes are listed first. Value and Denotation exist
+    /// only on DCF; Name is consumed only when <c>CompactSubObj</c> is non-zero.
     /// </summary>
-    private void ReportPaddedCompactValueSections()
+    private static readonly (string Suffix, string Label, bool DcfOnly)[] IndexSectionSuffixes =
     {
-        const string suffix = "Value";
+        ("ObjectLinks", "Object links", false),
+        ("Denotation", "Compact denotation", true),
+        ("Value", "Compact value", true),
+        ("Name", "Compact name", false),
+    };
+
+    /// <summary>
+    /// Flags index-prefixed sections whose index is not the unpadded form the reader
+    /// probes (<c>[0040Value]</c>, <c>[0040Name]</c>, <c>[0040Denotation]</c>,
+    /// <c>[0040ObjectLinks]</c>). Those spellings are not applied, and the reader's
+    /// known-section checks still drop them.
+    /// </summary>
+    private void ReportPaddedIndexSections()
+    {
         foreach (var section in _doc.Sections.Values)
         {
-            var name = section.Name;
-            if (name.Length <= suffix.Length ||
-                !name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            if (!TryMatchPaddedIndexSection(section.Name, out var suffix, out var label, out var index))
             {
                 continue;
             }
 
-            var prefix = name[..^suffix.Length];
-            if (!IsHexDigits(prefix) ||
-                !ushort.TryParse(prefix, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index) ||
-                !_objects.ContainsKey(index) ||
-                IsUnpaddedHex(prefix, index))
+            if (suffix == "Name" &&
+                ParseOptionalByte(_objects[index], "CompactSubObj", report: false) is not > 0)
             {
+                // Without compact storage the reader keeps [xxxxName] in AdditionalSections.
                 continue;
             }
 
             Add(Severity.Error, "OBJ011", section, null, null, string.Format(CultureInfo.InvariantCulture,
-                "Compact value section [{0}] is zero-padded. EdsDcfNet reads only [{1}Value].",
-                name,
-                UnpaddedIndex(index)));
+                "{0} section [{1}] is zero-padded. EdsDcfNet reads only [{2}{3}].",
+                label,
+                section.Name,
+                UnpaddedIndex(index),
+                suffix));
         }
+    }
+
+    private bool TryMatchPaddedIndexSection(string name, out string suffix, out string label, out ushort index)
+    {
+        suffix = string.Empty;
+        label = string.Empty;
+        index = 0;
+
+        foreach (var candidate in IndexSectionSuffixes)
+        {
+            if (candidate.DcfOnly && !_isDcf)
+            {
+                continue;
+            }
+
+            if (name.Length <= candidate.Suffix.Length ||
+                !name.EndsWith(candidate.Suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var prefix = name[..^candidate.Suffix.Length];
+            if (!IsHexDigits(prefix) ||
+                !TryParseObjectIndex(prefix, out index) ||
+                !_objects.ContainsKey(index) ||
+                IsUnpaddedHex(prefix, index))
+            {
+                return false;
+            }
+
+            suffix = candidate.Suffix;
+            label = candidate.Label;
+            return true;
+        }
+
+        return false;
     }
 
     private static bool IsHexDigits(string value)
