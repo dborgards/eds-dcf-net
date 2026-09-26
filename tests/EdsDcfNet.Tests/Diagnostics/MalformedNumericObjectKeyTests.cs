@@ -3,6 +3,7 @@ namespace EdsDcfNet.Tests.Diagnostics;
 using EdsDcfNet.Diagnostics;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 
 /// <summary>
 /// Lenient EDS/DCF reads keep an object when a numeric key is malformed and report a
@@ -814,6 +815,25 @@ public class MalformedNumericObjectKeyTests
         obj.DefaultValue.Should().Be("0");
         written.Should().Contain("ObjectType=0x7");
         written.Should().NotContain("DataType=");
+    }
+
+    [Fact]
+    public void IniKeyLines_TryGetLine_ReturnsNullWhenSectionOrKeyWasNotRecorded()
+    {
+        var unparsed = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        IniKeyLines.TryGetLine(unparsed, "FileInfo", "FileName").Should().BeNull();
+
+        var content =
+            "[FileInfo]\n" +
+            "FileName=a.eds\n" +
+            "FileVersion=1\n" +
+            "FileName=b.eds\n";
+        var sections = IniParser.ParseString(content);
+
+        IniKeyLines.TryGetLine(sections, "fileinfo", "filename").Should().Be(SourceLine(content, "FileName=b.eds"));
+        IniKeyLines.TryGetLine(sections, "FileInfo", "FileVersion").Should().Be(SourceLine(content, "FileVersion=1"));
+        IniKeyLines.TryGetLine(sections, "Missing", "FileName").Should().BeNull();
+        IniKeyLines.TryGetLine(sections, "FileInfo", "Missing").Should().BeNull();
     }
 
     private static string ObjectSection(string body)
