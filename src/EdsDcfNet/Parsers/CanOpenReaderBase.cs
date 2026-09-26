@@ -231,15 +231,7 @@ public abstract class CanOpenReaderBase
         if (!IniParser.HasSection(sections, sectionName))
             return;
 
-        var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "SupportedObjects", "0"));
-        for (int i = 1; i <= count; i++)
-        {
-            var indexStr = IniParser.GetValue(sections, sectionName, i.ToString(CultureInfo.InvariantCulture));
-            if (!string.IsNullOrEmpty(indexStr))
-            {
-                targetList.Add(ValueConverter.ParseUInt16(indexStr));
-            }
-        }
+        LenientIniNumber.AppendIndexes(sections, sectionName, "SupportedObjects", targetList);
     }
 
     /// <summary>
@@ -257,13 +249,27 @@ public abstract class CanOpenReaderBase
         {
             Index = index,
             ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral))
+            ObjectType = LenientIniNumber.ParseByte(
+                sections,
+                sectionName,
+                "ObjectType",
+                IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral),
+                fallback: CanOpenObjectType.Var,
+                code: Diagnostics.ParseDiagnosticCodes.InvalidObjectType,
+                coercedTo: CanOpenObjectType.VarLiteral,
+                fallbackDescription: LenientIniNumber.TreatAsVar)
         };
 
         var dataTypeStr = IniParser.GetValue(sections, sectionName, "DataType");
         if (!string.IsNullOrEmpty(dataTypeStr))
         {
-            obj.DataType = ValueConverter.ParseUInt16(dataTypeStr);
+            obj.DataType = LenientIniNumber.ParseOptionalUInt16(
+                sections,
+                sectionName,
+                "DataType",
+                dataTypeStr,
+                Diagnostics.ParseDiagnosticCodes.InvalidDataType,
+                LenientIniNumber.LeaveUnset);
         }
 
         var accessTypeStr = IniParser.GetValue(sections, sectionName, "AccessType");
@@ -278,18 +284,38 @@ public abstract class CanOpenReaderBase
         obj.PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping"));
         obj.SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping"));
         obj.InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD");
-        obj.ObjFlags = ValueConverter.ParseInteger(IniParser.GetValue(sections, sectionName, "ObjFlags", "0"));
+        obj.ObjFlags = LenientIniNumber.ParseUInt32(
+            sections,
+            sectionName,
+            "ObjFlags",
+            IniParser.GetValue(sections, sectionName, "ObjFlags", "0"),
+            fallback: 0,
+            code: Diagnostics.ParseDiagnosticCodes.InvalidObjFlags,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
 
         var subNumberStr = IniParser.GetValue(sections, sectionName, "SubNumber");
         if (!string.IsNullOrEmpty(subNumberStr))
         {
-            obj.SubNumber = ValueConverter.ParseByte(subNumberStr);
+            obj.SubNumber = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "SubNumber",
+                subNumberStr,
+                Diagnostics.ParseDiagnosticCodes.InvalidSubNumber,
+                LenientIniNumber.LeaveUnset);
         }
 
         var compactSubObjStr = IniParser.GetValue(sections, sectionName, "CompactSubObj");
         if (!string.IsNullOrEmpty(compactSubObjStr))
         {
-            obj.CompactSubObj = ValueConverter.ParseByte(compactSubObjStr);
+            obj.CompactSubObj = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "CompactSubObj",
+                compactSubObjStr,
+                Diagnostics.ParseDiagnosticCodes.InvalidCompactSubObj,
+                LenientIniNumber.LeaveUnset);
         }
 
         // Parse sub-objects for composite types, CompactSubObj templates (CiA 306 §4.5.2.4.2),
@@ -305,15 +331,7 @@ public abstract class CanOpenReaderBase
         var linksSectionName = string.Concat(ToHexInvariant(index), "ObjectLinks");
         if (IniParser.HasSection(sections, linksSectionName))
         {
-            var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, linksSectionName, "ObjectLinks", "0"));
-            for (int i = 1; i <= count; i++)
-            {
-                var linkStr = IniParser.GetValue(sections, linksSectionName, i.ToString(CultureInfo.InvariantCulture));
-                if (!string.IsNullOrEmpty(linkStr))
-                {
-                    obj.ObjectLinks.Add(ValueConverter.ParseUInt16(linkStr));
-                }
-            }
+            LenientIniNumber.AppendIndexes(sections, linksSectionName, "ObjectLinks", obj.ObjectLinks);
         }
 
         return obj;
@@ -485,8 +503,24 @@ public abstract class CanOpenReaderBase
         {
             SubIndex = subIndex,
             ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral)),
-            DataType = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "DataType", "0")),
+            ObjectType = LenientIniNumber.ParseByte(
+                sections,
+                sectionName,
+                "ObjectType",
+                IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral),
+                fallback: CanOpenObjectType.Var,
+                code: Diagnostics.ParseDiagnosticCodes.InvalidObjectType,
+                coercedTo: CanOpenObjectType.VarLiteral,
+                fallbackDescription: LenientIniNumber.TreatAsVar),
+            DataType = LenientIniNumber.ParseUInt16(
+                sections,
+                sectionName,
+                "DataType",
+                IniParser.GetValue(sections, sectionName, "DataType", "0"),
+                fallback: 0,
+                code: Diagnostics.ParseDiagnosticCodes.InvalidDataType,
+                coercedTo: "0",
+                fallbackDescription: LenientIniNumber.TreatAsZero),
             AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),

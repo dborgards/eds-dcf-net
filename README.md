@@ -631,6 +631,11 @@ Today this covers:
   tokens (`ValueConverter.ParsePresentFlag`)
 - Unknown access-type tokens (`ValueConverter.ParseAccessType` and XDD
   `ParseXddAccessType`) and unknown XDD XML bools (`ParseXmlBool`)
+- Malformed EDS/DCF numeric object keys (`ObjectType` → VAR / `0x7`, object
+  `DataType` left unset, sub-object `DataType` → `0`, `SubNumber` and
+  `CompactSubObj` left unset, `ObjFlags` → `0`). Object-list counts
+  (`SupportedObjects`, `ObjectLinks`, module `NrOfEntries`) → `0`; a bad
+  index entry is skipped. The object is kept and the rest of the file is read.
 - EDS/DCF `FileVersion` / `FileRevision` and XDD/XDC `fileVersion` major/minor
   tooling forms (`1.0` / `1,0`); zero-padded values such as `010` parse as
   decimal `10` across EDS/DCF/XDD

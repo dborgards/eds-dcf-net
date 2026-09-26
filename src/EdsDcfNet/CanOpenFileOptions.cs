@@ -47,6 +47,18 @@ public sealed class CanOpenFileOptions
     /// <item><description>Unknown boolean tokens in <c>ValueConverter.ParseBoolean</c> (default: treat as <see langword="false"/>)</description></item>
     /// <item><description>Unknown access-type tokens in <c>ValueConverter.ParseAccessType</c> (default: <c>ro</c>)</description></item>
     /// <item><description>
+    /// Malformed EDS/DCF numeric keys on objects and sub-objects:
+    /// <c>ObjectType</c> (default: VAR / <c>0x7</c>),
+    /// object <c>DataType</c> (default: left unset),
+    /// sub-object <c>DataType</c> (default: <c>0</c>),
+    /// <c>SubNumber</c> and <c>CompactSubObj</c> (default: left unset),
+    /// and <c>ObjFlags</c> (default: <c>0</c>).
+    /// Object-list counts (<c>SupportedObjects</c>, <c>ObjectLinks</c>, module <c>NrOfEntries</c>)
+    /// default to <c>0</c>; a malformed index entry is skipped and the rest of the list is read.
+    /// The object itself is kept. Strict mode throws <see cref="Exceptions.EdsParseException"/>
+    /// with the same <see cref="Diagnostics.ParseDiagnostic.Code"/>.
+    /// </description></item>
+    /// <item><description>
     /// Unknown XDD/XDC access-type tokens in <c>ParseXddAccessType</c> (default: <c>ro</c>)
     /// and unknown XML boolean tokens in <c>ParseXmlBool</c> (default: <see langword="false"/>)
     /// </description></item>
