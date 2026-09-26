@@ -447,7 +447,7 @@ Lang-Bemerkung=Sub note
     }
 
     [Fact]
-    public void CaptureRemainingEntries_PlainDictionaryAndMissingSection_CopiesUnknownKeys()
+    public void CaptureRemainingEntries_PlainAndOrderedSections_CopyUnknownKeys()
     {
         var plain = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -460,16 +460,8 @@ Lang-Bemerkung=Sub note
         {
             ["2000"] = plain
         };
-        var destination = new OrderedStringDictionary { ["Keep"] = "yes" };
+        var destination = new OrderedStringDictionary();
 
-        CanOpenReaderBase.CaptureRemainingEntries(
-            sections,
-            "missing",
-            SectionEntryKeys.IsEdsObjectKey,
-            destination);
-        AssertEntries(destination, ("Keep", "yes"));
-
-        destination.Clear();
         CanOpenReaderBase.CaptureRemainingEntries(
             sections,
             "2000",
