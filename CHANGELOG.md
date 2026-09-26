@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.1...v1.14.0-beta.2) (2026-09-26)
+
+### 🐛 Bug Fixes
+
+* keep objects when lenient EDS/DCF reads hit malformed numeric keys ([#568](https://github.com/dborgards/eds-dcf-net/issues/568)) ([1afaa5b](https://github.com/dborgards/eds-dcf-net/commit/1afaa5bc789b0bfd7d2ed1f97723d00c253ca1e0))
+
 ## [1.14.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.13.0...v1.14.0-beta.1) (2026-09-26)
 
 ### ✨ Features
