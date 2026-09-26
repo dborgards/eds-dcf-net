@@ -1060,28 +1060,32 @@ public sealed class RawObjectChecker
         }
 
         RawSection? mapped = null;
+        _objects.TryGetValue(index, out var parent);
+        var compact = parent is null ? null : ParseOptionalByte(parent, "CompactSubObj", report: false);
+        var compactActive = compact is > 0;
         if (_subObjects.TryGetValue(index, out var subs))
         {
             subs.TryGetValue(sub, out mapped);
         }
-        else if (sub == 0 && _objects.TryGetValue(index, out var obj))
+        else if (sub == 0 && parent is not null && !compactActive)
         {
-            mapped = obj;
+            // No sub-sections: sub-index 0 is the object itself.
+            // Compact storage is different — sub-index 0 is synthesized and is not the template.
+            mapped = parent;
         }
 
-        if (mapped is null &&
-            _objects.TryGetValue(index, out var compactParent) &&
-            ParseOptionalByte(compactParent, "CompactSubObj", report: false) is > 0 and var compact)
+        if (mapped is null && compact is > 0 and var compactCount && parent is not null)
         {
-            var compactMax = Math.Min((int)compact, 254);
+            var compactMax = Math.Min((int)compactCount, 254);
             if (sub >= 1 && sub <= compactMax)
             {
                 // Synthesized element: type, access and PDOMapping come from the parent template.
-                mapped = compactParent;
+                mapped = parent;
             }
             else if (sub == 0)
             {
-                // Synthesized sub-index 0 is UNSIGNED8, read-only, and not PDO-mappable.
+                // Synthesized sub-index 0 is UNSIGNED8, read-only, and not PDO-mappable,
+                // even when the file has no explicit [XXXXsubN] sections at all.
                 Add(Severity.Error, "PDO002", section, entry, "Mapped object " + target + " is not PDO-mappable (PDOMapping is not 1).");
                 if (!isTx)
                 {
