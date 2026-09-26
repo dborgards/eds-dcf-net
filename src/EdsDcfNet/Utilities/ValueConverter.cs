@@ -553,7 +553,8 @@ public static class ValueConverter
 
     /// <summary>
     /// Evaluates a $NODEID formula with the given node ID.
-    /// Supports formulas like "$NODEID", "$NODEID+0x200", "$NODEID+512", etc.
+    /// Supports formulas like "$NODEID", "$NODEID+0x200", "$NODEID+512", "$NODEID+0x200+1"
+    /// (CiA 306-1 §6.3 allows several "+" offsets) and a single "$NODEID-n" (EdsDcfNet extension).
     /// </summary>
     private static uint EvaluateNodeIdFormula(string formula, byte nodeId)
     {
@@ -565,28 +566,42 @@ public static class ValueConverter
         if (suffix.Length == 0)
             return nodeId;
 
-        if (suffix[0] == '+' || suffix[0] == '-')
+        if (suffix[0] == '+')
         {
-            var rightSide = suffix[1..].Trim();
-            if (string.IsNullOrEmpty(rightSide) || rightSide.Contains('+') || rightSide.Contains('-'))
+            // CiA 306-1 §6.3: IntEntryValue = $NODEID {"+" number} — several offsets are summed (#560).
+            uint result = nodeId;
+            foreach (var term in suffix[1..].Split('+'))
             {
-                throw new EdsParseException(
-                    $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
-            }
+                var trimmedTerm = term.Trim();
+                if (trimmedTerm.Length == 0 || trimmedTerm.Contains('-'))
+                {
+                    throw UnsupportedNodeIdFormula(formula);
+                }
 
-            var right = ParseInteger(rightSide);
-
-            if (suffix[0] == '+')
-            {
+                var operand = ParseInteger(trimmedTerm);
                 try
                 {
-                    return checked(nodeId + right);
+                    result = checked(result + operand);
                 }
                 catch (OverflowException ex)
                 {
                     throw new EdsParseException($"$NODEID formula '{formula}' overflows uint range.", ex);
                 }
             }
+
+            return result;
+        }
+
+        if (suffix[0] == '-')
+        {
+            // Single subtraction is an EdsDcfNet extension (not part of the CiA 306 syntax).
+            var rightSide = suffix[1..].Trim();
+            if (string.IsNullOrEmpty(rightSide) || rightSide.Contains('+') || rightSide.Contains('-'))
+            {
+                throw UnsupportedNodeIdFormula(formula);
+            }
+
+            var right = ParseInteger(rightSide);
 
             try
             {
@@ -598,7 +613,9 @@ public static class ValueConverter
             }
         }
 
-        throw new EdsParseException(
-            $"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>' or '$NODEID-<number>'.");
+        throw UnsupportedNodeIdFormula(formula);
     }
+
+    private static EdsParseException UnsupportedNodeIdFormula(string formula) =>
+        new($"Unsupported $NODEID formula '{formula}'. Expected '$NODEID', '$NODEID+<number>[+<number>...]' or '$NODEID-<number>'.");
 }

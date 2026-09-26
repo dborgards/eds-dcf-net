@@ -106,7 +106,7 @@
                          accessType="ro" defaultValue="1.0" PDOmapping="no"/>
           <CANopenObject index="100A" name="Manufacturer Software Version" objectType="7" dataType="0009"
                          accessType="ro" defaultValue="1.0.0" PDOmapping="no"/>
-          <CANopenObject index="1018" name="Identity Object" objectType="9" subNumber="4">
+          <CANopenObject index="1018" name="Identity Object" objectType="9" subNumber="5">
             <CANopenSubObject subIndex="00" name="Number of Entries" objectType="7" dataType="0005"
                               accessType="ro" defaultValue="4" PDOmapping="no"/>
             <CANopenSubObject subIndex="01" name="Vendor ID" objectType="7" dataType="0007"
@@ -118,7 +118,7 @@
             <CANopenSubObject subIndex="04" name="Serial Number" objectType="7" dataType="0007"
                               accessType="ro" defaultValue="0x00000001" PDOmapping="no"/>
           </CANopenObject>
-          <CANopenObject index="1400" name="RPDO Communication Parameter" objectType="9" subNumber="2">
+          <CANopenObject index="1400" name="RPDO Communication Parameter" objectType="9" subNumber="3">
             <CANopenSubObject subIndex="00" name="Number of Entries" objectType="7" dataType="0005"
                               accessType="ro" defaultValue="2" PDOmapping="no"/>
             <CANopenSubObject subIndex="01" name="COB-ID" objectType="7" dataType="0007"
@@ -126,7 +126,7 @@
             <CANopenSubObject subIndex="02" name="Transmission Type" objectType="7" dataType="0005"
                               accessType="rw" defaultValue="255" PDOmapping="no"/>
           </CANopenObject>
-          <CANopenObject index="1800" name="TPDO Communication Parameter" objectType="9" subNumber="2">
+          <CANopenObject index="1800" name="TPDO Communication Parameter" objectType="9" subNumber="3">
             <CANopenSubObject subIndex="00" name="Number of Entries" objectType="7" dataType="0005"
                               accessType="ro" defaultValue="2" PDOmapping="no"/>
             <CANopenSubObject subIndex="01" name="COB-ID" objectType="7" dataType="0007"

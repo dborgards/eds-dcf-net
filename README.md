@@ -417,6 +417,24 @@ Current checks include:
 - object dictionary consistency (list membership, duplicates, missing entries)
 - object-level constraints (object type validity, parameter-name length, SubNumber mismatch)
 
+Stricter CiA 306 conformance checks are opt-in via `CanOpenValidationOptions`, so
+existing `Validate` calls and `CanOpenWriteOptions.Validated` writes keep their
+behavior:
+
+| Option | Checks |
+|---|---|
+| `CheckSubNumberCount` | `SubNumber` equals the number of described sub-indexes including sub-index 00h (CiA 306-1 §6.6.3.2) |
+| `CheckValueRanges` | `DefaultValue`, `LowLimit`, `HighLimit`, `ParameterValue` fit the integer/BOOLEAN/REAL `DataType` (e.g. `1000` is rejected for UNSIGNED8); `LowLimit <= HighLimit`; default/parameter values within the limits. `$NODEID` formulas use the DCF node-ID, or node-IDs 1 and 127 in an EDS |
+| `RequireMandatoryEntries` | objects 1000h/1001h/1018h, non-empty `ParameterName`, `DataType` for VAR entries, `FileName`/`VendorName`/`ProductName`, configured DCF commissioning |
+
+```csharp
+// every opt-in rule set
+var strictIssues = CanOpenFile.Validate(dcf, CanOpenValidationOptions.Strict);
+
+// or pick individual rule sets
+var rangeIssues = CanOpenFile.Validate(dcf, new CanOpenValidationOptions { CheckValueRanges = true });
+```
+
 The CiA 306 Node-ID range used by these checks is exposed publicly via
 `CanOpenNodeId`, so consumers can validate or document node IDs without
 duplicating the `1..127` literals:
