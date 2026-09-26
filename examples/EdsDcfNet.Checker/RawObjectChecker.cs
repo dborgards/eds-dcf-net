@@ -42,6 +42,7 @@ public sealed class RawObjectChecker
 
     private readonly Dictionary<ushort, RawSection> _objects = new();
     private readonly Dictionary<ushort, SortedDictionary<byte, RawSection>> _subObjects = new();
+    private readonly List<(ushort Index, byte SubIndex, RawSection Section)> _duplicateSubSections = new();
 
     public RawObjectChecker(string file, RawIniDocument doc, bool isDcf, List<Finding> findings)
     {
@@ -60,6 +61,13 @@ public sealed class RawObjectChecker
         foreach (var (index, section) in _objects.OrderBy(o => o.Key))
         {
             CheckObject(index, section);
+        }
+
+        foreach (var (index, subIndex, section) in _duplicateSubSections)
+        {
+            CheckObjectType(section);
+            CheckParameterName(section);
+            CheckEntryValues(section, index, subIndex);
         }
 
         foreach (var (index, subs) in _subObjects.OrderBy(o => o.Key))
@@ -105,7 +113,7 @@ public sealed class RawObjectChecker
                 return new[] { (byte)nodeId };
             }
         }
-        catch (Exception ex) when (ex is EdsParseException or FormatException or OverflowException)
+        catch (Exception ex) when (ex is EdsParseException or FormatException or OverflowException or NotSupportedException)
         {
             // Reported below.
         }
@@ -135,6 +143,18 @@ public sealed class RawObjectChecker
                 {
                     subs = new SortedDictionary<byte, RawSection>();
                     _subObjects[index] = subs;
+                }
+
+                if (subs.TryGetValue(sub, out var existing))
+                {
+                    // e.g. [1018sub1] and [1018sub01]: different INI sections, same sub-index.
+                    Add(Severity.Error, "INI002", section, null, null, string.Format(CultureInfo.InvariantCulture,
+                        "Sub-index 0x{0:X2} of {1} is already described by [{2}] (line {3}); readers keep only one of them.",
+                        sub, Hex4(index), existing.Name, existing.Line));
+
+                    // Keep the first section; the duplicate is still checked on its own in Run().
+                    _duplicateSubSections.Add((index, sub, section));
+                    continue;
                 }
 
                 subs[sub] = section;
@@ -238,7 +258,7 @@ public sealed class RawObjectChecker
                 _findings.Add(new Finding(Severity.Error, "LST005", _file, null, Hex4(mandatory), null, null,
                     "Mandatory CiA 301 object " + Hex4(mandatory) + " is missing."));
             }
-            else if (mandatory != 0x1018 && listed.TryGetValue(mandatory, out var listName) && listName != "MandatoryObjects")
+            else if (listed.TryGetValue(mandatory, out var listName) && listName != "MandatoryObjects")
             {
                 Add(Severity.Warning, "LST005", _objects[mandatory], null, null,
                     "Mandatory object " + Hex4(mandatory) + " is listed in [" + listName + "] instead of [MandatoryObjects].");
@@ -259,6 +279,7 @@ public sealed class RawObjectChecker
         var subNumber = ParseOptionalByte(section, "SubNumber");
 
         var isComposite = objectType is CanOpenObjectType.Array or CanOpenObjectType.Record or CanOpenObjectType.DefStruct;
+        CheckedValues? compactTemplate = null;
         // CompactSubObj still generates sub-indices when ObjectType is omitted (it defaults to VAR).
         if (isComposite || compactSubObj is > 0)
         {
@@ -278,30 +299,28 @@ public sealed class RawObjectChecker
                 }
 
                 // Compact array: sub-indices are generated from the parent template.
-                // DCF stores commissioned sub-object values in [XXXXValue].
-                var template = CheckEntryValues(section, index, null);
-                if (template is not null)
-                {
-                    CheckCompactValueEntries(section, index, compactSubObj.Value, template.Value.DataType, template.Value.Evaluations);
-                }
+                // DCF stores commissioned sub-object values in [XXXXValue] (checked below).
+                compactTemplate = CheckEntryValues(section, index, null);
             }
             else if (subNumber is null)
             {
                 Add(Severity.Error, "OBJ006", section, null, null,
                     "ARRAY/RECORD object has neither SubNumber nor CompactSubObj.");
             }
-            else if (subNumber.Value != subCount)
+            else if (subNumber.Value != subCount &&
+                     !(subNumber.Value == 0 && subCount == 1 && subs!.ContainsKey(0)))
             {
+                // SubNumber=0 with only [XXXXsub0] is accepted like in CanOpenModelValidator.
                 Add(Severity.Error, "OBJ006", section, section.Get("SubNumber"), string.Format(CultureInfo.InvariantCulture,
                     "SubNumber={0} but {1} sub-index section(s) exist.", subNumber.Value, subCount));
             }
 
+            // [XXXXValue] overrides are applied to explicit sub-objects with their own data type
+            // and limits (DcfReader); on compact lists the remaining ones use the parent template.
+            var explicitValues = new Dictionary<byte, CheckedValues>();
             if (subs is not null)
             {
                 CheckSubIndexZero(index, subs, compactSubObj);
-                // Compact lists are checked against the parent template above.
-                // Expanded objects still receive [XXXXValue] overrides on each explicit sub.
-                var expandedValues = compactSubObj is > 0 ? null : new Dictionary<byte, CheckedValues>();
                 foreach (var (subIndex, subSection) in subs)
                 {
                     CheckObjectType(subSection);
@@ -311,17 +330,24 @@ public sealed class RawObjectChecker
                     if (objectType != CanOpenObjectType.DefStruct)
                     {
                         var checkedSub = CheckEntryValues(subSection, index, subIndex);
-                        if (expandedValues is not null && checkedSub is not null)
+                        if (checkedSub is not null)
                         {
-                            expandedValues[subIndex] = checkedSub.Value;
+                            explicitValues[subIndex] = checkedSub.Value;
                         }
                     }
                 }
+            }
 
-                if (expandedValues is not null)
+            if (compactSubObj is > 0)
+            {
+                if (compactTemplate is not null)
                 {
-                    CheckExpandedValueOverrides(index, expandedValues);
+                    CheckCompactValueEntries(section, index, compactSubObj.Value, compactTemplate.Value, explicitValues);
                 }
+            }
+            else
+            {
+                CheckExpandedValueOverrides(index, explicitValues);
             }
         }
         else if (objectType is CanOpenObjectType.Var or CanOpenObjectType.Domain or CanOpenObjectType.DefType)
@@ -559,9 +585,11 @@ public sealed class RawObjectChecker
         RawSection template,
         ushort index,
         byte compactSubObj,
-        ushort dataType,
-        Dictionary<string, ValueEvaluation> templateEvaluations)
+        CheckedValues templateValues,
+        Dictionary<byte, CheckedValues> explicitSubs)
     {
+        var dataType = templateValues.DataType;
+        var templateEvaluations = templateValues.Evaluations;
         if (!_isDcf)
         {
             return;
@@ -589,6 +617,21 @@ public sealed class RawObjectChecker
             if (!TryParseCompactListSubIndex(entry.Key, out var subIndex) || subIndex > compactMax ||
                 string.IsNullOrWhiteSpace(entry.Value))
             {
+                continue;
+            }
+
+            if (explicitSubs.TryGetValue(subIndex, out var explicitSub))
+            {
+                // An explicit [XXXXsubN] keeps its own data type and limits (DcfReader applies the value to it).
+                ValueEvaluation? subLow = null;
+                ValueEvaluation? subHigh = null;
+                if (ValueSupport.IsNumeric(explicitSub.DataType))
+                {
+                    explicitSub.Evaluations.TryGetValue("LowLimit", out subLow);
+                    explicitSub.Evaluations.TryGetValue("HighLimit", out subHigh);
+                }
+
+                CheckAppliedListValue(valueSection, entry, explicitSub.DataType, subLow, subHigh);
                 continue;
             }
 
@@ -754,7 +797,7 @@ public sealed class RawObjectChecker
             {
                 offset += termSign * ValueSupport.ParseOperand(operandText);
             }
-            catch (Exception ex) when (ex is EdsParseException or FormatException or OverflowException)
+            catch (Exception ex) when (ex is EdsParseException or FormatException or OverflowException or NotSupportedException)
             {
                 Add(Severity.Error, "FRM001", section, entry, "Formula operand '" + operandText + "' is not a valid number.");
                 return null;

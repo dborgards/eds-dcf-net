@@ -127,7 +127,7 @@ public sealed class MandatoryFieldsChecker
                 "Granularity must be 0 (mapping not modifiable) or 1..64.");
         }
 
-        RequireUnsigned(section, "DynamicChannelsSupported", 32);
+        RequireUnsigned(section, "DynamicChannelsSupported", 8);
         RequireBoolean(section, "GroupMessaging");
         var rxPdos = RequireUnsigned(section, "NrOfRxPDO", 16);
         var txPdos = RequireUnsigned(section, "NrOfTxPDO", 16);
