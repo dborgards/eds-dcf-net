@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.3...v1.14.0-beta.4) (2026-09-26)
+
+### 🐛 Bug Fixes
+
+* **checker:** reject zero-padded object and compact-value names ([#571](https://github.com/dborgards/eds-dcf-net/issues/571)) ([51e4ea9](https://github.com/dborgards/eds-dcf-net/commit/51e4ea9444ffd19203df758910da60f4c41ef37f))
+
 ## [1.14.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.2...v1.14.0-beta.3) (2026-09-26)
 
 ### 🐛 Bug Fixes
