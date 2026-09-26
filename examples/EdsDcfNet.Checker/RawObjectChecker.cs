@@ -268,8 +268,13 @@ public sealed class RawObjectChecker
                         "SubNumber is not supported together with a non-zero CompactSubObj; it shall be 0, empty or absent.");
                 }
 
-                // Compact array: sub-indices are generated, only the parent carries type info.
-                CheckEntryValues(section, index, null);
+                // Compact array: sub-indices are generated from the parent template.
+                // DCF stores commissioned sub-object values in [XXXXValue].
+                var template = CheckEntryValues(section, index, null);
+                if (template is { } checked)
+                {
+                    CheckCompactValueEntries(section, index, compactSubObj.Value, checked.DataType, checked.Evaluations);
+                }
             }
             else if (subNumber is null)
             {
@@ -405,7 +410,9 @@ public sealed class RawObjectChecker
 
     // ---------------------------------------------------------------- values
 
-    private void CheckEntryValues(RawSection section, ushort index, byte? subIndex)
+    private readonly record struct CheckedValues(ushort DataType, Dictionary<string, ValueEvaluation> Evaluations);
+
+    private CheckedValues? CheckEntryValues(RawSection section, ushort index, byte? subIndex)
     {
         CheckAccessType(section);
         CheckPdoMappingFlag(section);
@@ -414,7 +421,7 @@ public sealed class RawObjectChecker
         if (dataTypeEntry is null || string.IsNullOrWhiteSpace(dataTypeEntry.Value))
         {
             Add(Severity.Error, "OBJ004", section, dataTypeEntry, "DataType is missing.");
-            return;
+            return null;
         }
 
         ushort dataType;
@@ -425,7 +432,7 @@ public sealed class RawObjectChecker
         catch (EdsParseException)
         {
             Add(Severity.Error, "OBJ002", section, dataTypeEntry, "DataType is not a valid number.");
-            return;
+            return null;
         }
 
         if (!CanOpenDataType.IsStandardType(dataType))
@@ -441,7 +448,7 @@ public sealed class RawObjectChecker
                     "DataType 0x{0:X4} is neither a standard type nor defined by a [{0:X4}] DEFTYPE/DEFSTRUCT section; values are not checked.", dataType));
             }
 
-            return;
+            return null;
         }
 
         CheckWellKnownDataType(section, index, subIndex, dataType, dataTypeEntry);
@@ -467,7 +474,7 @@ public sealed class RawObjectChecker
         {
             Add(Severity.Warning, "VAL006", section, section.Get("LowLimit") ?? section.Get("HighLimit"),
                 "LowLimit/HighLimit are only meaningful for numeric data types, not " + ValueSupport.TypeName(dataType) + ".");
-            return;
+            return new CheckedValues(dataType, evaluations);
         }
 
         evaluations.TryGetValue("LowLimit", out var low);
@@ -509,6 +516,84 @@ public sealed class RawObjectChecker
             if (!evaluations.Values.Any(e => e.IsFormula))
             {
                 break; // no node-ID dependency: one pass is enough
+            }
+        }
+
+        return new CheckedValues(dataType, evaluations);
+    }
+
+    /// <summary>
+    /// Validates DCF <c>[xxxxValue]</c> entries (CiA 306 §5.2.3.2). Each decimal key in
+    /// <c>1..min(CompactSubObj, 254)</c> is applied as that sub-object's <c>ParameterValue</c>
+    /// and must fit the parent template's data type and limits.
+    /// </summary>
+    private void CheckCompactValueEntries(
+        RawSection template,
+        ushort index,
+        byte compactSubObj,
+        ushort dataType,
+        Dictionary<string, ValueEvaluation> templateEvaluations)
+    {
+        if (!_isDcf)
+        {
+            return;
+        }
+
+        var valueSection = _doc.Get(Hex4(index) + "Value");
+        if (valueSection is null)
+        {
+            return;
+        }
+
+        var compactMax = Math.Min(compactSubObj, (byte)254);
+        var hasLimits = template.GetValue("LowLimit") is not null || template.GetValue("HighLimit") is not null;
+        templateEvaluations.TryGetValue("LowLimit", out var low);
+        templateEvaluations.TryGetValue("HighLimit", out var high);
+        if (!hasLimits || !ValueSupport.IsNumeric(dataType))
+        {
+            // Non-numeric limits are already reported as VAL006 on the template.
+            low = null;
+            high = null;
+        }
+
+        foreach (var entry in valueSection.Entries.Values.OrderBy(e => e.Line))
+        {
+            if (!TryParseCompactListSubIndex(entry.Key, out var subIndex) || subIndex > compactMax ||
+                string.IsNullOrWhiteSpace(entry.Value))
+            {
+                continue;
+            }
+
+            var evaluation = EvaluateValue(valueSection, entry, dataType);
+            if (evaluation is null)
+            {
+                continue;
+            }
+
+            foreach (var nodeId in _nodeIds)
+            {
+                NumericValue lowValue = default, highValue = default;
+                var hasLow = low is not null && low.TryGet(nodeId, out lowValue);
+                var hasHigh = high is not null && high.TryGet(nodeId, out highValue);
+                if (evaluation.TryGet(nodeId, out var value))
+                {
+                    if (hasLow && value.CompareTo(lowValue) < 0)
+                    {
+                        Add(Severity.Error, "VAL004", valueSection, entry,
+                            "ParameterValue " + value + " is below LowLimit " + lowValue + NodeSuffix(evaluation, low!, nodeId) + ".");
+                    }
+
+                    if (hasHigh && value.CompareTo(highValue) > 0)
+                    {
+                        Add(Severity.Error, "VAL004", valueSection, entry,
+                            "ParameterValue " + value + " is above HighLimit " + highValue + NodeSuffix(evaluation, high!, nodeId) + ".");
+                    }
+                }
+
+                if (!evaluation.IsFormula && low?.IsFormula != true && high?.IsFormula != true)
+                {
+                    break;
+                }
             }
         }
     }
@@ -915,6 +1000,15 @@ public sealed class RawObjectChecker
     /// <summary>Parses a 0/1 flag (decimal or hex such as <c>0x1</c>); <see langword="null"/> when invalid.</summary>
     private static bool? ParseFlag(string? value) =>
         value is not null && TryParseInt(value, out var flag) && flag is 0 or 1 ? flag == 1 : null;
+
+    /// <summary>
+    /// Parses a compact-list key as a decimal sub-index in the CiA 306 range 1..254.
+    /// Matches the reader: <c>NrOfEntries</c>, hex keys, and sub-index 0xFF are ignored.
+    /// </summary>
+    private static bool TryParseCompactListSubIndex(string key, out byte subIndex) =>
+        byte.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out subIndex)
+        && subIndex >= 1
+        && subIndex <= 254;
 
     private static bool TryParseInt(string value, out int result)
     {
