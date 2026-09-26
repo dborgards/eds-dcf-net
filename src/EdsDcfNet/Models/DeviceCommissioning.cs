@@ -1,7 +1,8 @@
 namespace EdsDcfNet.Models;
 
 /// <summary>
-/// Represents the [DeviceCommissioning] section of a DCF file.
+/// Represents the [DeviceComissioning] section of a DCF file (CiA 306 spelling; the reader also
+/// accepts [DeviceCommissioning]).
 /// Contains configuration information for a specific device instance.
 /// </summary>
 public class DeviceCommissioning

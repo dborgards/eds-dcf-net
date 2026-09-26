@@ -64,7 +64,7 @@ SupportedObjects=1
 
 [1018]
 ParameterName=Identity Object
-SubNumber=4
+SubNumber=5
 ObjectType=0x9
 
 [1018sub0]

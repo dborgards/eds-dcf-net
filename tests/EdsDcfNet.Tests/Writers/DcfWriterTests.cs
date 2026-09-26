@@ -74,7 +74,27 @@ public class DcfWriterTests
         result.Should().NotBeNullOrEmpty();
         result.Should().Contain("[FileInfo]");
         result.Should().Contain("[DeviceInfo]");
-        result.Should().Contain("[DeviceCommissioning]");
+        result.Should().Contain("[DeviceComissioning]").And.NotContain("[DeviceCommissioning]");
+    }
+
+    [Fact]
+    public void DeviceComissioningSection_ValidatedRoundTrip_PreservesCommissioning()
+    {
+        // Arrange
+        var dcf = CreateMinimalDcf();
+
+        // Act
+        var content = CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Validated);
+        var reloaded = CanOpenFile.Dcf.ReadString(content);
+
+        // Assert — CiA 306-1 Table 12 spelling, and the reader maps it back to the same model
+        content.Should().Contain("[DeviceComissioning]");
+        reloaded.DeviceCommissioning.NodeId.Should().Be(5);
+        reloaded.DeviceCommissioning.Baudrate.Should().Be(500);
+        reloaded.DeviceCommissioning.NodeName.Should().Be("TestNode");
+        reloaded.DeviceCommissioning.NetNumber.Should().Be(1);
+        reloaded.DeviceCommissioning.NetworkName.Should().Be("TestNetwork");
+        reloaded.AdditionalSections.Should().NotContainKey("DeviceComissioning");
     }
 
     [Fact]
@@ -138,7 +158,7 @@ public class DcfWriterTests
         var result = _writer.GenerateString(dcf);
 
         // Assert
-        result.Should().NotContain("[DeviceCommissioning]");
+        result.Should().NotContain("[DeviceCommissioning]").And.NotContain("[DeviceComissioning]");
     }
 
     [Fact]
@@ -1201,7 +1221,7 @@ public class DcfWriterTests
             File.Exists(tempFile).Should().BeTrue();
             var content = File.ReadAllText(tempFile);
             content.Should().Contain("[FileInfo]");
-            content.Should().Contain("[DeviceCommissioning]");
+            content.Should().Contain("[DeviceComissioning]").And.NotContain("[DeviceCommissioning]");
         }
         finally
         {

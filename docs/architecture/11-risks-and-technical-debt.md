@@ -27,7 +27,7 @@
 | **Risk**         | Real-world EDS/DCF files from device manufacturers sometimes deviate from the specification. |
 | **Likelihood**   | High (commonly encountered in practice).                                    |
 | **Impact**       | `EdsParseException` on otherwise usable files.                              |
-| **Mitigation**   | Tolerant parsing for optional fields. Support for common deviations (e.g., misspelling `"DeviceComissioning"` instead of `"DeviceCommissioning"`; Polarion-style `FileVersion=1,0` / `1.0` accepted as major `1` unless `StrictParsing` is enabled). |
+| **Mitigation**   | Tolerant parsing for optional fields. Support for common deviations (e.g., `"DeviceCommissioning"` (two m) besides the CiA 306 spelling `"DeviceComissioning"`, which is also what the DCF writer emits; Polarion-style `FileVersion=1,0` / `1.0` accepted as major `1` unless `StrictParsing` is enabled). |
 
 ### R-4: Non-Compliant or Tool-Specific XDD/XDC XML
 

@@ -59,7 +59,7 @@ graph LR
 | `Models/`             | Domain models representing the structure of CANopen description/configuration data |
 | `Utilities/`          | Helper functions for type conversion and shared UTF-8 file I/O (`ValueConverter`, `TextFileIo`) |
 | `Diagnostics/`        | Parse-diagnostics channel: `ParseDiagnostic` records plus the call-scoped `AsyncLocal` sink used by the `Read*WithDiagnostics` entry points |
-| `Validation/`         | Model validation (`CanOpenModelValidator`, `ValidationIssue`); optional write guard via `CanOpenWriteOptions.ValidateBeforeWrite` |
+| `Validation/`         | Model validation (`CanOpenModelValidator`, `ValidationIssue`, opt-in rule sets via `CanOpenValidationOptions`); optional write guard via `CanOpenWriteOptions.ValidateBeforeWrite` |
 | Metadata constants    | `CanOpenDataType` / `CanOpenObjectType`: CiA 301 constants, bit lengths, signedness — single source of truth for `CanOpenValueConverter` widths |
 | `Extensions/`         | Extension methods for convenient ObjectDictionary access                           |
 | `Exceptions/`         | Specific exception types for parse and write errors                                |

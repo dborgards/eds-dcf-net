@@ -145,6 +145,15 @@ public class CanOpenModelValidatorAsyncTests
     }
 
     [Fact]
+    public async Task ValidateAsync_StrictLargeObjectDictionaryCanceledMidRun_ThrowsOperationCanceled()
+    {
+        var eds = CreateLargeEds(objectCount: 50_000);
+
+        await AsyncCancellationTestSupport.AssertCanceledMidRunAsync(
+            token => CanOpenModelValidator.ValidateAsync(eds, CanOpenValidationOptions.Strict, token));
+    }
+
+    [Fact]
     public async Task ValidateAsync_LargeObjectListCanceledMidRun_ThrowsOperationCanceled()
     {
         var eds = new ElectronicDataSheet();

@@ -271,7 +271,7 @@ public class WriteValidationGuardTests
     {
         var content = CanOpenFile.Dcf.WriteToString(ValidCanOpenModelBuilder.CreateValidDcf(), CanOpenWriteOptions.Validated);
 
-        content.Should().Contain("[DeviceCommissioning]");
+        content.Should().Contain("[DeviceComissioning]").And.NotContain("[DeviceCommissioning]");
     }
 
     [Fact]
