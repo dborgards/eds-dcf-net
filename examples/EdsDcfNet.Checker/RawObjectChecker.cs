@@ -258,8 +258,17 @@ public sealed class RawObjectChecker
         var compactSubObj = ParseOptionalByte(section, "CompactSubObj");
         var subNumber = ParseOptionalByte(section, "SubNumber");
 
-        if (objectType is CanOpenObjectType.Array or CanOpenObjectType.Record or CanOpenObjectType.DefStruct)
+        var isComposite = objectType is CanOpenObjectType.Array or CanOpenObjectType.Record or CanOpenObjectType.DefStruct;
+        // CompactSubObj still generates sub-indices when ObjectType is omitted (it defaults to VAR).
+        if (isComposite || compactSubObj is > 0)
         {
+            if (compactSubObj is > 0 &&
+                objectType is CanOpenObjectType.Var or CanOpenObjectType.Domain or CanOpenObjectType.DefType)
+            {
+                Add(Severity.Error, "OBJ006", section, section.Get("CompactSubObj"),
+                    "Object with ObjectType VAR/DOMAIN/DEFTYPE must not have a non-zero CompactSubObj (ObjectType defaults to VAR when omitted). Compact arrays use ARRAY (0x8).");
+            }
+
             if (compactSubObj is > 0)
             {
                 if (subNumber is > 0)

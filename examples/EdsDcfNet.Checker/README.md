@@ -55,7 +55,7 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | OBJ003 | error/warning | `DataType` not a basic type / not defined by a DEFTYPE/DEFSTRUCT |
 | OBJ004 | error | `DataType` missing |
 | OBJ005 | error | `AccessType` missing or not `ro/wo/rw/rwr/rww/const` |
-| OBJ006 | error | `SubNumber` missing or not matching the sub-index sections (sub-index 0 included); `SubNumber` together with non-zero `CompactSubObj` |
+| OBJ006 | error | `SubNumber` missing or not matching the sub-index sections (sub-index 0 included); `SubNumber` together with non-zero `CompactSubObj`; non-zero `CompactSubObj` on VAR/DOMAIN/DEFTYPE (ObjectType defaults to VAR) |
 | OBJ007 | error/warning | Sub-index 0 value vs. highest defined sub-index (read-only sub-index 0 only) |
 | OBJ008 | error | `[XXXXsubY]` without parent `[XXXX]` |
 | OBJ009 | error/warning | `SubNumber`/`CompactSubObj` not UNSIGNED8, `PDOMapping` not 0/1 |
