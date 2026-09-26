@@ -12,6 +12,8 @@ using System.Collections;
 /// The default comparer is <see cref="StringComparer.OrdinalIgnoreCase"/> (CiA 306).
 /// Updating an existing key, including a key that differs only by case, replaces the
 /// value and keeps the original key text and position.
+/// The non-generic <see cref="System.Collections.IDictionary"/> indexer returns
+/// <see langword="null"/> when a string key is absent.
 /// </remarks>
 public sealed class OrderedStringDictionary : IDictionary<string, string>, IDictionary
 {
@@ -250,7 +252,7 @@ public sealed class OrderedStringDictionary : IDictionary<string, string>, IDict
                 throw new ArgumentException("Key must be a string.", nameof(key));
             }
 
-            return _lookup[typed];
+            return _lookup.TryGetValue(typed, out var value) ? value : null;
         }
         set
         {

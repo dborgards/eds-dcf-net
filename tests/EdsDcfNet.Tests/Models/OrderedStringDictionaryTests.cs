@@ -4,278 +4,396 @@ using System.Collections;
 using EdsDcfNet.Models;
 
 /// <summary>
-/// Covers the public ordered map, including the non-generic dictionary surface
-/// used by clone completeness and callers that only see <see cref="IDictionary"/>.
+/// Insertion order, case rules, and both dictionary interfaces of
+/// <see cref="OrderedStringDictionary"/>.
 /// </summary>
 public class OrderedStringDictionaryTests
 {
     [Fact]
-    public void DefaultComparer_IsOrdinalIgnoreCase_AndPreservesInsertionOrder()
+    public void Constructor_Default_UsesOrdinalIgnoreCase()
     {
         var map = new OrderedStringDictionary();
 
         map.Comparer.Should().BeSameAs(StringComparer.OrdinalIgnoreCase);
-        map.IsReadOnly.Should().BeFalse();
         map.Count.Should().Be(0);
+        map.IsReadOnly.Should().BeFalse();
         map.Keys.Should().BeEmpty();
         map.Values.Should().BeEmpty();
-
-        map.Add("Group", "Motion");
-        map.Add(new KeyValuePair<string, string>("Lang-Bemerkung", "Hinweis"));
-        map["Extra"] = "1";
-
-        map.Keys.Should().Equal("Group", "Lang-Bemerkung", "Extra");
-        map.Values.Should().Equal("Motion", "Hinweis", "1");
-        map.Should().Contain(new KeyValuePair<string, string>("Group", "Motion"));
-        map.ContainsKey("group").Should().BeTrue();
-        map.TryGetValue("LANG-BEMERKUNG", out var remark).Should().BeTrue();
-        remark.Should().Be("Hinweis");
+        ((IDictionary)map).IsFixedSize.Should().BeFalse();
+        ((ICollection)map).IsSynchronized.Should().BeFalse();
+        ((ICollection)map).SyncRoot.Should().BeSameAs(map);
     }
 
     [Fact]
-    public void CustomComparer_IsStoredAndUsedForLookup()
+    public void Constructor_CustomComparer_IsStored()
     {
         var map = new OrderedStringDictionary(StringComparer.Ordinal);
 
         map.Comparer.Should().BeSameAs(StringComparer.Ordinal);
-        map["Group"] = "Motion";
+        map.Add("A", "upper");
+        map.Add("a", "lower");
 
-        map.ContainsKey("group").Should().BeFalse();
-        map.TryGetValue("group", out var missing).Should().BeFalse();
-        missing.Should().BeNull();
-        map["group"] = "Other";
-        map.Keys.Should().Equal("Group", "group");
+        map.Keys.Should().Equal("A", "a");
+        map["A"].Should().Be("upper");
+        map["a"].Should().Be("lower");
     }
 
     [Fact]
-    public void Indexer_UpdatesExistingKey_KeepsOriginalTextAndPosition()
+    public void Constructor_NullComparer_Throws()
+    {
+        var act = () => new OrderedStringDictionary(null!);
+
+        act.Should().Throw<ArgumentNullException>().WithParameterName("comparer");
+    }
+
+    [Fact]
+    public void Indexer_SetAndGet_PreservesInsertionOrderAndOriginalKeyText()
     {
         var map = new OrderedStringDictionary
         {
             ["Group"] = "First",
-            ["Lang"] = "Note"
+            ["Lang"] = "Hinweis"
         };
 
         map["group"] = "Second";
+        map["Extra"] = "tail";
 
-        map.Should().ContainSingle(entry => entry.Key == "Group").Which.Value.Should().Be("Second");
-        map.Keys.Should().Equal("Group", "Lang");
-        map["Group"].Should().Be("Second");
+        map.Keys.Should().Equal("Group", "Lang", "Extra");
+        map.Values.Should().Equal("Second", "Hinweis", "tail");
+        map["GROUP"].Should().Be("Second");
+        map.Select(entry => (entry.Key, entry.Value)).Should().Equal(
+            ("Group", "Second"),
+            ("Lang", "Hinweis"),
+            ("Extra", "tail"));
     }
 
     [Fact]
-    public void Remove_DropsTheMatchingEntry_AndKeepsLaterKeys()
+    public void Indexer_MissingOrNullKey_Throws()
+    {
+        var map = new OrderedStringDictionary { ["Group"] = "Motion" };
+
+        var missing = () => map["Other"];
+        var nullGet = () => map[null!];
+        var nullSet = () => map[null!] = "x";
+        var nullValue = () => map["Group"] = null!;
+
+        missing.Should().Throw<KeyNotFoundException>();
+        nullGet.Should().Throw<ArgumentNullException>().WithParameterName("key");
+        nullSet.Should().Throw<ArgumentNullException>().WithParameterName("key");
+        nullValue.Should().Throw<ArgumentNullException>().WithParameterName("value");
+    }
+
+    [Fact]
+    public void Add_DuplicateNullAndPair_FollowsDictionaryRules()
+    {
+        var map = new OrderedStringDictionary();
+        map.Add("Group", "Motion");
+        map.Add(new KeyValuePair<string, string>("Lang", "Hinweis"));
+
+        var duplicate = () => map.Add("group", "Again");
+        var nullKey = () => map.Add(null!, "x");
+        var nullValue = () => map.Add("Other", null!);
+        var nullPair = () => map.Add(new KeyValuePair<string, string>("Other", null!));
+
+        duplicate.Should().Throw<ArgumentException>();
+        nullKey.Should().Throw<ArgumentNullException>().WithParameterName("key");
+        nullValue.Should().Throw<ArgumentNullException>().WithParameterName("value");
+        nullPair.Should().Throw<ArgumentNullException>().WithParameterName("value");
+        map.Keys.Should().Equal("Group", "Lang");
+    }
+
+    [Fact]
+    public void Contains_MatchesKeyAndOrdinalValue()
+    {
+        var map = new OrderedStringDictionary { ["Group"] = "Motion" };
+
+        map.Contains(new KeyValuePair<string, string>("group", "Motion")).Should().BeTrue();
+        map.Contains(new KeyValuePair<string, string>("Group", "motion")).Should().BeFalse();
+        map.Contains(default(KeyValuePair<string, string>)).Should().BeFalse();
+        map.ContainsKey("GROUP").Should().BeTrue();
+        map.ContainsKey("Other").Should().BeFalse();
+
+        var nullKey = () => map.ContainsKey(null!);
+        nullKey.Should().Throw<ArgumentNullException>().WithParameterName("key");
+    }
+
+    [Fact]
+    public void TryGetValue_HitMissAndNull()
+    {
+        var map = new OrderedStringDictionary { ["Group"] = "Motion" };
+
+        map.TryGetValue("group", out var found).Should().BeTrue();
+        found.Should().Be("Motion");
+        map.TryGetValue("Other", out var missing).Should().BeFalse();
+        missing.Should().BeNull();
+
+        var act = () => map.TryGetValue(null!, out _);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("key");
+    }
+
+    [Fact]
+    public void Remove_ByKeyOrPair_DropsTheEntryAndKeepsOrder()
     {
         var map = new OrderedStringDictionary
         {
-            ["Group"] = "Motion",
-            ["Lang"] = "Note",
-            ["Extra"] = "1"
+            ["A"] = "1",
+            ["B"] = "2",
+            ["C"] = "3"
         };
 
+        map.Remove(new KeyValuePair<string, string>("B", "nope")).Should().BeFalse();
+        map.Remove(new KeyValuePair<string, string>("b", "2")).Should().BeTrue();
         map.Remove("missing").Should().BeFalse();
-        map.Remove(new KeyValuePair<string, string>("Lang", "nope")).Should().BeFalse();
-        map.Remove(new KeyValuePair<string, string>("lang", "Note")).Should().BeTrue();
-        map.Remove("GROUP").Should().BeTrue();
+        map.Remove(default(KeyValuePair<string, string>)).Should().BeFalse();
+        map.Remove("c").Should().BeTrue();
 
-        map.Keys.Should().Equal("Extra");
-        map.Should().NotContain(new KeyValuePair<string, string>("Extra", "2"));
-        map.Contains(new KeyValuePair<string, string>("Extra", "1")).Should().BeTrue();
-        map.Contains(default(KeyValuePair<string, string>)).Should().BeFalse();
+        map.Keys.Should().Equal("A");
+        map["A"].Should().Be("1");
+
+        var act = () => map.Remove(null!);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("key");
     }
 
     [Fact]
-    public void Clear_RemovesEveryEntry()
+    public void Clear_RemovesKeysAndValues()
     {
         var map = new OrderedStringDictionary { ["Group"] = "Motion" };
 
         map.Clear();
 
         map.Should().BeEmpty();
-        map.ContainsKey("Group").Should().BeFalse();
+        map.Count.Should().Be(0);
+        map.Keys.Should().BeEmpty();
+        map.Values.Should().BeEmpty();
     }
 
     [Fact]
-    public void CopyTo_WritesEntriesInInsertionOrder()
+    public void CopyTo_WritesPairsInOrder()
     {
-        var map = new OrderedStringDictionary
-        {
-            ["Group"] = "Motion",
-            ["Lang"] = "Note"
-        };
-        var pairs = new KeyValuePair<string, string>[3];
+        var map = new OrderedStringDictionary { ["A"] = "1", ["B"] = "2" };
+        var pairs = new KeyValuePair<string, string>[4];
 
         map.CopyTo(pairs, 1);
 
         pairs[0].Should().Be(default(KeyValuePair<string, string>));
-        pairs[1].Should().Be(new KeyValuePair<string, string>("Group", "Motion"));
-        pairs[2].Should().Be(new KeyValuePair<string, string>("Lang", "Note"));
-
-        var entries = new DictionaryEntry[2];
-        ((ICollection)map).CopyTo(entries, 0);
-        entries[0].Should().Be(new DictionaryEntry("Group", "Motion"));
-        entries[1].Should().Be(new DictionaryEntry("Lang", "Note"));
-
-        var empty = new OrderedStringDictionary();
-        var none = Array.Empty<KeyValuePair<string, string>>();
-        empty.CopyTo(none, 0);
-        ((ICollection)empty).CopyTo(Array.Empty<DictionaryEntry>(), 0);
+        pairs[1].Should().Be(new KeyValuePair<string, string>("A", "1"));
+        pairs[2].Should().Be(new KeyValuePair<string, string>("B", "2"));
+        pairs[3].Should().Be(default(KeyValuePair<string, string>));
     }
 
     [Fact]
-    public void NonGenericDictionary_RoundTripsEntries()
+    public void CopyTo_EmptyMapAtEndOfArray_Succeeds()
     {
-        IDictionary map = new OrderedStringDictionary();
+        var map = new OrderedStringDictionary();
+        var pairs = new KeyValuePair<string, string>[1];
 
-        map.IsFixedSize.Should().BeFalse();
-        map.IsReadOnly.Should().BeFalse();
-        ((ICollection)map).IsSynchronized.Should().BeFalse();
-        ((ICollection)map).SyncRoot.Should().BeSameAs(map);
-        map.Contains(42).Should().BeFalse();
-        map.Contains("missing").Should().BeFalse();
+        var act = () => map.CopyTo(pairs, pairs.Length);
 
-        map.Add("Group", "Motion");
-        map["Lang"] = "Note";
-        map["group"] = "Updated";
-
-        map["Group"].Should().Be("Updated");
-        map.Contains("LANG").Should().BeTrue();
-        map.Keys.Cast<string>().Should().Equal("Group", "Lang");
-        map.Values.Cast<string>().Should().Equal("Updated", "Note");
-
-        var enumerated = new List<DictionaryEntry>();
-        foreach (DictionaryEntry entry in map)
-            enumerated.Add(entry);
-        enumerated.Should().Equal(
-            new DictionaryEntry("Group", "Updated"),
-            new DictionaryEntry("Lang", "Note"));
-
-        map.Remove("lang");
-        map.Remove(42);
-        map.Keys.Cast<string>().Should().Equal("Group");
-
-        ((IEnumerable)map).GetEnumerator().MoveNext().Should().BeTrue();
+        act.Should().NotThrow();
+        pairs[0].Should().Be(default(KeyValuePair<string, string>));
     }
 
     [Fact]
-    public void DictionaryEnumerator_ResetsAndRejectsCurrentOutsideTheRange()
+    public void CopyTo_InvalidDestination_Throws()
     {
-        IDictionary map = new OrderedStringDictionary { ["Group"] = "Motion" };
-        var enumerator = map.GetEnumerator();
+        var map = new OrderedStringDictionary { ["A"] = "1", ["B"] = "2" };
 
-        var before = () => enumerator.Entry;
-        before.Should().Throw<InvalidOperationException>();
+        var nullArray = () => map.CopyTo(null!, 0);
+        var negative = () => map.CopyTo(new KeyValuePair<string, string>[2], -1);
+        var pastEnd = () => map.CopyTo(new KeyValuePair<string, string>[2], 3);
+        var tooSmall = () => map.CopyTo(new KeyValuePair<string, string>[1], 0);
+
+        nullArray.Should().Throw<ArgumentNullException>().WithParameterName("array");
+        negative.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("arrayIndex");
+        pastEnd.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("arrayIndex");
+        tooSmall.Should().Throw<ArgumentException>().WithParameterName("array");
+    }
+
+    [Fact]
+    public void NonGenericIndexer_MissingStringKey_ReturnsNull()
+    {
+        IDictionary dictionary = new OrderedStringDictionary { ["Present"] = "value" };
+
+        dictionary["Present"].Should().Be("value");
+        dictionary["present"].Should().Be("value");
+        dictionary["missing"].Should().BeNull();
+    }
+
+    [Fact]
+    public void NonGenericIndexer_NonStringOrNullKey_Throws()
+    {
+        IDictionary dictionary = new OrderedStringDictionary { ["Present"] = "value" };
+
+        var wrongType = () => dictionary[42];
+        var nullKey = () => dictionary[null!];
+
+        var wrongTypeException = wrongType.Should().Throw<ArgumentException>().Which;
+        wrongTypeException.Should().BeOfType<ArgumentException>();
+        wrongTypeException.ParamName.Should().Be("key");
+        nullKey.Should().Throw<ArgumentNullException>().WithParameterName("key");
+    }
+
+    [Fact]
+    public void NonGenericIndexer_Set_UpdatesOrAppends()
+    {
+        IDictionary dictionary = new OrderedStringDictionary { ["Present"] = "value" };
+
+        dictionary["present"] = "updated";
+        dictionary["Extra"] = "tail";
+
+        var map = (OrderedStringDictionary)dictionary;
+        map.Keys.Should().Equal("Present", "Extra");
+        map["Present"].Should().Be("updated");
+        map["Extra"].Should().Be("tail");
+    }
+
+    [Fact]
+    public void NonGenericIndexer_SetInvalidEntry_Throws()
+    {
+        IDictionary dictionary = new OrderedStringDictionary();
+
+        var nullKey = () => { dictionary[null!] = "x"; };
+        var wrongKey = () => { dictionary[42] = "x"; };
+        var nullValue = () => { dictionary["K"] = null; };
+        var wrongValue = () => { dictionary["K"] = 1; };
+
+        nullKey.Should().Throw<ArgumentNullException>().WithParameterName("key");
+        AssertExactArgumentException(wrongKey, "key");
+        nullValue.Should().Throw<ArgumentNullException>().WithParameterName("value");
+        AssertExactArgumentException(wrongValue, "value");
+    }
+
+    [Fact]
+    public void NonGenericAddContainsAndRemove_AcceptOnlyStringKeys()
+    {
+        IDictionary dictionary = new OrderedStringDictionary { ["Group"] = "Motion" };
+
+        dictionary.Contains("group").Should().BeTrue();
+        dictionary.Contains("other").Should().BeFalse();
+        dictionary.Contains(42).Should().BeFalse();
+
+        var nullContains = () => dictionary.Contains(null!);
+        nullContains.Should().Throw<ArgumentNullException>().WithParameterName("key");
+
+        dictionary.Add("Lang", "Hinweis");
+        var duplicate = () => dictionary.Add("lang", "Again");
+        var nullKey = () => dictionary.Add(null!, "x");
+        var wrongKey = () => dictionary.Add(42, "x");
+        var nullValue = () => dictionary.Add("Other", null);
+        var wrongValue = () => dictionary.Add("Other", 1);
+
+        duplicate.Should().Throw<ArgumentException>();
+        nullKey.Should().Throw<ArgumentNullException>().WithParameterName("key");
+        AssertExactArgumentException(wrongKey, "key");
+        nullValue.Should().Throw<ArgumentNullException>().WithParameterName("value");
+        AssertExactArgumentException(wrongValue, "value");
+
+        dictionary.Remove(42);
+        dictionary.Remove("group");
+        dictionary.Contains("Group").Should().BeFalse();
+        dictionary.Contains("Lang").Should().BeTrue();
+
+        var nullRemove = () => dictionary.Remove(null!);
+        nullRemove.Should().Throw<ArgumentNullException>().WithParameterName("key");
+    }
+
+    [Fact]
+    public void NonGenericKeysValuesAndCopyTo_FollowInsertionOrder()
+    {
+        IDictionary dictionary = new OrderedStringDictionary { ["A"] = "1", ["B"] = "2" };
+
+        dictionary.Keys.Cast<string>().Should().Equal("A", "B");
+        dictionary.Values.Cast<string>().Should().Equal("1", "2");
+
+        var array = new DictionaryEntry[4];
+        ((ICollection)dictionary).CopyTo(array, 1);
+
+        array[0].Should().Be(default(DictionaryEntry));
+        array[1].Should().Be(new DictionaryEntry("A", "1"));
+        array[2].Should().Be(new DictionaryEntry("B", "2"));
+        array[3].Should().Be(default(DictionaryEntry));
+    }
+
+    [Fact]
+    public void NonGenericCopyTo_EmptyMapAtEndOfArray_Succeeds()
+    {
+        ICollection collection = new OrderedStringDictionary();
+        var array = new DictionaryEntry[1];
+
+        var act = () => collection.CopyTo(array, array.Length);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void NonGenericCopyTo_InvalidDestination_Throws()
+    {
+        ICollection collection = new OrderedStringDictionary { ["A"] = "1" };
+        var multiRank = new DictionaryEntry[1, 1];
+
+        var nullArray = () => collection.CopyTo(null!, 0);
+        var rank = () => collection.CopyTo(multiRank, 0);
+        var negative = () => collection.CopyTo(new DictionaryEntry[1], -1);
+        var tooSmall = () => collection.CopyTo(new DictionaryEntry[1], 1);
+
+        nullArray.Should().Throw<ArgumentNullException>().WithParameterName("array");
+        rank.Should().Throw<ArgumentException>().WithParameterName("array");
+        negative.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("index");
+        tooSmall.Should().Throw<ArgumentException>().WithParameterName("array");
+    }
+
+    [Fact]
+    public void Enumerators_WalkInsertionOrderAndRejectCurrentBeforeStart()
+    {
+        var map = new OrderedStringDictionary { ["A"] = "1", ["B"] = "2" };
+
+        IEnumerator generic = ((IEnumerable)map).GetEnumerator();
+        generic.MoveNext().Should().BeTrue();
+        generic.Current.Should().Be(new KeyValuePair<string, string>("A", "1"));
+
+        var enumerator = ((IDictionary)map).GetEnumerator();
+        var beforeStart = () => enumerator.Entry;
+        beforeStart.Should().Throw<InvalidOperationException>();
         var beforeKey = () => enumerator.Key;
         beforeKey.Should().Throw<InvalidOperationException>();
+        var beforeValue = () => enumerator.Value;
+        beforeValue.Should().Throw<InvalidOperationException>();
+        var beforeCurrent = () => enumerator.Current;
+        beforeCurrent.Should().Throw<InvalidOperationException>();
 
         enumerator.MoveNext().Should().BeTrue();
-        enumerator.Entry.Should().Be(new DictionaryEntry("Group", "Motion"));
-        enumerator.Key.Should().Be("Group");
-        enumerator.Value.Should().Be("Motion");
-        enumerator.Current.Should().Be(enumerator.Entry);
+        enumerator.Key.Should().Be("A");
+        enumerator.Value.Should().Be("1");
+        enumerator.Entry.Should().Be(new DictionaryEntry("A", "1"));
+        enumerator.Current.Should().Be(new DictionaryEntry("A", "1"));
+
+        enumerator.MoveNext().Should().BeTrue();
+        enumerator.Key.Should().Be("B");
         enumerator.MoveNext().Should().BeFalse();
-        enumerator.Key.Should().Be("Group");
 
         enumerator.Reset();
+        var afterReset = () => enumerator.Current;
+        afterReset.Should().Throw<InvalidOperationException>();
         enumerator.MoveNext().Should().BeTrue();
-        enumerator.Key.Should().Be("Group");
-
-        var empty = new OrderedStringDictionary();
-        ((IDictionary)empty).GetEnumerator().MoveNext().Should().BeFalse();
+        enumerator.Key.Should().Be("A");
     }
 
     [Fact]
-    public void NullAndInvalidArguments_AreRejected()
+    public void NonGenericEnumerator_EmptyMap_MoveNextIsFalse()
     {
-        var construct = () => new OrderedStringDictionary(null!);
-        construct.Should().Throw<ArgumentNullException>().WithParameterName("comparer");
+        var enumerator = ((IDictionary)new OrderedStringDictionary()).GetEnumerator();
 
-        var map = new OrderedStringDictionary { ["Group"] = "Motion" };
+        enumerator.MoveNext().Should().BeFalse();
+        var current = () => enumerator.Current;
+        current.Should().Throw<InvalidOperationException>();
+        enumerator.Reset();
+        enumerator.MoveNext().Should().BeFalse();
+    }
 
-        var getNull = () => map[null!];
-        getNull.Should().Throw<ArgumentNullException>().WithParameterName("key");
-
-        var setNullKey = () => map[null!] = "x";
-        setNullKey.Should().Throw<ArgumentNullException>().WithParameterName("key");
-
-        var setNullValue = () => map["Group"] = null!;
-        setNullValue.Should().Throw<ArgumentNullException>().WithParameterName("value");
-
-        var addNullKey = () => map.Add(null!, "x");
-        addNullKey.Should().Throw<ArgumentNullException>().WithParameterName("key");
-
-        var addNullValue = () => map.Add("Lang", null!);
-        addNullValue.Should().Throw<ArgumentNullException>().WithParameterName("value");
-
-        var duplicate = () => map.Add("group", "Other");
-        duplicate.Should().Throw<ArgumentException>();
-
-        var missing = () => map["missing"];
-        missing.Should().Throw<KeyNotFoundException>();
-
-        var containsNull = () => map.ContainsKey(null!);
-        containsNull.Should().Throw<ArgumentNullException>().WithParameterName("key");
-
-        var removeNull = () => map.Remove(null!);
-        removeNull.Should().Throw<ArgumentNullException>().WithParameterName("key");
-
-        var tryNull = () => map.TryGetValue(null!, out _);
-        tryNull.Should().Throw<ArgumentNullException>().WithParameterName("key");
-
-        var copyNull = () => map.CopyTo(null!, 0);
-        copyNull.Should().Throw<ArgumentNullException>().WithParameterName("array");
-
-        var copyNegative = () => map.CopyTo(new KeyValuePair<string, string>[1], -1);
-        copyNegative.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("arrayIndex");
-
-        var copyPastEnd = () => map.CopyTo(new KeyValuePair<string, string>[1], 2);
-        copyPastEnd.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("arrayIndex");
-
-        var copyTooSmall = () => map.CopyTo(new KeyValuePair<string, string>[1], 1);
-        copyTooSmall.Should().Throw<ArgumentException>().WithParameterName("array");
-
-        IDictionary nongeneric = map;
-        var indexNull = () => nongeneric[null!];
-        indexNull.Should().Throw<ArgumentNullException>().WithParameterName("key");
-
-        var indexWrongType = () => nongeneric[42];
-        indexWrongType.Should().Throw<ArgumentException>().WithParameterName("key");
-
-        var indexMissing = () => nongeneric["missing"];
-        indexMissing.Should().Throw<KeyNotFoundException>();
-
-        var setWrongKey = () => nongeneric[42] = "x";
-        setWrongKey.Should().Throw<ArgumentException>().WithParameterName("key");
-
-        var setNullNongenericValue = () => nongeneric["Lang"] = null;
-        setNullNongenericValue.Should().Throw<ArgumentNullException>().WithParameterName("value");
-
-        var setWrongValue = () => nongeneric["Lang"] = 42;
-        setWrongValue.Should().Throw<ArgumentException>().WithParameterName("value");
-
-        var addWrongKey = () => nongeneric.Add(42, "x");
-        addWrongKey.Should().Throw<ArgumentException>().WithParameterName("key");
-
-        var addNullNongeneric = () => nongeneric.Add(null!, "x");
-        addNullNongeneric.Should().Throw<ArgumentNullException>().WithParameterName("key");
-
-        var containsNullKey = () => nongeneric.Contains(null!);
-        containsNullKey.Should().Throw<ArgumentNullException>().WithParameterName("key");
-
-        var removeNullKey = () => nongeneric.Remove(null!);
-        removeNullKey.Should().Throw<ArgumentNullException>().WithParameterName("key");
-
-        ICollection collection = map;
-        var copyCollectionNull = () => collection.CopyTo(null!, 0);
-        copyCollectionNull.Should().Throw<ArgumentNullException>().WithParameterName("array");
-
-        var copyRank = () => collection.CopyTo(new string[1, 1], 0);
-        copyRank.Should().Throw<ArgumentException>().WithParameterName("array");
-
-        var copyCollectionNegative = () => collection.CopyTo(new DictionaryEntry[1], -1);
-        copyCollectionNegative.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("index");
-
-        var copyCollectionTooSmall = () => collection.CopyTo(new DictionaryEntry[1], 1);
-        copyCollectionTooSmall.Should().Throw<ArgumentException>().WithParameterName("array");
+    private static void AssertExactArgumentException(Action act, string parameterName)
+    {
+        var exception = act.Should().Throw<ArgumentException>().Which;
+        exception.Should().BeOfType<ArgumentException>();
+        exception.ParamName.Should().Be(parameterName);
     }
 }
