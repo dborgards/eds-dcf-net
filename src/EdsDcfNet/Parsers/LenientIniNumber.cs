@@ -70,11 +70,29 @@ internal static class LenientIniNumber
             sectionName,
             keyName,
             rawValue,
-            static value => ValueConverter.ParseInteger(value),
+            ParseObjFlagsInteger,
             fallback,
             code,
             coercedTo,
             fallbackDescription);
+
+    /// <summary>
+    /// Parses <c>ObjFlags</c>. A <c>$NODEID</c> formula has no node-id context here, so
+    /// <see cref="ValueConverter.ParseInteger(string, byte?)"/> throws
+    /// <see cref="NotSupportedException"/>. That failure is an invalid numeric key:
+    /// lenient mode falls back, strict mode throws <see cref="EdsParseException"/>.
+    /// </summary>
+    private static uint ParseObjFlagsInteger(string value)
+    {
+        try
+        {
+            return ValueConverter.ParseInteger(value);
+        }
+        catch (NotSupportedException ex)
+        {
+            throw new EdsParseException(ex.Message, ex);
+        }
+    }
 
     /// <summary>
     /// Parses a present numeric key. Lenient failure returns <see langword="null"/>

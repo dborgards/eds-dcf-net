@@ -503,6 +503,47 @@ public class MalformedNumericObjectKeyTests
         AssertStrict(content, ParseDiagnosticCodes.InvalidObjFlags, "2005", "Invalid uint value: '" + raw + "'");
     }
 
+    [Theory]
+    [InlineData("$NODEID")]
+    [InlineData("$NODEID+0x10")]
+    public void ReadStringWithDiagnostics_ObjFlagsNodeIdFormula_FallsBackToZero(string raw)
+    {
+        var content = Header +
+            "[ManufacturerObjects]\n" +
+            "SupportedObjects=2\n" +
+            "1=0x2005\n" +
+            "2=0x2006\n" +
+            "[2005]\n" +
+            "ParameterName=Formula\n" +
+            "ObjectType=0x7\n" +
+            "ObjFlags=" + raw + "\n" +
+            "AccessType=ro\n" +
+            "[2006]\n" +
+            "ParameterName=Later\n" +
+            "ObjectType=0x7\n" +
+            "AccessType=ro\n";
+
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+
+        var diagnostic = result.Diagnostics.Should().ContainSingle().Subject;
+        diagnostic.Code.Should().Be(ParseDiagnosticCodes.InvalidObjFlags);
+        diagnostic.Path.Should().Be("2005.ObjFlags");
+        diagnostic.RawValue.Should().Be(raw);
+        diagnostic.CoercedTo.Should().Be("0");
+        diagnostic.Line.Should().Be(SourceLine(content, "ObjFlags=" + raw));
+        result.Model.ObjectDictionary.Objects[0x2005].ObjFlags.Should().Be(0);
+        result.Model.ObjectDictionary.Objects[0x2005].ParameterName.Should().Be("Formula");
+        result.Model.ObjectDictionary.Objects[0x2006].ParameterName.Should().Be("Later");
+
+        var act = () => CanOpenFile.Eds.ReadStringWithDiagnostics(content, Strict);
+        var ex = act.Should().Throw<EdsParseException>().Which;
+        ex.Code.Should().Be(ParseDiagnosticCodes.InvalidObjFlags);
+        ex.SectionName.Should().Be("2005");
+        ex.LineNumber.Should().Be(SourceLine(content, "ObjFlags=" + raw));
+        ex.Message.Should().Contain(raw);
+        ex.Message.Should().Contain("node ID");
+    }
+
     [Fact]
     public void ReadStringWithDiagnostics_MalformedObjectListIndex_SkipsEntryAndKeepsSiblings()
     {
