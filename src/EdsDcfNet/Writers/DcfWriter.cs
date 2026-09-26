@@ -277,7 +277,8 @@ public class DcfWriter : IniWriterBase
                 "DeviceCommissioning");
         }
 
-        sb.AppendLine("[DeviceCommissioning]");
+        // CiA 306-1 Table 12 spells the section with a single "m"; the reader accepts both spellings.
+        sb.AppendLine("[DeviceComissioning]");
         WriteKeyValue(sb, "NodeID", dc.NodeId.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "NodeName", dc.NodeName);
 

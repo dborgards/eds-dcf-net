@@ -64,7 +64,7 @@ public abstract class CanOpenReaderBase
 
     /// <summary>
     /// Extension point for format-specific sections that must be parsed after
-    /// <c>[DeviceInfo]</c> but before the object dictionary (DCF: <c>[DeviceCommissioning]</c>).
+    /// <c>[DeviceInfo]</c> but before the object dictionary (DCF: <c>[DeviceComissioning]</c>).
     /// </summary>
     private protected virtual void ParsePreObjectDictionarySections(
         ICanOpenFileModel model,

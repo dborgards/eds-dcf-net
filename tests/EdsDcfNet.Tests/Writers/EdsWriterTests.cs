@@ -60,7 +60,7 @@ public class EdsWriterTests
         result.Should().Contain("[FileInfo]");
         result.Should().Contain("[DeviceInfo]");
         result.Should().Contain("[MandatoryObjects]");
-        result.Should().NotContain("[DeviceCommissioning]");
+        result.Should().NotContain("[DeviceCommissioning]").And.NotContain("[DeviceComissioning]");
         result.Should().NotContain("[ConnectedModules]");
     }
 
@@ -817,7 +817,7 @@ public class EdsWriterTests
             var content = File.ReadAllText(tempFile);
             content.Should().Contain("[FileInfo]");
             content.Should().Contain("[DeviceInfo]");
-            content.Should().NotContain("[DeviceCommissioning]");
+            content.Should().NotContain("[DeviceCommissioning]").And.NotContain("[DeviceComissioning]");
         }
         finally
         {
