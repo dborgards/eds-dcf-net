@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.0-beta.7](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.6...v1.14.0-beta.7) (2026-09-26)
+
+### 🐛 Bug Fixes
+
+* **checker:** report discarded DCF values on padded and expanded objects ([#575](https://github.com/dborgards/eds-dcf-net/issues/575)) ([c941b46](https://github.com/dborgards/eds-dcf-net/commit/c941b467035ea9efedffab6d301104bd95fa4838))
+
 ## [1.14.0-beta.6](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0-beta.5...v1.14.0-beta.6) (2026-09-26)
 
 ### 🐛 Bug Fixes
