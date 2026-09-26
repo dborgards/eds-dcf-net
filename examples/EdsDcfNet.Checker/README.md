@@ -81,10 +81,10 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | LST005 | error/warning | Mandatory object 0x1000/0x1001/0x1018 missing or in the wrong list |
 | LST006 | error | Invalid object-list entry |
 | LST007 | warning | Object listed in the wrong list (2000h-5FFFh belong in `[ManufacturerObjects]`) |
-| PDO001 | error | PDO mapping references a missing object or invalid dummy type |
-| PDO002 | error/warning | Mapped object not PDO-mappable, wrong access direction, dummy in TPDO |
-| PDO003 | error | Mapping length does not match the mapped data type |
-| PDO004 | error | PDO maps more than 64 bits |
+| PDO001 | error | PDO mapping references a missing object or invalid dummy type (compact `[XXXXValue]` maps included) |
+| PDO002 | error/warning | Mapped object not PDO-mappable, wrong access direction, dummy in TPDO (compact `[XXXXValue]` maps included) |
+| PDO003 | error | Mapping length does not match the mapped data type (compact `[XXXXValue]` maps included) |
+| PDO004 | error | PDO maps more than 64 bits (compact `[XXXXValue]` maps included) |
 | MND001 | error | Mandatory section missing (`[FileInfo]`, `[DeviceInfo]`, `[MandatoryObjects]`, DCF `[DeviceComissioning]`) |
 | MND002 | warning | Mandatory `[FileInfo]`/`[DeviceInfo]`/`[DeviceComissioning]` entry missing or empty |
 | MND003 | error/warning | Entry value has the wrong type/format (UNSIGNED8/16/32, BOOLEAN 0/1, `X.Y`, `hh:mm(AM\|PM)`, `mm-dd-yyyy`, max. length, Granularity 0..64, Baudrate) |

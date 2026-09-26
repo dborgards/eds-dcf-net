@@ -833,65 +833,203 @@ public sealed class RawObjectChecker
 
     private void CheckPdoMappings()
     {
-        foreach (var (index, subs) in _subObjects)
+        var indexes = new SortedSet<ushort>();
+        foreach (var index in _subObjects.Keys)
         {
-            if (!IsPdoMapping(index))
+            if (IsPdoMapping(index))
+            {
+                indexes.Add(index);
+            }
+        }
+
+        foreach (var (index, section) in _objects)
+        {
+            if (IsPdoMapping(index) && ParseOptionalByte(section, "CompactSubObj") is > 0)
+            {
+                indexes.Add(index);
+            }
+        }
+
+        foreach (var index in indexes)
+        {
+            CheckPdoMapping(index);
+        }
+    }
+
+    private void CheckPdoMapping(ushort index)
+    {
+        _subObjects.TryGetValue(index, out var subs);
+        _objects.TryGetValue(index, out var parent);
+        var compact = parent is null ? null : ParseOptionalByte(parent, "CompactSubObj", report: false);
+        var compactMax = compact is > 0 ? Math.Min((int)compact.Value, 254) : 0;
+        var valueSection = _isDcf ? _doc.Get(Hex4(index) + "Value") : null;
+
+        var numberOfEntries = int.MaxValue;
+        if (subs is not null && subs.TryGetValue(0, out var sub0) && TryParseInt(MappingValue(sub0) ?? string.Empty, out var count))
+        {
+            numberOfEntries = count;
+        }
+        else if (compact is > 0)
+        {
+            // No explicit sub-index 0: the reader synthesizes it with DefaultValue = CompactSubObj.
+            numberOfEntries = compact.Value;
+        }
+
+        var slots = new SortedSet<byte>();
+        if (subs is not null)
+        {
+            foreach (var subIndex in subs.Keys)
+            {
+                slots.Add(subIndex);
+            }
+        }
+
+        if (compactMax > 0)
+        {
+            var last = numberOfEntries == int.MaxValue ? compactMax : Math.Min(compactMax, numberOfEntries);
+            for (var subIndex = 1; subIndex <= last; subIndex++)
+            {
+                slots.Add((byte)subIndex);
+            }
+        }
+
+        var isTx = index >= 0x1A00;
+        var totalBits = 0;
+        foreach (var subIndex in slots)
+        {
+            if (subIndex == 0 || subIndex > numberOfEntries)
             {
                 continue;
             }
 
-            var isTx = index >= 0x1A00;
-            var numberOfEntries = int.MaxValue;
-            if (subs.TryGetValue(0, out var sub0) && TryParseInt(MappingValue(sub0) ?? string.Empty, out var n))
+            if (!TryResolveMappingEntry(subIndex, subs, parent, compactMax, valueSection, out var section, out var entry, out var raw) ||
+                raw.Contains('$'))
             {
-                numberOfEntries = n;
+                continue;
             }
 
-            var totalBits = 0;
-            foreach (var (subIndex, section) in subs)
+            uint mapping;
+            try
             {
-                if (subIndex == 0 || subIndex > numberOfEntries)
-                {
-                    continue;
-                }
-
-                var raw = MappingValue(section);
-                if (raw is null || raw.Contains('$'))
-                {
-                    continue;
-                }
-
-                uint mapping;
-                try
-                {
-                    mapping = ValueConverter.ParseInteger(raw);
-                }
-                catch (Exception ex) when (ex is EdsParseException or FormatException or OverflowException)
-                {
-                    continue; // reported by value checks
-                }
-
-                if (mapping == 0)
-                {
-                    continue;
-                }
-
-                var entry = section.Get(_isDcf && section.GetValue("ParameterValue") is not null ? "ParameterValue" : "DefaultValue");
-                var mappedIndex = (ushort)(mapping >> 16);
-                var mappedSub = (byte)((mapping >> 8) & 0xFF);
-                var length = (int)(mapping & 0xFF);
-                totalBits += length;
-
-                CheckMappedObject(section, entry!, mappedIndex, mappedSub, length, isTx);
+                mapping = ValueConverter.ParseInteger(raw);
+            }
+            catch (Exception ex) when (ex is EdsParseException or FormatException or OverflowException)
+            {
+                continue; // reported by value checks
             }
 
-            if (totalBits > 64)
+            if (mapping == 0)
             {
-                Add(Severity.Error, "PDO004", subs.TryGetValue(0, out var s0) ? s0 : subs.Values.First(), null, null,
-                    string.Format(CultureInfo.InvariantCulture,
-                        "PDO mapping [{0}] maps {1} bits; a CAN frame carries at most 64.", Hex4(index), totalBits));
+                continue;
+            }
+
+            var mappedIndex = (ushort)(mapping >> 16);
+            var mappedSub = (byte)((mapping >> 8) & 0xFF);
+            var length = (int)(mapping & 0xFF);
+            totalBits += length;
+
+            CheckMappedObject(section, entry, mappedIndex, mappedSub, length, isTx);
+        }
+
+        if (totalBits > 64)
+        {
+            RawSection? anchor = null;
+            if (subs is not null && subs.TryGetValue(0, out var anchorSub))
+            {
+                anchor = anchorSub;
+            }
+            else if (valueSection is not null)
+            {
+                anchor = valueSection;
+            }
+            else if (parent is not null)
+            {
+                anchor = parent;
+            }
+            else if (subs is not null)
+            {
+                anchor = subs.Values.First();
+            }
+
+            if (anchor is not null)
+            {
+                Add(Severity.Error, "PDO004", anchor, null, null, string.Format(CultureInfo.InvariantCulture,
+                    "PDO mapping [{0}] maps {1} bits; a CAN frame carries at most 64.", Hex4(index), totalBits));
             }
         }
+    }
+
+    /// <summary>
+    /// Resolves one PDO mapping slot. DCF <c>[xxxxValue]</c> overwrites <c>ParameterValue</c>;
+    /// otherwise an explicit <c>[XXXXsubY]</c> is used, then the compact parent template.
+    /// </summary>
+    private bool TryResolveMappingEntry(
+        byte subIndex,
+        SortedDictionary<byte, RawSection>? subs,
+        RawSection? parent,
+        int compactMax,
+        RawSection? valueSection,
+        out RawSection section,
+        out RawEntry entry,
+        out string raw)
+    {
+        section = null!;
+        entry = null!;
+        raw = string.Empty;
+
+        if (valueSection is not null)
+        {
+            var applies = (subs is not null && subs.ContainsKey(subIndex)) || (subIndex >= 1 && subIndex <= compactMax);
+            if (applies)
+            {
+                foreach (var candidate in valueSection.Entries.Values)
+                {
+                    if (!TryParseCompactListSubIndex(candidate.Key, out var keySub) || keySub != subIndex ||
+                        string.IsNullOrWhiteSpace(candidate.Value))
+                    {
+                        continue;
+                    }
+
+                    section = valueSection;
+                    entry = candidate;
+                    raw = candidate.Value.Trim();
+                    return true;
+                }
+            }
+        }
+
+        if (subs is not null && subs.TryGetValue(subIndex, out var explicitSub))
+        {
+            var key = _isDcf && explicitSub.GetValue("ParameterValue") is not null ? "ParameterValue" : "DefaultValue";
+            var explicitEntry = explicitSub.Get(key);
+            var value = explicitSub.GetValue(key);
+            if (explicitEntry is null || value is null)
+            {
+                return false;
+            }
+
+            section = explicitSub;
+            entry = explicitEntry;
+            raw = value;
+            return true;
+        }
+
+        if (parent is not null && subIndex >= 1 && subIndex <= compactMax)
+        {
+            var templateEntry = parent.Get("DefaultValue");
+            var value = parent.GetValue("DefaultValue");
+            if (templateEntry is null || value is null)
+            {
+                return false;
+            }
+
+            section = parent;
+            entry = templateEntry;
+            raw = value;
+            return true;
+        }
+
+        return false;
     }
 
     private string? MappingValue(RawSection section) =>
@@ -937,13 +1075,38 @@ public sealed class RawObjectChecker
             mapped = obj;
         }
 
+        if (mapped is null &&
+            _objects.TryGetValue(index, out var compactParent) &&
+            ParseOptionalByte(compactParent, "CompactSubObj", report: false) is > 0 and var compact)
+        {
+            var compactMax = Math.Min((int)compact, 254);
+            if (sub >= 1 && sub <= compactMax)
+            {
+                // Synthesized element: type, access and PDOMapping come from the parent template.
+                mapped = compactParent;
+            }
+            else if (sub == 0)
+            {
+                // Synthesized sub-index 0 is UNSIGNED8, read-only, and not PDO-mappable.
+                Add(Severity.Error, "PDO002", section, entry, "Mapped object " + target + " is not PDO-mappable (PDOMapping is not 1).");
+                if (!isTx)
+                {
+                    Add(Severity.Error, "PDO002", section, entry, "Mapped object " + target + " is ro and cannot be written by an RPDO.");
+                }
+
+                if (length != 8)
+                {
+                    Add(Severity.Error, "PDO003", section, entry, string.Format(CultureInfo.InvariantCulture,
+                        "Mapping length {0} bits does not match UNSIGNED8 (8 bits) of {1}.", length, target));
+                }
+
+                return;
+            }
+        }
+
         if (mapped is null)
         {
-            if (!(_objects.TryGetValue(index, out var parent) && ParseOptionalByte(parent, "CompactSubObj") is > 0))
-            {
-                Add(Severity.Error, "PDO001", section, entry, "Mapped object " + target + " does not exist.");
-            }
-
+            Add(Severity.Error, "PDO001", section, entry, "Mapped object " + target + " does not exist.");
             return;
         }
 
@@ -987,7 +1150,7 @@ public sealed class RawObjectChecker
 
     // ---------------------------------------------------------------- helpers
 
-    private byte? ParseOptionalByte(RawSection section, string key)
+    private byte? ParseOptionalByte(RawSection section, string key, bool report = true)
     {
         var entry = section.Get(key);
         if (entry is null || string.IsNullOrWhiteSpace(entry.Value))
@@ -1001,7 +1164,11 @@ public sealed class RawObjectChecker
         }
         catch (EdsParseException)
         {
-            Add(Severity.Error, "OBJ009", section, entry, key + " is not a valid UNSIGNED8 number (0..255).");
+            if (report)
+            {
+                Add(Severity.Error, "OBJ009", section, entry, key + " is not a valid UNSIGNED8 number (0..255).");
+            }
+
             return null;
         }
     }
