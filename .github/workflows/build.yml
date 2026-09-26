@@ -181,6 +181,22 @@ jobs:
     - name: Verify package-lock.json is in sync
       run: npm ci
 
+  # Fixture check for the jq program embedded in the apicompat job below.
+  # That program is the opt-in for an announced Major bump; a loosened
+  # footer pattern would skip "Fail on unannounced breaking changes".
+  # Not relayed by relay-release-status (which posts only `build`).
+  breaking-intent:
+    if: github.event_name != 'workflow_run'
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Check breaking-change intent regex
+      run: bash tools/breaking-change-intent.test.sh
+
   # Compares the built public API against the same API built from the PR's
   # base branch (Microsoft.DotNet.ApiCompat). semantic-release derives the
   # version bump from commit types, not from the actual API delta — this job
@@ -291,6 +307,10 @@ jobs:
         # `BREAKING` alternative: it matched ordinary prose describing these
         # very keywords in a commit body and triggered an unintended Major
         # release, the opposite false positive.
+        # The footer separator is stricter than the parser's notesPattern
+        # (`[:\s]+`). Only a colon plus whitespace counts (`BREAKING CHANGE:`
+        # / `BREAKING CHANGES:`), matching CONTRIBUTING.md and Conventional
+        # Commits. `BREAKING CHANGE this removes Foo` is not an opt-in.
         jq_program='
           [.[].commit.message] | any(
             . as $msg |
@@ -298,7 +318,7 @@ jobs:
             ((($lines[0] // "") | test("^[a-zA-Z]+(\\([^)]*\\))?!: "))
               or (($lines[0] // "") | test("^(breaking|major)(\\([^)]*\\))?: ")))
             or
-            (($lines[1:] | join("\n")) | test("(?mi)^[\\s|*]*(BREAKING CHANGE|BREAKING CHANGES)[:\\s]+"))
+            (($lines[1:] | join("\n")) | test("(?mi)^[\\s|*]*(BREAKING CHANGE|BREAKING CHANGES):\\s+"))
           )
         '
         if ! results=$(gh api --paginate "repos/${{ github.repository }}/pulls/$pr/commits" --jq "$jq_program"); then
@@ -349,7 +369,7 @@ jobs:
       if: steps.apicompat.outputs.result == 'incompatible' && steps.breaking.outputs.intent != 'true'
       run: |
         cat "$RUNNER_TEMP/apicompat/apicompat-diff.md"
-        echo "::error::Public API is not compatible with this PR's base branch. Either revert the breaking change or add a commit with a '!' after the type, the 'breaking'/'major' type, or a BREAKING CHANGE/BREAKING CHANGES footer (Major release)."
+        echo "::error::Public API is not compatible with this PR's base branch. Either revert the breaking change or add a commit with a '!' after the type, the 'breaking'/'major' type, or a 'BREAKING CHANGE:'/'BREAKING CHANGES:' footer (Major release)."
         exit 1
 
   # Relays required check statuses for release commits that carry [skip ci].
