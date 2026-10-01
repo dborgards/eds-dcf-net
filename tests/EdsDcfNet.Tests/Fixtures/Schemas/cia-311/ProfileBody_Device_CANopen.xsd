@@ -1,0 +1,1489 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns="http://www.canopen.org/xml/1.1" xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.canopen.org/xml/1.1" elementFormDefault="unqualified" attributeFormDefault="unqualified" version="1.0">
+	<xsd:include schemaLocation="ISO15745ProfileContainer.xsd"/>
+	<xsd:include schemaLocation="CommonElements.xsd"/>
+	<!--################ CANopen profile body device -->
+	<xsd:complexType name="ProfileBody_Device_CANopen">
+		<xsd:complexContent>
+			<xsd:extension base="ProfileBody_DataType">
+				<xsd:sequence>
+					<xsd:element ref="DeviceIdentity" minOccurs="0"/>
+					<xsd:element ref="DeviceManager" minOccurs="0"/>
+					<xsd:element ref="DeviceFunction" maxOccurs="unbounded"/>
+					<xsd:element ref="ApplicationProcess" minOccurs="0" maxOccurs="unbounded"/>
+					<xsd:element name="ExternalProfileHandle" type="ProfileHandle_DataType" minOccurs="0" maxOccurs="unbounded">
+						<xsd:annotation>
+							<xsd:documentation>The additional ExternalProfileHandle element enables external non-XML data to be referenced.</xsd:documentation>
+						</xsd:annotation>
+					</xsd:element>
+				</xsd:sequence>
+				<xsd:attributeGroup ref="ag_formatAndFile"/>
+				<xsd:attribute name="supportedLanguages" type="xsd:NMTOKENS" use="optional">
+					<xsd:annotation>
+						<xsd:documentation>This attribute identifies supported languages and consists of a list of language codes plus optional country codes. ex: supportedLanguages="en-us de fr es"</xsd:documentation>
+					</xsd:annotation>
+				</xsd:attribute>
+				<xsd:attribute name="deviceClass" use="optional">
+					<xsd:annotation>
+						<xsd:documentation>This attribute provides a classification of the device profile; valid values:
+- compact - the profile is complete and unique for a device or device family
+- modular - a bounded set of profiles exist according to the modular functionalities combined in a specific device occurrence
+- configurable - open configurable device that needs an external configurator to create the profile of one instance</xsd:documentation>
+					</xsd:annotation>
+					<xsd:simpleType>
+						<xsd:restriction base="xsd:NMTOKEN">
+							<xsd:enumeration value="compact"/>
+							<xsd:enumeration value="modular"/>
+							<xsd:enumeration value="configurable"/>
+						</xsd:restriction>
+					</xsd:simpleType>
+				</xsd:attribute>
+			</xsd:extension>
+		</xsd:complexContent>
+	</xsd:complexType>
+	<!--################ device identity elements -->
+	<xsd:element name="DeviceIdentity">
+		<xsd:annotation>
+			<xsd:documentation>The DeviceIdentity element contains attributes that are independent of the network and of the process, and which uniquely identify the device.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="vendorName"/>
+				<xsd:element ref="vendorID" minOccurs="0"/>
+				<xsd:element ref="vendorText" minOccurs="0"/>
+				<xsd:element ref="deviceFamily" minOccurs="0"/>
+				<xsd:element ref="productFamily" minOccurs="0"/>
+				<xsd:element ref="productName"/>
+				<xsd:element ref="productID" minOccurs="0"/>
+				<xsd:element ref="productText" minOccurs="0"/>
+				<xsd:element ref="orderNumber" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="version" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="buildDate" minOccurs="0"/>
+				<xsd:element ref="specificationRevision" minOccurs="0"/>
+				<xsd:element ref="instanceName" minOccurs="0"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="productFamily">
+		<xsd:annotation>
+			<xsd:documentation>This element states a vendor specific affiliation of the device type to a certain set of devices inside a family. The list of valid productFamily values is system, tool or consortia specific.
+NOTE: Consortia specific device families and vendor identifiers are linked.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:simpleContent>
+				<xsd:extension base="xsd:string">
+					<xsd:attribute name="readOnly" type="xsd:boolean" default="true">
+						<xsd:annotation>
+							<xsd:documentation>This attribute shall indicate whether the value is read-only for a user: false, true (default).</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:simpleContent>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="instanceName">
+		<xsd:annotation>
+			<xsd:documentation>This element contains the instance name of the device.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:simpleContent>
+				<xsd:extension base="xsd:string">
+					<xsd:attribute name="readOnly" type="xsd:boolean" default="false">
+						<xsd:annotation>
+							<xsd:documentation>This attribute shall indicate whether the value is read-only for a user: false, true (default).</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:simpleContent>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="orderNumber">
+		<xsd:annotation>
+			<xsd:documentation>This element is used to store the single order number of a given device or the set of different order numbers of the products of a device family, depending upon whether the device profile describes a device or a device family.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:simpleContent>
+				<xsd:extension base="xsd:string">
+					<xsd:attribute name="readOnly" type="xsd:boolean" default="true">
+						<xsd:annotation>
+							<xsd:documentation>This attribute shall indicate whether the value is read-only for a user: false, true (default).</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:simpleContent>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="productName">
+		<xsd:annotation>
+			<xsd:documentation>This element states a vendor specific designation or name of the device type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:simpleContent>
+				<xsd:extension base="xsd:string">
+					<xsd:attribute name="readOnly" type="xsd:boolean" default="true">
+						<xsd:annotation>
+							<xsd:documentation>This attribute shall indicate whether the value is read-only for a user: false, true (default).</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:simpleContent>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="productText">
+		<xsd:annotation>
+			<xsd:documentation>This element allows the vendor to provide a short textual description of the device.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels"/>
+			<xsd:attribute name="readOnly" type="xsd:boolean" default="true">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate whether the value is read-only for a user: false, true (default).</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="vendorName">
+		<xsd:annotation>
+			<xsd:documentation>This element shall identify the name or the brand name of the vendor of the device.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:simpleContent>
+				<xsd:extension base="xsd:string">
+					<xsd:attribute name="readOnly" type="xsd:boolean" default="true">
+						<xsd:annotation>
+							<xsd:documentation>This attribute shall indicate whether the value is read-only for a user: false, true (default).</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:simpleContent>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="vendorText">
+		<xsd:annotation>
+			<xsd:documentation>This element allows the vendor to provide additional company information, like address or hotline number. The g_labels group offers the possibility to include a vendor URI inside this element.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels"/>
+			<xsd:attribute name="readOnly" type="xsd:boolean" default="true">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate whether the value is read-only for a user: false, true (default).</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<!--################ device manager elements -->
+	<xsd:element name="DeviceManager">
+		<xsd:annotation>
+			<xsd:documentation>The DeviceManager element contains attributes and supports services that enable the monitoring the device.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="indicatorList" minOccurs="0"/>
+				<xsd:element ref="moduleManagement" minOccurs="0"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<!--################ indicator list elements -->
+	<xsd:element name="indicatorList">
+		<xsd:annotation>
+			<xsd:documentation>This element provides a list of indicators provided by the device type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="LEDList" minOccurs="0"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="LEDList">
+		<xsd:annotation>
+			<xsd:documentation>This element  provides a list of LED indicators provided by the device type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="LED" maxOccurs="unbounded"/>
+				<xsd:element ref="combinedState" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="LED">
+		<xsd:annotation>
+			<xsd:documentation>This element describes the features of a single LEDS of the device type. A detailed feature description may be provided through the g_labels group.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels"/>
+				<xsd:element ref="LEDstate" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="LEDcolors" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the colors of the LED; valid values:
+- monocolor
+- bicolor</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="monocolor"/>
+						<xsd:enumeration value="bicolor"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="LEDtype" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate a rough classification of the supervised item of unctionality; valid values:
+- IO
+- device
+- communication</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="IO"/>
+						<xsd:enumeration value="device"/>
+						<xsd:enumeration value="communication"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="LEDstate">
+		<xsd:annotation>
+			<xsd:documentation>This element shall indicate the device states signalled by the LED and the visual behavior used for signalling the states.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels"/>
+			<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID for a LED state and may be referenced from a LEDstateRef element.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="state" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the state of the LED; valid values:
+- on
+- off
+- flashing</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="on"/>
+						<xsd:enumeration value="off"/>
+						<xsd:enumeration value="flashing"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="LEDcolor" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the color of the LED; valid values:
+- green
+- red</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="green"/>
+						<xsd:enumeration value="amber"/>
+						<xsd:enumeration value="red"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="flashingPeriod" type="xsd:unsignedInt" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the flashing period of the LED in milliseconds, if the state is set to flashing.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="impulsWidth" type="xsd:unsignedByte" default="50">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the width of the flashing impulse given in percent (%) of the flashing period, if the state is set to flashing. If this attribute is missing, the default value is set to 50.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="numberOfImpulses" type="xsd:unsignedByte" default="1">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the number of impulses in case that more than one flashing impulse is inside one flashing period, if the state is set to flashing. If this attribute is present, the attribute impulsWidth shall be present too. If this attribute is missing, then the default value is set to 1.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="combinedState">
+		<xsd:annotation>
+			<xsd:documentation>This element allows the indication of device states which are signaled by more than one LED. The description of the combioned state is provided through the g_labels group.
+The LED states participating in the signalling of the combined state are referenced by means of at least two LEDstateRef sub-elements of this element.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels"/>
+				<xsd:element name="LEDstateRef" minOccurs="2" maxOccurs="unbounded">
+					<xsd:complexType>
+						<xsd:attribute name="stateIDRef" type="xsd:IDREF" use="required">
+							<xsd:annotation>
+								<xsd:documentation>This attribute shall reference the unique ID of the referenced LED state.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<!--################ device function elements -->
+	<xsd:element name="DeviceFunction">
+		<xsd:annotation>
+			<xsd:documentation>The DeviceFunction element describes the intrinsic function of a device in terms of its technology. It contains network independent descriptions/definitions of the technological device functionality.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="capabilities"/>
+				<xsd:element ref="picturesList" minOccurs="0"/>
+				<xsd:element ref="dictionaryList" minOccurs="0"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="capabilities">
+		<xsd:annotation>
+			<xsd:documentation>This element describes all functionalities, their characteristics, and the important parameters of the device, that need to be known by tools which use the device profile to select products with the same or similar properties.
+This element describes device features in a purely textual form.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="characteristicsList" maxOccurs="unbounded"/>
+				<xsd:element ref="standardComplianceList" minOccurs="0"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="characteristicsList">
+		<xsd:annotation>
+			<xsd:documentation>This element is a collection of characteristics.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="category" minOccurs="0">
+					<xsd:annotation>
+						<xsd:documentation>This element may indicate a category associated with the list of characterisitcs.</xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:group ref="g_labels"/>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element ref="characteristic" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="characteristic">
+		<xsd:annotation>
+			<xsd:documentation>This element describes a single characterisitc of a device.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="characteristicName"/>
+				<xsd:element ref="characteristicContent" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="characteristicContent">
+		<xsd:annotation>
+			<xsd:documentation>This element contain a value for the characteristic. Multiple values may be expressed by using multiple characteristicContent elements.
+EXAMPLE: An example of a single value for "Maximum operational voltage" is 680V.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="characteristicName">
+		<xsd:annotation>
+			<xsd:documentation>This element denotes a major technical characteristic of the device. The vocabulary used in the device data sheet is recommended for the names of characteristics.
+EXAMPLE: "Maximum operational voltage", "Overload protection", "Electrical durability"</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="standardComplianceList">
+		<xsd:annotation>
+			<xsd:documentation>This element is a collection of compliantWith sub-elements.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="compliantWith" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="compliantWith">
+		<xsd:annotation>
+			<xsd:documentation>This element shall state the compliance of the device with an international or company internal standard.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels"/>
+			<xsd:attribute name="name" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the name or number of the standard.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="range" default="international">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate if the type of the standard; valied values:
+- international
+- internal</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:NMTOKEN">
+						<xsd:enumeration value="international"/>
+						<xsd:enumeration value="internal"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="picturesList">
+		<xsd:annotation>
+			<xsd:documentation>This element offers the possibility to link picturees to the device profile.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="picture" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="picture">
+		<xsd:annotation>
+			<xsd:documentation>This element shall indicate a single picture linked with the device profile.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels"/>
+			<xsd:attribute name="URI" type="xsd:anyURI" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall  provide the link to the external resource.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="number" type="xsd:unsignedInt" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may indicate the number of the picture.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="dictionaryList">
+		<xsd:annotation>
+			<xsd:documentation>This element offers the possibility to include links to external text resource files to the device profile.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="dictionary" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="dictionary">
+		<xsd:annotation>
+			<xsd:documentation>This element shall indicate one link to an external text resource file.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="file"/>
+			</xsd:sequence>
+			<xsd:attribute name="lang" type="xsd:language" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the language used for the file belonging to a dictionary.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="dictID" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate a unique ID of the dictionary.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="file">
+		<xsd:annotation>
+			<xsd:documentation>This element shall indicate a search path for the XDD-files that may contain information on the connected modules.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="URI" type="xsd:anyURI" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate a relative or absolute file path that may contain the wildcard characters "?" and "*".</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<!--################ application process elements -->
+	<xsd:element name="ApplicationProcess">
+		<xsd:annotation>
+			<xsd:documentation>The ApplicationProcess element represents the set of services and aprameters, which constitute the behavior and the interfaces of the device in terms of the application, independent of the device technology and the underlying communication networks and communication protocols.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="dataTypeList" minOccurs="0"/>
+				<xsd:element ref="functionTypeList" minOccurs="0"/>
+				<xsd:element ref="functionInstanceList" minOccurs="0"/>
+				<xsd:element ref="templateList" minOccurs="0"/>
+				<xsd:element ref="parameterList"/>
+				<xsd:element ref="parameterGroupList" minOccurs="0"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="dataTypeList">
+		<xsd:annotation>
+			<xsd:documentation>This element is present if complex data types like arrays or data structures are needed inside variable declarations or parameter specifications of the device profile. It is also used to sub-structure data components.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_complex" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="functionTypeList">
+		<xsd:annotation>
+			<xsd:documentation>This element contains a list of all defined function types.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="functionType" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="functionType">
+		<xsd:annotation>
+			<xsd:documentation>This element represents the type description of a device function, which is referenced from at least one instance of that function type. References from more than one instance of the same function type are also possible.
+The description of a function type contains all those objects and data which are common for all instances of a given function type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels" minOccurs="0"/>
+				<xsd:element ref="versionInfo" maxOccurs="unbounded"/>
+				<xsd:element ref="interfaceList"/>
+				<xsd:element ref="functionInstanceList" minOccurs="0"/>
+			</xsd:sequence>
+			<xsd:attribute name="name" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the name of the function type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the function type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="package" type="xsd:string" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may indicate a textual association of the function type with a "package" or similar classification scheme - the usage of this attribute is left to the profile validator.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="versionInfo">
+		<xsd:annotation>
+			<xsd:documentation>This element shall provice information on the versioning history of a function type (concerning the definition of the interface).
+To keep track of the versioning history, this element may be entered multiple times in sequence with the first elemt representing the most recent version and the last element the first released version.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels" minOccurs="0"/>
+			</xsd:sequence>
+			<xsd:attribute name="organization" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the name of the organization maintaining the function type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="version" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the version identification in the versioning history; suggested format: "xx.yy" (xx,yy = 0..255)</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="author" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the name of the person maintaining the function type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="date" type="xsd:date" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the date of this version.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="interfaceList">
+		<xsd:annotation>
+			<xsd:documentation>This element provides the definition of the interface of the function type including the input variables, output variables, and configuration variables.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="inputVars" minOccurs="0"/>
+				<xsd:element ref="outputVars" minOccurs="0"/>
+				<xsd:element ref="configVars" minOccurs="0"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="inputVars">
+		<xsd:annotation>
+			<xsd:documentation>This element defines a input variable that is part of the interface of a function type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="varDeclaration" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="outputVars">
+		<xsd:annotation>
+			<xsd:documentation>This element defines a output variable that is part of the interface of a function type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="varDeclaration" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="configVars">
+		<xsd:annotation>
+			<xsd:documentation>This element defines a configuration variable that is part of the interface of a function type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="varDeclaration" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="varDeclaration">
+		<xsd:annotation>
+			<xsd:documentation>In the context of the definition of a structured data type, this element describes a single component variable (member) of the structure.
+In the context of the definition of the interface of a function, this element describes a single interface variable of the function type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels" minOccurs="0"/>
+				<xsd:choice>
+					<xsd:group ref="g_simple"/>
+					<xsd:element ref="dataTypeIDRef"/>
+				</xsd:choice>
+				<xsd:element ref="conditionalSupport" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="defaultValue" minOccurs="0"/>
+				<xsd:element ref="allowedValues" minOccurs="0"/>
+				<xsd:element ref="unit" minOccurs="0"/>
+			</xsd:sequence>
+			<xsd:attribute name="name" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the name of the interface variable or structured component.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the interface variable or strucure component.
+NOTE: When creating the unique ID for a variable, it is essential that the ID is unique over all created IDs inside the XML source file. To allow equal names for component variables of different data structures and equal names for interface variables of function types, the ID of a variable should generally concatenate the type name of the structured data type or the function type with the variable name, to guarantee uniqueness.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="start" type="xsd:string" use="optional" default="0">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may indicate the first element, if the interface variable or structure component is of type anonymous ARRAY, BITSTRING, STRING or WSTRING.
+NOTE: Anonymous types define the first reference element of an array, bitstring or string directly in the variable declaration, and not through the reference of a named complex data type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="size" type="xsd:string" use="optional" default="1">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may indicate the number of elements, if the interface variable or structure component is of type anonymous ARRAY, BITSTRING, STRING or WSTRING.
+NOTE: Anonymous types define the size of an array, bitstring or string directly in the variable declaration, and not through the reference of a named complex data type. In the case of an array, the data type of the variable gives the type of a single array element. In the case of a bitsting, the single array element is a single bit. In the case of a string, the single array element is a single-byte resp. double-byte character.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="signed" type="xsd:boolean" use="optional" default="false">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may indicate if the component of the complex data type is interpreted as a signed value or not; valid values:
+- false (default)
+- true</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="offset" type="xsd:string" use="optional" default="0">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may indicates the offset which is added to the value to form a scaled value: EngineeringValue = value + offset) * multiplier.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="multiplier" type="xsd:string" use="optional" default="1">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may indicate the scaling factor by which the value is multiplied to form a scaled value: EngineeringValue = value + offset) * multiplier.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="initialValue" type="xsd:string" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may indicate the initial value of the interface variable or structure component.
+NOTE: If present, this attribute defines the initial (default) value of the interface variable of the function type. It is overwritten by a given default value of a parameter associated with the interface variable of the function instance.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="dataTypeIDRef">
+		<xsd:annotation>
+			<xsd:documentation>This element serves to reference a complex data type, either from an interface variable of a function type, or from an array type definition, or from a component variable inside the definition of a structured data type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="uniqueIDRef" type="xsd:IDREF" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall inidcate the unique ID of the referenced data type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="functionInstanceList">
+		<xsd:annotation>
+			<xsd:documentation>This element contains thefrom function types instanciated functions and the connections of the related variables of the interface to those instanciated functions.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="functionInstance" maxOccurs="unbounded"/>
+				<xsd:element ref="connection" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="functionInstance">
+		<xsd:annotation>
+			<xsd:documentation>This element represents an accessible application function of the device type, independent of the network type or protocol.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels" minOccurs="0"/>
+			</xsd:sequence>
+			<xsd:attribute name="name" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the name of the function instance.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the function instance.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="typeIDRef" type="xsd:IDREF" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the referenced function type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="connection">
+		<xsd:annotation>
+			<xsd:documentation>This element represents connections between output and input variables of the function instances.
+This element defines a connection between an output variable of a function instance and an input variable of another function instance. Inside function types, the connection may also be drawn between an input variable of the function type and an input variable of a contained function instance, or between an output variable of a contained function instance and an output variable of the function type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="source" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate thew starting point of the connection.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="destination" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the endpoint of the connection.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="description" type="xsd:string" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may indicate an additional textual description of the connection.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="templateList">
+		<xsd:annotation>
+			<xsd:documentation>This element contains a list of parameter templates and templates for allowed values.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="parameterTemplate" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="allowedValuesTemplate" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="parameterTemplate">
+		<xsd:annotation>
+			<xsd:documentation>This element shall define a template for parameter definitions.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:choice minOccurs="0">
+					<xsd:group ref="g_simple"/>
+					<xsd:element ref="dataTypeIDRef"/>
+				</xsd:choice>
+				<xsd:element ref="conditionalSupport" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="actualValue" minOccurs="0"/>
+				<xsd:element ref="defaultValue" minOccurs="0"/>
+				<xsd:element ref="substituteValue" minOccurs="0"/>
+				<xsd:element ref="allowedValues" minOccurs="0"/>
+				<xsd:element ref="unit" minOccurs="0"/>
+				<xsd:element ref="property" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attributeGroup ref="ag_parameter"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="allowedValuesTemplate">
+		<xsd:annotation>
+			<xsd:documentation>This element shall define a template of allowed values for later use.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="value" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="range" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID for a single template of allowed values.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="parameterList">
+		<xsd:annotation>
+			<xsd:documentation>This element contains a list of parameters.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="parameter" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="parameter">
+		<xsd:annotation>
+			<xsd:documentation>This element shall define a parameter.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels"/>
+				<xsd:choice>
+					<xsd:group ref="g_simple"/>
+					<xsd:element ref="dataTypeIDRef"/>
+					<xsd:element ref="variableRef" maxOccurs="unbounded"/>
+				</xsd:choice>
+				<xsd:element ref="conditionalSupport" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="denotation" minOccurs="0"/>
+				<xsd:element ref="actualValue" minOccurs="0"/>
+				<xsd:element ref="defaultValue" minOccurs="0"/>
+				<xsd:element ref="substituteValue" minOccurs="0"/>
+				<xsd:element ref="allowedValues" minOccurs="0"/>
+				<xsd:element ref="unit" minOccurs="0"/>
+				<xsd:element ref="property" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attributeGroup ref="ag_parameter"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="variableRef">
+		<xsd:annotation>
+			<xsd:documentation>This element buidls a reference to an interface variable of a function instance, or, if the variable is an array or a structure, possibly a reference to a member of the variable (array element or structure component).</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="instanceIDRef" maxOccurs="unbounded"/>
+				<xsd:element ref="variableIDRef"/>
+				<xsd:element ref="memberRef" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="position" type="xsd:unsignedByte" default="1">
+				<xsd:annotation>
+					<xsd:documentation>This attribute defines the sequence of multiple mapped data items into a single parameter object.
+Position=1 means starting the mapping at the lowest bit position. The number of bits is defined by the data type of the data item. Subsequent data items are packed without gaps.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="instanceIDRef">
+		<xsd:annotation>
+			<xsd:documentation>This element serves to reference a function instance., which may reside on the level of the ApplicationProcess element or on the level of a functionType element.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="uniqueIDRef" type="xsd:IDREF" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the referenced function instance.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="variableIDRef">
+		<xsd:annotation>
+			<xsd:documentation>This element serves to reference an interface variable of a function type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="uniqueIDRef" type="xsd:IDREF" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the referenced interface variable of a function type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="memberRef">
+		<xsd:annotation>
+			<xsd:documentation>This element either references the respective component of an interface variable of structured data type (attribute uniqueIDRef is used), or the respective array element of an interface variable of array data type (attribute index is used). One of these two attributes shall be present.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="uniqueIDRef" type="xsd:IDREF" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the referenced component of a structured data type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="index" type="xsd:long" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the index of the referenced array element.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="actualValue">
+		<xsd:annotation>
+			<xsd:documentation>This element serves to hold the actual value of the parameter.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels" minOccurs="0"/>
+			<xsd:attributeGroup ref="ag_value"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="conditionalSupport">
+		<xsd:annotation>
+			<xsd:documentation>This element refers to a single optional parameter. If at least one of those optional parameters is implemented, the conditional parameter has also to be implemented.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="paramIDRef" type="xsd:IDREF" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the referenced optional parameter.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="denotation">
+		<xsd:annotation>
+			<xsd:documentation>This element serves to hold application-specific, multilingual names of the parameter.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="defaultValue">
+		<xsd:annotation>
+			<xsd:documentation>This element serves to hold the default value.
+The default value of a component of a datatype is overriden by the default value of a template definition, of a parameter definition and of a interface variable of the function type associated with the parameter in that order.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels" minOccurs="0"/>
+			<xsd:attributeGroup ref="ag_value"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="substituteValue">
+		<xsd:annotation>
+			<xsd:documentation>This element defines a specific value of the parameter that is provided to the device application in certain device operating states (e.g. on device fault).</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels" minOccurs="0"/>
+			<xsd:attributeGroup ref="ag_value"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="allowedValues">
+		<xsd:annotation>
+			<xsd:documentation>This element defines a list of supported values and/or single range or several ranges of supported values for the component of a datatype, parameter template definition, parameter definition, and interfcae variable of the function type associated with the parameter. The allowed values are re-defined in that order.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="value" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="range" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="templateIDRef" type="xsd:IDREF" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may indicate the unique ID of a referenced template of allowed values.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="value">
+		<xsd:annotation>
+			<xsd:documentation>Thsi element defines a single value within the allowed values.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels" minOccurs="0"/>
+			<xsd:attributeGroup ref="ag_value"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="range">
+		<xsd:annotation>
+			<xsd:documentation>This element defines a range of allowed values characterized by the minimum and maximum value of the range and may be step width within the range.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="minValue">
+					<xsd:annotation>
+						<xsd:documentation>This element shall indicate the minimum value of the range.</xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:group ref="g_labels" minOccurs="0"/>
+						<xsd:attributeGroup ref="ag_value"/>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="maxValue">
+					<xsd:annotation>
+						<xsd:documentation>This element shall indicate the maximum value of the range.</xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:group ref="g_labels" minOccurs="0"/>
+						<xsd:attributeGroup ref="ag_value"/>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="step" minOccurs="0">
+					<xsd:annotation>
+						<xsd:documentation>This element shall indicate the step width between the minimum value and the maximum value. If this element is omitted, then the minimum possible step width is assumed.</xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:group ref="g_labels" minOccurs="0"/>
+						<xsd:attributeGroup ref="ag_value"/>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="unit">
+		<xsd:annotation>
+			<xsd:documentation>This element defines the engineering unit of a component of a data type, parameter template definition, parameter definition, and interface variable of the function type associated with the parameter as specified in ISO 1000 (e.g. time, temperature, pressure, flow, acceleration, current, energy).</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels"/>
+			<xsd:attribute name="multiplier" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the multiplier for engineering units of analog parameters,</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="unitURI" type="xsd:anyURI" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may link to the respective unit definition in a file containing all engineering units as standardised in ISO 1000 (e.g. time, temperature, pressure, flow, acceleration, current, energy, ...)</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="property">
+		<xsd:annotation>
+			<xsd:documentation>This element is introduced as a generic element to allow the inclusion of values for additional specific properties into the description of a parameter.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="name" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the name of the property.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="value" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the value of the property.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="parameterGroupList">
+		<xsd:annotation>
+			<xsd:documentation>This element contains a list of parameter groups.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="parameterGroup" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="parameterGroup">
+		<xsd:annotation>
+			<xsd:documentation>This element combines a set of parameters to build a group of parameters which serve a specific purpose, e.g. to prepare HMI views.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels"/>
+				<xsd:element ref="parameterGroup" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="parameterRef" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the parameter group.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="kindOfAccess" type="xsd:string" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may classify the parameters of the parameter group.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="parameterRef">
+		<xsd:annotation>
+			<xsd:documentation>This element serves to reference a parameter element.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="uniqueIDRef" type="xsd:IDREF" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the referenced parameter.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<!--################ complex types -->
+	<xsd:element name="array">
+		<xsd:annotation>
+			<xsd:documentation>This element serves to describe an array data type, which may be referenced from an interface variable of a function type, from another array type definition, from a component variable inside the definition of a structured data type, or from a parameters specifcition.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels" minOccurs="0"/>
+				<xsd:element ref="subrange" maxOccurs="unbounded"/>
+				<xsd:choice>
+					<xsd:group ref="g_simple"/>
+					<xsd:element ref="dataTypeIDRef"/>
+				</xsd:choice>
+			</xsd:sequence>
+			<xsd:attribute name="name" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the data type name of the array type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the array type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="subrange">
+		<xsd:annotation>
+			<xsd:documentation>This element defined the lower and upper limit of an array index for one dimension of the array.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="lowerLimit" type="xsd:long" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the lower limit of the subrange.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="upperLimit" type="xsd:long" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the upper limit of the subrange.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="struct">
+		<xsd:annotation>
+			<xsd:documentation>This element serves to describe a structured data type, which may be referenced from an interface variable of a function type, from an array type definition, from a component variable inside the definition of another structured data type, or from a parameter specification.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels" minOccurs="0"/>
+				<xsd:element ref="varDeclaration" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="name" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the data type name of the structured data type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribuet shall indicate the unique ID of the structured data type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="enum">
+		<xsd:annotation>
+			<xsd:documentation>This element serves to describe an enumerated data type, which may be referenced from an interface variable of a function type, from an array type definition, from a component variable inside the definition of a structured data type, or from a parameter specification.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels" minOccurs="0"/>
+				<xsd:element ref="enumValue" maxOccurs="unbounded"/>
+				<xsd:group ref="g_simple" minOccurs="0"/>
+			</xsd:sequence>
+			<xsd:attribute name="name" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the name of the enumerated data type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the enumerated data type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="size" type="xsd:string" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may indicate a  number of enumerated values of the enumerated data type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="enumValue">
+		<xsd:annotation>
+			<xsd:documentation>This element defines a single enumeration constant.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels"/>
+			<xsd:attribute name="value" type="xsd:string" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may define the fixed numerical value for the enumeration constant, represented as a string of characters.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="derived">
+		<xsd:annotation>
+			<xsd:documentation>This element serves to derive a new data type from a given base data type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels" minOccurs="0"/>
+				<xsd:element ref="count" minOccurs="0"/>
+				<xsd:choice>
+					<xsd:group ref="g_simple"/>
+					<xsd:element ref="dataTypeIDRef"/>
+				</xsd:choice>
+			</xsd:sequence>
+			<xsd:attribute name="name" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the name of the derived data type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the derived data type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="count">
+		<xsd:annotation>
+			<xsd:documentation>This element defines the number of used units of the base type of the derived type.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels" minOccurs="0"/>
+				<xsd:element ref="defaultValue"/>
+				<xsd:element ref="allowedValues" minOccurs="0"/>
+			</xsd:sequence>
+			<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the unique ID of the count.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="access" default="read">
+				<xsd:annotation>
+					<xsd:documentation>This attribute may define the operations are valid for the count; valid values:
+- const - read access only; value is not changing
+- read - read access only (default value)
+- write - write access only
+- readWrite - both read and write access
+- noAccess - access denied</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:NMTOKEN">
+						<xsd:enumeration value="const"/>
+						<xsd:enumeration value="read"/>
+						<xsd:enumeration value="write"/>
+						<xsd:enumeration value="readWrite"/>
+						<xsd:enumeration value="noAccess"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<!--################ groups-->
+	<xsd:group name="g_complex">
+		<xsd:choice>
+			<xsd:element ref="array"/>
+			<xsd:element ref="struct"/>
+			<xsd:element ref="enum"/>
+			<xsd:element ref="derived"/>
+		</xsd:choice>
+	</xsd:group>
+	<!--################ attribute groups-->
+	<xsd:attributeGroup name="ag_parameter">
+		<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+			<xsd:annotation>
+				<xsd:documentation>This attribute shall indicate the unique ID of the parameter.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="access" default="read">
+			<xsd:annotation>
+				<xsd:documentation>This attribute shall indicate which operations are valid for the parameter; valid values:
+- const - read access only; the value is not changing
+- read - read access only (default value)
+- write - write access only
+- readWrite - both read and write access
+- readWriteInput - both read and write access, but represents process input data
+- readWriteOutput - both read and write access, but represents process output data
+- noAccess - access denied</xsd:documentation>
+			</xsd:annotation>
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKEN">
+					<xsd:enumeration value="const"/>
+					<xsd:enumeration value="read"/>
+					<xsd:enumeration value="write"/>
+					<xsd:enumeration value="readWrite"/>
+					<xsd:enumeration value="readWriteInput"/>
+					<xsd:enumeration value="readWriteOutput"/>
+					<xsd:enumeration value="noAccess"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="accessList" use="optional">
+			<xsd:annotation>
+				<xsd:documentation>This attribute may defines a list of additionally allowed operations on the parameter. The valie values are the same as for the access attribute, but the parser will not check the usage of the correct values.</xsd:documentation>
+			</xsd:annotation>
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKENS"/>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="support" use="optional">
+			<xsd:annotation>
+				<xsd:documentation>This attribute may defines whether or not the parameter has to be implemented in the device; valid values:
+- mandatory - parameter implementation required
+- optional - parameter implementation is possible but not required
+- conditional - parameter implementation is required if one or more optional parameter(s) is (are) implemented. These parameters are specified using the element conditionalSupport.</xsd:documentation>
+			</xsd:annotation>
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKEN">
+					<xsd:enumeration value="mandatory"/>
+					<xsd:enumeration value="optional"/>
+					<xsd:enumeration value="conditional"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="persistent" type="xsd:boolean" default="false">
+			<xsd:annotation>
+				<xsd:documentation>This attribute defines the behavior after power failure; valid values:
+- false (default)
+- true</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="offset" type="xsd:string" use="optional" default="0">
+			<xsd:annotation>
+				<xsd:documentation>This attribute may indicates the offset which is added to an actual value to form a scaled value: EngineeringValue = (ParameterValue + offset) * multiplier.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="multiplier" type="xsd:string" use="optional" default="1">
+			<xsd:annotation>
+				<xsd:documentation>This attribute may indicate the scaling factor by which an actual value is multiplied to form a scaled value: EngineeringValue = (ParameterValue + offset) * multiplier.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="templateIDRef" type="xsd:IDREF" use="optional">
+			<xsd:annotation>
+				<xsd:documentation>This attribute may indicate the unique ID of a referenced parameter template.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+	</xsd:attributeGroup>
+	<xsd:attributeGroup name="ag_value">
+		<xsd:attribute name="value" type="xsd:string" use="required">
+			<xsd:annotation>
+				<xsd:documentation>This attribute shall indicate the value.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="offset" type="xsd:string" use="optional">
+			<xsd:annotation>
+				<xsd:documentation>This attribute may indicate the offset, which is added to the value for form a scaled value: EngineeringValue = (value + offset) * multiplier.
+If not present, the respective value shall be used.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="multiplier" type="xsd:string" use="optional">
+			<xsd:annotation>
+				<xsd:documentation>This attribute may indicate the scaling factor by which the value is multiplied to form a scaled value: EngineeringValue = (value + offset) * multiplier.
+If not present, the respective value shall be used.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+	</xsd:attributeGroup>
+	<xsd:element name="moduleManagement">
+		<xsd:complexType>
+			<xsd:choice>
+				<xsd:element ref="moduleInterfaceList"/>
+				<xsd:element name="moduleInterface">
+					<xsd:annotation>
+						<xsd:documentation>This element shall be by a single module to identify the module and to describe its properties. </xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:attribute name="childID" type="xsd:NCName" use="required">
+							<xsd:annotation>
+								<xsd:documentation>This attribute shall indicate the unique ID of a module. To guarantee uniqueness this ID shall consists of the 8 hexadecimal characters of the vendor-ID and a manufacturer specific part.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="type" type="xsd:NCName" use="required">
+							<xsd:annotation>
+								<xsd:documentation>This attribute shall indicate the type of the module.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="maxCount" type="xsd:nonNegativeInteger" default="0">
+							<xsd:annotation>
+								<xsd:documentation>This attribute shall indicate the maximum number of multiples of this module allowed to be connected to a modular device. The value of 0 shall indiacte no limitation.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:choice>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="moduleInterfaceList">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="interface" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="interface">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:group ref="g_labels"/>
+				<xsd:element ref="fileList"/>
+				<xsd:element ref="moduleTypeList"/>
+				<xsd:element name="connectedModuleList" minOccurs="0">
+					<xsd:annotation>
+						<xsd:documentation>This element shall contain a list of all connected modules.</xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:sequence>
+							<xsd:element name="connectedModule" maxOccurs="unbounded">
+								<xsd:annotation>
+									<xsd:documentation>Each connected module shal be indicated with this element.</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:attribute name="childIDRef" type="xsd:NCName" use="required">
+										<xsd:annotation>
+											<xsd:documentation>This attribute shall reference the connected module.</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+								</xsd:complexType>
+							</xsd:element>
+						</xsd:sequence>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:sequence>
+			<xsd:attribute name="uniqueID" type="xsd:ID" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall be the unique ID of the module interface.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="maxChilds" type="xsd:positiveInteger" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate the maximum number of modules to be conntected to that interface.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="unusedSlots" type="xsd:boolean" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate if empty slots are allowed when modules are connected.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="multipleChilds" type="xsd:boolean" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate if multiple modules of the same type are allowed to be connected.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="moduleType">
+		<xsd:annotation>
+			<xsd:documentation>This element shall indicate a module type that can be connected to this interface.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="type" type="xsd:NCName" use="required">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall reference a supported module type.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="moduleTypeList">
+		<xsd:annotation>
+			<xsd:documentation>This element shall contain a list of supported module types.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="moduleType" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="fileList">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="file"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+</xsd:schema>
