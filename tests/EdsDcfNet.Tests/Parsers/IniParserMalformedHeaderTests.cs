@@ -169,6 +169,15 @@ public class IniParserMalformedHeaderTests
         Strict("garbage\n[S]\nA=1\n").Code.Should().Be(ParseDiagnosticCodes.IniMissingEquals);
     }
 
+    [Fact]
+    public void ParseString_LineWithoutEqualsUnderMalformedHeader_Lenient_ReportsOnlyTheHeader()
+    {
+        var (sections, diagnostics) = Lenient("[S]\nA=1\n[2000\nnot a pair\nB=2\n");
+
+        sections.Keys.Should().BeEquivalentTo(new[] { "S" });
+        diagnostics.Should().ContainSingle(d => d.Code == ParseDiagnosticCodes.IniMalformedSectionHeader);
+    }
+
     // --- Duplicate section header ----------------------------------------------
 
     [Fact]
