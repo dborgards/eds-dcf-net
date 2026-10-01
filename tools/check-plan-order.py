@@ -18,16 +18,60 @@ Chains are separated by ";" or "," outside parentheses.
 Excluded from the check, as stated in the plan: test files, model classes,
 ModelCloner and the diagnostic code constants.
 
-Exit code 0 when every pair is ordered, there is no cycle and every open work
-package with files appears in the table; 1 otherwise.
+A listed name counts as a file when it contains a directory separator or ends
+in an extension. Names are resolved against the tracked files of the
+repository: a name that identifies exactly one tracked file is replaced by that
+path, so `README.md` and `docs/architecture/README.md` stay distinct. Names
+that cannot be resolved (new or ambiguous files) are the same file when one
+path is a suffix of the other.
+
+Work packages marked done `[x]` or deferred `[-]` in the status table are
+inactive and ignored.
+
+Exit code 0 when every pair is ordered, there is no cycle and every active
+work package with files appears in the table; 1 otherwise.
 """
 import collections
 import itertools
+import os
 import re
+import subprocess
 import sys
 
-EXCLUDE = re.compile(r"(^|/)Models/|ModelCloner|ParseDiagnosticCodes|(^|/)tests/|Tests\.cs$|\*")
-FILE = re.compile(r"\.(cs|yml|json|sh|md|csproj|html|gitignore)$|^\.gitignore$")
+EXCLUDE = re.compile(r"(^|/)Models/|ModelCloner|ParseDiagnosticCodes|(^|/)tests/|Tests\.cs$|[*\s()<>]")
+FILE = re.compile(r"/|\.[A-Za-z0-9]{1,12}$|^\.[A-Za-z0-9]+$")
+
+
+def tracked_files(plan_path):
+    """Tracked repository paths, or an empty list outside a git checkout."""
+    try:
+        root = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.path.dirname(os.path.abspath(plan_path)) or ".",
+            capture_output=True, text=True, check=True).stdout.strip()
+        listing = subprocess.run(
+            ["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True)
+        return listing.stdout.splitlines()
+    except (OSError, subprocess.CalledProcessError):
+        return []
+
+
+def resolve(name, tracked):
+    """Return the tracked path a listed name identifies, else the name itself."""
+    name = name.strip("/")
+    if name in tracked:
+        return name
+    matches = [path for path in tracked if path.endswith("/" + name)]
+    return matches[0] if len(matches) == 1 else name
+
+
+def same_file(a, b, tracked):
+    """Two tracked paths must be equal; otherwise one may be a suffix of the other."""
+    if a in tracked and b in tracked:
+        return a == b
+    pa, pb = a.split("/"), b.split("/")
+    n = min(len(pa), len(pb))
+    return pa[-n:] == pb[-n:]
 FILES_BULLET = re.compile(r"- \*\*Dateien[^:]*:\*\*(.*?)(?=\n- \*\*|\n\n|\Z)", re.S)
 
 
@@ -49,6 +93,8 @@ def split_top(text, separators):
 
 def main(path):
     text = open(path, encoding="utf-8").read()
+    tracked = tracked_files(path)
+    tracked_set = set(tracked)
 
     files = collections.defaultdict(set)
     packages, without_files = [], set()
@@ -64,14 +110,13 @@ def main(path):
             for name in re.findall(r"`([^`]+)`", bullet.group(1)):
                 if EXCLUDE.search(name) or not FILE.search(name):
                     continue
-                parts = name.split("/")
-                key = parts[-1] if parts[-1] != "Program.cs" else "/".join(parts[-2:])
-                files[key].add(wp)
+                resolved = resolve(name, tracked)
+                files[wp].add(resolved if resolved in tracked_set else name.strip("/"))
                 found = True
         if not found:
             without_files.add(wp)
 
-    done = set(re.findall(r"^\| (WP-\d+) \|[^\n]*\| \[x\] \|", text, re.M))
+    done = set(re.findall(r"^\| (WP-\d+) \|[^\n]*\| \[[x-]\] \|", text, re.M))
 
     start = text.index("| Gruppe | Reihenfolge | Dateien |")
     table = text[start:]
@@ -111,16 +156,17 @@ def main(path):
         return b in before.get(a, ()) or a in before.get(b, ())
 
     unordered = collections.defaultdict(list)
-    for name, wps in sorted(files.items()):
-        for a, b in itertools.combinations(sorted(wps), 2):
-            if a in done or b in done:
-                continue
-            if not ordered(a, b):
-                unordered[(a, b)].append(name)
+    active = sorted(wp for wp in files if wp not in done)
+    for a, b in itertools.combinations(active, 2):
+        if ordered(a, b):
+            continue
+        shared = sorted({x for x in files[a] for y in files[b] if same_file(x, y, tracked_set)})
+        if shared:
+            unordered[(a, b)] = shared
 
     missing = sorted(set(packages) - in_table - done - without_files, key=lambda w: int(w[3:]))
 
-    print("work packages: %d | in table: %d | done: %d" % (len(packages), len(in_table), len(done)))
+    print("work packages: %d | in table: %d | done or deferred: %d" % (len(packages), len(in_table), len(done)))
     print("not in table:", ", ".join(missing) or "none")
     print("cycles:", ", ".join(cycles) or "none")
     print("unordered pairs sharing files:", "none" if not unordered else "")
