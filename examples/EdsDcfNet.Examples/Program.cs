@@ -349,16 +349,22 @@ PDOMapping=0
             Console.WriteLine($"  {diagnostic}");
         Console.WriteLine($"Effective FileName: {result.Model.FileInfo.FileName}");
 
-        var outputPath = Path.Combine(Path.GetTempPath(), "edsdcfnet_device_validated.eds");
+        var outputPath = Path.Combine(Path.GetTempPath(), $"edsdcfnet_{Guid.NewGuid():N}.eds");
 
         // Opt-in write guard (written to a temp file, not the working directory): refuse to persist a model with validation errors.
-        CanOpenFile.Eds.WriteFile(
-            result.Model,
-            outputPath,
-            new CanOpenWriteOptions { ValidateBeforeWrite = true });
+        try
+        {
+            CanOpenFile.Eds.WriteFile(
+                result.Model,
+                outputPath,
+                new CanOpenWriteOptions { ValidateBeforeWrite = true });
 
-        Console.WriteLine("Validated write succeeded.");
-        File.Delete(outputPath);
+            Console.WriteLine("Validated write succeeded.");
+        }
+        finally
+        {
+            File.Delete(outputPath);
+        }
         Console.WriteLine();
     }
 
@@ -432,16 +438,6 @@ Node2Name=Spare
         Console.WriteLine();
     }
 
-    // Walks up from the build output until examples/sample_device.eds is found.
-    static string FindSampleEds()
-    {
-        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
-        {
-            var candidate = Path.Combine(dir.FullName, "examples", "sample_device.eds");
-            if (File.Exists(candidate))
-                return candidate;
-        }
-
-        throw new FileNotFoundException("examples/sample_device.eds not found above " + AppContext.BaseDirectory);
-    }
+    // The sample file is copied next to the executable by the project file.
+    static string FindSampleEds() => Path.Combine(AppContext.BaseDirectory, "sample_device.eds");
 }

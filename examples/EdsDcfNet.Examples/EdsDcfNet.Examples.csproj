@@ -6,6 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="../sample_device.eds" CopyToOutputDirectory="PreserveNewest" Link="sample_device.eds" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/EdsDcfNet/EdsDcfNet.csproj" />
   </ItemGroup>
 
