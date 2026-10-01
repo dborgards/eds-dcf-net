@@ -64,8 +64,10 @@ public static class IniParser
     /// Maximum file size in bytes before an <see cref="EdsParseException"/> is thrown.
     /// </param>
     /// <param name="strictParsing">
-    /// When <see langword="true"/>, duplicate keys in a section throw
-    /// <see cref="EdsParseException"/> instead of last-write-wins.
+    /// When <see langword="true"/>, duplicate keys in a section, malformed section headers,
+    /// lines without <c>=</c> (or with an empty key) and duplicate section headers throw
+    /// <see cref="EdsParseException"/> instead of being repaired (last-write-wins, ignored, merged).
+    /// A line starting with <c>#</c> without <c>=</c> is ignored in both modes.
     /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
@@ -168,8 +170,10 @@ public static class IniParser
     /// This limit applies to parsed text content, not raw byte length.
     /// </param>
     /// <param name="strictParsing">
-    /// When <see langword="true"/>, duplicate keys in a section throw
-    /// <see cref="EdsParseException"/> instead of last-write-wins.
+    /// When <see langword="true"/>, duplicate keys in a section, malformed section headers,
+    /// lines without <c>=</c> (or with an empty key) and duplicate section headers throw
+    /// <see cref="EdsParseException"/> instead of being repaired (last-write-wins, ignored, merged).
+    /// A line starting with <c>#</c> without <c>=</c> is ignored in both modes.
     /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     public static Dictionary<string, Dictionary<string, string>> ParseStream(
@@ -234,8 +238,10 @@ public static class IniParser
     /// Maximum content length in characters before an <see cref="EdsParseException"/> is thrown.
     /// </param>
     /// <param name="strictParsing">
-    /// When <see langword="true"/>, duplicate keys in a section throw
-    /// <see cref="EdsParseException"/> instead of last-write-wins.
+    /// When <see langword="true"/>, duplicate keys in a section, malformed section headers,
+    /// lines without <c>=</c> (or with an empty key) and duplicate section headers throw
+    /// <see cref="EdsParseException"/> instead of being repaired (last-write-wins, ignored, merged).
+    /// A line starting with <c>#</c> without <c>=</c> is ignored in both modes.
     /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     /// <exception cref="EdsParseException">Thrown when the content length exceeds the configured size limit.</exception>
