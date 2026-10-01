@@ -111,6 +111,8 @@ def main(path):
                 if EXCLUDE.search(name) or not FILE.search(name):
                     continue
                 resolved = resolve(name, tracked)
+                if EXCLUDE.search(resolved):
+                    continue
                 files[wp].add(resolved if resolved in tracked_set else name.strip("/"))
                 found = True
         if not found:
