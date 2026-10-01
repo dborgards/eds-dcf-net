@@ -180,6 +180,23 @@ Contributing a corpus file:
    visible record of a lenient-behaviour change. Snapshots whose corpus file
    was removed are flagged as orphans; delete them with the file.
 
+### CiA 311 schema fixtures
+
+`tests/EdsDcfNet.Tests/Fixtures/Schemas/cia-311/` holds the normative CiA 311
+v1.1.0 XML schema (Annex A) as **test fixtures**; see the `NOTICE.md` there
+for origin, rights holder and the two documented changes against the delivered
+files. `Cia311Schema` (test infrastructure) compiles the schema set and
+validates XDD/XDC documents; `Cia311SchemaValidationTests` runs it.
+
+- For every question about XDD/XDC structure the schema is authoritative. It
+  declares `elementFormDefault="unqualified"`: globally declared elements
+  belong to the CiA namespace, locally declared ones to no namespace.
+- `KnownGaps` in `Cia311SchemaValidationTests` lists documents that do not
+  validate yet, each with the first reported problem. A change that fixes that
+  problem fails the test on purpose: update the entry to the next remaining
+  problem, or move the document to `ConformantDocuments` once it validates.
+- Do not edit the schema files. The specification PDFs must not be committed.
+
 ## Commit convention
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/).

@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns="http://www.canopen.org/xml/1.1" xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.canopen.org/xml/1.1" elementFormDefault="unqualified" attributeFormDefault="unqualified" version="1.0">
+	<xsd:element name="ISO15745ProfileContainer">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="ISO15745Profile" maxOccurs="unbounded"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="ISO15745Profile">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="ProfileHeader" type="ProfileHeader_DataType"/>
+				<xsd:element name="ProfileBody" type="ProfileBody_DataType"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:annotation>
+		<xsd:documentation>* HEADER SECTION *</xsd:documentation>
+	</xsd:annotation>
+	<xsd:complexType name="ProfileHeader_DataType">
+		<xsd:sequence>
+			<xsd:element name="ProfileIdentification" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>The ProfileIdentification element identifies the current profile.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="ProfileRevision" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>The ProfileRevision element identifies the current profile revision.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="ProfileName" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>The ProfileName element contains a descriptive English name of the current profile. In case that more than one ProfileBody element are present within a device profile, it is suggested that the value of the ProfileName element should be the concatenation of the values of the productName elements inside the respective DeviceIdentity elements.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="ProfileSource" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>The ProfileSource element identifies the validator of the current profile.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="ProfileClassID" type="ProfileClassID_DataType">
+				<xsd:annotation>
+					<xsd:documentation>The ProfileClassID element identifies the class of the current profile according to ISO 15745-1.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="ProfileDate" type="xsd:date" minOccurs="0"/>
+			<xsd:element name="AdditionalInformation" type="xsd:anyURI" minOccurs="0"/>
+			<xsd:element name="ISO15745Reference" type="ISO15745Reference_DataType">
+				<xsd:annotation>
+					<xsd:documentation>The ISO15745Reference element states the ISO 15745 part, edition and technology, to which the description conforms.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="IASInterfaceType" type="IASInterface_DataType" minOccurs="0" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:annotation>
+		<xsd:documentation>* BODY SECTION *</xsd:documentation>
+	</xsd:annotation>
+	<xsd:complexType name="ProfileBody_DataType" abstract="true"/>
+	<xsd:annotation>
+		<xsd:documentation>* HEADER DATA TYPES *</xsd:documentation>
+	</xsd:annotation>
+	<xsd:simpleType name="ProfileClassID_DataType">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="AIP"/>
+			<xsd:enumeration value="Process"/>
+			<xsd:enumeration value="InformationExchange"/>
+			<xsd:enumeration value="Resource"/>
+			<xsd:enumeration value="Device"/>
+			<xsd:enumeration value="CommunicationNetwork"/>
+			<xsd:enumeration value="Equipment"/>
+			<xsd:enumeration value="Human"/>
+			<xsd:enumeration value="Material"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:complexType name="ISO15745Reference_DataType">
+		<xsd:sequence>
+			<xsd:element name="ISO15745Part" type="xsd:positiveInteger"/>
+			<xsd:element name="ISO15745Edition" type="xsd:positiveInteger"/>
+			<xsd:element name="ProfileTechnology" type="xsd:string"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:simpleType name="IASInterface_DataType">
+		<xsd:union>
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:string">
+					<xsd:enumeration value="CSI"/>
+					<xsd:enumeration value="HCI"/>
+					<xsd:enumeration value="ISI"/>
+					<xsd:enumeration value="API"/>
+					<xsd:enumeration value="CMI"/>
+					<xsd:enumeration value="ESI"/>
+					<xsd:enumeration value="FSI"/>
+					<xsd:enumeration value="MTI"/>
+					<xsd:enumeration value="SEI"/>
+					<xsd:enumeration value="USI"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:string">
+					<xsd:length value="4"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:union>
+	</xsd:simpleType>
+	<xsd:annotation>
+		<xsd:documentation>* ISO 15745 DEFINED DATA TYPES *</xsd:documentation>
+	</xsd:annotation>
+	<xsd:complexType name="ProfileHandle_DataType">
+		<xsd:annotation>
+			<xsd:documentation>The ProfileIdentification, ProfileRevision, and ProfileLocation attributes of the ProfileHandle_DataType refer to the external non-XML data file. This can be used by legacy systems that are in the process of migrating to XML.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:sequence>
+			<xsd:element name="ProfileIdentification" type="xsd:string"/>
+			<xsd:element name="ProfileRevision" type="xsd:string"/>
+			<xsd:element name="ProfileLocation" type="xsd:anyURI" minOccurs="0"/>
+		</xsd:sequence>
+	</xsd:complexType>
+</xsd:schema>
