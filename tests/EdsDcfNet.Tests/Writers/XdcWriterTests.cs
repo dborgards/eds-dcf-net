@@ -667,14 +667,11 @@ public class XdcWriterTests
     }
 
     [Fact]
-    public void GenerateString_NullDcf_UsesDocumentFallbackSection()
+    public void GenerateString_NullDcf_ThrowsArgumentNullException()
     {
-        var act = () => _writer.GenerateString(null!);
+        var act = () => _writer.GenerateString((DeviceConfigurationFile)null!);
 
-        var ex = act.Should().Throw<XdcWriteException>().Which;
-        ex.SectionName.Should().Be("Document");
-        ex.Message.Should().Contain("Failed to write section [Document]");
-        ex.InnerException.Should().NotBeNull();
+        act.Should().Throw<ArgumentNullException>().WithParameterName("dcf");
     }
 
     [Fact]

@@ -19,13 +19,22 @@ public class DcfWriter : IniWriterBase
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="filePath">Path where the DCF file should be written</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure the target is left untouched and the temporary file
+    /// is removed. Whether the final replace is atomic depends on the file system (for example,
+    /// network shares may not guarantee it).
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="dcf"/> is <see langword="null"/>.</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteFile(DeviceConfigurationFile dcf, string filePath)
     {
+        ThrowIfNull(dcf, nameof(dcf));
+
         try
         {
             var content = GenerateDcfContent(dcf);
-            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+            TextFileIo.WriteOutputTextToFile(filePath, content);
         }
         catch (DcfWriteException)
         {
@@ -45,6 +54,7 @@ public class DcfWriter : IniWriterBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteStream(DeviceConfigurationFile dcf, Stream stream)
     {
+        ThrowIfNull(dcf, nameof(dcf));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
@@ -52,7 +62,7 @@ public class DcfWriter : IniWriterBase
         try
         {
             var content = GenerateDcfContent(dcf);
-            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
+            TextFileIo.WriteOutputText(stream, content);
         }
         catch (DcfWriteException)
         {
@@ -70,17 +80,26 @@ public class DcfWriter : IniWriterBase
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="filePath">Path where the DCF file should be written</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure or cancellation the target is left untouched and the temporary file
+    /// is removed. Whether the final replace is atomic depends on the file system (for example,
+    /// network shares may not guarantee it).
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="dcf"/> is <see langword="null"/>.</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public async Task WriteFileAsync(
         DeviceConfigurationFile dcf,
         string filePath,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfNull(dcf, nameof(dcf));
+
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             var content = GenerateDcfContent(dcf);
-            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+            await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -108,6 +127,7 @@ public class DcfWriter : IniWriterBase
         Stream stream,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfNull(dcf, nameof(dcf));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
@@ -116,7 +136,7 @@ public class DcfWriter : IniWriterBase
         {
             cancellationToken.ThrowIfCancellationRequested();
             var content = GenerateDcfContent(dcf);
-            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await TextFileIo.WriteOutputTextAsync(stream, content, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -140,6 +160,7 @@ public class DcfWriter : IniWriterBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public string GenerateString(DeviceConfigurationFile dcf)
     {
+        ThrowIfNull(dcf, nameof(dcf));
         return GenerateDcfContent(dcf);
     }
 
