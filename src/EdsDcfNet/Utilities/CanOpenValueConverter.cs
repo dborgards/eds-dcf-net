@@ -556,6 +556,8 @@ public static class CanOpenValueConverter
         return result;
     }
 
+    // CiA 306-1 v1.4.0 section 6.3: octet strings are stored as hexadecimal bytes without a
+    // leading "0x"; Parse still accepts both forms.
     private static string FormatByteString(object value)
     {
         if (value is not byte[] bytes)
@@ -569,13 +571,11 @@ public static class CanOpenValueConverter
         }
 
         const string hexDigits = "0123456789ABCDEF";
-        var chars = new char[(bytes.Length * 2) + 2];
-        chars[0] = '0';
-        chars[1] = 'x';
+        var chars = new char[bytes.Length * 2];
         for (var i = 0; i < bytes.Length; i++)
         {
-            chars[(i * 2) + 2] = hexDigits[bytes[i] >> 4];
-            chars[(i * 2) + 3] = hexDigits[bytes[i] & 0x0F];
+            chars[i * 2] = hexDigits[bytes[i] >> 4];
+            chars[(i * 2) + 1] = hexDigits[bytes[i] & 0x0F];
         }
 
         return new string(chars);
