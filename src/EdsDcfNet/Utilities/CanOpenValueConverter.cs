@@ -570,6 +570,15 @@ public static class CanOpenValueConverter
                 $"{value.GetType().Name} was provided.");
         }
 
+        if (bytes.Length == 0)
+        {
+            // An empty string means "not set" (typed reads fall back to DefaultValue, writers omit
+            // the key), and CiA 306-1 has no other textual form for zero bytes. Keep the bare "0x"
+            // marker, which Parse reads back as an empty array, so an explicit empty value stays
+            // distinguishable.
+            return "0x";
+        }
+
         const string hexDigits = "0123456789ABCDEF";
         var chars = new char[bytes.Length * 2];
         for (var i = 0; i < bytes.Length; i++)

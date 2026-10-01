@@ -23,9 +23,32 @@ public class OctetStringFormatTests
     }
 
     [Fact]
-    public void Format_EmptyOctetString_ReturnsEmptyString()
+    public void Format_EmptyOctetString_ReturnsExplicitEmptyMarker()
     {
-        CanOpenValueConverter.Format(Array.Empty<byte>(), OctetString).Should().BeEmpty();
+        // An empty string would be indistinguishable from "not set"; CiA 306-1 has no other
+        // textual form for zero bytes, so the bare "0x" marker (accepted by Parse) is kept.
+        CanOpenValueConverter.Format(Array.Empty<byte>(), OctetString).Should().Be("0x");
+        ((byte[])CanOpenValueConverter.Parse("0x", OctetString)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void SetParameterValue_EmptyByteArray_OverridesNonEmptyDefaultAndSurvivesDcfRoundTrip()
+    {
+        foreach (var options in new[] { CanOpenWriteOptions.Default, CanOpenWriteOptions.Validated })
+        {
+            var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
+            dcf.ObjectDictionary.Objects[0x2000] = CreateObject("0102");
+            dcf.ObjectDictionary.OptionalObjects.Add(0x2000);
+            dcf.ObjectDictionary.SetParameterValue(0x2000, Array.Empty<byte>()).Should().BeTrue();
+
+            dcf.ObjectDictionary.GetParameterValue<byte[]>(0x2000).Should().BeEmpty();
+
+            var text = CanOpenFile.Dcf.WriteToString(dcf, options);
+            var reread = CanOpenFile.Dcf.ReadString(text);
+
+            text.Should().Contain("ParameterValue=0x");
+            reread.ObjectDictionary.GetParameterValue<byte[]>(0x2000).Should().BeEmpty();
+        }
     }
 
     [Fact]
@@ -133,14 +156,14 @@ public class OctetStringFormatTests
             var text = CanOpenFile.Dcf.WriteToString(dcf, options);
             var reread = CanOpenFile.Dcf.ReadString(text);
 
-            text.Should().NotContain("ParameterValue=0x");
-            if (bytes.Length == 0)
+            var written = bytes.Length == 0 ? "0x" : expected; // empty keeps an explicit marker
+            text.Should().Contain("ParameterValue=" + written);
+            text.Should().Contain("ParameterValue=" + written + Environment.NewLine);
+            if (bytes.Length > 0)
             {
-                // The writer omits empty values; nothing to read back.
-                continue;
+                text.Should().NotContain("ParameterValue=0x");
             }
 
-            text.Should().Contain("ParameterValue=" + expected);
             reread.ObjectDictionary.GetParameterValue<byte[]>(0x2000).Should().Equal(bytes);
         }
     }
