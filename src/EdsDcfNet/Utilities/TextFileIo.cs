@@ -40,6 +40,7 @@ internal static class TextFileIo
     /// </summary>
     internal static void WriteFileAtomic(string filePath, Action<Stream> write)
     {
+        filePath = Path.GetFullPath(filePath);
         var tempPath = CreateTempPath(filePath);
         try
         {
@@ -70,6 +71,7 @@ internal static class TextFileIo
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        filePath = Path.GetFullPath(filePath);
         var tempPath = CreateTempPath(filePath);
         try
         {
@@ -98,12 +100,12 @@ internal static class TextFileIo
 
     private static string CreateTempPath(string filePath)
     {
-        var fullPath = Path.GetFullPath(filePath);
-        var directory = Path.GetDirectoryName(fullPath);
+        // filePath is already absolute (resolved once by the caller), so temp placement and commit agree.
+        var directory = Path.GetDirectoryName(filePath);
         if (string.IsNullOrEmpty(directory))
             throw new ArgumentException("File path must include a file name.", nameof(filePath));
 
-        return Path.Combine(directory, $".{Path.GetFileName(fullPath)}.{Guid.NewGuid():N}.tmp");
+        return Path.Combine(directory, $".{Path.GetFileName(filePath)}.{Guid.NewGuid():N}.tmp");
     }
 
     private static void Commit(string tempPath, string filePath)

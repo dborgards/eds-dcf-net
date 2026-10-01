@@ -511,6 +511,7 @@ public class XddWriter
             using var writer = XmlWriter.Create(stream, CreateWriterSettings(async: true));
             await doc.WriteToAsync(writer, cancellationToken).ConfigureAwait(false);
             await writer.FlushAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
         }
         catch (ArgumentException ex)
         {
