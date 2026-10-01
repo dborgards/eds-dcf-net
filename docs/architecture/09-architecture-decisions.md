@@ -96,7 +96,7 @@ The library should support as many .NET platforms as possible while benefiting f
 ### Consequences
 
 - (+) Maximum reach across all .NET platforms.
-- (-) Certain modern APIs (e.g., `string.Contains(StringComparison)`) cannot be used in shared code.
+- (-) Some modern APIs are not available on `netstandard2.0` (e.g., `string.Replace(string, string, StringComparison)`). Most others (e.g., `string.Contains(char)`, `string.Contains(string, StringComparison)`) are provided by the `Polyfill` package (see § 2.1).
 - (-) Increased testing effort for both targets.
 
 ---
