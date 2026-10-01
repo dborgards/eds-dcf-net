@@ -501,6 +501,11 @@ public static class IniParser
         var equalIndex = line.IndexOf('=');
         if (equalIndex <= 0)
         {
+            // Real-world files comment lines out with '#'; such a line without '=' was always
+            // ignored silently. ('#' is not a general comment character: "#Key=Value" stays a key.)
+            if (equalIndex < 0 && line.StartsWith('#'))
+                return;
+
             ReportMissingEquals(line, lineNumber, currentSection);
             return;
         }

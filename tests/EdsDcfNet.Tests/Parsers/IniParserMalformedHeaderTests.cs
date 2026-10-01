@@ -178,6 +178,30 @@ public class IniParserMalformedHeaderTests
         diagnostics.Should().ContainSingle(d => d.Code == ParseDiagnosticCodes.IniMalformedSectionHeader);
     }
 
+    [Theory]
+    [InlineData("# comment")]
+    [InlineData("   #comment")]
+    public void ParseString_HashLineWithoutEquals_IsIgnoredSilentlyInStrictAndLenient(string hashLine)
+    {
+        var content = "[S]\nA=1\n" + hashLine + "\nB=2\n";
+
+        var (sections, diagnostics) = Lenient(content);
+        var strict = IniParser.ParseString(content, IniParser.DefaultMaxInputSize, strictParsing: true);
+
+        sections["S"].Keys.Should().BeEquivalentTo(new[] { "A", "B" });
+        diagnostics.Should().BeEmpty();
+        strict["S"].Keys.Should().BeEquivalentTo(new[] { "A", "B" });
+    }
+
+    [Fact]
+    public void ParseString_HashPrefixedKeyValue_StillParsedAsKey()
+    {
+        var (sections, diagnostics) = Lenient("[S]\n#ParameterValue=0x2\n");
+
+        sections["S"]["#ParameterValue"].Should().Be("0x2");
+        diagnostics.Should().BeEmpty();
+    }
+
     // --- Duplicate section header ----------------------------------------------
 
     [Fact]
