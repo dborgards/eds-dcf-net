@@ -197,6 +197,12 @@ jobs:
     - name: Check breaking-change intent regex
       run: bash tools/breaking-change-intent.test.sh
 
+    # Same checkout-only fixture style. release-notes-generator must share
+    # the analyzer's parserOpts.noteKeywords; the preset default still
+    # matches BREAKING-CHANGE and that wrote the false 1.13.0 section.
+    - name: Check release-notes parserOpts note keywords
+      run: bash tools/release-notes-parser-opts.test.sh
+
   # Compares the built public API against the same API built from the PR's
   # base branch (Microsoft.DotNet.ApiCompat). semantic-release derives the
   # version bump from commit types, not from the actual API delta — this job
