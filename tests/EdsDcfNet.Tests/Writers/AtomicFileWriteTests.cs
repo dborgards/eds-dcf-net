@@ -163,6 +163,94 @@ public sealed class AtomicFileWriteTests : IDisposable
     }
 
     [Fact]
+    public void WriteFileAtomic_TargetNameAtComponentLimit_TempNameStaysBoundedAndCommits()
+    {
+        // A 255-character name is legal (ext4 NAME_MAX 255 bytes, NTFS 255 UTF-16 code units).
+        // The previous temp name embedded that name plus 38 characters and could not be created.
+        const int componentLimit = 255;
+        var name = new string('n', componentLimit);
+        var target = Target(name);
+        try
+        {
+            File.WriteAllText(target, "old");
+        }
+        catch (PathTooLongException)
+        {
+            Assert.Skip($"This environment cannot create a {componentLimit}-character file name under '{_dir}'.");
+        }
+
+        string? tempName = null;
+
+        // Act
+        TextFileIo.WriteFileAtomic(target, s =>
+        {
+            tempName = Directory.EnumerateFiles(_dir)
+                .Select(Path.GetFileName)
+                .Single(n => n != name);
+            s.Write(new byte[] { 4, 5 }, 0, 2);
+        });
+
+        // Assert
+        tempName.Should().NotBeNullOrEmpty();
+        var observed = tempName!;
+        Encoding.UTF8.GetByteCount(observed).Should().BeLessThanOrEqualTo(componentLimit);
+        observed.Length.Should().BeLessThanOrEqualTo(64);
+        observed.Should().NotContain(name);
+        File.ReadAllBytes(target).Should().Equal(4, 5);
+        AssertOnlyFiles(name);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllWriters))]
+    public void WriteFile_TargetNameAtComponentLimit_CommitsAndLeavesNoTemp(string format)
+    {
+        // Arrange
+        var name = new string('a', 255);
+        var target = Target(name);
+        try
+        {
+            File.WriteAllText(target, "STALE-LONG-NAME-MARKER");
+        }
+        catch (PathTooLongException)
+        {
+            Assert.Skip($"This environment cannot create a 255-character file name under '{_dir}'.");
+        }
+
+        // Act
+        WriteSync(format, target);
+
+        // Assert
+        File.ReadAllText(target).Should().NotContain("STALE-LONG-NAME-MARKER");
+        new FileInfo(target).Length.Should().BeGreaterThan(0);
+        AssertOnlyFiles(name);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllWriters))]
+    public async Task WriteFileAsync_TargetNameAtComponentLimit_ReplacesAndLeavesNoTemp(string format)
+    {
+        // Arrange
+        var name = new string('b', 255);
+        var target = Target(name);
+        try
+        {
+            File.WriteAllText(target, "STALE-LONG-NAME-MARKER");
+        }
+        catch (PathTooLongException)
+        {
+            Assert.Skip($"This environment cannot create a 255-character file name under '{_dir}'.");
+        }
+
+        // Act
+        await WriteAsync(format, target, CancellationToken.None);
+
+        // Assert
+        File.ReadAllText(target).Should().NotContain("STALE-LONG-NAME-MARKER");
+        new FileInfo(target).Length.Should().BeGreaterThan(0);
+        AssertOnlyFiles(name);
+    }
+
+    [Fact]
     public void GetOutputEncoding_IsUtf8WithoutBom()
     {
         // Act

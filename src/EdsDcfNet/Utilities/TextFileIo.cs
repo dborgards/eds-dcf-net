@@ -105,7 +105,12 @@ internal static class TextFileIo
         if (string.IsNullOrEmpty(directory))
             throw new ArgumentException("File path must include a file name.", nameof(filePath));
 
-        return Path.Combine(directory, $".{Path.GetFileName(filePath)}.{Guid.NewGuid():N}.tmp");
+        // Independent of the target file name. Embedding that name plus a GUID and ".tmp"
+        // (38 extra characters) exceeds the per-component limit — 255 bytes on ext4, 255
+        // characters on NTFS — when the target name is already near it, so every writer
+        // would reject a path that was previously writable. ".edsdcf." + 32 hex digits + ".tmp"
+        // is 44 ASCII characters and still sits in the target directory (same volume).
+        return Path.Combine(directory, $".edsdcf.{Guid.NewGuid():N}.tmp");
     }
 
     private static void Commit(string tempPath, string filePath)
