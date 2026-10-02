@@ -3,6 +3,7 @@ namespace EdsDcfNet.Tests.Integration;
 using System.Text;
 using EdsDcfNet;
 using EdsDcfNet.Exceptions;
+using EdsDcfNet.Models;
 using AwesomeAssertions;
 using Xunit;
 
@@ -10,7 +11,7 @@ using Xunit;
 /// Guards the documented thread-safety contract of the format entry points:
 /// concurrent read/write/validate calls through <see cref="CanOpenFile"/> are safe
 /// because the singleton operation objects hold only immutable delegates, each call
-/// constructs its own reader/writer, and strict-mode state lives in an
+/// constructs its own reader/writer, and strict-mode and encoding state live in an
 /// <see cref="AsyncLocal{T}"/> scoped per call.
 /// </summary>
 [Collection(ThreadSaturationCollection.Name)]
@@ -169,6 +170,142 @@ public class ThreadSafetyTests
         gate.TrySetResult(null);
         await Task.WhenAll(reads);
     }
+
+    /// <summary>
+    /// Automatic ISO-8859-1 fallback and an explicit strict UTF-8 encoding run
+    /// concurrently. A shared flag would make the strict calls succeed or the
+    /// automatic calls throw.
+    /// </summary>
+    [Fact]
+    public async Task FileEncodingScope_DoesNotLeakAcrossConcurrentReads()
+    {
+        var latin1 = Encoding.GetEncoding(28591);
+        var bytes = latin1.GetBytes(Latin1Eds("Gerät"));
+        var strictUtf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+        using var start = new Barrier(Concurrency);
+
+        var tasks = Enumerable.Range(0, Concurrency).Select(i => Task.Run(() =>
+        {
+            var automatic = i % 2 == 0;
+            var options = automatic
+                ? new CanOpenFileOptions()
+                : new CanOpenFileOptions { Encoding = strictUtf8 };
+            start.SignalAndWait();
+
+            for (var iteration = 0; iteration < IterationsPerTask; iteration++)
+            {
+                using var stream = new MemoryStream(bytes);
+                if (automatic)
+                {
+                    CanOpenFile.Eds.ReadStream(stream, options).DeviceInfo.ProductName.Should().Be(
+                        "Gerät",
+                        "automatic mode must fall back to ISO-8859-1 — a leaked strict encoding would throw");
+                }
+                else
+                {
+                    FluentActions.Invoking(() => CanOpenFile.Eds.ReadStream(stream, options))
+                        .Should().Throw<DecoderFallbackException>(
+                            "strict UTF-8 must reject the Latin-1 bytes — a leaked automatic scope would repair them");
+                }
+            }
+        })).ToArray();
+
+        await Task.WhenAll(tasks);
+    }
+
+    /// <summary>
+    /// Async counterpart: the gated stream resumes each read on the test thread,
+    /// so a thread-local encoding would be lost before the buffered bytes are decoded.
+    /// </summary>
+    [Fact]
+    public async Task FileEncodingScope_AsyncReads_DoNotLeakAcrossAwait()
+    {
+        var latin1 = Encoding.GetEncoding(28591);
+        var bytes = latin1.GetBytes(Latin1Eds("Gerät"));
+        var strictUtf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+        using var start = new Barrier(AsyncConcurrency);
+        var gate = new TaskCompletionSource<object?>();
+        var allParked = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var parked = 0;
+
+        void OnFirstRead()
+        {
+            if (Interlocked.Increment(ref parked) == AsyncConcurrency)
+                allParked.TrySetResult(null);
+        }
+
+        var reads = Enumerable.Range(0, AsyncConcurrency).Select(i => Task.Run(async () =>
+        {
+            var automatic = i % 2 == 0;
+            var options = automatic
+                ? new CanOpenFileOptions()
+                : new CanOpenFileOptions { Encoding = strictUtf8 };
+            start.SignalAndWait();
+
+            using var stream = new GatedReadStream(bytes, gate.Task, OnFirstRead);
+            if (automatic)
+            {
+                var model = await CanOpenFile.Eds.ReadStreamAsync(stream, options);
+                model.DeviceInfo.ProductName.Should().Be("Gerät");
+            }
+            else
+            {
+                await FluentActions.Awaiting(() => CanOpenFile.Eds.ReadStreamAsync(stream, options))
+                    .Should().ThrowAsync<DecoderFallbackException>();
+            }
+        })).ToArray();
+
+        await allParked.Task;
+        gate.TrySetResult(null);
+        await Task.WhenAll(reads);
+    }
+
+    /// <summary>
+    /// Latin-1 writes must keep <see cref="EncoderFallback.ExceptionFallback"/> while
+    /// concurrent default writes still emit UTF-8. A shared write encoding would
+    /// either throw from the UTF-8 calls or silently replace characters in the Latin-1 calls.
+    /// </summary>
+    [Fact]
+    public async Task FileEncodingScope_DoesNotLeakAcrossConcurrentWrites()
+    {
+        var latin1 = Encoding.GetEncoding(28591);
+        var model = new ElectronicDataSheet { DeviceInfo = { ProductName = "Привет" } };
+        using var start = new Barrier(Concurrency);
+
+        var tasks = Enumerable.Range(0, Concurrency).Select(i => Task.Run(() =>
+        {
+            var useLatin1 = i % 2 == 0;
+            start.SignalAndWait();
+
+            for (var iteration = 0; iteration < IterationsPerTask; iteration++)
+            {
+                using var stream = new MemoryStream();
+                if (useLatin1)
+                {
+                    FluentActions.Invoking(() => CanOpenFile.Eds.WriteStream(
+                            model,
+                            stream,
+                            new CanOpenWriteOptions { Encoding = latin1 }))
+                        .Should().Throw<EdsWriteException>(
+                            "ISO-8859-1 cannot represent Cyrillic — a leaked UTF-8 scope would succeed");
+                }
+                else
+                {
+                    CanOpenFile.Eds.WriteStream(model, stream);
+                    Encoding.UTF8.GetString(stream.ToArray()).Should().Contain(
+                        "Привет",
+                        "the default write is UTF-8 — a leaked Latin-1 scope would throw or substitute '?'");
+                }
+            }
+        })).ToArray();
+
+        await Task.WhenAll(tasks);
+    }
+
+    private static string Latin1Eds(string productName)
+        => "[FileInfo]\nFileName=geraet.eds\nFileVersion=1\nFileRevision=0\nEDSVersion=4.0\n"
+           + "[DeviceInfo]\nVendorName=Beispiel\nProductName=" + productName
+           + "\nVendorNumber=1\nProductNumber=1\n";
 
     /// <summary>
     /// Loads the well-formed EDS fixture and injects a duplicate <c>FileName</c> key

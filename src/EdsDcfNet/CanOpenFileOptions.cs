@@ -1,5 +1,6 @@
 namespace EdsDcfNet;
 
+using System.Text;
 using EdsDcfNet.Parsers;
 
 /// <summary>
@@ -104,9 +105,36 @@ public sealed class CanOpenFileOptions
     /// </remarks>
     public bool StrictParsing { get; init; }
 
+    /// <summary>
+    /// Gets the encoding used to decode EDS, DCF, and CPJ bytes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="null"/> (the default) selects automatic detection. A byte-order mark
+    /// selects UTF-8, UTF-16, or UTF-32 and is not returned as text. Otherwise the buffered
+    /// bytes are decoded as strict UTF-8 (<c>throwOnInvalidBytes</c>). When that fails with
+    /// <see cref="DecoderFallbackException"/>, the bytes passed to that strict decode are
+    /// decoded as ISO-8859-1. A leading UTF-8 byte-order mark is excluded from both decodes.
+    /// A diagnostic is reported
+    /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniDecodedAsIso88591"/>,
+    /// &quot;file is not valid UTF-8, decoded as ISO-8859-1&quot;). The bytes are buffered
+    /// once, including from a non-seekable stream, and decoded from that buffer.
+    /// </para>
+    /// <para>
+    /// An explicit value is used as supplied and does not fall back to ISO-8859-1. A
+    /// byte-order mark for that encoding is still removed, including when the encoding
+    /// instance was constructed not to emit a preamble. String overloads are
+    /// already decoded text and ignore this property.
+    /// </para>
+    /// </remarks>
+    public Encoding? Encoding { get; init; }
+
     internal static long ResolveMaxInputSize(CanOpenFileOptions? options)
         => options?.MaxInputSize ?? ReaderDefaults.DefaultMaxInputSize;
 
     internal static bool ResolveStrictParsing(CanOpenFileOptions? options)
         => options?.StrictParsing ?? false;
+
+    internal static Encoding? ResolveEncoding(CanOpenFileOptions? options)
+        => options?.Encoding;
 }
