@@ -107,6 +107,35 @@ public class XmlDeclaredEncodingTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Read_DeclaredIbm037_DecodesWhenPrologIsNotAscii(bool xdc)
+    {
+        var encoding = RequireIbm037();
+        var text = WithDeclaration(Written(xdc, Geraet), "IBM037");
+        var bytes = encoding.GetBytes(text);
+        bytes[0].Should().Be(0x4C);
+        bytes[1].Should().Be(0x6F);
+        bytes[2].Should().Be(0xA7);
+        bytes[3].Should().Be(0x94);
+        bytes.Take(5).Should().NotEqual(new byte[] { 0x3C, 0x3F, 0x78, 0x6D, 0x6C });
+
+        ReadProduct(xdc, bytes, options: null).Should().Be(Geraet);
+    }
+
+    [Fact]
+    public void Read_DeclaredUnknownEbcdicName_NamesEncoding()
+    {
+        var encoding = RequireIbm037();
+        var text = WithDeclaration(Written(xdc: false, "Plain"), "X-NO-SUCH-EBCDIC");
+        var bytes = encoding.GetBytes(text);
+        bytes[0].Should().Be(0x4C);
+
+        var act = () => ReadProduct(xdc: false, bytes, options: null);
+        act.Should().Throw<EdsParseException>().WithMessage("*X-NO-SUCH-EBCDIC*");
+    }
+
+    [Theory]
     [InlineData(false, "utf-8", false)]
     [InlineData(false, "utf-8", true)]
     [InlineData(false, "utf-16", true)]
@@ -517,6 +546,42 @@ public class XmlDeclaredEncodingTests
 
         return CanOpenFile.Xdd.ReadStream(stream, options);
     }
+
+    private static int _ibm037ProviderRegistered;
+
+    private static Encoding RequireIbm037()
+    {
+#if !NETFRAMEWORK
+        if (Interlocked.Exchange(ref _ibm037ProviderRegistered, 1) == 0)
+            Encoding.RegisterProvider(new EbcdicOnlyEncodingProvider());
+#endif
+        return Encoding.GetEncoding("IBM037");
+    }
+
+#if !NETFRAMEWORK
+    /// <summary>
+    /// Exposes IBM037 from the runtime code-page provider without registering every
+    /// code page. A full registration would make windows-1252 available to other tests.
+    /// </summary>
+    private sealed class EbcdicOnlyEncodingProvider : EncodingProvider
+    {
+        public override Encoding? GetEncoding(string name)
+        {
+            if (!IsIbm037(name))
+                return null;
+
+            return CodePagesEncodingProvider.Instance.GetEncoding(name);
+        }
+
+        public override Encoding? GetEncoding(int codepage)
+            => codepage == 37 ? CodePagesEncodingProvider.Instance.GetEncoding(codepage) : null;
+
+        private static bool IsIbm037(string name)
+            => name.Equals("IBM037", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("cp037", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("csIBM037", StringComparison.OrdinalIgnoreCase);
+    }
+#endif
 
     private static bool TryGetEncoding(string name, out Encoding? encoding)
     {

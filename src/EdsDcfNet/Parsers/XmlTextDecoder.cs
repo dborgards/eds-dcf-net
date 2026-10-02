@@ -29,6 +29,18 @@ internal static class XmlTextDecoder
 
     private static readonly byte[] Utf32LeSignature = { 0x3C, 0x00, 0x00, 0x00 };
 
+    /// <summary>XML appendix F signature for <c>&lt;?xm</c> in EBCDIC.</summary>
+    private static readonly byte[] EbcdicXmlSignature = { 0x4C, 0x6F, 0xA7, 0x94 };
+
+    /// <summary>
+    /// EBCDIC byte to ASCII for the XML declaration repertoire (IBM037, and the other
+    /// EBCDIC pages that share those bytes). 0xFC is the quotation mark on IBM1026.
+    /// 0x15 is the line feed on IBM1047.
+    /// </summary>
+    private static readonly byte[] EbcdicDeclarationToAscii = CreateEbcdicDeclarationMap();
+
+    private const int MaxEbcdicDeclarationBytes = 2048;
+
     private const string EncodingAttribute = "encoding";
 
     internal static string Decode(byte[] bytes, string formatName)
@@ -41,6 +53,19 @@ internal static class XmlTextDecoder
             return DecodeStrict(wideEncoding, bytes, wideOffset, formatName, wideEncoding.WebName);
 
         var declared = TryReadDeclaredEncoding(bytes);
+        if (declared == null && StartsWith(bytes, EbcdicXmlSignature))
+        {
+            declared = TryReadDeclaredEncoding(TranslateEbcdicDeclaration(bytes));
+            if (declared == null)
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0} content uses an EBCDIC encoding but does not declare one.",
+                        formatName));
+            }
+        }
+
         if (declared == null)
             return DecodeStrict(StrictUtf8, bytes, 0, formatName, "utf-8");
 
@@ -183,6 +208,70 @@ internal static class XmlTextDecoder
            || name.Equals("utf-32le", StringComparison.OrdinalIgnoreCase)
            || name.Equals("ucs-2", StringComparison.OrdinalIgnoreCase)
            || name.Equals("iso-10646-ucs-2", StringComparison.OrdinalIgnoreCase);
+
+    private static byte[] TranslateEbcdicDeclaration(byte[] bytes)
+    {
+        var end = IndexOfEbcdicDeclarationEnd(bytes);
+        if (end < 0)
+            end = Math.Min(bytes.Length, MaxEbcdicDeclarationBytes);
+        else
+            end = Math.Min(bytes.Length, end + 2);
+
+        var ascii = new byte[end];
+        for (var i = 0; i < end; i++)
+            ascii[i] = EbcdicDeclarationToAscii[bytes[i]];
+
+        return ascii;
+    }
+
+    private static int IndexOfEbcdicDeclarationEnd(byte[] bytes)
+    {
+        var last = Math.Min(bytes.Length, MaxEbcdicDeclarationBytes) - 2;
+        for (var i = 0; i <= last; i++)
+        {
+            if (bytes[i] == 0x6F && bytes[i + 1] == 0x6E)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static byte[] CreateEbcdicDeclarationMap()
+    {
+        var map = new byte[256];
+        map[0x05] = (byte)'\t';
+        map[0x0D] = (byte)'\r';
+        map[0x15] = (byte)'\n';
+        map[0x25] = (byte)'\n';
+        map[0x40] = (byte)' ';
+        map[0x4B] = (byte)'.';
+        map[0x4C] = (byte)'<';
+        map[0x60] = (byte)'-';
+        map[0x6D] = (byte)'_';
+        map[0x6E] = (byte)'>';
+        map[0x6F] = (byte)'?';
+        map[0x7D] = (byte)'\'';
+        map[0x7E] = (byte)'=';
+        map[0x7F] = (byte)'"';
+        map[0xFC] = (byte)'"';
+
+        for (var digit = 0; digit <= 9; digit++)
+            map[0xF0 + digit] = (byte)('0' + digit);
+
+        MapLetters(map, 0x81, "abcdefghi");
+        MapLetters(map, 0x91, "jklmnopqr");
+        MapLetters(map, 0xA2, "stuvwxyz");
+        MapLetters(map, 0xC1, "ABCDEFGHI");
+        MapLetters(map, 0xD1, "JKLMNOPQR");
+        MapLetters(map, 0xE2, "STUVWXYZ");
+        return map;
+    }
+
+    private static void MapLetters(byte[] map, int start, string letters)
+    {
+        for (var i = 0; i < letters.Length; i++)
+            map[start + i] = (byte)letters[i];
+    }
 
     private static string? TryReadDeclaredEncoding(byte[] bytes)
     {
