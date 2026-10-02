@@ -79,6 +79,18 @@ for workflow in "$build_workflow" "$release_workflow"; do
   fi
 done
 
+for workflow in "$build_workflow" "$release_workflow"; do
+  if [[ $(grep -F -c 'files: ${{ steps.coverage_gate.outputs.coverage_files }}' "$workflow") -ne 1 ]]; then
+    fail "$(basename "$workflow") must pass coverage_files to codecov-action exactly once"
+  fi
+  if [[ $(grep -F -c 'disable_search: true' "$workflow") -ne 1 ]]; then
+    fail "$(basename "$workflow") must keep disable_search so the upload does not search the checkout"
+  fi
+  if [[ $(grep -F -c 'fail_ci_if_error: true' "$workflow") -ne 1 ]]; then
+    fail "$(basename "$workflow") must keep fail_ci_if_error"
+  fi
+done
+
 if grep -F -q 'codecov/patch' "$build_workflow" || grep -F -q 'codecov/patch' "$release_workflow"; then
   fail "workflows still post or wait on codecov/patch"
 fi
@@ -189,6 +201,96 @@ for real in "$results/net10/coverage.cobertura.xml" "$results/net48/coverage.cob
   fi
 done
 
+# codecov-action is Node. On windows-latest it cannot open the Git Bash path
+# find returns (/d/a/_temp/...). coverage_files must be the cygpath -w form
+# when cygpath is present. The gate still reads the reports through the Git
+# Bash path, so the 92.00% result above does not move. Linux has no cygpath;
+# the assertion above keeps those POSIX paths.
+cygpath_bin="$work/bin"
+mkdir -p "$cygpath_bin"
+cat >"$cygpath_bin/cygpath" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ $# -ne 2 ]]; then
+  echo "usage: cygpath -u|-w PATH" >&2
+  exit 1
+fi
+mode="$1"
+path="$2"
+case "$mode" in
+  -u)
+    if [[ -n "${CYGPATH_WIN_ROOT:-}" && "$path" == "$CYGPATH_WIN_ROOT"* ]]; then
+      suffix="${path#"$CYGPATH_WIN_ROOT"}"
+      suffix="${suffix//\\//}"
+      printf '%s%s\n' "$CYGPATH_POSIX_ROOT" "$suffix"
+    else
+      printf '%s\n' "$path"
+    fi
+    ;;
+  -w)
+    if [[ -z "${CYGPATH_POSIX_ROOT:-}" || "$path" != "$CYGPATH_POSIX_ROOT"* ]]; then
+      echo "cygpath: unmapped path: $path" >&2
+      exit 1
+    fi
+    suffix="${path#"$CYGPATH_POSIX_ROOT"}"
+    suffix="${suffix//\//\\}"
+    printf '%s%s\n' "$CYGPATH_WIN_ROOT" "$suffix"
+    ;;
+  *)
+    echo "cygpath: unsupported mode: $mode" >&2
+    exit 1
+    ;;
+esac
+EOF
+chmod +x "$cygpath_bin/cygpath"
+
+win_root='D:\a\_temp\coverage-run'
+win_files='D:\a\_temp\coverage-run\net10\coverage.cobertura.xml,D:\a\_temp\coverage-run\net48\coverage.cobertura.xml'
+win_log="$work/win.log"
+win_output="$work/win.out"
+PATH="${cygpath_bin}:${PATH}" \
+  CYGPATH_POSIX_ROOT="$results" \
+  CYGPATH_WIN_ROOT="$win_root" \
+  run_gate "$results" "$win_log" "$win_output"
+win_percent=$(percent_of "$win_log")
+if [[ "$gate_status" -ne 1 || "$win_percent" != "92.00" ]]; then
+  fail "cygpath on PATH changed the gate result (status=$gate_status percent=$win_percent)"
+  cat "$win_log" "$work/gate.err" >&2 || true
+fi
+if ! grep -F -q "coverage_files=${win_files}" "$win_output"; then
+  fail "coverage_files was not the cygpath -w form"
+  cat "$win_output" >&2 || true
+fi
+if ! grep -F -q "coverage_percent=92.00" "$win_output"; then
+  fail "GITHUB_OUTPUT coverage_percent moved off 92.00 when cygpath converted upload paths"
+fi
+for real in "$results/net10/coverage.cobertura.xml" "$results/net48/coverage.cobertura.xml"; do
+  if ! grep -F -q "$real" "$win_log"; then
+    fail "gate log dropped the Git Bash path $real"
+  fi
+  if grep -F -q "$real" "$win_output"; then
+    fail "coverage_files still contains the Git Bash path $real"
+  fi
+done
+
+# A Windows search root is what Git Bash sees for RUNNER_TEMP before -u.
+# cygpath -u must restore the Git Bash path so find can read the reports.
+win_root_log="$work/win-root.log"
+win_root_output="$work/win-root.out"
+PATH="${cygpath_bin}:${PATH}" \
+  CYGPATH_POSIX_ROOT="$results" \
+  CYGPATH_WIN_ROOT="$win_root" \
+  run_gate "$win_root" "$win_root_log" "$win_root_output"
+win_root_percent=$(percent_of "$win_root_log")
+if [[ "$gate_status" -ne 1 || "$win_root_percent" != "92.00" ]]; then
+  fail "Windows search root was not read through the Git Bash path (status=$gate_status percent=$win_root_percent)"
+  cat "$win_root_log" "$work/gate.err" >&2 || true
+fi
+if ! grep -F -q "coverage_files=${win_files}" "$win_root_output"; then
+  fail "Windows search root did not emit cygpath -w upload paths"
+  cat "$win_root_output" >&2 || true
+fi
+
 # The same committed file inside TestResults would lift 92% over the threshold.
 # That is why the gate must not be pointed at the checkout.
 narrow_log="$work/narrow.log"
@@ -219,4 +321,4 @@ if [[ "$failures" -ne 0 ]]; then
   exit 1
 fi
 
-echo "coverage gate ignores a committed high-counter report and posts coverage/threshold."
+echo "coverage gate ignores a committed high-counter report, posts coverage/threshold, and emits cygpath -w upload paths."

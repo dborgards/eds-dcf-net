@@ -25,7 +25,13 @@
 #
 # Environment:
 #   COVERAGE_MIN_PERCENT  Minimum allowed percent (default: 95.0)
-#   GITHUB_OUTPUT         When set, writes coverage_files and coverage_percent
+#   GITHUB_OUTPUT         When set, writes coverage_files and coverage_percent.
+#                         coverage_files is the list passed to codecov-action.
+#                         Reports are still read through the Git Bash path.
+#                         When cygpath is present (windows-latest), each entry
+#                         is the cygpath -w form (D:\a\_temp\...) so Node can
+#                         open it. Linux runners have no cygpath, so those
+#                         paths stay POSIX.
 #
 # Usage:
 #   tools/enforce-coverage-threshold.sh <results-directory>
@@ -60,13 +66,21 @@ if (( ${#coverage_files[@]} == 0 )); then
   exit 1
 fi
 
-# Portable join (Bash 3.2+): comma-separated list for Codecov upload.
+# Portable join (Bash 3.2+): comma-separated list for the Codecov upload.
+# find and the line-count loop keep the Git Bash path. codecov-action is
+# Node.js and on windows-latest cannot open an MSYS path such as
+# /d/a/_temp/... . With disable_search, that failed upload fails the job.
+# cygpath -w yields the Windows path (D:\a\_temp\...) Node can open.
 coverage_files_csv=""
 for coverage_file in "${coverage_files[@]}"; do
+  upload_path="$coverage_file"
+  if command -v cygpath >/dev/null 2>&1; then
+    upload_path="$(cygpath -w "$coverage_file")"
+  fi
   if [[ -z "$coverage_files_csv" ]]; then
-    coverage_files_csv="$coverage_file"
+    coverage_files_csv="$upload_path"
   else
-    coverage_files_csv="${coverage_files_csv},${coverage_file}"
+    coverage_files_csv="${coverage_files_csv},${upload_path}"
   fi
 done
 
@@ -74,6 +88,7 @@ echo "Found ${#coverage_files[@]} coverage report(s)."
 for coverage_file in "${coverage_files[@]}"; do
   echo "  - $coverage_file"
 done
+echo "Codecov upload paths: ${coverage_files_csv}"
 
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   echo "coverage_files=${coverage_files_csv}" >> "$GITHUB_OUTPUT"
