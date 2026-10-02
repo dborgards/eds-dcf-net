@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.4...v1.15.0-beta.5) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **eds:** parse and write MxSubExtends, MxSubExt, MxComments and MxFixed sections ([8b283cd](https://github.com/dborgards/eds-dcf-net/commit/8b283cd916a2018b1e637621744d2f98609a3bd4))
+
 ## [1.15.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.3...v1.15.0-beta.4) (2026-10-02)
 
 ### ✨ Features
