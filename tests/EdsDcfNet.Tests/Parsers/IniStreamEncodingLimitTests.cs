@@ -25,6 +25,30 @@ public class IniStreamEncodingLimitTests
         var utf16 = Encoding.Unicode;
         InputBufferLimit.GetMaxBufferedByteCount(5, utf16)
             .Should().Be(utf16.GetMaxByteCount(5) + utf16.GetPreamble().Length);
+
+        // Wider than GetMaxByteCount's int argument: the cap saturates before calling it.
+        InputBufferLimit.GetMaxBufferedByteCount((long)int.MaxValue + 1, utf16)
+            .Should().Be(long.MaxValue);
+
+        // UTF-16 rejects int.MaxValue characters because the byte count does not fit in an int.
+        InputBufferLimit.GetMaxBufferedByteCount(int.MaxValue, utf16)
+            .Should().Be(long.MaxValue);
+    }
+
+    [Fact]
+    public void NextReadSize_ProbeEdges_SaturateAndRejectNegativeRemainder()
+    {
+        IniParser.NextReadSize(long.MaxValue, total: 0).Should().Be(8192);
+
+        // One past the cap is not readable.
+        IniParser.NextReadSize(maxBytes: 10, total: 11).Should().Be(0);
+
+        // remaining >= int.MaxValue uses the saturated probe, then the chunk size.
+        IniParser.NextReadSize(maxBytes: int.MaxValue, total: 0).Should().Be(8192);
+        IniParser.NextReadSize(maxBytes: (long)int.MaxValue - 1, total: 0).Should().Be(8192);
+
+        // A short cap asks for one extra byte so the reader can see that the stream continues.
+        IniParser.NextReadSize(maxBytes: 10, total: 0).Should().Be(11);
     }
 
     [Theory]

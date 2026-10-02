@@ -205,6 +205,61 @@ public class FileEncodingOptionTests
         act.Should().Throw<EdsParseException>().WithMessage("*outside of any section*");
     }
 
+    [Theory]
+    [MemberData(nameof(AutomaticWideBomEncodings))]
+    public void Read_AutomaticWideBom_RecognizesFileInfo(string name, Encoding encoding)
+    {
+        encoding.GetPreamble().Should().NotBeEmpty(because: name + " emits a preamble");
+        var bytes = WithPreamble(encoding, encoding.GetBytes(EdsWithProduct(Geraet)));
+
+        using var stream = new MemoryStream(bytes);
+        var eds = CanOpenFile.Eds.ReadStream(stream);
+
+        eds.FileInfo.FileName.Should().Be("geraet.eds");
+        eds.DeviceInfo.ProductName.Should().Be(Geraet);
+    }
+
+    public static IEnumerable<object[]> AutomaticWideBomEncodings()
+    {
+        yield return new object[] { "utf-16", Encoding.Unicode };
+        yield return new object[] { "utf-16BE", Encoding.BigEndianUnicode };
+        yield return new object[] { "utf-32", Encoding.UTF32 };
+        yield return new object[] { "utf-32BE", new UTF32Encoding(bigEndian: true, byteOrderMark: true) };
+    }
+
+    [Fact]
+    public void Decode_BufferShorterThanAnyBom_LeavesBytesInPlace()
+    {
+        IniTextDecoder.Decode(Array.Empty<byte>()).Should().BeEmpty();
+        IniTextDecoder.Decode(new byte[] { (byte)'[' }).Should().Be("[");
+    }
+
+    [Fact]
+    public void Read_ExplicitEncodingWithOwnPreamble_StripsOnlyAMatchingPrefix()
+    {
+        var encoding = new MarkedAsciiEncoding(new byte[] { 0x00, 0x01 });
+        encoding.GetPreamble().Should().Equal(0x00, 0x01);
+        var payload = Encoding.ASCII.GetBytes(EdsWithProduct("Device"));
+
+        var marked = new byte[encoding.GetPreamble().Length + payload.Length];
+        encoding.GetPreamble().CopyTo(marked, 0);
+        payload.CopyTo(marked, encoding.GetPreamble().Length);
+
+        using (var stream = new MemoryStream(marked))
+        {
+            var eds = CanOpenFile.Eds.ReadStream(stream, new CanOpenFileOptions { Encoding = encoding });
+            eds.FileInfo.FileName.Should().Be("geraet.eds");
+            eds.DeviceInfo.ProductName.Should().Be("Device");
+        }
+
+        using (var stream = new MemoryStream(payload))
+        {
+            var eds = CanOpenFile.Eds.ReadStream(stream, new CanOpenFileOptions { Encoding = encoding });
+            eds.FileInfo.FileName.Should().Be("geraet.eds");
+            eds.DeviceInfo.ProductName.Should().Be("Device");
+        }
+    }
+
     [Fact]
     public async Task Read_Latin1ThenWrite_PreservesGeraet()
     {
@@ -744,6 +799,41 @@ public class FileEncodingOptionTests
         var dir = Path.Combine(Path.GetTempPath(), "eds-enc-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         return dir;
+    }
+
+    /// <summary>
+    /// ASCII plus a preamble that is not a UTF-8/16/32 byte-order mark.
+    /// Code page 20127 keeps the decoder on the <c>GetPreamble</c> path.
+    /// </summary>
+    private sealed class MarkedAsciiEncoding : Encoding
+    {
+        private readonly byte[] _preamble;
+
+        internal MarkedAsciiEncoding(byte[] preamble)
+            : base(20127)
+        {
+            _preamble = preamble;
+        }
+
+        public override int CodePage => 20127;
+
+        public override byte[] GetPreamble() => (byte[])_preamble.Clone();
+
+        public override int GetByteCount(char[] chars, int index, int count)
+            => Encoding.ASCII.GetByteCount(chars, index, count);
+
+        public override int GetBytes(char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex)
+            => Encoding.ASCII.GetBytes(chars, charIndex, charCount, bytes, byteIndex);
+
+        public override int GetCharCount(byte[] bytes, int index, int count)
+            => Encoding.ASCII.GetCharCount(bytes, index, count);
+
+        public override int GetChars(byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex)
+            => Encoding.ASCII.GetChars(bytes, byteIndex, byteCount, chars, charIndex);
+
+        public override int GetMaxByteCount(int charCount) => Encoding.ASCII.GetMaxByteCount(charCount);
+
+        public override int GetMaxCharCount(int byteCount) => Encoding.ASCII.GetMaxCharCount(byteCount);
     }
 
     private sealed class ForwardOnlyStream : Stream

@@ -661,7 +661,7 @@ public static class IniParser
         return buffer.ToArray();
     }
 
-    private static int NextReadSize(long maxBytes, long total)
+    internal static int NextReadSize(long maxBytes, long total)
     {
         if (maxBytes == long.MaxValue)
             return ReadChunkSize;
