@@ -220,13 +220,14 @@ public class XddWriter
         // signatures and can still see whether uniqueIDRef's parameter exists.
         using (XddUniqueIdResolver.EnterWriteScope(eds.ApplicationProcess))
         {
-            XNamespace xsi = "http://www.w3.org/2001/XMLSchema-instance";
+            // Prefix, not a default namespace: qualified elements use "co" and
+            // locally declared elements stay unprefixed. xsi:type uses the same prefix.
+            var container = new XElement(XddNames.ProfileContainer,
+                new XAttribute(XNamespace.Xmlns + XddNames.Prefix, XddNames.Namespace),
+                new XAttribute(XNamespace.Xmlns + "xsi", XddNames.Xsi));
 
-            var container = new XElement("ISO15745ProfileContainer",
-                new XAttribute(XNamespace.Xmlns + "xsi", xsi));
-
-            container.Add(WriteContext("DeviceProfile", () => BuildDeviceProfile(eds, xsi)));
-            container.Add(WriteContext("CommunicationNetworkProfile", () => BuildCommNetProfile(eds, xsi, commissioning)));
+            container.Add(WriteContext("DeviceProfile", () => BuildDeviceProfile(eds)));
+            container.Add(WriteContext("CommunicationNetworkProfile", () => BuildCommNetProfile(eds, commissioning)));
 
             return new XDocument(
                 new XDeclaration("1.0", null, null),
@@ -234,16 +235,16 @@ public class XddWriter
         }
     }
 
-    private static XElement BuildDeviceProfile(ElectronicDataSheet eds, XNamespace xsi)
+    private static XElement BuildDeviceProfile(ElectronicDataSheet eds)
     {
-        var profileBody = new XElement("ProfileBody",
-            new XAttribute(xsi + "type", "ProfileBody_Device_CANopen"));
+        var profileBody = new XElement(ProfileBodyName,
+            XddNames.TypeAttribute(XddNames.DeviceProfileBodyType));
 
         XddProfileBuilder.AddFileInfoAttributes(profileBody, eds.FileInfo);
 
         profileBody.Add(XddProfileBuilder.BuildDeviceIdentity(eds.DeviceInfo));
-        profileBody.Add(new XElement("DeviceManager"));
-        profileBody.Add(new XElement("DeviceFunction"));
+        profileBody.Add(XddNames.ElementOfType(XddNames.DeviceProfileBodyType, "DeviceManager"));
+        profileBody.Add(XddNames.ElementOfType(XddNames.DeviceProfileBodyType, "DeviceFunction"));
 
         if (eds.ApplicationProcess != null)
             profileBody.Add(XddApplicationProcessBuilder.Build(eds.ApplicationProcess));
@@ -253,10 +254,10 @@ public class XddWriter
 
     [SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Calls virtual members via instance dispatch.")]
-    private XElement BuildCommNetProfile(ElectronicDataSheet eds, XNamespace xsi, DeviceCommissioning? commissioning)
+    private XElement BuildCommNetProfile(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
-        var profileBody = new XElement("ProfileBody",
-            new XAttribute(xsi + "type", "ProfileBody_CommunicationNetwork_CANopen"));
+        var profileBody = new XElement(ProfileBodyName,
+            XddNames.TypeAttribute(XddNames.NetworkProfileBodyType));
 
         XddProfileBuilder.AddFileInfoAttributes(profileBody, eds.FileInfo);
         profileBody.Add(BuildApplicationLayers(eds));
@@ -270,7 +271,7 @@ public class XddWriter
         Justification = "Calls virtual members via instance dispatch.")]
     private XElement BuildApplicationLayers(ElectronicDataSheet eds)
     {
-        var appLayers = new XElement("ApplicationLayers");
+        var appLayers = new XElement(ApplicationLayersName);
 
         appLayers.Add(BuildObjectList(eds.ObjectDictionary));
 
@@ -287,7 +288,7 @@ public class XddWriter
         Justification = "Calls virtual members via instance dispatch.")]
     private XElement BuildObjectList(ObjectDictionary dict)
     {
-        var objList = new XElement("CANopenObjectList",
+        var objList = new XElement(CanOpenObjectListName,
             new XAttribute("mandatoryObjects",
                 dict.MandatoryObjects.Count.ToString(CultureInfo.InvariantCulture)),
             new XAttribute("optionalObjects",
@@ -310,7 +311,7 @@ public class XddWriter
         Justification = "Parameter name is a CANopen domain term, not a VB keyword conflict in context.")]
     protected virtual XElement BuildCanOpenObject(CanOpenObject obj)
     {
-        var elem = new XElement("CANopenObject");
+        var elem = new XElement(CanOpenObjectName);
         var projection = XddUniqueIdResolver.CurrentWriteProjection(obj.UniqueIdRef);
 
         elem.Add(new XAttribute("index", FormatIndex(obj.Index)));
@@ -378,7 +379,7 @@ public class XddWriter
         Justification = "Parameter name is a CANopen domain term; VB conflict not applicable here.")]
     protected virtual XElement BuildCanOpenSubObject(CanOpenSubObject subObject)
     {
-        var elem = new XElement("CANopenSubObject");
+        var elem = new XElement(XddNames.Child(CanOpenObjectName, "CANopenSubObject"));
         var projection = XddUniqueIdResolver.CurrentWriteProjection(subObject.UniqueIdRef);
         var subDataType = subObject.DataType == 0 ? (ushort?)null : subObject.DataType;
 
@@ -425,7 +426,7 @@ public class XddWriter
     /// </summary>
     protected virtual XElement BuildNetworkManagement(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
-        var networkMgmt = new XElement("NetworkManagement");
+        var networkMgmt = new XElement(NetworkManagementName);
         networkMgmt.Add(XddProfileBuilder.BuildGeneralFeatures(eds.DeviceInfo));
         networkMgmt.Add(XddProfileBuilder.BuildMasterFeatures(eds.DeviceInfo));
         return networkMgmt;
@@ -652,6 +653,24 @@ public class XddWriter
 
         public override string ToString() => _sb.ToString();
     }
+
+    private static readonly XName ProfileName =
+        XddNames.Child(XddNames.ProfileContainer, "ISO15745Profile");
+
+    private static readonly XName ProfileBodyName =
+        XddNames.Child(ProfileName, "ProfileBody");
+
+    private static readonly XName ApplicationLayersName =
+        XddNames.ChildOfType(XddNames.NetworkProfileBodyType, "ApplicationLayers");
+
+    private static readonly XName CanOpenObjectListName =
+        XddNames.Child(ApplicationLayersName, "CANopenObjectList");
+
+    private static readonly XName CanOpenObjectName =
+        XddNames.Child(CanOpenObjectListName, "CANopenObject");
+
+    private static readonly XName NetworkManagementName =
+        XddNames.ChildOfType(XddNames.NetworkProfileBodyType, "NetworkManagement");
 
     private static string ToXddPdoMappingAttribute(PdoMappingMode mode) => mode switch
     {
