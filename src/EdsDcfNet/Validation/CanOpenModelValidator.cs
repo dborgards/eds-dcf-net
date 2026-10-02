@@ -3,6 +3,7 @@ namespace EdsDcfNet.Validation;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Validates CANopen models against common CiA 306 and CiA 311 constraints.
@@ -203,6 +204,7 @@ public static class CanOpenModelValidator
         var issues = new List<ValidationIssue>();
         ValidateDeviceInfo(eds.DeviceInfo, issues);
         ValidateObjectDictionary(eds.ObjectDictionary, options, ObjectValueValidator.ResolveNodeIds(null), issues, cancellationToken);
+        ValidateSupportedModules(eds.SupportedModules, issues, cancellationToken);
         if (options.RequireMandatoryEntries)
             ValidateMandatoryEntries(eds.FileInfo, eds.DeviceInfo, eds.ObjectDictionary, issues, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
@@ -224,6 +226,7 @@ public static class CanOpenModelValidator
         var nodeIds = ObjectValueValidator.ResolveNodeIds(
             commissioningOmitted ? null : dcf.DeviceCommissioning.NodeId);
         ValidateObjectDictionary(dcf.ObjectDictionary, options, nodeIds, issues, cancellationToken);
+        ValidateSupportedModules(dcf.SupportedModules, issues, cancellationToken);
         ValidateDeviceCommissioning(dcf.DeviceCommissioning, issues);
         if (options.RequireMandatoryEntries)
         {
@@ -406,6 +409,175 @@ public static class CanOpenModelValidator
                     listPath,
                     "Object list references missing object " + hexIndex + "."));
             }
+        }
+    }
+
+    /// <summary>
+    /// Checks module section counters against the entries actually stored
+    /// (CiA 306-1 §8.3): <c>Lines</c> versus comment lines, <c>[MxSubExtends]</c>
+    /// versus <c>[MxSubExtxxxx]</c> definitions, <c>[MxFixedObjects]</c> versus
+    /// <c>[MxFixedxxxx]</c> bodies, and each definition's <c>Count</c> token.
+    /// </summary>
+    private static void ValidateSupportedModules(
+        List<ModuleInfo> modules,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
+    {
+        for (var i = 0; i < modules.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var module = modules[i];
+            var path = string.Format(CultureInfo.InvariantCulture, "SupportedModules[{0}]", i);
+            ValidateModuleComments(module, path, issues);
+            ValidateModuleFixedObjects(module, path, issues);
+            ValidateModuleSubExtensions(module, path, issues);
+        }
+    }
+
+    private static void ValidateModuleComments(ModuleInfo module, string path, List<ValidationIssue> issues)
+    {
+        if (module.Comments == null)
+            return;
+
+        if (module.Comments.Lines != module.Comments.CommentLines.Count)
+        {
+            issues.Add(new ValidationIssue(
+                path + ".Comments.Lines",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Lines is {0} but {1} comment lines are defined (CiA 306-1 §8.3).",
+                    module.Comments.Lines,
+                    module.Comments.CommentLines.Count)));
+        }
+    }
+
+    private static void ValidateModuleFixedObjects(ModuleInfo module, string path, List<ValidationIssue> issues)
+    {
+        if (module.FixedObjects.Count != module.FixedObjectDefinitions.Count)
+        {
+            issues.Add(new ValidationIssue(
+                path + ".FixedObjects",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "FixedObjects count is {0} but {1} fixed object definitions are present (CiA 306-1 §8.3).",
+                    module.FixedObjects.Count,
+                    module.FixedObjectDefinitions.Count)));
+        }
+
+        foreach (var index in module.FixedObjects)
+        {
+            if (!module.FixedObjectDefinitions.ContainsKey(index))
+            {
+                issues.Add(new ValidationIssue(
+                    string.Format(CultureInfo.InvariantCulture, "{0}.FixedObjectDefinitions[0x{1:X4}]", path, index),
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "FixedObjects lists 0x{0:X4} but no [MxFixedxxxx] definition is present (CiA 306-1 §8.3).",
+                        index)));
+            }
+        }
+
+        foreach (var index in module.FixedObjectDefinitions.Keys)
+        {
+            if (!module.FixedObjects.Contains(index))
+            {
+                issues.Add(new ValidationIssue(
+                    path + ".FixedObjects",
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Fixed object 0x{0:X4} is defined but not listed in FixedObjects (CiA 306-1 §8.3).",
+                        index)));
+            }
+        }
+    }
+
+    private static void ValidateModuleSubExtensions(ModuleInfo module, string path, List<ValidationIssue> issues)
+    {
+        if (module.SubExtends.Count != module.SubExtensionDefinitions.Count)
+        {
+            issues.Add(new ValidationIssue(
+                path + ".SubExtends",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "SubExtends count is {0} but {1} sub-extension definitions are present (CiA 306-1 §8.3).",
+                    module.SubExtends.Count,
+                    module.SubExtensionDefinitions.Count)));
+        }
+
+        foreach (var index in module.SubExtends)
+        {
+            if (!module.SubExtensionDefinitions.ContainsKey(index))
+            {
+                issues.Add(new ValidationIssue(
+                    string.Format(CultureInfo.InvariantCulture, "{0}.SubExtensionDefinitions[0x{1:X4}]", path, index),
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "SubExtends lists 0x{0:X4} but no [MxSubExtxxxx] definition is present (CiA 306-1 §8.3).",
+                        index)));
+            }
+        }
+
+        foreach (var entry in module.SubExtensionDefinitions)
+        {
+            if (!module.SubExtends.Contains(entry.Key))
+            {
+                issues.Add(new ValidationIssue(
+                    path + ".SubExtends",
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Sub-extension 0x{0:X4} is defined but not listed in SubExtends (CiA 306-1 §8.3).",
+                        entry.Key)));
+            }
+
+            if (!IsValidModuleSubExtensionCount(entry.Value.Count))
+            {
+                issues.Add(new ValidationIssue(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0}.SubExtensionDefinitions[0x{1:X4}].Count",
+                        path,
+                        entry.Key),
+                    "Count must be an Unsigned8, or 0;<bits> when several modules share one sub-index (CiA 306-1 §8.3)."));
+            }
+        }
+    }
+
+    /// <summary>
+    /// CiA 306-1 §8.3 <c>Count</c> is <c>Unsigned8</c>, or <c>0;&lt;Unsigned8&gt;</c>
+    /// when modules are packed into one sub-index by bit width. The bit width is at least 1.
+    /// </summary>
+    private static bool IsValidModuleSubExtensionCount(string? count)
+    {
+        // Explicit pattern: netstandard2.0 does not narrow string.IsNullOrEmpty.
+        if (count is not { Length: > 0 } text)
+            return false;
+
+        var separator = text.IndexOf(';');
+        if (separator < 0)
+            return TryParseModuleUnsigned8(text, out _);
+
+        if (separator == 0 || separator != text.LastIndexOf(';'))
+            return false;
+
+        var head = text[..separator];
+        var tail = text[(separator + 1)..];
+        return TryParseModuleUnsigned8(head, out var modulesPerSubIndex) &&
+               modulesPerSubIndex == 0 &&
+               TryParseModuleUnsigned8(tail, out var bits) &&
+               bits > 0;
+    }
+
+    private static bool TryParseModuleUnsigned8(string text, out byte value)
+    {
+        try
+        {
+            value = ValueConverter.ParseByte(text);
+            return true;
+        }
+        catch (EdsDcfNet.Exceptions.EdsParseException)
+        {
+            value = 0;
+            return false;
         }
     }
 

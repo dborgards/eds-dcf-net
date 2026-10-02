@@ -37,22 +37,26 @@ public class ModuleInfo
     public List<ushort> FixedObjects { get; } = new();
 
     /// <summary>
-    /// Objects indexed by their index that are created once per device.
+    /// Object bodies for <see cref="FixedObjects"/>, keyed by index.
+    /// Populated from <c>[MxFixedxxxx]</c> and <c>[MxFixedxxxxsubx]</c> (CiA 306-1 §8.3).
     /// </summary>
     public Dictionary<ushort, CanOpenObject> FixedObjectDefinitions { get; } = new();
 
     /// <summary>
     /// Objects that instantiate new sub-indexes per module.
+    /// Populated from <c>[MxSubExtends]</c> (CiA 306-1 §8.3).
     /// </summary>
     public List<ushort> SubExtends { get; } = new();
 
     /// <summary>
-    /// Sub-extension object definitions.
+    /// Sub-extension object definitions, keyed by object index.
+    /// Populated from <c>[MxSubExtxxxx]</c>, including <c>Count</c> and <c>ObjExtend</c>
+    /// (CiA 306-1 §8.3).
     /// </summary>
     public Dictionary<ushort, ModuleSubExtension> SubExtensionDefinitions { get; } = new();
 
     /// <summary>
-    /// Optional module comments.
+    /// Optional module comments from <c>[MxComments]</c> (CiA 306-1 §8.3).
     /// </summary>
     public Comments? Comments { get; set; }
 }

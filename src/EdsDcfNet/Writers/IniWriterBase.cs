@@ -498,7 +498,12 @@ public abstract class IniWriterBase
         }
     }
 
-    /// <summary>Writes a single [M{n}ModuleInfo] section and its [M{n}FixedObjects].</summary>
+    /// <summary>
+    /// Writes one module in CiA 306-1 §8.3 order:
+    /// <c>[MxModuleInfo]</c>, <c>[MxComments]</c>, <c>[MxFixedObjects]</c>,
+    /// <c>[MxFixedxxxx]</c> (with <c>sub</c> sections), <c>[MxSubExtends]</c>,
+    /// <c>[MxSubExtxxxx]</c>.
+    /// </summary>
     protected static void WriteModuleInfo(StringBuilder sb, ModuleInfo module)
     {
         IniRoundTripText.WriteSectionHeader(
@@ -509,6 +514,11 @@ public abstract class IniWriterBase
         WriteKeyValue(sb, "ProductRevision", module.ProductRevision.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "OrderCode", module.OrderCode);
         sb.AppendLine();
+
+        if (module.Comments != null)
+        {
+            WriteModuleComments(sb, module);
+        }
 
         if (module.FixedObjects.Count > 0)
         {
@@ -524,6 +534,286 @@ public abstract class IniWriterBase
 
             sb.AppendLine();
         }
+
+        var writtenFixed = new HashSet<ushort>();
+        foreach (var index in module.FixedObjects)
+        {
+            if (!writtenFixed.Add(index))
+                continue;
+
+            if (module.FixedObjectDefinitions.TryGetValue(index, out var listed))
+            {
+                WriteModuleFixedObject(sb, module.ModuleNumber, index, listed);
+            }
+        }
+
+        foreach (var index in module.FixedObjectDefinitions.Keys.OrderBy(key => key))
+        {
+            if (writtenFixed.Contains(index))
+                continue;
+
+            WriteModuleFixedObject(sb, module.ModuleNumber, index, module.FixedObjectDefinitions[index]);
+        }
+
+        if (module.SubExtends.Count > 0)
+        {
+            IniRoundTripText.WriteSectionHeader(
+                sb,
+                string.Format(CultureInfo.InvariantCulture, "M{0}SubExtends", module.ModuleNumber));
+            WriteKeyValue(sb, "NrOfEntries", module.SubExtends.Count.ToString(CultureInfo.InvariantCulture));
+
+            for (var i = 0; i < module.SubExtends.Count; i++)
+            {
+                WriteKeyValue(
+                    sb,
+                    (i + 1).ToString(CultureInfo.InvariantCulture),
+                    ValueConverter.FormatInteger(module.SubExtends[i]));
+            }
+
+            sb.AppendLine();
+        }
+
+        var writtenExtensions = new HashSet<ushort>();
+        foreach (var index in module.SubExtends)
+        {
+            if (!writtenExtensions.Add(index))
+                continue;
+
+            if (module.SubExtensionDefinitions.TryGetValue(index, out var listed))
+            {
+                WriteModuleSubExtension(sb, module.ModuleNumber, index, listed);
+            }
+        }
+
+        foreach (var index in module.SubExtensionDefinitions.Keys.OrderBy(key => key))
+        {
+            if (writtenExtensions.Contains(index))
+                continue;
+
+            WriteModuleSubExtension(sb, module.ModuleNumber, index, module.SubExtensionDefinitions[index]);
+        }
+    }
+
+    /// <summary>Writes <c>[MxComments]</c> (CiA 306-1 §8.3).</summary>
+    private static void WriteModuleComments(StringBuilder sb, ModuleInfo module)
+    {
+        var comments = module.Comments!;
+        IniRoundTripText.WriteSectionHeader(
+            sb,
+            string.Format(CultureInfo.InvariantCulture, "M{0}Comments", module.ModuleNumber));
+        WriteKeyValue(sb, "Lines", comments.Lines.ToString(CultureInfo.InvariantCulture));
+
+        foreach (var line in comments.CommentLines.OrderBy(entry => entry.Key))
+        {
+            WriteKeyValue(sb, string.Format(CultureInfo.InvariantCulture, "Line{0}", line.Key), line.Value);
+        }
+
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Writes <c>[MxFixedxxxx]</c> and its <c>[MxFixedxxxxsubx]</c> sections.
+    /// Field order matches <see cref="WriteObject"/> so a module object body is
+    /// the same canonical INI as a dictionary object, with the module prefix.
+    /// </summary>
+    private static void WriteModuleFixedObject(StringBuilder sb, int moduleNumber, ushort index, CanOpenObject obj)
+    {
+        IniRoundTripText.WriteSectionHeader(
+            sb,
+            string.Format(CultureInfo.InvariantCulture, "M{0}Fixed{1:X}", moduleNumber, index));
+
+        var subNumberToWrite = obj.SubNumber.GetValueOrDefault();
+        if (subNumberToWrite == 0 && obj.SubObjects.Count > 0)
+        {
+            byte maxSubIndex = 0;
+            foreach (var key in obj.SubObjects.Keys)
+            {
+                if (key > maxSubIndex)
+                    maxSubIndex = key;
+            }
+
+            subNumberToWrite = maxSubIndex;
+        }
+
+        if (subNumberToWrite > 0 || obj.SubObjects.Count > 0)
+        {
+            WriteKeyValue(sb, "SubNumber", subNumberToWrite.ToString(CultureInfo.InvariantCulture));
+        }
+
+        WriteKeyValue(sb, "ParameterName", obj.ParameterName);
+        WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(obj.ObjectType));
+
+        if (obj.DataType.HasValue)
+        {
+            WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(obj.DataType.Value));
+        }
+
+        WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(obj.AccessType));
+
+        if (!string.IsNullOrEmpty(obj.DefaultValue))
+        {
+            WriteKeyValue(sb, "DefaultValue", obj.DefaultValue);
+        }
+
+        if (!string.IsNullOrEmpty(obj.LowLimit))
+        {
+            WriteKeyValue(sb, "LowLimit", obj.LowLimit);
+        }
+
+        if (!string.IsNullOrEmpty(obj.HighLimit))
+        {
+            WriteKeyValue(sb, "HighLimit", obj.HighLimit);
+        }
+
+        WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(obj.PdoMapping));
+
+        if (obj.SrdoMapping)
+        {
+            WriteKeyValue(sb, "SRDOMapping", ValueConverter.FormatBoolean(obj.SrdoMapping));
+        }
+
+        if (!string.IsNullOrEmpty(obj.InvertedSrad))
+        {
+            WriteKeyValue(sb, "InvertedSRAD", obj.InvertedSrad);
+        }
+
+        if (obj.ObjFlags > 0)
+        {
+            WriteKeyValue(sb, "ObjFlags", ValueConverter.FormatInteger(obj.ObjFlags));
+        }
+
+        if (obj.CompactSubObj.HasValue && obj.CompactSubObj.Value > 0)
+        {
+            WriteKeyValue(sb, "CompactSubObj", obj.CompactSubObj.Value.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (!string.IsNullOrEmpty(obj.ParameterValue))
+        {
+            WriteKeyValue(sb, "ParameterValue", obj.ParameterValue);
+        }
+
+        if (!string.IsNullOrEmpty(obj.Denotation))
+        {
+            WriteKeyValue(sb, "Denotation", obj.Denotation);
+        }
+
+        if (!string.IsNullOrEmpty(obj.ParamRefd))
+        {
+            WriteKeyValue(sb, "ParamRefd", obj.ParamRefd);
+        }
+
+        if (!string.IsNullOrEmpty(obj.UploadFile))
+        {
+            WriteKeyValue(sb, "UploadFile", obj.UploadFile);
+        }
+
+        if (!string.IsNullOrEmpty(obj.DownloadFile))
+        {
+            WriteKeyValue(sb, "DownloadFile", obj.DownloadFile);
+        }
+
+        WriteRemainingEntries(sb, obj.RemainingEntries, SectionEntryKeys.IsDcfObjectKey);
+        sb.AppendLine();
+
+        foreach (var subEntry in obj.SubObjects.OrderBy(entry => entry.Key))
+        {
+            WriteModuleFixedSubObject(sb, moduleNumber, index, subEntry.Value);
+        }
+    }
+
+    private static void WriteModuleFixedSubObject(
+        StringBuilder sb,
+        int moduleNumber,
+        ushort index,
+        CanOpenSubObject subObj)
+    {
+        IniRoundTripText.WriteSectionHeader(
+            sb,
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "M{0}Fixed{1:X}sub{2:X}",
+                moduleNumber,
+                index,
+                subObj.SubIndex));
+        WriteKeyValue(sb, "ParameterName", subObj.ParameterName);
+        WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(subObj.ObjectType));
+        WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(subObj.DataType));
+        WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(subObj.AccessType));
+
+        if (!string.IsNullOrEmpty(subObj.DefaultValue))
+        {
+            WriteKeyValue(sb, "DefaultValue", subObj.DefaultValue);
+        }
+
+        if (!string.IsNullOrEmpty(subObj.LowLimit))
+        {
+            WriteKeyValue(sb, "LowLimit", subObj.LowLimit);
+        }
+
+        if (!string.IsNullOrEmpty(subObj.HighLimit))
+        {
+            WriteKeyValue(sb, "HighLimit", subObj.HighLimit);
+        }
+
+        WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(subObj.PdoMapping));
+
+        if (subObj.SrdoMapping)
+        {
+            WriteKeyValue(sb, "SRDOMapping", ValueConverter.FormatBoolean(subObj.SrdoMapping));
+        }
+
+        if (!string.IsNullOrEmpty(subObj.InvertedSrad))
+        {
+            WriteKeyValue(sb, "InvertedSRAD", subObj.InvertedSrad);
+        }
+
+        if (!string.IsNullOrEmpty(subObj.ParameterValue))
+        {
+            WriteKeyValue(sb, "ParameterValue", subObj.ParameterValue);
+        }
+
+        if (!string.IsNullOrEmpty(subObj.Denotation))
+        {
+            WriteKeyValue(sb, "Denotation", subObj.Denotation);
+        }
+
+        if (!string.IsNullOrEmpty(subObj.ParamRefd))
+        {
+            WriteKeyValue(sb, "ParamRefd", subObj.ParamRefd);
+        }
+
+        WriteRemainingEntries(sb, subObj.RemainingEntries, SectionEntryKeys.IsDcfSubObjectKey);
+        sb.AppendLine();
+    }
+
+    /// <summary>Writes <c>[MxSubExtxxxx]</c> (CiA 306-1 §8.3), including <c>Count</c> and <c>ObjExtend</c>.</summary>
+    private static void WriteModuleSubExtension(
+        StringBuilder sb,
+        int moduleNumber,
+        ushort index,
+        ModuleSubExtension extension)
+    {
+        IniRoundTripText.WriteSectionHeader(
+            sb,
+            string.Format(CultureInfo.InvariantCulture, "M{0}SubExt{1:X}", moduleNumber, index));
+        WriteKeyValue(sb, "ParameterName", extension.ParameterName);
+        WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(extension.DataType));
+        WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(extension.AccessType));
+
+        if (!string.IsNullOrEmpty(extension.DefaultValue))
+        {
+            WriteKeyValue(sb, "DefaultValue", extension.DefaultValue);
+        }
+
+        WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(extension.PdoMapping));
+        WriteKeyValue(sb, "Count", extension.Count);
+
+        if (extension.ObjExtend.HasValue)
+        {
+            WriteKeyValue(sb, "ObjExtend", extension.ObjExtend.Value.ToString(CultureInfo.InvariantCulture));
+        }
+
+        sb.AppendLine();
     }
 
     /// <summary>Writes the [Comments] section.</summary>
