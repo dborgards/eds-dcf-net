@@ -42,9 +42,28 @@ concurrency:
   # production release on its way to doing nothing. Non-channel refs therefore
   # get a group of their own.
   #
+  # A release-commit push (chore(release): by semantic-release-bot) must not
+  # carry [skip ci]: that directive would also skip every develop→main
+  # pull_request workflow. The push therefore still starts this workflow, and
+  # the job `if:` below skips the release work. Concurrency is chosen when the
+  # run is queued, before that `if` runs. One pending run per group means the
+  # no-op would cancel a queued main or develop release, and nothing retries a
+  # commit already on the branch. Those pushes get semantic-release-noop-<sha>
+  # so they cannot evict, or be evicted by, a real release.
+  #
   # Queue rather than cancel: cancelling a run mid-publish is precisely how the
   # partial releases this pipeline repairs come about.
-  group: semantic-release-${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && 'channels' || github.ref }}
+  group: >-
+    ${{
+      (github.event_name == 'push' &&
+        github.event.head_commit &&
+        startsWith(github.event.head_commit.message, 'chore(release):') &&
+        github.event.head_commit.committer.name == 'semantic-release-bot') &&
+      format('semantic-release-noop-{0}', github.sha) ||
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
+      'semantic-release-channels' ||
+      format('semantic-release-{0}', github.ref)
+    }}
   cancel-in-progress: false
 
 jobs:
@@ -55,9 +74,11 @@ jobs:
     # The release commit is pushed with RELEASE_TOKEN, which starts workflows.
     # [skip ci] used to suppress this re-entry and, with it, every pull_request
     # workflow headed by that commit (develop→main gates included). Skip only
-    # the release-commit push. workflow_dispatch still runs. github.actor is the
-    # token owner, not semantic-release-bot — that name is the git committer —
-    # so this matches the message and committer, as relay-release-status does.
+    # the release-commit push. That skip does not keep the run out of the
+    # concurrency group — see the noop group above. workflow_dispatch still
+    # runs. github.actor is the token owner, not semantic-release-bot — that
+    # name is the git committer — so this matches the message and committer,
+    # as relay-release-status does.
     if: >-
       !(github.event_name == 'push' &&
         github.event.head_commit &&

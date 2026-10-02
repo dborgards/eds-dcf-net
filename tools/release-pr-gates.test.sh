@@ -215,6 +215,92 @@ for event, has_head, message, committer, want_build, want_api, want_release in c
     if got != want:
         fail(f"truth table {label}: expected build/apicompat/release={want}, got {got}")
 
+# --- concurrency: a skipped release push must not join the release queue ----
+#
+# The job `if:` runs after the workflow is queued. One pending run per
+# concurrency group means that queue entry would cancel a pending main or
+# develop release. Release-commit pushes therefore use their own group.
+# cancel-in-progress stays false so an in-progress publish is not aborted.
+
+sr_workflow = (root / ".github/workflows/semantic-release.yml").read_text()
+if "cancel-in-progress: false" not in sr_workflow:
+    fail("semantic-release.yml must keep cancel-in-progress: false")
+if "cancel-in-progress: true" in sr_workflow:
+    fail("semantic-release.yml sets cancel-in-progress: true")
+
+def extract_concurrency_group(text):
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if line != "concurrency:":
+            continue
+        for j in range(i + 1, len(lines)):
+            group = re.match(r"^  group:\s*(.*)$", lines[j])
+            if not group:
+                stripped = lines[j].strip()
+                if stripped == "" or stripped.startswith("#"):
+                    continue
+                return None
+            rest = group.group(1).strip()
+            if rest in (">-", ">", "|-", "|"):
+                block = []
+                k = j + 1
+                while k < len(lines) and (lines[k].startswith("    ") or lines[k].strip() == ""):
+                    stripped = lines[k].strip()
+                    if stripped:
+                        block.append(stripped)
+                    k += 1
+                value = " ".join(block) if rest.startswith(">") else "\n".join(block).strip()
+            else:
+                value = rest
+            value = value.replace("${{", "").replace("}}", "").strip()
+            return re.sub(r"\s+", " ", value)
+    return None
+
+expected_group = (
+    "(github.event_name == 'push' && "
+    "github.event.head_commit && "
+    "startsWith(github.event.head_commit.message, 'chore(release):') && "
+    "github.event.head_commit.committer.name == 'semantic-release-bot') && "
+    "format('semantic-release-noop-{0}', github.sha) || "
+    "(github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && "
+    "'semantic-release-channels' || "
+    "format('semantic-release-{0}', github.ref)"
+)
+got_group = extract_concurrency_group(sr_workflow)
+if got_group != expected_group:
+    fail(
+        "semantic-release concurrency group drifted.\n"
+        f"  expected: {expected_group}\n  actual:   {got_group}"
+    )
+
+def concurrency_group(event, ref, sha, has_head, message, committer):
+    if is_release_push(event, has_head, message, committer):
+        return f"semantic-release-noop-{sha}"
+    if ref in ("refs/heads/main", "refs/heads/develop"):
+        return "semantic-release-channels"
+    return f"semantic-release-{ref}"
+
+release_sha = "aaa111"
+other_sha = "bbb222"
+group_cases = [
+    ("push", "refs/heads/develop", release_sha, True, "chore(release): 1.2.3" + notes, "semantic-release-bot", f"semantic-release-noop-{release_sha}"),
+    ("push", "refs/heads/main", release_sha, True, "chore(release): 1.2.3" + notes, "semantic-release-bot", f"semantic-release-noop-{release_sha}"),
+    ("push", "refs/heads/develop", other_sha, True, "Merge pull request #1 from org/develop", "GitHub", "semantic-release-channels"),
+    ("push", "refs/heads/main", other_sha, True, "feat: add a reader", "Jane Doe", "semantic-release-channels"),
+    ("push", "refs/heads/develop", other_sha, True, "chore(release): manual note", "Jane Doe", "semantic-release-channels"),
+    ("push", "refs/heads/feature", other_sha, True, "feat: add a reader", "Jane Doe", "semantic-release-refs/heads/feature"),
+    ("workflow_dispatch", "refs/heads/develop", release_sha, True, "chore(release): 1.2.3" + notes, "semantic-release-bot", "semantic-release-channels"),
+    ("workflow_dispatch", "refs/heads/topic", release_sha, False, "", "", "semantic-release-refs/heads/topic"),
+]
+channels = "semantic-release-channels"
+for event, ref, sha, has_head, message, committer, want in group_cases:
+    got = concurrency_group(event, ref, sha, has_head, message, committer)
+    label = f"{event} {ref} committer={committer!r}"
+    if got != want:
+        fail(f"concurrency {label}: expected {want}, got {got}")
+    if is_release_push(event, has_head, message, committer) and got == channels:
+        fail(f"concurrency {label}: release-commit push joined {channels}")
+
 contributing = (root / "CONTRIBUTING.md").read_text()
 for snippet in (
     "must not contain a skip directive",
