@@ -83,6 +83,40 @@ public class CanOpenObject
     public string? HighLimit { get; set; }
 
     /// <summary>
+    /// CiA 311 <c>uniqueIDRef</c> of the application-process <c>parameter</c> this object
+    /// refers to, or <see langword="null"/> when the object does not carry the attribute.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// CiA 311 v1.1.0 § 6.5.2.3.2.1 Table 48 (schema
+    /// <c>CANopenObject</c> attribute order; Table 49 is the same for
+    /// <c>CANopenSubObject</c>, with <c>subIndex</c> in place of <c>index</c>) lists
+    /// <c>dataType</c>, <c>lowLimit</c>, <c>highLimit</c>, <c>accessType</c>, and
+    /// <c>defaultValue</c> before <c>uniqueIDRef</c>. The schema annotation says that when
+    /// <c>uniqueIDRef</c> is present those five attributes shall be defined by the referenced
+    /// application-process element.
+    /// </para>
+    /// <para>
+    /// An explicit attribute on the object wins: the reader keeps it and does not overwrite
+    /// it from the reference. Attributes that are absent are filled from the referenced
+    /// <c>parameter</c> (a direct simple type or <c>dataTypeIDRef</c>, <c>access</c>,
+    /// <c>defaultValue</c>, one unambiguous <c>allowedValues</c> range, and <c>label</c> for
+    /// <see cref="ParameterName"/> only when <c>name</c> is missing). <c>noAccess</c> is not
+    /// copied onto <see cref="AccessType"/>. <c>variableRef</c> and <c>templateIDRef</c> are
+    /// not followed.
+    /// </para>
+    /// <para>
+    /// The XDD/XDC writer emits <c>uniqueIDRef</c> again only while a parameter with this id
+    /// still exists on <see cref="ElectronicDataSheet.ApplicationProcess"/>. While the
+    /// reference is emitted, <c>dataType</c>, <c>lowLimit</c>, <c>highLimit</c>,
+    /// <c>accessType</c>, and <c>defaultValue</c> are omitted when they still match that
+    /// parameter, so the next read derives them again. A value changed after reading is
+    /// written as an explicit attribute and wins on the next read.
+    /// </para>
+    /// </remarks>
+    public string? UniqueIdRef { get; set; }
+
+    /// <summary>
     /// CiA 311 PDO mapping mode. Prefer this for XDD/XDC round-trips.
     /// </summary>
     public PdoMappingMode PdoMappingMode { get; set; }
@@ -236,6 +270,19 @@ public class CanOpenSubObject
     /// High limit.
     /// </summary>
     public string? HighLimit { get; set; }
+
+    /// <summary>
+    /// CiA 311 <c>uniqueIDRef</c> of the application-process <c>parameter</c> this
+    /// sub-object refers to, or <see langword="null"/> when the attribute is absent.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Resolution and write-back follow <see cref="CanOpenObject.UniqueIdRef"/>
+    /// (CiA 311 v1.1.0 § 6.5.2.3.2.1 Table 49). An explicit attribute on the sub-object
+    /// wins over the referenced parameter.
+    /// </para>
+    /// </remarks>
+    public string? UniqueIdRef { get; set; }
 
     /// <summary>
     /// CiA 311 PDO mapping mode. Prefer this for XDD/XDC round-trips.

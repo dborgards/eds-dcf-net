@@ -7,6 +7,7 @@ using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 using EdsDcfNet.Utilities;
 
 /// <summary>
@@ -215,17 +216,22 @@ public class XddWriter
 
     private XDocument BuildDocumentCore(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
-        XNamespace xsi = "http://www.w3.org/2001/XMLSchema-instance";
+        // The resolver is ambient so protected virtual object builders keep their
+        // signatures and can still see whether uniqueIDRef's parameter exists.
+        using (XddUniqueIdResolver.EnterWriteScope(eds.ApplicationProcess))
+        {
+            XNamespace xsi = "http://www.w3.org/2001/XMLSchema-instance";
 
-        var container = new XElement("ISO15745ProfileContainer",
-            new XAttribute(XNamespace.Xmlns + "xsi", xsi));
+            var container = new XElement("ISO15745ProfileContainer",
+                new XAttribute(XNamespace.Xmlns + "xsi", xsi));
 
-        container.Add(WriteContext("DeviceProfile", () => BuildDeviceProfile(eds, xsi)));
-        container.Add(WriteContext("CommunicationNetworkProfile", () => BuildCommNetProfile(eds, xsi, commissioning)));
+            container.Add(WriteContext("DeviceProfile", () => BuildDeviceProfile(eds, xsi)));
+            container.Add(WriteContext("CommunicationNetworkProfile", () => BuildCommNetProfile(eds, xsi, commissioning)));
 
-        return new XDocument(
-            new XDeclaration("1.0", null, null),
-            container);
+            return new XDocument(
+                new XDeclaration("1.0", null, null),
+                container);
+        }
     }
 
     private static XElement BuildDeviceProfile(ElectronicDataSheet eds, XNamespace xsi)
@@ -305,27 +311,27 @@ public class XddWriter
     protected virtual XElement BuildCanOpenObject(CanOpenObject obj)
     {
         var elem = new XElement("CANopenObject");
+        var projection = XddUniqueIdResolver.CurrentWriteProjection(obj.UniqueIdRef);
 
         elem.Add(new XAttribute("index", FormatIndex(obj.Index)));
         elem.Add(new XAttribute("name", obj.ParameterName));
         elem.Add(new XAttribute("objectType",
             obj.ObjectType.ToString(CultureInfo.InvariantCulture)));
 
-        if (obj.DataType.HasValue)
+        if (obj.DataType.HasValue && !ReferenceSuppliesDataType(projection, obj.DataType))
             elem.Add(new XAttribute("dataType", FormatDataType(obj.DataType.Value)));
 
-        // Only write accessType for objects with a data type (VAR-like)
-        if (obj.DataType.HasValue)
+        // Only write accessType for objects with a data type (VAR-like), unless a
+        // uniqueIDRef is emitted and the access no longer matches the parameter.
+        // A matching reference omits accessType so readWriteInput/readWriteOutput
+        // are not collapsed to "rw".
+        if (!ReferenceSuppliesAccess(projection, obj.AccessType)
+            && (obj.DataType.HasValue || projection != null))
             elem.Add(new XAttribute("accessType", XddAccessTypeToString(obj.AccessType)));
 
-        if (!string.IsNullOrEmpty(obj.DefaultValue))
-            elem.Add(new XAttribute("defaultValue", obj.DefaultValue));
-
-        if (!string.IsNullOrEmpty(obj.LowLimit))
-            elem.Add(new XAttribute("lowLimit", obj.LowLimit));
-
-        if (!string.IsNullOrEmpty(obj.HighLimit))
-            elem.Add(new XAttribute("highLimit", obj.HighLimit));
+        AddStringUnlessSupplied(elem, "defaultValue", obj.DefaultValue, projection, projection?.HasDefault == true, projection?.DefaultValue);
+        AddStringUnlessSupplied(elem, "lowLimit", obj.LowLimit, projection, projection?.HasUnambiguousRange == true, projection?.LowLimit);
+        AddStringUnlessSupplied(elem, "highLimit", obj.HighLimit, projection, projection?.HasUnambiguousRange == true, projection?.HighLimit);
 
         if (obj.DataType.HasValue)
             elem.Add(new XAttribute("PDOmapping", ToXddPdoMappingAttribute(obj.PdoMappingMode)));
@@ -333,6 +339,8 @@ public class XddWriter
         if (obj.ObjFlags > 0)
             elem.Add(new XAttribute("objFlags",
                 obj.ObjFlags.ToString(CultureInfo.InvariantCulture)));
+
+        AddUniqueIdRefAttribute(elem, obj.UniqueIdRef, projection);
 
         if (obj.SubNumber.HasValue)
             elem.Add(new XAttribute("subNumber",
@@ -365,25 +373,25 @@ public class XddWriter
     protected virtual XElement BuildCanOpenSubObject(CanOpenSubObject subObject)
     {
         var elem = new XElement("CANopenSubObject");
+        var projection = XddUniqueIdResolver.CurrentWriteProjection(subObject.UniqueIdRef);
+        var subDataType = subObject.DataType == 0 ? (ushort?)null : subObject.DataType;
 
         elem.Add(new XAttribute("subIndex",
             subObject.SubIndex.ToString("X2", CultureInfo.InvariantCulture)));
         elem.Add(new XAttribute("name", subObject.ParameterName));
         elem.Add(new XAttribute("objectType",
             subObject.ObjectType.ToString(CultureInfo.InvariantCulture)));
-        elem.Add(new XAttribute("dataType", FormatDataType(subObject.DataType)));
-        elem.Add(new XAttribute("accessType", XddAccessTypeToString(subObject.AccessType)));
+        if (projection == null || !SameResolvedDataType(subDataType, projection.DataType))
+            elem.Add(new XAttribute("dataType", FormatDataType(subObject.DataType)));
+        if (!ReferenceSuppliesAccess(projection, subObject.AccessType))
+            elem.Add(new XAttribute("accessType", XddAccessTypeToString(subObject.AccessType)));
 
-        if (!string.IsNullOrEmpty(subObject.DefaultValue))
-            elem.Add(new XAttribute("defaultValue", subObject.DefaultValue));
-
-        if (!string.IsNullOrEmpty(subObject.LowLimit))
-            elem.Add(new XAttribute("lowLimit", subObject.LowLimit));
-
-        if (!string.IsNullOrEmpty(subObject.HighLimit))
-            elem.Add(new XAttribute("highLimit", subObject.HighLimit));
+        AddStringUnlessSupplied(elem, "defaultValue", subObject.DefaultValue, projection, projection?.HasDefault == true, projection?.DefaultValue);
+        AddStringUnlessSupplied(elem, "lowLimit", subObject.LowLimit, projection, projection?.HasUnambiguousRange == true, projection?.LowLimit);
+        AddStringUnlessSupplied(elem, "highLimit", subObject.HighLimit, projection, projection?.HasUnambiguousRange == true, projection?.HighLimit);
 
         elem.Add(new XAttribute("PDOmapping", ToXddPdoMappingAttribute(subObject.PdoMappingMode)));
+        AddUniqueIdRefAttribute(elem, subObject.UniqueIdRef, projection);
 
         AddCanOpenSubObjectXdcAttributes(elem, subObject);
 
@@ -411,6 +419,58 @@ public class XddWriter
         networkMgmt.Add(XddProfileBuilder.BuildGeneralFeatures(eds.DeviceInfo));
         networkMgmt.Add(XddProfileBuilder.BuildMasterFeatures(eds.DeviceInfo));
         return networkMgmt;
+    }
+
+    /// <summary>
+    /// Writes <paramref name="modelValue"/> unless the emitted <c>uniqueIDRef</c> still
+    /// supplies the same text. <paramref name="projection"/> is null when the reference
+    /// is not emitted, and then the value is written as before.
+    /// </summary>
+    private static void AddStringUnlessSupplied(
+        XElement elem,
+        string attributeName,
+        string? modelValue,
+        ParameterProjection? projection,
+        bool supplied,
+        string? projectedValue)
+    {
+        if (string.IsNullOrEmpty(modelValue))
+            return;
+
+        if (projection != null
+            && supplied
+            && string.Equals(projectedValue ?? string.Empty, modelValue, StringComparison.Ordinal))
+            return;
+
+        elem.Add(new XAttribute(attributeName, modelValue));
+    }
+
+    private static bool ReferenceSuppliesDataType(ParameterProjection? projection, ushort? model) =>
+        projection != null && SameResolvedDataType(model, projection.DataType);
+
+    private static bool ReferenceSuppliesAccess(ParameterProjection? projection, AccessType access) =>
+        projection != null
+        && projection.AccessKind == AccessProjectionKind.Mapped
+        && projection.MappedAccess == access;
+
+    /// <summary>
+    /// Treats <c>0</c> and <see langword="null"/> as "no CANopen data type" so a sub-object
+    /// whose reference has no scalar type is not rewritten as <c>0000</c> while the
+    /// reference is still emitted.
+    /// </summary>
+    private static bool SameResolvedDataType(ushort? model, ushort? projected)
+    {
+        var normalizedModel = model is null or 0 ? null : model;
+        var normalizedProjected = projected is null or 0 ? null : projected;
+        return normalizedModel == normalizedProjected;
+    }
+
+    private static void AddUniqueIdRefAttribute(XElement elem, string? uniqueIdRef, ParameterProjection? projection)
+    {
+        if (projection == null || string.IsNullOrEmpty(uniqueIdRef))
+            return;
+
+        elem.Add(new XAttribute("uniqueIDRef", uniqueIdRef));
     }
 
     // ── Protected format helpers (part of the extensibility API for subclasses) ──
