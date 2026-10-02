@@ -125,6 +125,81 @@ public class IniWriteRulesTests
     }
 
     [Fact]
+    public void WriteToString_ModuleFixedParameterNameNewline_UnvalidatedWriteThrowsEdsWriteException()
+    {
+        var eds = EdsWithModuleFixedParameterName("name\n");
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds);
+
+        act.Should().Throw<EdsWriteException>();
+    }
+
+    [Fact]
+    public void WriteToString_ValidatedModuleSectionText_ReportsEachIniPath()
+    {
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        var module = new ModuleInfo { ModuleNumber = 1, ProductName = "Module", OrderCode = "OC" };
+        module.Comments = new Comments { Lines = 1 };
+        module.Comments.CommentLines[1] = "line\n";
+
+        var fixedObject = new CanOpenObject
+        {
+            Index = 0x6423,
+            ParameterName = "name\n",
+            DefaultValue = "def\n",
+            LowLimit = "0\n",
+            ParameterValue = "pv\n",
+            UploadFile = "up\n"
+        };
+        fixedObject.RemainingEntries["Vendor\nKey"] = "kept";
+        fixedObject.RemainingEntries["VendorNote"] = "note\n";
+        var sub = new CanOpenSubObject
+        {
+            SubIndex = 0x01,
+            ParameterName = "sub\n",
+            Denotation = "den\n",
+            ParamRefd = "ref\n"
+        };
+        sub.RemainingEntries["SubNote"] = "sub\n";
+        fixedObject.SubObjects[0x01] = sub;
+        module.FixedObjects.Add(0x6423);
+        module.FixedObjectDefinitions[0x6423] = fixedObject;
+
+        module.SubExtends.Add(0x6000);
+        module.SubExtensionDefinitions[0x6000] = new ModuleSubExtension
+        {
+            Index = 0x6000,
+            ParameterName = "ext\n",
+            DefaultValue = "d\n",
+            Count = "4\n"
+        };
+        eds.SupportedModules.Add(module);
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        var issues = act.Should().Throw<ModelValidationException>().Which.Issues;
+        issues.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].Comments.CommentLines[1]" &&
+            issue.Code == ValidationIssueCodes.IniTextNotRoundTrippable);
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].FixedObjectDefinitions[0x6423].ParameterName");
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].FixedObjectDefinitions[0x6423].DefaultValue");
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].FixedObjectDefinitions[0x6423].LowLimit");
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].FixedObjectDefinitions[0x6423].ParameterValue");
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].FixedObjectDefinitions[0x6423].UploadFile");
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].FixedObjectDefinitions[0x6423].RemainingEntries[Vendor\nKey]");
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].FixedObjectDefinitions[0x6423].RemainingEntries[VendorNote]");
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].FixedObjectDefinitions[0x6423].SubObjects[0x01].ParameterName");
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].FixedObjectDefinitions[0x6423].SubObjects[0x01].Denotation");
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].FixedObjectDefinitions[0x6423].SubObjects[0x01].ParamRefd");
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].FixedObjectDefinitions[0x6423].SubObjects[0x01].RemainingEntries[SubNote]");
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].ParameterName");
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].DefaultValue");
+        issues.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].Count" &&
+            issue.Code == ValidationIssueCodes.IniTextNotRoundTrippable);
+    }
+
+    [Fact]
     public void WriteToString_ValidatedDcfSubObjectFields_ReportsIniPaths()
     {
         var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
@@ -196,6 +271,20 @@ public class IniWriteRulesTests
         emptyKey.Should().Contain("empty");
         IniWriteRules.TryReject(string.Empty, IniWriteRules.IniTextSlot.SectionName, out _).Should().BeFalse();
         IniWriteRules.TryReject(string.Empty, IniWriteRules.IniTextSlot.Value, out _).Should().BeFalse();
+    }
+
+    private static ElectronicDataSheet EdsWithModuleFixedParameterName(string parameterName)
+    {
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        var module = new ModuleInfo { ModuleNumber = 1, ProductName = "Module", OrderCode = "OC" };
+        module.FixedObjects.Add(0x6423);
+        module.FixedObjectDefinitions[0x6423] = new CanOpenObject
+        {
+            Index = 0x6423,
+            ParameterName = parameterName
+        };
+        eds.SupportedModules.Add(module);
+        return eds;
     }
 
     private static ElectronicDataSheet EdsWithStaleObjectLinks()

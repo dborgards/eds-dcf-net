@@ -2,6 +2,7 @@ namespace EdsDcfNet.Parsers;
 
 using System.Globalization;
 
+using EdsDcfNet.Diagnostics;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
@@ -129,14 +130,503 @@ internal static class CanOpenSectionParsers
             OrderCode = IniParser.GetValue(sections, sectionName, "OrderCode")
         };
 
-        // Parse fixed objects
+        // Parse fixed objects (index list, then [MxFixedxxxx] / [MxFixedxxxxsubx] bodies).
         var fixedObjSection = string.Format(CultureInfo.InvariantCulture, "M{0}FixedObjects", moduleNumber);
         if (IniParser.HasSection(sections, fixedObjSection))
         {
             LenientIniNumber.AppendIndexes(sections, fixedObjSection, "NrOfEntries", moduleInfo.FixedObjects);
         }
 
+        ParseModuleComments(sections, moduleNumber, moduleInfo);
+        ParseModuleFixedObjectDefinitions(sections, moduleNumber, moduleInfo);
+        ParseModuleSubExtends(sections, moduleNumber, moduleInfo);
+        ParseModuleSubExtensionDefinitions(sections, moduleNumber, moduleInfo);
+
         return moduleInfo;
+    }
+
+    /// <summary>
+    /// Parses optional <c>[MxComments]</c> (CiA 306-1 §8.3): <c>Lines</c> and <c>Line&lt;n&gt;</c>.
+    /// A present key with an empty value is a blank line and is stored. A missing key is not.
+    /// </summary>
+    private static void ParseModuleComments(
+        Dictionary<string, Dictionary<string, string>> sections,
+        int moduleNumber,
+        ModuleInfo moduleInfo)
+    {
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}Comments", moduleNumber);
+        if (!sections.TryGetValue(sectionName, out var section))
+            return;
+
+        var comments = new Comments
+        {
+            Lines = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "Lines", "0"))
+        };
+
+        for (var i = 1; i <= comments.Lines; i++)
+        {
+            var key = string.Format(CultureInfo.InvariantCulture, "Line{0}", i);
+            if (section.TryGetValue(key, out var line))
+                comments.CommentLines[i] = line;
+        }
+
+        moduleInfo.Comments = comments;
+    }
+
+    /// <summary>
+    /// Parses <c>[MxSubExtends]</c> (CiA 306-1 §8.3): <c>NrOfEntries</c> and the numbered index list.
+    /// </summary>
+    private static void ParseModuleSubExtends(
+        Dictionary<string, Dictionary<string, string>> sections,
+        int moduleNumber,
+        ModuleInfo moduleInfo)
+    {
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}SubExtends", moduleNumber);
+        if (!IniParser.HasSection(sections, sectionName))
+            return;
+
+        LenientIniNumber.AppendIndexes(sections, sectionName, "NrOfEntries", moduleInfo.SubExtends);
+    }
+
+    /// <summary>
+    /// Parses every <c>[MxSubExtxxxx]</c> section for this module into
+    /// <see cref="ModuleInfo.SubExtensionDefinitions"/>, including sections whose
+    /// index is not listed in <c>[MxSubExtends]</c>.
+    /// </summary>
+    private static void ParseModuleSubExtensionDefinitions(
+        Dictionary<string, Dictionary<string, string>> sections,
+        int moduleNumber,
+        ModuleInfo moduleInfo)
+    {
+        foreach (var sectionName in sections.Keys)
+        {
+            if (!TryParseSubExtSection(sectionName, moduleNumber, out var index))
+                continue;
+
+            moduleInfo.SubExtensionDefinitions[index] = ReadSubExtension(sections, sectionName, index);
+        }
+    }
+
+    /// <summary>
+    /// Parses <c>[MxFixedxxxx]</c> bodies and <c>[MxFixedxxxxsubx]</c> sub-objects
+    /// (CiA 306-1 §8.3) into <see cref="ModuleInfo.FixedObjectDefinitions"/>.
+    /// </summary>
+    private static void ParseModuleFixedObjectDefinitions(
+        Dictionary<string, Dictionary<string, string>> sections,
+        int moduleNumber,
+        ModuleInfo moduleInfo)
+    {
+        var objects = new Dictionary<ushort, CanOpenObject>();
+        var subSections = new List<(ushort Index, byte SubIndex, string SectionName)>();
+
+        foreach (var sectionName in sections.Keys)
+        {
+            if (!TryParseFixedObjectSection(sectionName, moduleNumber, out var index, out var subIndex, out var isSubObject))
+                continue;
+
+            if (isSubObject)
+            {
+                subSections.Add((index, subIndex, sectionName));
+                continue;
+            }
+
+            if (!objects.ContainsKey(index))
+            {
+                objects[index] = ReadFixedObject(sections, sectionName, index);
+            }
+        }
+
+        foreach (var subSection in subSections)
+        {
+            if (!objects.TryGetValue(subSection.Index, out var parent))
+            {
+                parent = new CanOpenObject { Index = subSection.Index };
+                objects[subSection.Index] = parent;
+            }
+
+            parent.SubObjects[subSection.SubIndex] = ReadFixedSubObject(
+                sections,
+                subSection.SectionName,
+                subSection.SubIndex);
+        }
+
+        foreach (var entry in objects)
+        {
+            moduleInfo.FixedObjectDefinitions[entry.Key] = entry.Value;
+        }
+    }
+
+    /// <summary>
+    /// True when <paramref name="sectionName"/> was stored on a parsed module as
+    /// <c>[MxFixedxxxx]</c> or <c>[MxFixedxxxxsubx]</c> (CiA 306-1 §8.3).
+    /// A body whose module is not in <paramref name="modules"/> is left for
+    /// <c>AdditionalSections</c>.
+    /// </summary>
+    internal static bool IsConsumedModuleFixedSection(string sectionName, IReadOnlyList<ModuleInfo> modules)
+    {
+        foreach (var module in modules)
+        {
+            if (!TryParseFixedObjectSection(
+                    sectionName,
+                    module.ModuleNumber,
+                    out var index,
+                    out var subIndex,
+                    out var isSubObject))
+            {
+                continue;
+            }
+
+            if (!module.FixedObjectDefinitions.TryGetValue(index, out var obj))
+                return false;
+
+            return !isSubObject || obj.SubObjects.ContainsKey(subIndex);
+        }
+
+        return false;
+    }
+
+    private static ModuleSubExtension ReadSubExtension(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        ushort index)
+    {
+        var extension = new ModuleSubExtension
+        {
+            Index = index,
+            ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
+            DataType = LenientIniNumber.ParseUInt16(
+                sections,
+                sectionName,
+                "DataType",
+                IniParser.GetValue(sections, sectionName, "DataType", "0"),
+                fallback: 0,
+                code: ParseDiagnosticCodes.InvalidDataType,
+                coercedTo: "0",
+                fallbackDescription: LenientIniNumber.TreatAsZero),
+            AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
+            DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
+            LowLimit = EmptyToNull(IniParser.GetValue(sections, sectionName, "LowLimit")),
+            HighLimit = EmptyToNull(IniParser.GetValue(sections, sectionName, "HighLimit")),
+            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
+            Count = IniParser.GetValue(sections, sectionName, "Count")
+        };
+
+        // CiA 306: a missing ObjectType is VAR. Store the entry only when the section has it,
+        // so a later write does not invent ObjectType=0x7.
+        var objectType = IniParser.GetValue(sections, sectionName, "ObjectType");
+        if (!string.IsNullOrEmpty(objectType))
+        {
+            extension.ObjectType = LenientIniNumber.ParseByte(
+                sections,
+                sectionName,
+                "ObjectType",
+                objectType,
+                fallback: CanOpenObjectType.Var,
+                code: ParseDiagnosticCodes.InvalidObjectType,
+                coercedTo: CanOpenObjectType.VarLiteral,
+                fallbackDescription: LenientIniNumber.TreatAsVar);
+        }
+
+        var subNumber = IniParser.GetValue(sections, sectionName, "SubNumber");
+        if (!string.IsNullOrEmpty(subNumber))
+        {
+            extension.SubNumber = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "SubNumber",
+                subNumber,
+                ParseDiagnosticCodes.InvalidSubNumber,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        var objFlags = IniParser.GetValue(sections, sectionName, "ObjFlags");
+        if (!string.IsNullOrEmpty(objFlags))
+        {
+            extension.ObjFlags = LenientIniNumber.ParseUInt32(
+                sections,
+                sectionName,
+                "ObjFlags",
+                objFlags,
+                fallback: 0,
+                code: ParseDiagnosticCodes.InvalidObjFlags,
+                coercedTo: "0",
+                fallbackDescription: LenientIniNumber.TreatAsZero);
+        }
+
+        var compactSubObj = IniParser.GetValue(sections, sectionName, "CompactSubObj");
+        if (!string.IsNullOrEmpty(compactSubObj))
+        {
+            extension.CompactSubObj = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "CompactSubObj",
+                compactSubObj,
+                ParseDiagnosticCodes.InvalidCompactSubObj,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        var objExtend = IniParser.GetValue(sections, sectionName, "ObjExtend");
+        if (!string.IsNullOrEmpty(objExtend))
+        {
+            extension.ObjExtend = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "ObjExtend",
+                objExtend,
+                ParseDiagnosticCodes.InvalidModuleObjExtend,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        return extension;
+    }
+
+    private static string? EmptyToNull(string value) => string.IsNullOrEmpty(value) ? null : value;
+
+    /// <summary>
+    /// CiA 306 treats a missing <c>ObjectType</c> as VAR (<c>0x7</c>). A present empty
+    /// value is that same omission. <see cref="ValueConverter.ParseByte"/> would
+    /// otherwise map <c>ObjectType=</c> to <c>0</c> (NULL).
+    /// </summary>
+    private static string FixedObjectTypeOrVar(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName)
+    {
+        var raw = IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral);
+        return string.IsNullOrWhiteSpace(raw) ? CanOpenObjectType.VarLiteral : raw;
+    }
+
+    private static CanOpenObject ReadFixedObject(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        ushort index)
+    {
+        var obj = new CanOpenObject
+        {
+            Index = index,
+            ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
+            ObjectType = LenientIniNumber.ParseByte(
+                sections,
+                sectionName,
+                "ObjectType",
+                FixedObjectTypeOrVar(sections, sectionName),
+                fallback: CanOpenObjectType.Var,
+                code: ParseDiagnosticCodes.InvalidObjectType,
+                coercedTo: CanOpenObjectType.VarLiteral,
+                fallbackDescription: LenientIniNumber.TreatAsVar),
+            AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
+            DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
+            LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
+            HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
+            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
+            SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
+            InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD"),
+            ObjFlags = LenientIniNumber.ParseUInt32(
+                sections,
+                sectionName,
+                "ObjFlags",
+                IniParser.GetValue(sections, sectionName, "ObjFlags", "0"),
+                fallback: 0,
+                code: ParseDiagnosticCodes.InvalidObjFlags,
+                coercedTo: "0",
+                fallbackDescription: LenientIniNumber.TreatAsZero),
+            ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue"),
+            Denotation = IniParser.GetValue(sections, sectionName, "Denotation"),
+            ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd"),
+            UploadFile = IniParser.GetValue(sections, sectionName, "UploadFile"),
+            DownloadFile = IniParser.GetValue(sections, sectionName, "DownloadFile")
+        };
+
+        var dataType = IniParser.GetValue(sections, sectionName, "DataType");
+        if (!string.IsNullOrEmpty(dataType))
+        {
+            obj.DataType = LenientIniNumber.ParseOptionalUInt16(
+                sections,
+                sectionName,
+                "DataType",
+                dataType,
+                ParseDiagnosticCodes.InvalidDataType,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        var subNumber = IniParser.GetValue(sections, sectionName, "SubNumber");
+        if (!string.IsNullOrEmpty(subNumber))
+        {
+            obj.SubNumber = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "SubNumber",
+                subNumber,
+                ParseDiagnosticCodes.InvalidSubNumber,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        var compactSubObj = IniParser.GetValue(sections, sectionName, "CompactSubObj");
+        if (!string.IsNullOrEmpty(compactSubObj))
+        {
+            obj.CompactSubObj = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "CompactSubObj",
+                compactSubObj,
+                ParseDiagnosticCodes.InvalidCompactSubObj,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        CanOpenReaderBase.CaptureRemainingEntries(
+            sections,
+            sectionName,
+            SectionEntryKeys.IsDcfObjectKey,
+            obj.RemainingEntries);
+
+        return obj;
+    }
+
+    private static CanOpenSubObject ReadFixedSubObject(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        byte subIndex)
+    {
+        var subObj = new CanOpenSubObject
+        {
+            SubIndex = subIndex,
+            ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
+            ObjectType = LenientIniNumber.ParseByte(
+                sections,
+                sectionName,
+                "ObjectType",
+                FixedObjectTypeOrVar(sections, sectionName),
+                fallback: CanOpenObjectType.Var,
+                code: ParseDiagnosticCodes.InvalidObjectType,
+                coercedTo: CanOpenObjectType.VarLiteral,
+                fallbackDescription: LenientIniNumber.TreatAsVar),
+            DataType = LenientIniNumber.ParseUInt16(
+                sections,
+                sectionName,
+                "DataType",
+                IniParser.GetValue(sections, sectionName, "DataType", "0"),
+                fallback: 0,
+                code: ParseDiagnosticCodes.InvalidDataType,
+                coercedTo: "0",
+                fallbackDescription: LenientIniNumber.TreatAsZero),
+            AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
+            DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
+            LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
+            HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
+            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
+            SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
+            InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD"),
+            ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue"),
+            Denotation = IniParser.GetValue(sections, sectionName, "Denotation"),
+            ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd")
+        };
+
+        CanOpenReaderBase.CaptureRemainingEntries(
+            sections,
+            sectionName,
+            SectionEntryKeys.IsDcfSubObjectKey,
+            subObj.RemainingEntries);
+
+        return subObj;
+    }
+
+    private static bool TryParseSubExtSection(string sectionName, int moduleNumber, out ushort index)
+    {
+        index = 0;
+        if (!TryParseModuleSuffix(sectionName, moduleNumber, out var suffix) ||
+            !suffix.StartsWith("SubExt", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var rest = suffix[6..];
+        return rest.Length > 0 &&
+               IsHexDigitsOnly(rest) &&
+               ushort.TryParse(rest, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index);
+    }
+
+    private static bool TryParseFixedObjectSection(
+        string sectionName,
+        int moduleNumber,
+        out ushort index,
+        out byte subIndex,
+        out bool isSubObject)
+    {
+        index = 0;
+        subIndex = 0;
+        isSubObject = false;
+
+        if (!TryParseModuleSuffix(sectionName, moduleNumber, out var suffix) ||
+            !suffix.StartsWith("Fixed", StringComparison.OrdinalIgnoreCase) ||
+            suffix.Equals("FixedObjects", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var rest = suffix[5..];
+        var subPos = rest.IndexOf("sub", StringComparison.OrdinalIgnoreCase);
+        if (subPos < 0)
+        {
+            return rest.Length > 0 &&
+                   IsHexDigitsOnly(rest) &&
+                   ushort.TryParse(rest, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index);
+        }
+
+        if (subPos == 0)
+            return false;
+
+        var indexPart = rest[..subPos];
+        var subPart = rest[(subPos + 3)..];
+        if (!IsHexDigitsOnly(indexPart) ||
+            !IsHexDigitsOnly(subPart) ||
+            !ushort.TryParse(indexPart, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index) ||
+            !byte.TryParse(subPart, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out subIndex))
+        {
+            return false;
+        }
+
+        isSubObject = true;
+        return true;
+    }
+
+    private static bool TryParseModuleSuffix(string sectionName, int moduleNumber, out string suffix)
+    {
+        suffix = string.Empty;
+        if (sectionName.Length < 2 ||
+            !sectionName.StartsWith("M", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var i = 1;
+        while (i < sectionName.Length && char.IsDigit(sectionName[i]))
+            i++;
+
+        if (i == 1 ||
+            !int.TryParse(sectionName[1..i], NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) ||
+            parsed != moduleNumber)
+        {
+            return false;
+        }
+
+        suffix = sectionName[i..];
+        return true;
+    }
+
+    private static bool IsHexDigitsOnly(string value)
+    {
+        if (value.Length == 0)
+            return false;
+
+        foreach (var c in value)
+        {
+            var isHexDigit = (c >= '0' && c <= '9') ||
+                             (c >= 'a' && c <= 'f') ||
+                             (c >= 'A' && c <= 'F');
+            if (!isHexDigit)
+                return false;
+        }
+
+        return true;
     }
 
     /// <summary>
