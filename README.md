@@ -642,8 +642,13 @@ Today this covers:
 - Missing XDD/XDC `index` on `CANopenObject`, and missing or invalid
   `objectType` (schema-valid unsignedByte forms such as `+9` / `-0` are
   accepted after trim; missing `CANopenSubObject` `subIndex` stays lenient)
-- Malformed XDD/XDC unsigned numeric attributes (`objFlags`, `subNumber`,
-  `pDOmappingIndex`, general-feature counts, `networkNumber`)
+- Malformed XDD/XDC unsigned numeric attributes (`subNumber`,
+  `pDOmappingIndex`, general-feature counts, `networkNumber`; optional
+  leading sign accepted after trim)
+- XDD/XDC `objFlags` (`xsd:hexBinary`, CiA 311 Annex A.1.4): hexadecimal
+  digits only. A leading sign or `0x` prefix is rejected (lenient: ignore;
+  strict: `EdsParseException`). An odd number of hex digits is accepted in
+  lenient mode and rejected in strict mode
 
 ```csharp
 var eds = CanOpenFile.Eds.ReadFile(

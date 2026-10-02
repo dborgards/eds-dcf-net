@@ -83,6 +83,8 @@ internal static class ModelCloner
             UniqueIdRef = source.UniqueIdRef,
             PdoMappingMode = source.PdoMappingMode,
             ObjFlags = source.ObjFlags,
+            ObjFlagsLexical = source.ObjFlagsLexical,
+            ObjFlagsLexicalBaseline = source.ObjFlagsLexicalBaseline,
             SubNumber = source.SubNumber,
             CompactSubObj = source.CompactSubObj,
             ParameterValue = source.ParameterValue,
