@@ -448,7 +448,7 @@ public class XddWriter
 
         if (projection != null
             && supplied
-            && string.Equals(projectedValue ?? string.Empty, modelValue, StringComparison.Ordinal))
+            && string.Equals(projectedValue, modelValue, StringComparison.Ordinal))
             return;
 
         elem.Add(new XAttribute(attributeName, modelValue));
