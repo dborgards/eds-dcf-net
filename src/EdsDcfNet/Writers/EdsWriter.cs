@@ -235,6 +235,13 @@ public class EdsWriter : IniWriterBase
         {
             writeAction();
         }
+        catch (IniTextRejectedException ex)
+        {
+            throw new EdsWriteException(ex.Message)
+            {
+                SectionName = sectionName
+            };
+        }
         catch (EdsWriteException)
         {
             throw;

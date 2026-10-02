@@ -3,6 +3,7 @@ namespace EdsDcfNet.Utilities;
 using System.Globalization;
 using System.Text;
 using EdsDcfNet.Models;
+using EdsDcfNet.Writers;
 
 internal static class ObjectListSectionWriter
 {
@@ -25,7 +26,7 @@ internal static class ObjectListSectionWriter
         if (objectIndexes.Count == 0)
             return;
 
-        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0}]", sectionName));
+        IniRoundTripText.WriteSectionHeader(sb, sectionName);
         writeKeyValue(sb, "SupportedObjects", objectIndexes.Count.ToString(CultureInfo.InvariantCulture));
 
         for (int i = 0; i < objectIndexes.Count; i++)
