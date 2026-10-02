@@ -503,7 +503,11 @@ public class XddWriter
     {
         var bytes = SerializeToBuffer(doc);
         cancellationToken.ThrowIfCancellationRequested();
+#if NET10_0_OR_GREATER
+        await stream.WriteAsync(bytes.AsMemory(), cancellationToken).ConfigureAwait(false);
+#else
         await stream.WriteAsync(bytes, 0, bytes.Length, cancellationToken).ConfigureAwait(false);
+#endif
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
     }
