@@ -317,7 +317,7 @@ public abstract class CanOpenReaderBase
         var accessTypeStr = IniParser.GetValue(sections, sectionName, "AccessType");
         if (!string.IsNullOrEmpty(accessTypeStr))
         {
-            obj.AccessType = ValueConverter.ParseAccessType(accessTypeStr);
+            obj.SetAccessTypeFromProfile(ValueConverter.ParseAccessType(accessTypeStr));
         }
 
         obj.DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue");

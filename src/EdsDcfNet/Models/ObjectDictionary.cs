@@ -65,7 +65,46 @@ public class CanOpenObject
     /// <summary>
     /// Access type (ro, wo, rw, rwr, rww, const).
     /// </summary>
-    public AccessType AccessType { get; set; }
+    /// <remarks>
+    /// Assigning this property marks the value as explicit for the XDD/XDC writer.
+    /// The untouched fallback (<see cref="AccessType.ReadOnly"/>, left in place when a
+    /// referenced parameter has <c>noAccess</c> and the source had no <c>accessType</c>)
+    /// is not explicit, so the writer does not invent <c>accessType="ro"</c>.
+    /// </remarks>
+    public AccessType AccessType
+    {
+        get => _accessType;
+        set
+        {
+            _accessType = value;
+            _accessTypeSpecified = true;
+        }
+    }
+
+    private AccessType _accessType;
+
+    private bool _accessTypeSpecified;
+
+    /// <summary>
+    /// <see langword="true"/> when <see cref="AccessType"/> was set from an XDD attribute,
+    /// from a resolved parameter access, or by assigning <see cref="AccessType"/>.
+    /// </summary>
+    internal bool AccessTypeSpecified => _accessTypeSpecified;
+
+    /// <summary>
+    /// Copies <see cref="AccessType"/> without treating a profile-file keyword as an
+    /// XDD explicit attribute.
+    /// </summary>
+    internal void SetAccessTypeFromProfile(AccessType value) => _accessType = value;
+
+    /// <summary>
+    /// Restores both the access value and whether it is explicit. Used by <c>ModelCloner</c>.
+    /// </summary>
+    internal void CopyAccessTypeStateFrom(CanOpenObject source)
+    {
+        _accessType = source._accessType;
+        _accessTypeSpecified = source._accessTypeSpecified;
+    }
 
     /// <summary>
     /// Default value for this object.
@@ -112,6 +151,11 @@ public class CanOpenObject
     /// <c>accessType</c>, and <c>defaultValue</c> are omitted when they still match that
     /// parameter, so the next read derives them again. A value changed after reading is
     /// written as an explicit attribute and wins on the next read.
+    /// <c>noAccess</c> does not match a CiA 306 access type: the writer leaves
+    /// <c>accessType</c> off while <see cref="AccessType"/> is still the untouched fallback,
+    /// and writes it only when the source attribute or a later assignment supplied one.
+    /// When the parameter is removed, a resolved <see cref="AccessType"/> is still written
+    /// even if the object has no scalar <see cref="DataType"/> (a struct-backed RECORD).
     /// </para>
     /// </remarks>
     public string? UniqueIdRef { get; set; }
@@ -254,7 +298,43 @@ public class CanOpenSubObject
     /// <summary>
     /// Access type.
     /// </summary>
-    public AccessType AccessType { get; set; }
+    /// <remarks>
+    /// Same explicit-assignment rule as <see cref="CanOpenObject.AccessType"/>.
+    /// </remarks>
+    public AccessType AccessType
+    {
+        get => _accessType;
+        set
+        {
+            _accessType = value;
+            _accessTypeSpecified = true;
+        }
+    }
+
+    private AccessType _accessType;
+
+    private bool _accessTypeSpecified;
+
+    /// <summary>
+    /// <see langword="true"/> when <see cref="AccessType"/> was set from an XDD attribute,
+    /// from a resolved parameter access, or by assigning <see cref="AccessType"/>.
+    /// </summary>
+    internal bool AccessTypeSpecified => _accessTypeSpecified;
+
+    /// <summary>
+    /// Copies <see cref="AccessType"/> without treating a profile-file keyword as an
+    /// XDD explicit attribute.
+    /// </summary>
+    internal void SetAccessTypeFromProfile(AccessType value) => _accessType = value;
+
+    /// <summary>
+    /// Restores both the access value and whether it is explicit. Used by <c>ModelCloner</c>.
+    /// </summary>
+    internal void CopyAccessTypeStateFrom(CanOpenSubObject source)
+    {
+        _accessType = source._accessType;
+        _accessTypeSpecified = source._accessTypeSpecified;
+    }
 
     /// <summary>
     /// Default value.

@@ -94,6 +94,7 @@ internal static class ModelCloner
             ParamRefd = source.ParamRefd
         };
 
+        clone.CopyAccessTypeStateFrom(source);
         clone.ObjectLinks.AddRange(source.ObjectLinks);
         CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
 
@@ -129,6 +130,7 @@ internal static class ModelCloner
             ParamRefd = source.ParamRefd
         };
 
+        clone.CopyAccessTypeStateFrom(source);
         CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
         return clone;
     }

@@ -213,8 +213,8 @@ internal sealed class XddUniqueIdResolver
                 "noAccess");
         }
 
-        if (!explicitAttributes.DataType && projection.DataTypeKind == DataTypeProjectionKind.Resolved && projection.DataType.HasValue)
-            setDataType(projection.DataType.Value);
+        if (!explicitAttributes.DataType && projection.DataTypeKind == DataTypeProjectionKind.Resolved)
+            setDataType(projection.DataType.GetValueOrDefault());
 
         if (!explicitAttributes.DefaultValue && projection.HasDefault)
             setDefault(projection.DefaultValue);
@@ -245,7 +245,7 @@ internal sealed class XddUniqueIdResolver
             var message = string.Format(
                 CultureInfo.InvariantCulture,
                 "dataTypeIDRef '{0}' on parameter '{1}' does not identify a data type in the application process.",
-                projection.DataTypeDetail ?? string.Empty,
+                projection.DataTypeDetail,
                 parameter.UniqueId);
             Report(ParseDiagnosticCodes.XddUnresolvedDataTypeIdRef, path, message, projection.DataTypeDetail);
             ThrowIfStrict(ParseDiagnosticCodes.XddUnresolvedDataTypeIdRef, message);

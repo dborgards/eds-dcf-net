@@ -321,12 +321,17 @@ public class XddWriter
         if (obj.DataType.HasValue && !ReferenceSuppliesDataType(projection, obj.DataType))
             elem.Add(new XAttribute("dataType", FormatDataType(obj.DataType.Value)));
 
-        // Only write accessType for objects with a data type (VAR-like), unless a
-        // uniqueIDRef is emitted and the access no longer matches the parameter.
-        // A matching reference omits accessType so readWriteInput/readWriteOutput
-        // are not collapsed to "rw".
-        if (!ReferenceSuppliesAccess(projection, obj.AccessType)
-            && (obj.DataType.HasValue || projection != null))
+        // Omit accessType when the emitted uniqueIDRef still supplies it, so
+        // readWriteInput/readWriteOutput are not collapsed to "rw". A noAccess
+        // reference does not supply a CiA 306 access; the untouched ReadOnly fallback
+        // is left off, while a caller-assigned or source accessType is written.
+        // With the parameter gone, a resolved access is written even when the object
+        // has no scalar data type (struct-backed RECORD).
+        if (ShouldWriteAccessAttribute(
+                projection,
+                obj.AccessType,
+                obj.AccessTypeSpecified,
+                writeWhenUnspecified: obj.DataType.HasValue))
             elem.Add(new XAttribute("accessType", XddAccessTypeToString(obj.AccessType)));
 
         AddStringUnlessSupplied(elem, "defaultValue", obj.DefaultValue, projection, projection?.HasDefault == true, projection?.DefaultValue);
@@ -383,7 +388,11 @@ public class XddWriter
             subObject.ObjectType.ToString(CultureInfo.InvariantCulture)));
         if (projection == null || !SameResolvedDataType(subDataType, projection.DataType))
             elem.Add(new XAttribute("dataType", FormatDataType(subObject.DataType)));
-        if (!ReferenceSuppliesAccess(projection, subObject.AccessType))
+        if (ShouldWriteAccessAttribute(
+                projection,
+                subObject.AccessType,
+                subObject.AccessTypeSpecified,
+                writeWhenUnspecified: true))
             elem.Add(new XAttribute("accessType", XddAccessTypeToString(subObject.AccessType)));
 
         AddStringUnlessSupplied(elem, "defaultValue", subObject.DefaultValue, projection, projection?.HasDefault == true, projection?.DefaultValue);
@@ -454,15 +463,40 @@ public class XddWriter
         && projection.MappedAccess == access;
 
     /// <summary>
+    /// Decides whether <c>accessType</c> is written.
+    /// <paramref name="writeWhenUnspecified"/> keeps the historical rule: VAR objects
+    /// (those with a data type) and every sub-object emit access even without a reference,
+    /// while a complex object does not.
+    /// </summary>
+    private static bool ShouldWriteAccessAttribute(
+        ParameterProjection? projection,
+        AccessType access,
+        bool accessSpecified,
+        bool writeWhenUnspecified)
+    {
+        if (ReferenceSuppliesAccess(projection, access))
+            return false;
+
+        // noAccess and any other unmapped access leave the fallback in place.
+        // Writing that fallback would become an explicit attribute and win next time.
+        if (projection != null && projection.AccessKind != AccessProjectionKind.Mapped)
+            return accessSpecified;
+
+        if (projection == null)
+            return writeWhenUnspecified || accessSpecified;
+
+        return true;
+    }
+
+    /// <summary>
     /// Treats <c>0</c> and <see langword="null"/> as "no CANopen data type" so a sub-object
     /// whose reference has no scalar type is not rewritten as <c>0000</c> while the
     /// reference is still emitted.
     /// </summary>
     private static bool SameResolvedDataType(ushort? model, ushort? projected)
     {
-        var normalizedModel = model is null or 0 ? null : model;
-        var normalizedProjected = projected is null or 0 ? null : projected;
-        return normalizedModel == normalizedProjected;
+        var normalizedModel = model.GetValueOrDefault() == 0 ? null : model;
+        return normalizedModel == projected;
     }
 
     private static void AddUniqueIdRefAttribute(XElement elem, string? uniqueIdRef, ParameterProjection? projection)

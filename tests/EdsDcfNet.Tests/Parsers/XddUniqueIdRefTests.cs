@@ -5,6 +5,7 @@ using EdsDcfNet;
 using EdsDcfNet.Diagnostics;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 using AwesomeAssertions;
 using Xunit;
 
@@ -424,6 +425,71 @@ public class XddUniqueIdRefTests
     }
 
     [Fact]
+    public void WriteString_NoAccessWithoutExplicitAccess_DoesNotInventReadOnlyOverride()
+    {
+        var xml = BuildXdd(
+            Parameter("P1", "noAccess", "<UINT/>") + Parameter("P_SUB", "noAccess", "<USINT/>"),
+            @"<CANopenObject index=""2000"" name=""P"" objectType=""7"" uniqueIDRef=""P1"">
+                <CANopenSubObject subIndex=""01"" name=""S"" objectType=""7"" uniqueIDRef=""P_SUB""/>
+              </CANopenObject>");
+
+        var written = CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(xml));
+        var objElem = CanOpenObject(written, "2000");
+        var subElem = objElem.Elements().Single(e => e.Name.LocalName == "CANopenSubObject");
+
+        objElem.Attribute("uniqueIDRef")!.Value.Should().Be("P1");
+        objElem.Attribute("accessType").Should().BeNull();
+        subElem.Attribute("uniqueIDRef")!.Value.Should().Be("P_SUB");
+        subElem.Attribute("accessType").Should().BeNull();
+
+        var again = CanOpenFile.Xdd.ReadStringWithDiagnostics(written, Strict);
+        again.Model.ObjectDictionary.Objects[0x2000].AccessType.Should().Be(AccessType.ReadOnly);
+        again.Model.ObjectDictionary.Objects[0x2000].SubObjects[0x01].AccessType.Should().Be(AccessType.ReadOnly);
+        again.Diagnostics.Should().OnlyContain(d => d.Code == ParseDiagnosticCodes.XddUniqueIdRefNoAccess);
+        again.Diagnostics.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void WriteString_NoAccessThenCallerSetsAccess_WritesExplicitAccess()
+    {
+        var xml = BuildXdd(
+            Parameter("P1", "noAccess", "<UINT/>"),
+            Object("2000", "P", "7", "uniqueIDRef=\"P1\""));
+        var model = CanOpenFile.Xdd.ReadString(xml);
+        model.ObjectDictionary.Objects[0x2000].AccessType = AccessType.WriteOnly;
+
+        var written = CanOpenFile.Xdd.WriteToString(model);
+        CanOpenObject(written, "2000").Attribute("accessType")!.Value.Should().Be("wo");
+        CanOpenFile.Xdd.ReadString(written).ObjectDictionary.Objects[0x2000].AccessType
+            .Should().Be(AccessType.WriteOnly);
+    }
+
+    [Fact]
+    public void WriteString_RecordReferenceRemoved_KeepsResolvedAccessWithoutDataType()
+    {
+        var parameters = Parameter("P_OBJ", "readWrite", "<dataTypeIDRef uniqueIDRef=\"REC\"/>");
+        var types = @"<dataTypeList><struct name=""Rec"" uniqueID=""REC"">
+            <varDeclaration name=""a"" uniqueID=""M1""><UDINT/></varDeclaration>
+          </struct></dataTypeList>";
+        var model = CanOpenFile.Xdd.ReadString(BuildXdd(
+            types + "<parameterList>" + parameters + "</parameterList>",
+            Object("2000", "Rec", "9", "uniqueIDRef=\"P_OBJ\"")));
+        model.ObjectDictionary.Objects[0x2000].DataType.Should().BeNull();
+        model.ObjectDictionary.Objects[0x2000].AccessType.Should().Be(AccessType.ReadWrite);
+        model.ApplicationProcess!.ParameterList.Clear();
+
+        var written = CanOpenFile.Xdd.WriteToString(model);
+        var objElem = CanOpenObject(written, "2000");
+        objElem.Attribute("uniqueIDRef").Should().BeNull();
+        objElem.Attribute("dataType").Should().BeNull();
+        objElem.Attribute("accessType")!.Value.Should().Be("rw");
+
+        var again = CanOpenFile.Xdd.ReadString(written).ObjectDictionary.Objects[0x2000];
+        again.AccessType.Should().Be(AccessType.ReadWrite);
+        again.DataType.Should().BeNull();
+    }
+
+    [Fact]
     public void WriteString_ParameterRemoved_OmitsUniqueIdRefAndKeepsResolvedDataType()
     {
         var xml = BuildXdd(
@@ -513,6 +579,186 @@ public class XddUniqueIdRefTests
         sub.AccessType.Should().Be(AccessType.ReadOnly);
         sub.DefaultValue.Should().Be("0x00000000");
         second.ObjectDictionary.Objects.Count.Should().Be(first.ObjectDictionary.Objects.Count);
+    }
+
+    [Fact]
+    public void ReadString_SubObjectRange_FillsLimitsAndRoundTripsChangedDefault()
+    {
+        var values = "<UINT/><defaultValue value=\"3\"/><allowedValues><range><minValue value=\"1\"/><maxValue value=\"9\"/></range></allowedValues>";
+        var xml = BuildXdd(
+            Parameter("P_SUB", "read", values),
+            @"<CANopenObject index=""2000"" name=""Rec"" objectType=""9"">
+                <CANopenSubObject subIndex=""01"" name=""Field"" objectType=""7"" uniqueIDRef=""P_SUB""/>
+                <CANopenSubObject subIndex=""02"" name=""Bare"" objectType=""7""/>
+              </CANopenObject>");
+        var model = CanOpenFile.Xdd.ReadString(xml);
+        var sub = model.ObjectDictionary.Objects[0x2000].SubObjects[0x01];
+        sub.LowLimit.Should().Be("1");
+        sub.HighLimit.Should().Be("9");
+        sub.DefaultValue = "4";
+        model.ObjectDictionary.Objects[0x2000].SubObjects[0x01].DataType = 0;
+
+        var written = CanOpenFile.Xdd.WriteToString(model);
+        var objElem = CanOpenObject(written, "2000");
+        var field = objElem.Elements().Single(e => (string?)e.Attribute("subIndex") == "01");
+        var bare = objElem.Elements().Single(e => (string?)e.Attribute("subIndex") == "02");
+        field.Attribute("defaultValue")!.Value.Should().Be("4");
+        field.Attribute("lowLimit").Should().BeNull();
+        field.Attribute("dataType")!.Value.Should().Be("0000");
+        bare.Attribute("dataType")!.Value.Should().Be("0000");
+        bare.Attribute("accessType")!.Value.Should().Be("ro");
+    }
+
+    [Fact]
+    public void ReadString_PartialRangeAndExplicitLimit_FillsOnlyTheMissingSide()
+    {
+        var onlyMin = Parameter("P_MIN", "read", "<UINT/><allowedValues><range><minValue value=\"2\"/></range></allowedValues>");
+        var onlyMax = Parameter("P_MAX", "read", "<UINT/><allowedValues><range><maxValue value=\"8\"/></range></allowedValues>");
+        var both = Parameter(
+            "P_BOTH",
+            "read",
+            "<UINT/><allowedValues><range><minValue value=\"1\"/><maxValue value=\"5\"/></range></allowedValues>");
+        var xml = BuildXdd(
+            onlyMin + onlyMax + both,
+            Object("2000", "Min", "7", "uniqueIDRef=\"P_MIN\"")
+            + Object("2001", "Max", "7", "uniqueIDRef=\"P_MAX\"")
+            + Object("2002", "Both", "7", "lowLimit=\"0\" uniqueIDRef=\"P_BOTH\""));
+
+        var od = CanOpenFile.Xdd.ReadString(xml).ObjectDictionary;
+        od.Objects[0x2000].LowLimit.Should().Be("2");
+        od.Objects[0x2000].HighLimit.Should().BeNull();
+        od.Objects[0x2001].LowLimit.Should().BeNull();
+        od.Objects[0x2001].HighLimit.Should().Be("8");
+        od.Objects[0x2002].LowLimit.Should().Be("0");
+        od.Objects[0x2002].HighLimit.Should().Be("5");
+    }
+
+    [Fact]
+    public void ReadString_UnmappedTypesAndEmptyRefs_LeaveDataTypeUnset()
+    {
+        var types = @"
+          <dataTypeList>
+            <array name=""Bare"" uniqueID=""ARR""><subrange lowerLimit=""0"" upperLimit=""1""/></array>
+            <derived name=""Loop"" uniqueID=""LOOP""><dataTypeIDRef uniqueIDRef=""LOOP""/></derived>
+            <derived name=""Open"" uniqueID=""OPEN""/>
+            <enum name=""BareEnum"" uniqueID=""EN0""><enumValue value=""1""/></enum>
+            <enum name=""DateEnum"" uniqueID=""EN1""><DATE/></enum>
+          </dataTypeList>";
+        var parameters = types + @"
+          <parameterList>
+            <parameter uniqueID=""P_DATE"" access=""read""><DATE/></parameter>
+            <parameter uniqueID=""P_NONE"" access=""read""><label lang=""en"">None</label></parameter>
+            <parameter uniqueID=""P_EMPTY"" access=""read""><dataTypeIDRef uniqueIDRef=""""/></parameter>
+            <parameter uniqueID=""P_ARR"" access=""read""><dataTypeIDRef uniqueIDRef=""ARR""/></parameter>
+            <parameter uniqueID=""P_LOOP"" access=""read""><dataTypeIDRef uniqueIDRef=""LOOP""/></parameter>
+            <parameter uniqueID=""P_OPEN"" access=""read""><dataTypeIDRef uniqueIDRef=""OPEN""/></parameter>
+            <parameter uniqueID=""P_EN0"" access=""read""><dataTypeIDRef uniqueIDRef=""EN0""/></parameter>
+            <parameter uniqueID=""P_EN1"" access=""read""><dataTypeIDRef uniqueIDRef=""EN1""/></parameter>
+            <parameter uniqueID=""P_BAD"" access=""sideways""><UINT/></parameter>
+            <parameter uniqueID=""P_NOLABEL"" access=""read""><USINT/></parameter>
+          </parameterList>";
+        var objects = Object("2000", "Date", "7", "uniqueIDRef=\"P_DATE\"")
+            + Object("2001", "None", "7", "uniqueIDRef=\"P_NONE\"")
+            + Object("2002", "Empty", "7", "uniqueIDRef=\"P_EMPTY\"")
+            + Object("2003", "Arr", "8", "uniqueIDRef=\"P_ARR\"")
+            + Object("2004", "Loop", "7", "uniqueIDRef=\"P_LOOP\"")
+            + Object("2005", "Open", "7", "uniqueIDRef=\"P_OPEN\"")
+            + Object("2006", "En0", "7", "uniqueIDRef=\"P_EN0\"")
+            + Object("2007", "En1", "7", "uniqueIDRef=\"P_EN1\"")
+            + Object("2008", "Bad", "7", "uniqueIDRef=\"P_BAD\"")
+            + "<CANopenObject index=\"2009\" objectType=\"7\" uniqueIDRef=\"P_NOLABEL\"/>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(parameters, objects));
+        var od = result.Model.ObjectDictionary;
+        od.Objects[0x2000].DataType.Should().BeNull();
+        od.Objects[0x2001].DataType.Should().BeNull();
+        od.Objects[0x2002].DataType.Should().BeNull();
+        od.Objects[0x2003].DataType.Should().BeNull();
+        od.Objects[0x2004].DataType.Should().BeNull();
+        od.Objects[0x2005].DataType.Should().BeNull();
+        od.Objects[0x2006].DataType.Should().BeNull();
+        od.Objects[0x2007].DataType.Should().BeNull();
+        od.Objects[0x2008].AccessType.Should().Be(AccessType.ReadOnly);
+        od.Objects[0x2009].ParameterName.Should().BeEmpty();
+        result.Diagnostics.Should().ContainSingle(d => d.Code == ParseDiagnosticCodes.XddUnresolvedDataTypeIdRef);
+
+        var written = CanOpenFile.Xdd.WriteToString(result.Model);
+        CanOpenObject(written, "2008").Attribute("accessType").Should().BeNull();
+
+        var act = () => CanOpenFile.Xdd.ReadString(BuildXdd(parameters, objects), Strict);
+        act.Should().Throw<EdsParseException>()
+            .Which.Code.Should().Be(ParseDiagnosticCodes.XddUnresolvedDataTypeIdRef);
+    }
+
+    [Fact]
+    public void ReadString_EmptyRangeAndAllowedValuesTemplate_DoNotSetLimits()
+    {
+        var emptyRange = Parameter("P_EMPTY", "read", "<UINT/><allowedValues><range/></allowedValues>");
+        var emptyAllowed = Parameter("P_BARE", "read", "<UINT/><allowedValues/>");
+        var templated = Parameter("P_TPL", "read", "<UINT/><allowedValues templateIDRef=\"AV1\"/>");
+        var xml = BuildXdd(
+            emptyRange + emptyAllowed + templated,
+            Object("2000", "E", "7", "uniqueIDRef=\"P_EMPTY\"")
+            + Object("2001", "B", "7", "uniqueIDRef=\"P_BARE\"")
+            + Object("2002", "T", "7", "uniqueIDRef=\"P_TPL\""));
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml, Strict);
+        result.Model.ObjectDictionary.Objects[0x2000].LowLimit.Should().BeNull();
+        result.Model.ObjectDictionary.Objects[0x2000].HighLimit.Should().BeNull();
+        result.Model.ObjectDictionary.Objects[0x2001].LowLimit.Should().BeNull();
+        result.Diagnostics.Should().ContainSingle(d =>
+            d.Code == ParseDiagnosticCodes.XddUniqueIdRefIndirect &&
+            d.RawValue == "templateIDRef");
+    }
+
+    [Fact]
+    public void WriteString_ExplicitDefaultSurvivesAndStructSubObjectOmitsDataType()
+    {
+        var types = @"<dataTypeList><struct name=""Rec"" uniqueID=""REC"">
+            <varDeclaration name=""a"" uniqueID=""M1""><UDINT/></varDeclaration>
+          </struct></dataTypeList>";
+        var parameters = Parameter("P_DEF", "read", "<UDINT/>")
+            + Parameter("P_REC", "read", "<dataTypeIDRef uniqueIDRef=\"REC\"/>");
+        var xml = BuildXdd(
+            types + "<parameterList>" + parameters + "</parameterList>",
+            Object("2000", "Def", "7", "defaultValue=\"4\" uniqueIDRef=\"P_DEF\"")
+            + @"<CANopenObject index=""2001"" name=""Rec"" objectType=""9"">
+                 <CANopenSubObject subIndex=""01"" name=""Field"" objectType=""7"" uniqueIDRef=""P_REC""/>
+               </CANopenObject>");
+
+        var written = CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(xml));
+        CanOpenObject(written, "2000").Attribute("defaultValue")!.Value.Should().Be("4");
+        var sub = CanOpenObject(written, "2001").Elements().Single(e => e.Name.LocalName == "CANopenSubObject");
+        sub.Attribute("dataType").Should().BeNull();
+        sub.Attribute("uniqueIDRef")!.Value.Should().Be("P_REC");
+    }
+
+    [Fact]
+    public void WriteString_DynamicChannels_AreEmittedOnlyWhenASegmentExists()
+    {
+        var model = CanOpenFile.Xdd.ReadString(BuildXdd(
+            Parameter("P1", "read", "<UINT/>"),
+            Object("2000", "P", "7", "uniqueIDRef=\"P1\"")));
+
+        model.DynamicChannels = new DynamicChannels();
+        CanOpenFile.Xdd.WriteToString(model).Should().NotContain("<dynamicChannel");
+
+        model.DynamicChannels.Segments.Add(new DynamicChannelSegment
+        {
+            Type = CanOpenDataType.Unsigned16,
+            Dir = AccessType.ReadOnly,
+            Range = "2000-2001"
+        });
+        CanOpenFile.Xdd.WriteToString(model).Should().Contain("<dynamicChannel");
+    }
+
+    [Fact]
+    public void WriteScope_SecondDisposeAndProjectionOutsideWrite_AreIdle()
+    {
+        var scope = XddUniqueIdResolver.EnterWriteScope(applicationProcess: null);
+        scope.Dispose();
+        scope.Dispose();
+        XddUniqueIdResolver.CurrentWriteProjection("P1").Should().BeNull();
     }
 
     private static string Parameter(
