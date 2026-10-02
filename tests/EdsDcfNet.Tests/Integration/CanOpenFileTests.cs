@@ -1060,10 +1060,16 @@ PDOMapping=0
         {
             Index = 0x6100,
             ParameterName = "Digital Output",
+            SubNumber = 2,
+            ObjectType = 0x8,
             DataType = 0x0005,
             AccessType = AccessType.ReadWrite,
             DefaultValue = "0",
+            LowLimit = "0",
+            HighLimit = "255",
             PdoMapping = true,
+            ObjFlags = 1,
+            CompactSubObj = 4,
             Count = "8",
             ObjExtend = 0
         };
@@ -1079,6 +1085,12 @@ PDOMapping=0
         ext.DataType.Should().Be(0x0005);
         ext.AccessType.Should().Be(AccessType.ReadWrite);
         ext.DefaultValue.Should().Be("0");
+        ext.SubNumber.Should().Be(2);
+        ext.ObjectType.Should().Be(0x8);
+        ext.LowLimit.Should().Be("0");
+        ext.HighLimit.Should().Be("255");
+        ext.ObjFlags.Should().Be(1u);
+        ext.CompactSubObj.Should().Be(4);
         ext.PdoMapping.Should().BeTrue();
         ext.Count.Should().Be("8");
         ext.ObjExtend.Should().Be(0);

@@ -3,6 +3,7 @@ namespace EdsDcfNet.Tests.Parsers;
 using EdsDcfNet.Diagnostics;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Tests.Utilities;
 using EdsDcfNet.Validation;
 
 /// <summary>
@@ -242,6 +243,166 @@ public class ModuleSectionRoundTripTests
         AssertModuleSectionsEquivalent(original.SupportedModules, reread.SupportedModules);
         reread.ConnectedModules.Should().Equal(original.ConnectedModules);
         reread.AdditionalSections.Keys.Should().BeEquivalentTo(original.AdditionalSections.Keys);
+    }
+
+    [Fact]
+    public void ReadString_SubExtensionObjectDescriptionEntries_RoundTrips()
+    {
+        // Arrange — CiA 306: [MxSubExtxxxx] has the same entries as an object
+        // description, plus Count and ObjExtend. These keys are not vendor text.
+        var content = ModuleHeader() + """
+            [M1SubExtends]
+            NrOfEntries=1
+            1=0x6000
+
+            [M1SubExt6000]
+            ParameterName=Input lines
+            ObjectType=0x8
+            DataType=0x5
+            AccessType=ro
+            DefaultValue=1
+            LowLimit=0
+            HighLimit=10
+            PDOMapping=1
+            ObjFlags=0x1
+            SubNumber=1
+            CompactSubObj=4
+            Count=4
+            ObjExtend=128
+            """;
+
+        // Act
+        var eds = CanOpenFile.Eds.ReadString(content);
+        var written = CanOpenFile.Eds.WriteToString(eds).Replace("\r\n", "\n");
+        var reread = CanOpenFile.Eds.ReadString(written);
+        var second = CanOpenFile.Eds.WriteToString(reread).Replace("\r\n", "\n");
+
+        // Assert
+        eds.AdditionalSections.Should().NotContainKey("M1SubExt6000");
+        var extension = reread.SupportedModules[0].SubExtensionDefinitions[0x6000];
+        extension.ObjectType.Should().Be(0x8);
+        extension.LowLimit.Should().Be("0");
+        extension.HighLimit.Should().Be("10");
+        extension.ObjFlags.Should().Be(1u);
+        extension.SubNumber.Should().Be(1);
+        extension.CompactSubObj.Should().Be(4);
+        written.Should().Contain(
+            """
+            [M1SubExt6000]
+            SubNumber=1
+            ParameterName=Input lines
+            ObjectType=0x8
+            DataType=0x5
+            AccessType=ro
+            DefaultValue=1
+            LowLimit=0
+            HighLimit=10
+            PDOMapping=1
+            ObjFlags=0x1
+            CompactSubObj=4
+            Count=4
+            ObjExtend=128
+            """);
+        second.Should().Be(written);
+    }
+
+    [Fact]
+    public void Validate_SubExtensionValueOutsideDataType_ReportsIssue()
+    {
+        // Arrange — matching list counts, so only the value check can fail.
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        var module = new ModuleInfo { ModuleNumber = 1, ProductName = "Module", OrderCode = "OC" };
+        module.SubExtends.Add(0x6000);
+        module.SubExtensionDefinitions[0x6000] = new ModuleSubExtension
+        {
+            Index = 0x6000,
+            ParameterName = "Input",
+            DataType = CanOpenDataType.Unsigned8,
+            DefaultValue = "256",
+            LowLimit = "0",
+            HighLimit = "1000",
+            Count = "1"
+        };
+        eds.SupportedModules.Add(module);
+        var ranges = new CanOpenValidationOptions { CheckValueRanges = true };
+
+        // Act
+        var ranged = CanOpenModelValidator.Validate(eds, ranges);
+        var strict = CanOpenModelValidator.Validate(eds, CanOpenValidationOptions.Strict);
+        var defaults = CanOpenModelValidator.Validate(eds);
+
+        // Assert
+        ranged.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].DefaultValue" &&
+            issue.Message.Contains("UNSIGNED8", StringComparison.Ordinal));
+        ranged.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].HighLimit" &&
+            issue.Message.Contains("UNSIGNED8", StringComparison.Ordinal));
+        strict.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].DefaultValue");
+        defaults.Should().NotContain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].DefaultValue");
+    }
+
+    [Fact]
+    public void Validate_SubExtensionInsideDataType_ReturnsNoValueIssue()
+    {
+        // Arrange
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        var module = new ModuleInfo { ModuleNumber = 1, ProductName = "Module", OrderCode = "OC" };
+        module.SubExtends.Add(0x6000);
+        module.SubExtensionDefinitions[0x6000] = new ModuleSubExtension
+        {
+            Index = 0x6000,
+            ParameterName = "Input",
+            DataType = CanOpenDataType.Unsigned8,
+            DefaultValue = "255",
+            LowLimit = "0",
+            HighLimit = "255",
+            Count = "1"
+        };
+        eds.SupportedModules.Add(module);
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(eds, new CanOpenValidationOptions
+        {
+            CheckValueRanges = true
+        });
+
+        // Assert
+        issues.Should().NotContain(issue =>
+            issue.Path.StartsWith("SupportedModules[0].SubExtensionDefinitions", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(CanOpenObjectType.DefType)]
+    [InlineData(CanOpenObjectType.DefStruct)]
+    public void Validate_SubExtensionTypeDescription_SkipsValueCheck(byte objectType)
+    {
+        // Arrange — DEFTYPE and DEFSTRUCT describe types, as they do on a dictionary object.
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        var module = new ModuleInfo { ModuleNumber = 1, ProductName = "Module", OrderCode = "OC" };
+        module.SubExtends.Add(0x6000);
+        module.SubExtensionDefinitions[0x6000] = new ModuleSubExtension
+        {
+            Index = 0x6000,
+            ParameterName = "Type",
+            ObjectType = objectType,
+            DataType = CanOpenDataType.Unsigned8,
+            DefaultValue = "256",
+            Count = "1"
+        };
+        eds.SupportedModules.Add(module);
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(eds, new CanOpenValidationOptions
+        {
+            CheckValueRanges = true
+        });
+
+        // Assert
+        issues.Should().NotContain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].DefaultValue");
     }
 
     [Fact]
@@ -709,6 +870,12 @@ public class ModuleSectionRoundTripTests
                 actualExtension.DataType.Should().Be(expectedExtension.DataType);
                 actualExtension.AccessType.Should().Be(expectedExtension.AccessType);
                 actualExtension.DefaultValue.Should().Be(expectedExtension.DefaultValue);
+                actualExtension.LowLimit.Should().Be(expectedExtension.LowLimit);
+                actualExtension.HighLimit.Should().Be(expectedExtension.HighLimit);
+                actualExtension.ObjectType.Should().Be(expectedExtension.ObjectType);
+                actualExtension.SubNumber.Should().Be(expectedExtension.SubNumber);
+                actualExtension.ObjFlags.Should().Be(expectedExtension.ObjFlags);
+                actualExtension.CompactSubObj.Should().Be(expectedExtension.CompactSubObj);
                 actualExtension.PdoMapping.Should().Be(expectedExtension.PdoMapping);
                 actualExtension.Count.Should().Be(expectedExtension.Count);
                 actualExtension.ObjExtend.Should().Be(expectedExtension.ObjExtend);

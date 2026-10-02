@@ -306,6 +306,8 @@ internal static class IniWriteRules
                 var extension = entry.Value;
                 Check(extension.ParameterName, IniTextSlot.Value, extensionPath + ".ParameterName", issues);
                 CheckIfPresent(extension.DefaultValue, IniTextSlot.Value, extensionPath + ".DefaultValue", issues);
+                CheckIfPresent(extension.LowLimit, IniTextSlot.Value, extensionPath + ".LowLimit", issues);
+                CheckIfPresent(extension.HighLimit, IniTextSlot.Value, extensionPath + ".HighLimit", issues);
                 Check(extension.Count, IniTextSlot.Value, extensionPath + ".Count", issues);
             }
         }

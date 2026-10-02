@@ -305,9 +305,65 @@ internal static class CanOpenSectionParsers
                 fallbackDescription: LenientIniNumber.TreatAsZero),
             AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
+            LowLimit = EmptyToNull(IniParser.GetValue(sections, sectionName, "LowLimit")),
+            HighLimit = EmptyToNull(IniParser.GetValue(sections, sectionName, "HighLimit")),
             PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
             Count = IniParser.GetValue(sections, sectionName, "Count")
         };
+
+        // CiA 306: a missing ObjectType is VAR. Store the entry only when the section has it,
+        // so a later write does not invent ObjectType=0x7.
+        var objectType = IniParser.GetValue(sections, sectionName, "ObjectType");
+        if (!string.IsNullOrEmpty(objectType))
+        {
+            extension.ObjectType = LenientIniNumber.ParseByte(
+                sections,
+                sectionName,
+                "ObjectType",
+                objectType,
+                fallback: CanOpenObjectType.Var,
+                code: ParseDiagnosticCodes.InvalidObjectType,
+                coercedTo: CanOpenObjectType.VarLiteral,
+                fallbackDescription: LenientIniNumber.TreatAsVar);
+        }
+
+        var subNumber = IniParser.GetValue(sections, sectionName, "SubNumber");
+        if (!string.IsNullOrEmpty(subNumber))
+        {
+            extension.SubNumber = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "SubNumber",
+                subNumber,
+                ParseDiagnosticCodes.InvalidSubNumber,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        var objFlags = IniParser.GetValue(sections, sectionName, "ObjFlags");
+        if (!string.IsNullOrEmpty(objFlags))
+        {
+            extension.ObjFlags = LenientIniNumber.ParseUInt32(
+                sections,
+                sectionName,
+                "ObjFlags",
+                objFlags,
+                fallback: 0,
+                code: ParseDiagnosticCodes.InvalidObjFlags,
+                coercedTo: "0",
+                fallbackDescription: LenientIniNumber.TreatAsZero);
+        }
+
+        var compactSubObj = IniParser.GetValue(sections, sectionName, "CompactSubObj");
+        if (!string.IsNullOrEmpty(compactSubObj))
+        {
+            extension.CompactSubObj = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "CompactSubObj",
+                compactSubObj,
+                ParseDiagnosticCodes.InvalidCompactSubObj,
+                LenientIniNumber.LeaveUnset);
+        }
 
         var objExtend = IniParser.GetValue(sections, sectionName, "ObjExtend");
         if (!string.IsNullOrEmpty(objExtend))
@@ -323,6 +379,8 @@ internal static class CanOpenSectionParsers
 
         return extension;
     }
+
+    private static string? EmptyToNull(string value) => string.IsNullOrEmpty(value) ? null : value;
 
     private static CanOpenObject ReadFixedObject(
         Dictionary<string, Dictionary<string, string>> sections,

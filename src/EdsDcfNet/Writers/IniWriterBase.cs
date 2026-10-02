@@ -792,7 +792,11 @@ public abstract class IniWriterBase
         sb.AppendLine();
     }
 
-    /// <summary>Writes <c>[MxSubExtxxxx]</c> (CiA 306-1 §8.3), including <c>Count</c> and <c>ObjExtend</c>.</summary>
+    /// <summary>
+    /// Writes <c>[MxSubExtxxxx]</c> (CiA 306-1 §8.3). The body is a standard object
+    /// description, then the module entries <c>Count</c> and <c>ObjExtend</c>.
+    /// Optional object entries are omitted when the section did not contain them.
+    /// </summary>
     private static void WriteModuleSubExtension(
         StringBuilder sb,
         int moduleNumber,
@@ -802,7 +806,19 @@ public abstract class IniWriterBase
         IniRoundTripText.WriteSectionHeader(
             sb,
             string.Format(CultureInfo.InvariantCulture, "M{0}SubExt{1:X}", moduleNumber, index));
+
+        if (extension.SubNumber.HasValue)
+        {
+            WriteKeyValue(sb, "SubNumber", extension.SubNumber.Value.ToString(CultureInfo.InvariantCulture));
+        }
+
         WriteKeyValue(sb, "ParameterName", extension.ParameterName);
+
+        if (extension.ObjectType.HasValue)
+        {
+            WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(extension.ObjectType.Value));
+        }
+
         WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(extension.DataType));
         WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(extension.AccessType));
 
@@ -811,7 +827,28 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, "DefaultValue", extension.DefaultValue);
         }
 
+        if (!string.IsNullOrEmpty(extension.LowLimit))
+        {
+            WriteKeyValue(sb, "LowLimit", extension.LowLimit);
+        }
+
+        if (!string.IsNullOrEmpty(extension.HighLimit))
+        {
+            WriteKeyValue(sb, "HighLimit", extension.HighLimit);
+        }
+
         WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(extension.PdoMapping));
+
+        if (extension.ObjFlags > 0)
+        {
+            WriteKeyValue(sb, "ObjFlags", ValueConverter.FormatInteger(extension.ObjFlags));
+        }
+
+        if (extension.CompactSubObj is > 0)
+        {
+            WriteKeyValue(sb, "CompactSubObj", extension.CompactSubObj.Value.ToString(CultureInfo.InvariantCulture));
+        }
+
         WriteKeyValue(sb, "Count", extension.Count);
 
         if (extension.ObjExtend.HasValue)

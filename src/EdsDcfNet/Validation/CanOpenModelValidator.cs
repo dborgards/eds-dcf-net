@@ -419,7 +419,8 @@ public static class CanOpenModelValidator
     /// versus <c>[MxSubExtxxxx]</c> definitions, <c>[MxFixedObjects]</c> versus
     /// <c>[MxFixedxxxx]</c> bodies, and each definition's <c>Count</c> token.
     /// Each stored fixed-object body is checked with the same object and sub-object
-    /// rules as an object-dictionary entry.
+    /// rules as an object-dictionary entry. With <see cref="CanOpenValidationOptions.CheckValueRanges"/>,
+    /// each sub-extension's typed values are checked the same way.
     /// </summary>
     private static void ValidateSupportedModules(
         List<ModuleInfo> modules,
@@ -435,7 +436,7 @@ public static class CanOpenModelValidator
             var path = string.Format(CultureInfo.InvariantCulture, "SupportedModules[{0}]", i);
             ValidateModuleComments(module, path, issues);
             ValidateModuleFixedObjects(module, path, options, nodeIds, issues, cancellationToken);
-            ValidateModuleSubExtensions(module, path, issues);
+            ValidateModuleSubExtensions(module, path, options, nodeIds, issues, cancellationToken);
         }
     }
 
@@ -513,7 +514,13 @@ public static class CanOpenModelValidator
         }
     }
 
-    private static void ValidateModuleSubExtensions(ModuleInfo module, string path, List<ValidationIssue> issues)
+    private static void ValidateModuleSubExtensions(
+        ModuleInfo module,
+        string path,
+        CanOpenValidationOptions options,
+        byte[] nodeIds,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
     {
         if (module.SubExtends.Count != module.SubExtensionDefinitions.Count)
         {
@@ -561,7 +568,50 @@ public static class CanOpenModelValidator
                         entry.Key),
                     "Count must be an Unsigned8, or 0;<bits> when several modules share one sub-index (CiA 306-1 §8.3)."));
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            ValidateModuleSubExtensionValues(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0}.SubExtensionDefinitions[0x{1:X4}]",
+                    path,
+                    entry.Key),
+                entry.Value,
+                options,
+                nodeIds,
+                issues);
         }
+    }
+
+    /// <summary>
+    /// A sub-extension carries the same typed value fields as an object description.
+    /// A missing <c>ObjectType</c> is VAR, so value checks apply. DEFTYPE and DEFSTRUCT
+    /// describe types and are skipped, matching <see cref="ValidateObjectContent"/>.
+    /// </summary>
+    private static void ValidateModuleSubExtensionValues(
+        string extensionPath,
+        ModuleSubExtension extension,
+        CanOpenValidationOptions options,
+        byte[] nodeIds,
+        List<ValidationIssue> issues)
+    {
+        var objectType = extension.ObjectType ?? CanOpenObjectType.Var;
+        if (!options.CheckValueRanges ||
+            objectType == CanOpenObjectType.DefType ||
+            objectType == CanOpenObjectType.DefStruct)
+        {
+            return;
+        }
+
+        ObjectValueValidator.Validate(
+            extensionPath,
+            extension.DataType,
+            extension.DefaultValue,
+            extension.LowLimit,
+            extension.HighLimit,
+            null,
+            nodeIds,
+            issues);
     }
 
     /// <summary>
