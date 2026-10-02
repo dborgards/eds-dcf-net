@@ -547,7 +547,9 @@ public class XmlDeclaredEncodingTests
         return CanOpenFile.Xdd.ReadStream(stream, options);
     }
 
+#if !NETFRAMEWORK
     private static int _ibm037ProviderRegistered;
+#endif
 
     private static Encoding RequireIbm037()
     {
