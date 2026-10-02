@@ -158,6 +158,11 @@ write_report "$checkout/coverage.cobertura.xml" 1000000 1000000
 write_report "$checkout/tests/EdsDcfNet.Tests/TestResults/committed-high-counters/coverage.cobertura.xml" 1000000 1000000
 write_report "$checkout/examples/EdsDcfNet.Checker/bin/Release/net10.0/coverage.cobertura.xml" 1000000 1000000
 git -C "$checkout" init -q
+# The breaking-intent runner has no user.name or user.email. These values
+# belong to this throwaway repository only; they do not change global config.
+git -C "$checkout" config --local user.name "test"
+git -C "$checkout" config --local user.email "test@example.invalid"
+git -C "$checkout" config --local commit.gpgsign false
 git -C "$checkout" add -f -A
 git -C "$checkout" commit -q -m "commit inflated coverage reports"
 
