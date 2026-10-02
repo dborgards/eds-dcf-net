@@ -15,10 +15,22 @@ on:
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
-  # Relay required check statuses for release commits (chore(release): ... [skip ci]).
-  # Those commits skip the push trigger, but the Semantic Release workflow already built
-  # and tested the code. Once that workflow finishes, this trigger fires and the
-  # relay-release-status job posts the required check runs for the release commit SHA.
+  # Relay required check statuses for release commits
+  # (chore(release): <version>, committer semantic-release-bot).
+  # The push-triggered build, npm-lockfile, and breaking-intent jobs skip that
+  # commit via `if:` so the push does not repeat the build Semantic Release
+  # already ran. A job skipped by `if:` reports success, but it does not post
+  # codecov/patch. Once Semantic Release finishes, this trigger fires and
+  # relay-release-status posts the required check runs for the release commit SHA.
+  #
+  # Those commits must not contain a skip directive ([skip ci], [ci skip],
+  # [no ci], [skip actions], [actions skip], or a skip-checks trailer). GitHub
+  # applies a directive before any job `if:`, to every push and pull_request
+  # workflow, and leaves the checks pending. A develop→main PR is usually
+  # headed by the latest release commit, so a directive there skips apicompat,
+  # npm-lockfile, and breaking-intent. The push guard keys off the commit
+  # message and committer name, not github.actor: RELEASE_TOKEN pushes as the
+  # token owner, while semantic-release-bot is only GIT_COMMITTER_NAME.
   workflow_run:
     workflows: ["Semantic Release"]
     types: [completed]
@@ -26,7 +38,15 @@ on:
 
 jobs:
   build:
-    if: github.event_name != 'workflow_run'
+    # Skip workflow_run (relay-release-status owns that event) and skip a push
+    # of the semantic-release commit. pull_request and workflow_dispatch still
+    # run, including a develop→main PR whose HEAD is that commit.
+    if: >-
+      github.event_name != 'workflow_run' &&
+      !(github.event_name == 'push' &&
+        github.event.head_commit &&
+        startsWith(github.event.head_commit.message, 'chore(release):') &&
+        github.event.head_commit.committer.name == 'semantic-release-bot')
     # windows-latest is required so the net48 test host can bind and execute the
     # library's netstandard2.0 asset (net10.0 runs on the same job).
     runs-on: windows-latest
@@ -157,11 +177,18 @@ jobs:
   # of updating it (#502/#506, #515/#519). This job reproduces that exact step
   # on the PR so the drift is caught before merge.
   #
-  # Not relayed by relay-release-status (which posts only `build`), so do not
-  # add it to the develop/main required-check ruleset without extending that
-  # job — release commits carry [skip ci] and would otherwise stay pending.
+  # Not relayed by relay-release-status (which posts only `build`). The same
+  # release-push `if:` as `build` reports success on that push, so the check
+  # does not stay pending. pull_request runs it, including a develop→main
+  # release PR. Do not put a skip directive back into the release commit:
+  # GitHub would skip this job on that PR before the `if:` is evaluated.
   npm-lockfile:
-    if: github.event_name != 'workflow_run'
+    if: >-
+      github.event_name != 'workflow_run' &&
+      !(github.event_name == 'push' &&
+        github.event.head_commit &&
+        startsWith(github.event.head_commit.message, 'chore(release):') &&
+        github.event.head_commit.committer.name == 'semantic-release-bot')
     runs-on: ubuntu-latest
 
     steps:
@@ -185,8 +212,15 @@ jobs:
   # That program is the opt-in for an announced Major bump; a loosened
   # footer pattern would skip "Fail on unannounced breaking changes".
   # Not relayed by relay-release-status (which posts only `build`).
+  # Same release-push guard as `build`: the fixture still runs on pull_request,
+  # including a develop→main release PR.
   breaking-intent:
-    if: github.event_name != 'workflow_run'
+    if: >-
+      github.event_name != 'workflow_run' &&
+      !(github.event_name == 'push' &&
+        github.event.head_commit &&
+        startsWith(github.event.head_commit.message, 'chore(release):') &&
+        github.event.head_commit.committer.name == 'semantic-release-bot')
     runs-on: ubuntu-latest
 
     steps:
@@ -203,6 +237,11 @@ jobs:
     - name: Check release-notes parserOpts note keywords
       run: bash tools/release-notes-parser-opts.test.sh
 
+    # Release commits must not carry a skip directive, and the push-only job
+    # guard must keep pull_request gates (including this job) scheduled.
+    - name: Check release PRs still run PR gates
+      run: bash tools/release-pr-gates.test.sh
+
   # Compares the built public API against the same API built from the PR's
   # base branch (Microsoft.DotNet.ApiCompat). semantic-release derives the
   # version bump from commit types, not from the actual API delta — this job
@@ -217,9 +256,12 @@ jobs:
   # (main) IS the last published stable version, so this is equivalent to the
   # original "vs latest stable" comparison there, without a NuGet download.
   #
-  # PR-only on purpose: release commits carry [skip ci] and relay-release-status
-  # posts only `build`, so a push/develop trigger here would stay pending on
-  # release commits.
+  # pull_request only. The steps need the pull_request payload (base SHA,
+  # commit list, PR number). relay-release-status posts only `build`, so a
+  # push does not create this check. The job runs for every pull_request into
+  # develop or main, including a develop→main release PR. That requires the
+  # release commit to omit skip directives: GitHub would skip this workflow
+  # before this `if:` is evaluated, which is how those PRs used to miss the gate.
   apicompat:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -378,14 +420,15 @@ jobs:
         echo "::error::Public API is not compatible with this PR's base branch. Either revert the breaking change or add a commit with a '!' after the type, the 'breaking'/'major' type, or a 'BREAKING CHANGE:'/'BREAKING CHANGES:' footer (Major release)."
         exit 1
 
-  # Relays required check statuses for release commits that carry [skip ci].
-  # The Semantic Release workflow already built and tested the code; this job simply
-  # forwards its outcome to the release commit SHA so PR required checks are satisfied.
+  # Relays required check statuses for release commits. Semantic Release already
+  # built and tested that code; the push-triggered build job skips the release
+  # commit (see its `if:`), so this job forwards the workflow outcome onto the
+  # release commit SHA.
   #
   # Why resolve the branch HEAD instead of using head_sha:
   # github.event.workflow_run.head_sha is the commit that *triggered* the Semantic
   # Release workflow. During that run, semantic-release creates and pushes a new
-  # "chore(release): … [skip ci]" commit. By the time workflow_run fires, the branch
+  # "chore(release): …" commit. By the time workflow_run fires, the branch
   # HEAD is that new release commit — which is the SHA that actually needs the required
   # checks. If the branch HEAD equals head_sha, semantic-release did not publish a
   # release this run and there is nothing to relay.
@@ -407,7 +450,7 @@ jobs:
         branch="${{ github.event.workflow_run.head_branch }}"
         trigger_sha="${{ github.event.workflow_run.head_sha }}"
 
-        # Fetch the current HEAD of the branch — this will be the [skip ci] release
+        # Fetch the current HEAD of the branch — this will be the release
         # commit if semantic-release published a new version during the workflow run.
         current_sha=$(gh api "repos/${{ github.repository }}/git/refs/heads/${branch}" --jq '.object.sha')
 
