@@ -19,7 +19,7 @@ using Xunit;
 ///
 /// A parser fix that changes what ends up in the model shows up as a snapshot diff.
 /// Regenerate after an intentional change with
-/// <c>UPDATE_CORPUS_SNAPSHOTS=1 dotnet test --filter CorpusModelSnapshotTests</c>
+/// <c>UPDATE_CORPUS_SNAPSHOTS=1 dotnet test -f net10.0 --filter CorpusModelSnapshotTests</c>
 /// and review the diff like any other source change (see CONTRIBUTING.md).
 /// </summary>
 public class CorpusModelSnapshotTests
@@ -115,7 +115,7 @@ public class CorpusModelSnapshotTests
 
         File.Exists(snapshotPath).Should().BeTrue(
             $"missing model snapshot at {snapshotPath}; regenerate with " +
-            "UPDATE_CORPUS_SNAPSHOTS=1 dotnet test --filter CorpusModelSnapshotTests " +
+            "UPDATE_CORPUS_SNAPSHOTS=1 dotnet test -f net10.0 --filter CorpusModelSnapshotTests " +
             "and commit the new snapshot");
 
         var expected = File.ReadAllText(snapshotPath).Replace("\r\n", "\n");

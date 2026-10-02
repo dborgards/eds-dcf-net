@@ -13,7 +13,7 @@ using Xunit;
 /// lenient-mode behaviour shows up as a snapshot diff in the PR.
 ///
 /// Regenerate after an intentional parser change with
-/// <c>UPDATE_CORPUS_SNAPSHOTS=1 dotnet test --filter CorpusDiagnosticsSnapshotTests</c>
+/// <c>UPDATE_CORPUS_SNAPSHOTS=1 dotnet test -f net10.0 --filter CorpusDiagnosticsSnapshotTests</c>
 /// and review the diff like any other source change (see CONTRIBUTING.md).
 /// </summary>
 public class CorpusDiagnosticsSnapshotTests
@@ -114,7 +114,7 @@ public class CorpusDiagnosticsSnapshotTests
 
         File.Exists(snapshotPath).Should().BeTrue(
             $"missing diagnostics snapshot at {snapshotPath}; regenerate with " +
-            "UPDATE_CORPUS_SNAPSHOTS=1 dotnet test --filter CorpusDiagnosticsSnapshotTests " +
+            "UPDATE_CORPUS_SNAPSHOTS=1 dotnet test -f net10.0 --filter CorpusDiagnosticsSnapshotTests " +
             "and commit the new snapshot");
 
         var expected = NormalizeNewlines(File.ReadAllText(snapshotPath));
