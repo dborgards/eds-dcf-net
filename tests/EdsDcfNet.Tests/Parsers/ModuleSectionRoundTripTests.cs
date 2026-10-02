@@ -347,6 +347,69 @@ public class ModuleSectionRoundTripTests
     }
 
     [Fact]
+    public void Validate_SubExtensionInvalidObjectType_ReportsIssue()
+    {
+        // Arrange — the same unconditional object-code check as a dictionary object.
+        var eds = SubExtensionEds(new ModuleSubExtension
+        {
+            Index = 0x6000,
+            ParameterName = "Input",
+            ObjectType = 0xFF,
+            DataType = CanOpenDataType.Unsigned8,
+            Count = "1"
+        });
+        var ranges = new CanOpenValidationOptions { CheckValueRanges = true };
+
+        // Act
+        var defaults = CanOpenModelValidator.Validate(eds);
+        var ranged = CanOpenModelValidator.Validate(eds, ranges);
+        var strict = CanOpenModelValidator.Validate(eds, CanOpenValidationOptions.Strict);
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        defaults.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].ObjectType" &&
+            issue.Message.Contains("0xFF", StringComparison.Ordinal));
+        ranged.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].ObjectType");
+        strict.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].ObjectType");
+        act.Should().Throw<ModelValidationException>().Which.Issues.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].ObjectType");
+    }
+
+    [Fact]
+    public void Validate_SubExtensionOverlongParameterName_ReportsIssue()
+    {
+        // Arrange — CiA 306 parameter names are at most 241 characters.
+        var eds = SubExtensionEds(new ModuleSubExtension
+        {
+            Index = 0x6000,
+            ParameterName = new string('A', 242),
+            ObjectType = CanOpenObjectType.Var,
+            Count = "1"
+        });
+        var ranges = new CanOpenValidationOptions { CheckValueRanges = true };
+
+        // Act
+        var defaults = CanOpenModelValidator.Validate(eds);
+        var ranged = CanOpenModelValidator.Validate(eds, ranges);
+        var strict = CanOpenModelValidator.Validate(eds, CanOpenValidationOptions.Strict);
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        defaults.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].ParameterName" &&
+            issue.Message.Contains("242", StringComparison.Ordinal));
+        ranged.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].ParameterName");
+        strict.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].ParameterName");
+        act.Should().Throw<ModelValidationException>().Which.Issues.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].SubExtensionDefinitions[0x6000].ParameterName");
+    }
+
+    [Fact]
     public void Validate_SubExtensionInsideDataType_ReturnsNoValueIssue()
     {
         // Arrange
@@ -903,6 +966,16 @@ public class ModuleSectionRoundTripTests
         OrderCode=MOD
 
         """;
+
+    private static ElectronicDataSheet SubExtensionEds(ModuleSubExtension extension)
+    {
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        var module = new ModuleInfo { ModuleNumber = 1, ProductName = "Module", OrderCode = "OC" };
+        module.SubExtends.Add(extension.Index);
+        module.SubExtensionDefinitions[extension.Index] = extension;
+        eds.SupportedModules.Add(module);
+        return eds;
+    }
 
     private static ElectronicDataSheet ValidModuleEds()
     {

@@ -584,9 +584,10 @@ public static class CanOpenModelValidator
     }
 
     /// <summary>
-    /// A sub-extension carries the same typed value fields as an object description.
-    /// A missing <c>ObjectType</c> is VAR, so value checks apply. DEFTYPE and DEFSTRUCT
-    /// describe types and are skipped, matching <see cref="ValidateObjectContent"/>.
+    /// A sub-extension carries the same entries as an object description.
+    /// Object type and parameter-name length are checked unconditionally, as in
+    /// <see cref="ValidateObjectContent"/>. A missing <c>ObjectType</c> is VAR, so
+    /// value checks apply. DEFTYPE and DEFSTRUCT describe types and are skipped.
     /// </summary>
     private static void ValidateModuleSubExtensionValues(
         string extensionPath,
@@ -595,10 +596,26 @@ public static class CanOpenModelValidator
         byte[] nodeIds,
         List<ValidationIssue> issues)
     {
-        var objectType = extension.ObjectType ?? CanOpenObjectType.Var;
+        ValidateMaxLength(
+            extension.ParameterName,
+            MaxParameterNameLength,
+            extensionPath + ".ParameterName",
+            issues);
+
+        if (extension.ObjectType is byte objectType && !CanOpenObjectType.IsValid(objectType))
+        {
+            issues.Add(new ValidationIssue(
+                extensionPath + ".ObjectType",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "ObjectType 0x{0:X2} is not a valid CiA 306 object code.",
+                    objectType)));
+        }
+
+        var effectiveType = extension.ObjectType ?? CanOpenObjectType.Var;
         if (!options.CheckValueRanges ||
-            objectType == CanOpenObjectType.DefType ||
-            objectType == CanOpenObjectType.DefStruct)
+            effectiveType == CanOpenObjectType.DefType ||
+            effectiveType == CanOpenObjectType.DefStruct)
         {
             return;
         }
