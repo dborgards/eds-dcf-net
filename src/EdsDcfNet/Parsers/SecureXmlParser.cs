@@ -2,7 +2,6 @@ namespace EdsDcfNet.Parsers;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using EdsDcfNet.Exceptions;
@@ -93,21 +92,25 @@ internal static class SecureXmlParser
         }
     }
 
+    /// <summary>
+    /// Buffers <paramref name="stream"/> once and decodes it from the BOM or the XML declaration.
+    /// File callers pass a <see cref="ByteLimitingStream"/> so the caller's limit stays a byte cap.
+    /// Stream callers are capped at the decoded character count, with a raw-byte ceiling from
+    /// <see cref="InputBufferLimit"/> so multibyte text of length N is not rejected as N bytes.
+    /// The decoded text is parsed by <see cref="ParseDocument"/>, which keeps
+    /// <see cref="DtdProcessing.Prohibit"/>, a null <see cref="XmlResolver"/>,
+    /// <see cref="XmlReaderSettings.MaxCharactersInDocument"/>, and the depth limit.
+    /// That reader counter is not the stream's character limit: without a BOM it counts
+    /// UTF-8 bytes, which would reject N non-ASCII characters at limit N.
+    /// </summary>
     internal static string ReadContentFromStreamWithLimit(
         Stream stream,
         string formatName,
         long maxInputSize = DefaultMaxInputSize)
     {
         EnsureStreamReadable(stream);
-
-        using var reader = new StreamReader(
-            stream,
-            Encoding.UTF8,
-            detectEncodingFromByteOrderMarks: true,
-            bufferSize: 4096,
-            leaveOpen: true);
-
-        return ReadAllWithLimit(reader, formatName, maxInputSize);
+        var bytes = ReadBounded(stream, StreamByteCap(maxInputSize), StreamByteCapMessage(formatName, maxInputSize));
+        return DecodeWithinCharacterLimit(bytes, formatName, maxInputSize);
     }
 
     internal static async Task<string> ReadContentFromStreamWithLimitAsync(
@@ -117,16 +120,12 @@ internal static class SecureXmlParser
         CancellationToken cancellationToken = default)
     {
         EnsureStreamReadable(stream);
-
-        using var reader = new StreamReader(
+        var bytes = await ReadBoundedAsync(
             stream,
-            Encoding.UTF8,
-            detectEncodingFromByteOrderMarks: true,
-            bufferSize: 4096,
-            leaveOpen: true);
-
-        return await ReadAllWithLimitAsync(reader, formatName, maxInputSize, cancellationToken)
-            .ConfigureAwait(false);
+            StreamByteCap(maxInputSize),
+            StreamByteCapMessage(formatName, maxInputSize),
+            cancellationToken).ConfigureAwait(false);
+        return DecodeWithinCharacterLimit(bytes, formatName, maxInputSize);
     }
 
     private static void EnsureContentWithinSizeLimit(
@@ -153,77 +152,104 @@ internal static class SecureXmlParser
             throw new ArgumentException("Stream must be readable.", nameof(stream));
     }
 
-    private static string ReadAllWithLimit(
-        StreamReader reader,
-        string formatName,
-        long maxInputSize)
+    private static string DecodeWithinCharacterLimit(byte[] bytes, string formatName, long maxInputSize)
     {
-        var builder = new StringBuilder();
-        var buffer = new char[4096];
-        long totalChars = 0;
-
-        while (true)
+        var text = XmlTextDecoder.Decode(bytes, formatName);
+        if ((long)text.Length > maxInputSize)
         {
-            var charsRead = reader.Read(buffer, 0, buffer.Length);
-            if (charsRead == 0)
-                break;
-
-            totalChars += charsRead;
-            if (totalChars > maxInputSize)
-            {
-                throw new EdsParseException(
-                    string.Format(
-                        CultureInfo.InvariantCulture,
-                        "{0} content is too large ({1:N0} characters). Maximum supported size is {2:N0} characters.",
-                        formatName,
-                        totalChars,
-                        maxInputSize));
-            }
-
-            builder.Append(buffer, 0, charsRead);
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} content is too large ({1:N0} characters). Maximum supported size is {2:N0} characters.",
+                    formatName,
+                    text.Length,
+                    maxInputSize));
         }
 
-        return builder.ToString();
+        return text;
     }
 
-    private static async Task<string> ReadAllWithLimitAsync(
-        StreamReader reader,
-        string formatName,
-        long maxInputSize,
+    private static long StreamByteCap(long maxInputSize)
+        => InputBufferLimit.GetMaxBufferedByteCount(maxInputSize, FileEncodingScope.CurrentRead);
+
+    private static string StreamByteCapMessage(string formatName, long maxInputSize)
+        => string.Format(
+            CultureInfo.InvariantCulture,
+            "{0} content is too large. Maximum supported size is {1:N0} characters.",
+            formatName,
+            maxInputSize);
+
+    private const int ReadChunkSize = 8192;
+
+    /// <summary>
+    /// Reads at most <paramref name="maxBytes"/>, plus one probe byte when the stream
+    /// continues, then throws. The remainder of an overlong stream is not consumed.
+    /// </summary>
+    private static byte[] ReadBounded(Stream stream, long maxBytes, string exceededMessage)
+    {
+        using var buffer = new MemoryStream();
+        var chunk = new byte[ReadChunkSize];
+        long total = 0;
+        while (true)
+        {
+            var want = NextReadSize(maxBytes, total);
+            var read = stream.Read(chunk, 0, want);
+            if (read == 0)
+                break;
+
+            total += read;
+            if (total > maxBytes)
+                throw new EdsParseException(exceededMessage);
+
+            buffer.Write(chunk, 0, read);
+        }
+
+        return buffer.ToArray();
+    }
+
+    private static async Task<byte[]> ReadBoundedAsync(
+        Stream stream,
+        long maxBytes,
+        string exceededMessage,
         CancellationToken cancellationToken)
     {
-        var builder = new StringBuilder();
-        var buffer = new char[4096];
-        long totalChars = 0;
-
+        using var buffer = new MemoryStream();
+        var chunk = new byte[ReadChunkSize];
+        long total = 0;
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var want = NextReadSize(maxBytes, total);
 #if NET10_0_OR_GREATER
-            var charsRead = await reader.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+            var read = await stream.ReadAsync(chunk.AsMemory(0, want), cancellationToken).ConfigureAwait(false);
 #else
-            var charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+            var read = await stream.ReadAsync(chunk, 0, want, cancellationToken).ConfigureAwait(false);
 #endif
-            if (charsRead == 0)
+            if (read == 0)
                 break;
 
-            totalChars += charsRead;
-            if (totalChars > maxInputSize)
-            {
-                throw new EdsParseException(
-                    string.Format(
-                        CultureInfo.InvariantCulture,
-                        "{0} content is too large ({1:N0} characters). Maximum supported size is {2:N0} characters.",
-                        formatName,
-                        totalChars,
-                        maxInputSize));
-            }
+            total += read;
+            if (total > maxBytes)
+                throw new EdsParseException(exceededMessage);
 
-            builder.Append(buffer, 0, charsRead);
+            buffer.Write(chunk, 0, read);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        return builder.ToString();
+        return buffer.ToArray();
+    }
+
+    private static int NextReadSize(long maxBytes, long total)
+    {
+        if (maxBytes == long.MaxValue)
+            return ReadChunkSize;
+
+        var remaining = maxBytes - total;
+        if (remaining < 0)
+            return 0;
+
+        var probe = remaining >= int.MaxValue ? int.MaxValue : (int)remaining + 1;
+        return probe < ReadChunkSize ? probe : ReadChunkSize;
     }
 
     private static XmlReaderSettings CreateSecureReaderSettings(long maxInputSize)
