@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.2...v1.15.0-beta.3) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **xdd:** treat objFlags as four-digit hexBinary ([51f340f](https://github.com/dborgards/eds-dcf-net/commit/51f340ffdc2c83eb9598e576f2442cb992b66d44))
+
 ## [1.15.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.1...v1.15.0-beta.2) (2026-10-02)
 
 ### 🐛 Bug Fixes
