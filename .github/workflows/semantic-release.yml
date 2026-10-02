@@ -51,6 +51,18 @@ jobs:
   release:
     # windows-latest is required so the net48 test host can bind and execute the
     # library's netstandard2.0 asset before publishing (net10.0 runs on the same job).
+    #
+    # The release commit is pushed with RELEASE_TOKEN, which starts workflows.
+    # [skip ci] used to suppress this re-entry and, with it, every pull_request
+    # workflow headed by that commit (develop→main gates included). Skip only
+    # the release-commit push. workflow_dispatch still runs. github.actor is the
+    # token owner, not semantic-release-bot — that name is the git committer —
+    # so this matches the message and committer, as relay-release-status does.
+    if: >-
+      !(github.event_name == 'push' &&
+        github.event.head_commit &&
+        startsWith(github.event.head_commit.message, 'chore(release):') &&
+        github.event.head_commit.committer.name == 'semantic-release-bot')
     runs-on: windows-latest
 
     steps:
