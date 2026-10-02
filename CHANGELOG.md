@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.3...v1.15.0-beta.4) (2026-10-02)
+
+### ✨ Features
+
+* **options:** add encoding option for all formats with ISO-8859-1 read fallback for INI ([82255c7](https://github.com/dborgards/eds-dcf-net/commit/82255c77991923c3cec3051bf369752aa3365483))
+
 ## [1.15.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.2...v1.15.0-beta.3) (2026-10-02)
 
 ### 🐛 Bug Fixes
