@@ -6,7 +6,7 @@
 #
 # Metric:
 #   Sum lines-covered and lines-valid from every coverage.cobertura.xml under
-#   the search root (sorted paths for stable logs), then:
+#   the results directory (sorted paths for stable logs), then:
 #     percent = (sum(lines-covered) / sum(lines-valid)) * 100
 #   Fail if percent < COVERAGE_MIN_PERCENT (default 95.0).
 #
@@ -15,16 +15,34 @@
 #   lines-valid. Averaging line-rate or taking only the first file can pass PR
 #   CI while failing release (or the reverse) for the same commit.
 #
+# Search root:
+#   Pass the directory given to `dotnet test --results-directory` for this
+#   run. CI creates that directory with mktemp under $RUNNER_TEMP, outside
+#   the checkout. Files in the working tree are not inputs: a force-added
+#   coverage.cobertura.xml, a leftover TestResults run, or a report written
+#   beside EdsDcfNet.Checker. The checker assembly is also marked
+#   ExcludeFromCodeCoverage, so its lines are not part of the library report.
+#
 # Environment:
 #   COVERAGE_MIN_PERCENT  Minimum allowed percent (default: 95.0)
 #   GITHUB_OUTPUT         When set, writes coverage_files and coverage_percent
 #
 # Usage:
-#   tools/enforce-coverage-threshold.sh [search-root]
-#   search-root defaults to the current working directory.
+#   tools/enforce-coverage-threshold.sh <results-directory>
 set -euo pipefail
 
-search_root="${1:-.}"
+if [[ $# -ne 1 || -z "${1:-}" ]]; then
+  echo "Usage: tools/enforce-coverage-threshold.sh <results-directory>" >&2
+  echo "Pass the fresh directory created under RUNNER_TEMP for this test run." >&2
+  exit 1
+fi
+
+search_root="$1"
+# Git Bash on windows-latest exposes RUNNER_TEMP as a Windows path. find needs
+# a POSIX path; cygpath is absent on the Linux runners.
+if command -v cygpath >/dev/null 2>&1; then
+  search_root="$(cygpath -u "$search_root")"
+fi
 min_percent="${COVERAGE_MIN_PERCENT:-95.0}"
 
 if [[ ! -d "$search_root" ]]; then
