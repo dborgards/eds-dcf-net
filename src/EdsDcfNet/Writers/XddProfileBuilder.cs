@@ -13,6 +13,12 @@ using EdsDcfNet.Models;
 /// </summary>
 internal static class XddProfileBuilder
 {
+    private static readonly XName ApplicationLayersName =
+        XddNames.ChildOfType(XddNames.NetworkProfileBodyType, "ApplicationLayers");
+
+    private static readonly XName NetworkManagementName =
+        XddNames.ChildOfType(XddNames.NetworkProfileBodyType, "NetworkManagement");
+
     // ── ISO 15745 profile wrapper ─────────────────────────────────────────────
 
     /// <summary>
@@ -21,17 +27,20 @@ internal static class XddProfileBuilder
     /// </summary>
     internal static XElement BuildProfile(string classId, XElement profileBody)
     {
-        return new XElement("ISO15745Profile",
-            new XElement("ProfileHeader",
-                new XElement("ProfileIdentification", string.Empty),
-                new XElement("ProfileRevision", "1"),
-                new XElement("ProfileName", string.Empty),
-                new XElement("ProfileSource", string.Empty),
-                new XElement("ProfileClassID", classId),
-                new XElement("ISO15745Reference",
-                    new XElement("ISO15745Part", "1"),
-                    new XElement("ISO15745Edition", "1"),
-                    new XElement("ProfileTechnology", "CANopen"))),
+        var profileName = XddNames.Child(XddNames.ProfileContainer, "ISO15745Profile");
+        var headerName = XddNames.Child(profileName, "ProfileHeader");
+        var referenceName = XddNames.Child(headerName, "ISO15745Reference");
+        return new XElement(profileName,
+            new XElement(headerName,
+                XddNames.Element(headerName, "ProfileIdentification", string.Empty),
+                XddNames.Element(headerName, "ProfileRevision", "1"),
+                XddNames.Element(headerName, "ProfileName", string.Empty),
+                XddNames.Element(headerName, "ProfileSource", string.Empty),
+                XddNames.Element(headerName, "ProfileClassID", classId),
+                new XElement(referenceName,
+                    XddNames.Element(referenceName, "ISO15745Part", "1"),
+                    XddNames.Element(referenceName, "ISO15745Edition", "1"),
+                    XddNames.Element(referenceName, "ProfileTechnology", "CANopen"))),
             profileBody);
     }
 
@@ -73,12 +82,13 @@ internal static class XddProfileBuilder
     /// <summary>Builds the <c>DeviceIdentity</c> element from <see cref="DeviceInfo"/>.</summary>
     internal static XElement BuildDeviceIdentity(DeviceInfo deviceInfo)
     {
-        return new XElement("DeviceIdentity",
-            new XElement("vendorName", deviceInfo.VendorName),
-            new XElement("vendorID",
+        var name = XddNames.ChildOfType(XddNames.DeviceProfileBodyType, "DeviceIdentity");
+        return new XElement(name,
+            XddNames.Element(name, "vendorName", deviceInfo.VendorName),
+            XddNames.Element(name, "vendorID",
                 string.Format(CultureInfo.InvariantCulture, "0x{0:X8}", deviceInfo.VendorNumber)),
-            new XElement("productName", deviceInfo.ProductName),
-            new XElement("productID",
+            XddNames.Element(name, "productName", deviceInfo.ProductName),
+            XddNames.Element(name, "productID",
                 string.Format(CultureInfo.InvariantCulture, "0x{0:X8}", deviceInfo.ProductNumber)));
     }
 
@@ -87,11 +97,11 @@ internal static class XddProfileBuilder
     /// <summary>Builds the <c>dummyUsage</c> element from the object dictionary.</summary>
     internal static XElement BuildDummyUsage(ObjectDictionary dict)
     {
-        var dummyElem = new XElement("dummyUsage");
+        var dummyElem = XddNames.Element(ApplicationLayersName, "dummyUsage");
 
         foreach (var kvp in dict.DummyUsage.OrderBy(d => d.Key))
         {
-            dummyElem.Add(new XElement("dummy",
+            dummyElem.Add(XddNames.Element(dummyElem.Name, "dummy",
                 new XAttribute("entry",
                     string.Format(CultureInfo.InvariantCulture,
                         "Dummy{0:X4}={1}", kvp.Key, kvp.Value ? "1" : "0"))));
@@ -103,11 +113,11 @@ internal static class XddProfileBuilder
     /// <summary>Builds the <c>dynamicChannels</c> element.</summary>
     internal static XElement BuildDynamicChannels(DynamicChannels channels)
     {
-        var dynElem = new XElement("dynamicChannels");
+        var dynElem = XddNames.Element(ApplicationLayersName, "dynamicChannels");
 
         foreach (var seg in channels.Segments)
         {
-            var chanElem = new XElement("dynamicChannel",
+            var chanElem = XddNames.Element(dynElem.Name, "dynamicChannel",
                 new XAttribute("dataType", XddFormatHelper.FormatDataType(seg.Type)),
                 new XAttribute("accessType", XddFormatHelper.AccessTypeToString(seg.Dir)));
 
@@ -133,7 +143,7 @@ internal static class XddProfileBuilder
     /// <summary>Builds the <c>CANopenGeneralFeatures</c> element.</summary>
     internal static XElement BuildGeneralFeatures(DeviceInfo deviceInfo)
     {
-        return new XElement("CANopenGeneralFeatures",
+        return XddNames.Element(NetworkManagementName, "CANopenGeneralFeatures",
             new XAttribute("granularity",
                 deviceInfo.Granularity.ToString(CultureInfo.InvariantCulture)),
             new XAttribute("nrOfRxPDO",
@@ -153,7 +163,7 @@ internal static class XddProfileBuilder
     /// <summary>Builds the <c>CANopenMasterFeatures</c> element.</summary>
     internal static XElement BuildMasterFeatures(DeviceInfo deviceInfo)
     {
-        return new XElement("CANopenMasterFeatures",
+        return XddNames.Element(NetworkManagementName, "CANopenMasterFeatures",
             new XAttribute("bootUpMaster",
                 deviceInfo.SimpleBootUpMaster ? "true" : "false"));
     }
