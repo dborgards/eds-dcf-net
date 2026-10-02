@@ -19,13 +19,22 @@ public class EdsWriter : IniWriterBase
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="filePath">Path where the EDS file should be written</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure the target is left untouched and the temporary file
+    /// is removed. Whether the final replace is atomic depends on the file system (for example,
+    /// network shares may not guarantee it).
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="eds"/> is <see langword="null"/>.</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteFile(ElectronicDataSheet eds, string filePath)
     {
+        ThrowIfNull(eds, nameof(eds));
+
         try
         {
             var content = GenerateEdsContent(eds);
-            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+            TextFileIo.WriteOutputTextToFile(filePath, content);
         }
         catch (EdsWriteException)
         {
@@ -45,6 +54,7 @@ public class EdsWriter : IniWriterBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteStream(ElectronicDataSheet eds, Stream stream)
     {
+        ThrowIfNull(eds, nameof(eds));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
@@ -52,7 +62,7 @@ public class EdsWriter : IniWriterBase
         try
         {
             var content = GenerateEdsContent(eds);
-            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
+            TextFileIo.WriteOutputText(stream, content);
         }
         catch (EdsWriteException)
         {
@@ -70,17 +80,26 @@ public class EdsWriter : IniWriterBase
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="filePath">Path where the EDS file should be written</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure or cancellation the target is left untouched and the temporary file
+    /// is removed. Whether the final replace is atomic depends on the file system (for example,
+    /// network shares may not guarantee it).
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="eds"/> is <see langword="null"/>.</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public async Task WriteFileAsync(
         ElectronicDataSheet eds,
         string filePath,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfNull(eds, nameof(eds));
+
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             var content = GenerateEdsContent(eds);
-            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+            await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -108,6 +127,7 @@ public class EdsWriter : IniWriterBase
         Stream stream,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfNull(eds, nameof(eds));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
@@ -116,7 +136,7 @@ public class EdsWriter : IniWriterBase
         {
             cancellationToken.ThrowIfCancellationRequested();
             var content = GenerateEdsContent(eds);
-            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await TextFileIo.WriteOutputTextAsync(stream, content, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -140,6 +160,7 @@ public class EdsWriter : IniWriterBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public string GenerateString(ElectronicDataSheet eds)
     {
+        ThrowIfNull(eds, nameof(eds));
         return GenerateEdsContent(eds);
     }
 

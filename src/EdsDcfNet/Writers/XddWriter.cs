@@ -22,12 +22,21 @@ public class XddWriter
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="filePath">Path where the XDD file should be written</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure the target is left untouched and the temporary file
+    /// is removed. Whether the final replace is atomic depends on the file system (for example,
+    /// network shares may not guarantee it).
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="eds"/> is <see langword="null"/>.</exception>
     public void WriteFile(ElectronicDataSheet eds, string filePath)
     {
+        ThrowIfNull(eds, nameof(eds));
+
         try
         {
-            var content = GenerateString(eds);
-            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
+            var doc = BuildOutputDocument(eds, commissioning: null);
+            TextFileIo.WriteFileAtomic(filePath, stream => SerializeDocument(doc, stream));
         }
         catch (XddWriteException)
         {
@@ -44,16 +53,18 @@ public class XddWriter
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="stream">Writable destination stream</param>
+    /// <exception cref="ArgumentNullException"><paramref name="eds"/> or <paramref name="stream"/> is <see langword="null"/>.</exception>
     public void WriteStream(ElectronicDataSheet eds, Stream stream)
     {
+        ThrowIfNull(eds, nameof(eds));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
         try
         {
-            var content = GenerateString(eds);
-            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
+            var doc = BuildOutputDocument(eds, commissioning: null);
+            SerializeDocument(doc, stream);
         }
         catch (XddWriteException)
         {
@@ -71,16 +82,28 @@ public class XddWriter
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="filePath">Path where the XDD file should be written</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure or cancellation the target is left untouched and the
+    /// temporary file is removed. Whether the final replace is atomic depends on the file system
+    /// (for example, network shares may not guarantee it).
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="eds"/> is <see langword="null"/>.</exception>
     public async Task WriteFileAsync(
         ElectronicDataSheet eds,
         string filePath,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfNull(eds, nameof(eds));
+
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateString(eds);
-            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+            var doc = BuildOutputDocument(eds, commissioning: null);
+            await TextFileIo.WriteFileAtomicAsync(
+                filePath,
+                stream => SerializeDocumentAsync(doc, stream, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -102,11 +125,13 @@ public class XddWriter
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="stream">Writable destination stream</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <exception cref="ArgumentNullException"><paramref name="eds"/> or <paramref name="stream"/> is <see langword="null"/>.</exception>
     public async Task WriteStreamAsync(
         ElectronicDataSheet eds,
         Stream stream,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfNull(eds, nameof(eds));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
@@ -114,8 +139,8 @@ public class XddWriter
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateString(eds);
-            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var doc = BuildOutputDocument(eds, commissioning: null);
+            await SerializeDocumentAsync(doc, stream, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -136,8 +161,12 @@ public class XddWriter
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to convert</param>
     /// <returns>XDD content as string</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="eds"/> is <see langword="null"/>.</exception>
     public string GenerateString(ElectronicDataSheet eds)
-        => GenerateString(eds, commissioning: null);
+    {
+        ThrowIfNull(eds, nameof(eds));
+        return GenerateString(eds, commissioning: null);
+    }
 
     /// <summary>
     /// Generates XDD/XDC content as a string, optionally including device commissioning data.
@@ -154,6 +183,13 @@ public class XddWriter
                 return SerializeDocument(doc);
             });
     }
+
+    /// <summary>
+    /// Builds the document for file and stream output. Failures are reported as
+    /// <see cref="XddWriteException"/> for section <c>Document</c>, like <see cref="GenerateString(ElectronicDataSheet, DeviceCommissioning?)"/>.
+    /// </summary>
+    internal XDocument BuildOutputDocument(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
+        => WriteContext("Document", () => BuildDocument(eds, commissioning));
 
     /// <summary>
     /// Builds the XDocument for the given EDS without commissioning data.
@@ -188,7 +224,7 @@ public class XddWriter
         container.Add(WriteContext("CommunicationNetworkProfile", () => BuildCommNetProfile(eds, xsi, commissioning)));
 
         return new XDocument(
-            new XDeclaration("1.0", "utf-8", null),
+            new XDeclaration("1.0", null, null),
             container);
     }
 
@@ -425,18 +461,21 @@ public class XddWriter
         }
     }
 
+    private static XmlWriterSettings CreateWriterSettings(bool async) => new()
+    {
+        Indent = true,
+        IndentChars = "  ",
+        Encoding = TextFileIo.GetOutputEncoding(),
+        OmitXmlDeclaration = false,
+        CloseOutput = false,
+        Async = async
+    };
+
+    /// <summary>String route (<see cref="GenerateString(ElectronicDataSheet)"/>): the declaration follows <see cref="TextFileIo.GetOutputEncoding"/>.</summary>
     private static string SerializeDocument(XDocument doc)
     {
-        var settings = new XmlWriterSettings
-        {
-            Indent = true,
-            IndentChars = "  ",
-            Encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
-            OmitXmlDeclaration = false
-        };
-
         using var sb = new StringBuilderWriter();
-        using (var writer = XmlWriter.Create(sb, settings))
+        using (var writer = XmlWriter.Create(sb, CreateWriterSettings(async: false)))
         {
             doc.Save(writer);
         }
@@ -444,12 +483,70 @@ public class XddWriter
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Stream route shared by XDD and XDC. The <see cref="XmlWriter"/> serializes into a buffer
+    /// with the encoding from <see cref="TextFileIo.GetOutputEncoding"/> (it emits the matching
+    /// declaration itself and keeps its XML context, so characters the encoding cannot represent
+    /// are still escaped). The buffer is copied to <paramref name="stream"/> only after that
+    /// succeeds, so a content error such as an invalid XML character leaves the stream unchanged.
+    /// The bytes match <see cref="SerializeDocument(XDocument)"/>. The stream stays open.
+    /// </summary>
+    internal static void SerializeDocument(XDocument doc, Stream stream)
+    {
+        var bytes = SerializeToBuffer(doc);
+        stream.Write(bytes, 0, bytes.Length);
+        stream.Flush();
+    }
+
+    /// <summary>Asynchronous variant of <see cref="SerializeDocument(XDocument, Stream)"/>.</summary>
+    internal static async Task SerializeDocumentAsync(XDocument doc, Stream stream, CancellationToken cancellationToken)
+    {
+        var bytes = SerializeToBuffer(doc);
+        cancellationToken.ThrowIfCancellationRequested();
+#if NET10_0_OR_GREATER
+        await stream.WriteAsync(bytes.AsMemory(), cancellationToken).ConfigureAwait(false);
+#else
+        await stream.WriteAsync(bytes, 0, bytes.Length, cancellationToken).ConfigureAwait(false);
+#endif
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    /// <summary>
+    /// Fully serializes <paramref name="doc"/> in memory. <see cref="ArgumentException"/> from
+    /// <see cref="XmlWriter"/> (invalid characters and similar content errors) is reported as a
+    /// document-section failure and never reaches the caller stream.
+    /// </summary>
+    private static byte[] SerializeToBuffer(XDocument doc)
+    {
+        try
+        {
+            using var buffer = new MemoryStream();
+            using (var writer = XmlWriter.Create(buffer, CreateWriterSettings(async: false)))
+            {
+                doc.Save(writer);
+            }
+
+            return buffer.ToArray();
+        }
+        catch (ArgumentException ex)
+        {
+            throw CreateDocumentException(ex);
+        }
+    }
+
+    private static XddWriteException CreateDocumentException(Exception inner)
+        => new("Failed to write section [Document]", inner)
+        {
+            SectionName = "Document"
+        };
+
     /// <summary>Helper to write XML to a StringBuilder.</summary>
     private sealed class StringBuilderWriter : System.IO.TextWriter
     {
         private readonly StringBuilder _sb = new();
 
-        public override Encoding Encoding => Encoding.UTF8;
+        public override Encoding Encoding => TextFileIo.GetOutputEncoding();
 
         public override void Write(char value) => _sb.Append(value);
         public override void Write(string? value) => _sb.Append(value);

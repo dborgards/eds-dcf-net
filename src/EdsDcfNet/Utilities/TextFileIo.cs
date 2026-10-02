@@ -6,6 +6,133 @@ internal static class TextFileIo
 {
     internal static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
+    /// <summary>
+    /// The single place that decides the encoding of every byte the writers produce
+    /// (EDS, DCF, CPJ, XDD, XDC; file and stream, sync and async). Currently UTF-8 without BOM.
+    /// INI writers encode their text with it; the XML writers pass it to
+    /// <see cref="System.Xml.XmlWriterSettings.Encoding"/> so the <c>XmlWriter</c> emits the
+    /// matching declaration and can escape characters the encoding cannot represent.
+    /// </summary>
+    internal static Encoding GetOutputEncoding() => Utf8NoBom;
+
+    /// <summary>Writes <paramref name="content"/> to <paramref name="stream"/> using <see cref="GetOutputEncoding"/>.</summary>
+    internal static void WriteOutputText(Stream stream, string content)
+        => WriteAllText(stream, content, GetOutputEncoding(), leaveOpen: true);
+
+    /// <summary>Asynchronously writes <paramref name="content"/> to <paramref name="stream"/> using <see cref="GetOutputEncoding"/>.</summary>
+    internal static Task WriteOutputTextAsync(Stream stream, string content, CancellationToken cancellationToken)
+        => WriteAllTextAsync(stream, content, GetOutputEncoding(), leaveOpen: true, cancellationToken: cancellationToken);
+
+    /// <summary>Atomically writes <paramref name="content"/> to <paramref name="filePath"/> using <see cref="GetOutputEncoding"/>.</summary>
+    internal static void WriteOutputTextToFile(string filePath, string content)
+        => WriteFileAtomic(filePath, stream => WriteOutputText(stream, content));
+
+    /// <summary>Asynchronously and atomically writes <paramref name="content"/> to <paramref name="filePath"/> using <see cref="GetOutputEncoding"/>.</summary>
+    internal static Task WriteOutputTextToFileAsync(string filePath, string content, CancellationToken cancellationToken)
+        => WriteFileAtomicAsync(filePath, stream => WriteOutputTextAsync(stream, content, cancellationToken), cancellationToken);
+
+    /// <summary>
+    /// Writes a file through a temporary file in the target directory (same volume) and commits it
+    /// with <see cref="File.Move(string, string)"/> (target absent) or
+    /// <see cref="File.Replace(string, string, string?)"/> (target present). The previous target
+    /// is never deleted before the new content is complete; on any failure the temporary file is
+    /// removed and the target stays untouched. There is no fallback to in-place overwriting.
+    /// </summary>
+    internal static void WriteFileAtomic(string filePath, Action<Stream> write)
+    {
+        filePath = Path.GetFullPath(filePath);
+        var tempPath = CreateTempPath(filePath);
+        try
+        {
+            using (var stream = new FileStream(
+                tempPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 4096))
+            {
+                write(stream);
+                stream.Flush(flushToDisk: true);
+            }
+
+            Commit(tempPath, filePath);
+        }
+        catch
+        {
+            TryDelete(tempPath);
+            throw;
+        }
+    }
+
+    /// <summary>Asynchronous variant of <see cref="WriteFileAtomic"/>; cancellation before the commit removes the temporary file.</summary>
+    internal static async Task WriteFileAtomicAsync(
+        string filePath,
+        Func<Stream, Task> write,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        filePath = Path.GetFullPath(filePath);
+        var tempPath = CreateTempPath(filePath);
+        try
+        {
+            using (var stream = new FileStream(
+                tempPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 4096,
+                options: FileOptions.Asynchronous))
+            {
+                await write(stream).ConfigureAwait(false);
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                stream.Flush(flushToDisk: true);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            Commit(tempPath, filePath);
+        }
+        catch
+        {
+            TryDelete(tempPath);
+            throw;
+        }
+    }
+
+    private static string CreateTempPath(string filePath)
+    {
+        // filePath is already absolute (resolved once by the caller), so temp placement and commit agree.
+        var directory = Path.GetDirectoryName(filePath);
+        if (string.IsNullOrEmpty(directory))
+            throw new ArgumentException("File path must include a file name.", nameof(filePath));
+
+        // Independent of the target file name. Embedding that name plus a GUID and ".tmp"
+        // (38 extra characters) exceeds the per-component limit — 255 bytes on ext4, 255
+        // characters on NTFS — when the target name is already near it, so every writer
+        // would reject a path that was previously writable. ".edsdcf." + 32 hex digits + ".tmp"
+        // is 44 ASCII characters and still sits in the target directory (same volume).
+        return Path.Combine(directory, $".edsdcf.{Guid.NewGuid():N}.tmp");
+    }
+
+    private static void Commit(string tempPath, string filePath)
+    {
+        if (File.Exists(filePath))
+            File.Replace(tempPath, filePath, destinationBackupFileName: null);
+        else
+            File.Move(tempPath, filePath);
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort: the original failure is the one worth reporting.
+        }
+    }
+
     internal static async Task<string> ReadAllTextAsync(
         string filePath,
         Encoding encoding,
