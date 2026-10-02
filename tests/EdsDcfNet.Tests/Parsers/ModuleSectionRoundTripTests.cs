@@ -286,8 +286,9 @@ public class ModuleSectionRoundTripTests
         extension.ObjFlags.Should().Be(1u);
         extension.SubNumber.Should().Be(1);
         extension.CompactSubObj.Should().Be(4);
-        written.Should().Contain(
-            """
+        // The literal keeps the checkout's newlines. Compare it as LF, the same
+        // form as written, and still require every object-description key in order.
+        var expectedSection = """
             [M1SubExt6000]
             SubNumber=1
             ParameterName=Input lines
@@ -302,7 +303,8 @@ public class ModuleSectionRoundTripTests
             CompactSubObj=4
             Count=4
             ObjExtend=128
-            """);
+            """.Replace("\r\n", "\n");
+        written.Should().Contain(expectedSection);
         second.Should().Be(written);
     }
 
