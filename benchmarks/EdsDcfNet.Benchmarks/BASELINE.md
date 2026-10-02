@@ -28,7 +28,20 @@ BenchmarkDotNet markdown report into the table below.
 
 | Date (UTC) | Commit | OS / Runtime | ParserBenchmarks.EdsParseFromString (Mean / Allocated) | WriterBenchmarks.EdsWriteToString (Mean / Allocated) | RoundTripBenchmarks.EdsRoundTrip (Mean / Allocated) |
 | --- | --- | --- | --- | --- | --- |
-| 2026-03-06 | d74b4a6 | Linux (CI), .NET 10.0 | _capture pending (see artifacts)_ | _capture pending (see artifacts)_ | _capture pending (see artifacts)_ |
+
+
+No baseline is recorded yet (note of 2026-10-01). The earlier row of
+2026-03-06 only held "capture pending" placeholders and was removed. No
+measurement was taken because other builds were running concurrently on the
+machine, which would make the numbers meaningless. To capture one, run on an
+otherwise idle machine from the repository root:
+
+```bash
+dotnet run -c Release -p benchmarks/EdsDcfNet.Benchmarks -- --filter "*"
+```
+
+then add a row to the table above (date, commit, OS / runtime, `Mean` /
+`Allocated`).
 
 The first completed row with concrete values is the reference baseline for
 future regression comparisons.

@@ -1,4 +1,5 @@
 using EdsDcfNet;
+using EdsDcfNet.Exceptions;
 using EdsDcfNet.Extensions;
 using EdsDcfNet.Models;
 using System.Globalization;
@@ -7,7 +8,7 @@ namespace EdsDcfNet.Examples;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         Console.WriteLine("=== EdsDcfNet Library Examples ===\n");
 
@@ -25,6 +26,11 @@ class Program
 
         // Example 5: Parse diagnostics and validated write
         Example5_DiagnosticsAndValidatedWrite();
+
+        Example6_Cpj();
+        Example7_XddAndXdc();
+        await Example8_AsyncAsync();
+        Example9_StrictParsing();
 
         Console.WriteLine("\n=== Examples Complete ===");
     }
@@ -109,58 +115,12 @@ class Program
         Console.WriteLine("Example 2: Read EDS file");
         Console.WriteLine("------------------------");
 
-        // Create a sample EDS content
-        var sampleEds = @"[FileInfo]
-FileName=sample.eds
-FileVersion=1
-FileRevision=0
-EDSVersion=4.0
-Description=Sample Device
-CreatedBy=Example
-
-[DeviceInfo]
-VendorName=Sample Vendor
-VendorNumber=0x00000042
-ProductName=Sample Device
-ProductNumber=0x00001234
-RevisionNumber=0x00010000
-OrderCode=SAMPLE-001
-BaudRate_125=1
-BaudRate_250=1
-BaudRate_500=1
-BaudRate_1000=1
-SimpleBootUpSlave=1
-Granularity=8
-NrOfRXPDO=2
-NrOfTXPDO=2
-LSS_Supported=0
-
-[MandatoryObjects]
-SupportedObjects=2
-1=0x1000
-2=0x1001
-
-[1000]
-ParameterName=Device Type
-ObjectType=0x7
-DataType=0x0007
-AccessType=ro
-DefaultValue=0x00000000
-PDOMapping=0
-
-[1001]
-ParameterName=Error Register
-ObjectType=0x7
-DataType=0x0005
-AccessType=ro
-DefaultValue=0
-PDOMapping=1
-";
-
         try
         {
-            var eds = CanOpenFile.Eds.ReadString(sampleEds);
+            var path = FindSampleEds();
+            var eds = CanOpenFile.Eds.ReadFile(path);
 
+            Console.WriteLine($"File: {Path.GetFileName(path)}");
             Console.WriteLine($"Device: {eds.DeviceInfo.ProductName}");
             Console.WriteLine($"Vendor: {eds.DeviceInfo.VendorName} (ID: 0x{eds.DeviceInfo.VendorNumber:X})");
             Console.WriteLine($"Product Number: 0x{eds.DeviceInfo.ProductNumber:X}");
@@ -278,7 +238,7 @@ PDOMapping=1
             Index = 0x1018,
             ParameterName = "Identity Object",
             ObjectType = CanOpenObjectType.Record,
-            SubNumber = 4
+            SubNumber = 5 // sub-index 00h plus 01h..04h
         };
 
         // Add sub-objects
@@ -288,7 +248,7 @@ PDOMapping=1
             ParameterName = "Number of Entries",
             DataType = CanOpenDataType.Unsigned8,
             AccessType = AccessType.ReadOnly,
-            DefaultValue = "4"
+            DefaultValue = "4" // highest sub-index
         };
 
         dcf.ObjectDictionary.Objects[0x1018].SubObjects[1] = new CanOpenSubObject
@@ -300,6 +260,21 @@ PDOMapping=1
             DefaultValue = "0x00000100",
             ParameterValue = "0x00000100"
         };
+
+        var identity = dcf.ObjectDictionary.Objects[0x1018];
+        string[] identityNames = { "Product Code", "Revision Number", "Serial Number" };
+        for (byte i = 2; i <= 4; i++)
+        {
+            identity.SubObjects[i] = new CanOpenSubObject
+            {
+                SubIndex = i,
+                ParameterName = identityNames[i - 2],
+                DataType = CanOpenDataType.Unsigned32,
+                AccessType = AccessType.ReadOnly,
+                DefaultValue = "0x00000000"
+            };
+        }
+        Console.WriteLine($"SubNumber {identity.SubNumber} == {identity.SubObjects.Count} described sub-indices");
 
         // Use extension methods
         Console.WriteLine("Using extension methods:");
@@ -374,13 +349,95 @@ PDOMapping=0
             Console.WriteLine($"  {diagnostic}");
         Console.WriteLine($"Effective FileName: {result.Model.FileInfo.FileName}");
 
-        // Opt-in write guard: refuse to persist a model with validation errors.
-        CanOpenFile.Eds.WriteFile(
-            result.Model,
-            "device_validated.eds",
-            new CanOpenWriteOptions { ValidateBeforeWrite = true });
+        var outputPath = Path.Combine(Path.GetTempPath(), $"edsdcfnet_{Guid.NewGuid():N}.eds");
 
-        Console.WriteLine("Validated write succeeded.");
+        // Opt-in write guard (written to a temp file, not the working directory): refuse to persist a model with validation errors.
+        try
+        {
+            CanOpenFile.Eds.WriteFile(
+                result.Model,
+                outputPath,
+                new CanOpenWriteOptions { ValidateBeforeWrite = true });
+
+            Console.WriteLine("Validated write succeeded.");
+        }
+        finally
+        {
+            File.Delete(outputPath);
+        }
         Console.WriteLine();
     }
+
+    static void Example6_Cpj()
+    {
+        Console.WriteLine("Example 6: CPJ node list");
+        Console.WriteLine("------------------------");
+
+        var cpj = CanOpenFile.Cpj.ReadString(@"[Topology]
+NetName=Line1
+Nodes=2
+Node1Present=1
+Node1Name=IO_Module
+Node1DCFName=io.dcf
+Node2Present=0
+Node2Name=Spare
+");
+
+        foreach (var net in cpj.Networks)
+            foreach (var node in net.Nodes.Values)
+                Console.WriteLine($"{net.NetName}: node {node.NodeId} {node.Name} present={node.Present} dcf={node.DcfFileName}");
+        Console.WriteLine();
+    }
+
+    static void Example7_XddAndXdc()
+    {
+        Console.WriteLine("Example 7: XDD and XDC");
+        Console.WriteLine("----------------------");
+
+        var eds = CanOpenFile.Eds.ReadFile(FindSampleEds());
+
+        // XDD is the XML form of an EDS: write it to a string and read it back.
+        var xdd = CanOpenFile.Xdd.ReadString(CanOpenFile.Xdd.WriteToString(eds));
+        Console.WriteLine($"XDD: {xdd.DeviceInfo.ProductName}, {xdd.ObjectDictionary.Objects.Count} objects");
+
+        // XDC is the XML form of a DCF (a configured device).
+        var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 5, baudrate: 250);
+        var xdc = CanOpenFile.Xdc.ReadString(CanOpenFile.Xdc.WriteToString(dcf));
+        Console.WriteLine($"XDC: node {xdc.DeviceCommissioning.NodeId} at {xdc.DeviceCommissioning.Baudrate} kbit/s");
+        Console.WriteLine();
+    }
+
+    static async Task Example8_AsyncAsync()
+    {
+        Console.WriteLine("Example 8: Async read");
+        Console.WriteLine("---------------------");
+
+        var eds = await CanOpenFile.Eds.ReadFileAsync(FindSampleEds());
+        Console.WriteLine($"Read asynchronously: {eds.DeviceInfo.ProductName}");
+        Console.WriteLine();
+    }
+
+    static void Example9_StrictParsing()
+    {
+        Console.WriteLine("Example 9: Strict parsing");
+        Console.WriteLine("-------------------------");
+
+        // Duplicate key: lenient mode keeps the last value, strict mode throws.
+        var duplicateKey = File.ReadAllText(FindSampleEds())
+            .Replace("FileName=sample_device.eds", "FileName=sample_device.eds\nFileName=revised.eds");
+        Console.WriteLine($"Lenient: FileName={CanOpenFile.Eds.ReadString(duplicateKey).FileInfo.FileName}");
+
+        try
+        {
+            CanOpenFile.Eds.ReadString(duplicateKey, new CanOpenFileOptions { StrictParsing = true });
+        }
+        catch (EdsParseException ex)
+        {
+            Console.WriteLine($"Strict: {ex.GetType().Name}: {ex.Message}");
+        }
+        Console.WriteLine();
+    }
+
+    // The sample file is copied next to the executable by the project file.
+    static string FindSampleEds() => Path.Combine(AppContext.BaseDirectory, "sample_device.eds");
 }
