@@ -257,6 +257,9 @@ internal static class IniWriteRules
     }
 
     private static void ApplyComments(Comments? comments, List<ValidationIssue> issues)
+        => ApplyCommentLines(comments, "Comments", issues);
+
+    private static void ApplyCommentLines(Comments? comments, string path, List<ValidationIssue> issues)
     {
         if (comments == null || comments.CommentLines.Count == 0)
             return;
@@ -266,7 +269,7 @@ internal static class IniWriteRules
             Check(
                 line.Value,
                 IniTextSlot.Value,
-                string.Format(CultureInfo.InvariantCulture, "Comments.CommentLines[{0}]", line.Key),
+                string.Format(CultureInfo.InvariantCulture, "{0}.CommentLines[{1}]", path, line.Key),
                 issues);
         }
     }
@@ -279,6 +282,32 @@ internal static class IniWriteRules
             var path = string.Format(CultureInfo.InvariantCulture, "SupportedModules[{0}]", i);
             Check(module.ProductName, IniTextSlot.Value, path + ".ProductName", issues);
             Check(module.OrderCode, IniTextSlot.Value, path + ".OrderCode", issues);
+            ApplyCommentLines(module.Comments, path + ".Comments", issues);
+
+            foreach (var entry in module.FixedObjectDefinitions)
+            {
+                var objectPath = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0}.FixedObjectDefinitions[0x{1:X4}]",
+                    path,
+                    entry.Key);
+                // WriteModuleFixedObject emits DCF value fields and filters remaining
+                // entries with the DCF key set for both EDS and DCF.
+                ApplyObject(entry.Value, includeDcfFields: true, objectPath, issues);
+            }
+
+            foreach (var entry in module.SubExtensionDefinitions)
+            {
+                var extensionPath = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0}.SubExtensionDefinitions[0x{1:X4}]",
+                    path,
+                    entry.Key);
+                var extension = entry.Value;
+                Check(extension.ParameterName, IniTextSlot.Value, extensionPath + ".ParameterName", issues);
+                CheckIfPresent(extension.DefaultValue, IniTextSlot.Value, extensionPath + ".DefaultValue", issues);
+                Check(extension.Count, IniTextSlot.Value, extensionPath + ".Count", issues);
+            }
         }
     }
 
