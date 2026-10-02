@@ -10,6 +10,21 @@ public static class ParseDiagnosticCodes
     /// <summary>Duplicate key within an INI section; lenient mode keeps the last value.</summary>
     public const string IniDuplicateKey = "INI_DUPLICATE_KEY";
 
+    /// <summary>
+    /// Malformed INI section header (for example <c>[2000</c> or text after the closing bracket).
+    /// Lenient mode ignores the header line and the keys that follow it up to the next valid header.
+    /// </summary>
+    public const string IniMalformedSectionHeader = "INI_MALFORMED_SECTION_HEADER";
+
+    /// <summary>
+    /// INI line that is neither blank, comment, section header nor <c>key=value</c> (no <c>=</c>, or an
+    /// empty key); lenient mode ignores the line.
+    /// </summary>
+    public const string IniMissingEquals = "INI_MISSING_EQUALS";
+
+    /// <summary>Section header that repeats an earlier section; lenient mode merges the keys into it.</summary>
+    public const string IniDuplicateSection = "INI_DUPLICATE_SECTION";
+
     /// <summary>Invalid <c>DummyUsage</c> key in an INI file; the entry is ignored.</summary>
     public const string IniInvalidDummyUsageKey = "INI_INVALID_DUMMY_USAGE_KEY";
 
