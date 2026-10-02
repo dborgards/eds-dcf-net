@@ -627,14 +627,21 @@ public class MalformedNumericObjectKeyTests
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
-        var diagnostic = result.Diagnostics.Should().ContainSingle().Subject;
+        // Count 0 means 1=0x2005 is not in the list, so [2005] is preserved, not loaded.
+        result.Diagnostics.Select(d => d.Code).Should().Equal(
+            ParseDiagnosticCodes.InvalidObjectListCount,
+            ParseDiagnosticCodes.IniUnlistedObjectSection);
+        var diagnostic = result.Diagnostics[0];
         diagnostic.Code.Should().Be(ParseDiagnosticCodes.InvalidObjectListCount);
         diagnostic.Path.Should().Be("ManufacturerObjects.SupportedObjects");
         diagnostic.RawValue.Should().Be("nope");
         diagnostic.CoercedTo.Should().Be("0");
         diagnostic.Line.Should().Be(SourceLine(content, "SupportedObjects=nope"));
+        result.Diagnostics[1].Path.Should().Be("2005");
+        result.Diagnostics[1].Message.Should().Be("object section 0x2005 not listed in any object list");
         result.Model.ObjectDictionary.ManufacturerObjects.Should().BeEmpty();
         result.Model.ObjectDictionary.Objects.Should().NotContainKey((ushort)0x2005);
+        result.Model.AdditionalSections["2005"]["ParameterName"].Should().Be("Unlisted");
         result.Model.ObjectDictionary.Objects[0x1000].ParameterName.Should().Be("Device Type");
 
         AssertStrict(
@@ -658,11 +665,17 @@ public class MalformedNumericObjectKeyTests
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
-        result.Diagnostics.Should().ContainSingle(d =>
-            d.Code == ParseDiagnosticCodes.InvalidObjectListCount &&
-            d.RawValue == "65536" &&
-            d.CoercedTo == "0");
+        // Count 0 means 1=0x1000 is not in the list, so [1000] is preserved, not loaded.
+        result.Diagnostics.Select(d => d.Code).Should().Equal(
+            ParseDiagnosticCodes.InvalidObjectListCount,
+            ParseDiagnosticCodes.IniUnlistedObjectSection);
+        result.Diagnostics[0].RawValue.Should().Be("65536");
+        result.Diagnostics[0].CoercedTo.Should().Be("0");
+        result.Diagnostics[1].Path.Should().Be("1000");
+        result.Diagnostics[1].Message.Should().Be("object section 0x1000 not listed in any object list");
         result.Model.ObjectDictionary.MandatoryObjects.Should().BeEmpty();
+        result.Model.ObjectDictionary.Objects.Should().NotContainKey((ushort)0x1000);
+        result.Model.AdditionalSections["1000"]["ParameterName"].Should().Be("Device Type");
         result.Model.DeviceInfo.VendorName.Should().Be("Test");
 
         AssertStrict(content, ParseDiagnosticCodes.InvalidObjectListCount, "MandatoryObjects", "Invalid UInt16 value: '65536'");

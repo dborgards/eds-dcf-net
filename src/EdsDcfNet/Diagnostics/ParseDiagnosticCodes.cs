@@ -36,6 +36,14 @@ public static class ParseDiagnosticCodes
     public const string IniInvalidDummyUsageKey = "INI_INVALID_DUMMY_USAGE_KEY";
 
     /// <summary>
+    /// EDS/DCF section whose name is a hexadecimal object index, but that index is not
+    /// listed in <c>MandatoryObjects</c>, <c>OptionalObjects</c>, or <c>ManufacturerObjects</c>.
+    /// The section is not loaded as an object. Lenient mode keeps the original section in
+    /// <c>AdditionalSections</c>; strict mode throws.
+    /// </summary>
+    public const string IniUnlistedObjectSection = "INI_UNLISTED_OBJECT_SECTION";
+
+    /// <summary>
     /// EDS/DCF <c>FileVersion</c>/<c>FileRevision</c> in major/minor tooling form
     /// (for example <c>1.0</c>); lenient mode uses the major component.
     /// </summary>

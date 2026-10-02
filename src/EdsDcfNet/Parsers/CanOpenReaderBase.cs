@@ -49,19 +49,96 @@ public abstract class CanOpenReaderBase
         model.DynamicChannels = CanOpenSectionParsers.ParseDynamicChannels(sections);
         model.Tools.AddRange(CanOpenSectionParsers.ParseTools(sections));
 
-        // Preserve any unknown sections for round-trip fidelity.
+        // Preserve unknown sections for round-trip fidelity. A hexadecimal name is an
+        // object index: listed indexes are parsed as objects, and an index that is in
+        // no object list is kept here instead of being dropped.
         foreach (var sectionName in sections.Keys)
         {
-            if (!IsKnownSection(sectionName) &&
-                !IsToolSectionForParsedTools(sectionName, model.Tools.Count) &&
-                !IsSectionHandledByFormat(sectionName, model) &&
-                !CanOpenSectionParsers.IsConsumedModuleFixedSection(sectionName, model.SupportedModules))
+            if (IsToolSectionForParsedTools(sectionName, model.Tools.Count) ||
+                IsSectionHandledByFormat(sectionName, model) ||
+                CanOpenSectionParsers.IsConsumedModuleFixedSection(sectionName, model.SupportedModules))
             {
-                model.AdditionalSections[sectionName] =
-                    new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
+                continue;
+            }
+
+            if (TryPreserveUnlistedObjectSection(model, sections, sectionName))
+                continue;
+
+            if (!IsKnownSection(sectionName))
+            {
+                model.AdditionalSections[sectionName] = CopySectionEntries(sections[sectionName]);
             }
         }
     }
+
+    /// <summary>
+    /// Keeps a section whose name is a hexadecimal object index that no object list
+    /// cites. The section is not loaded as an object. Lenient mode stores the original
+    /// entries in <c>AdditionalSections</c> and reports a warning; strict mode throws.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="sectionName"/> is an unlisted object
+    /// index and has been preserved, unless strict mode threw.
+    /// </returns>
+    private bool TryPreserveUnlistedObjectSection(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName)
+    {
+        // Standard section names are never object indexes. Checking them first keeps a
+        // future hex-shaped standard name on its normal parse path.
+        if (KnownSectionNames.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
+            return false;
+
+        if (!TryParseObjectIndexSectionName(sectionName, out var index))
+            return false;
+
+        var dictionary = model.ObjectDictionary;
+        if (dictionary.MandatoryObjects.Contains(index) ||
+            dictionary.OptionalObjects.Contains(index) ||
+            dictionary.ManufacturerObjects.Contains(index))
+        {
+            return false;
+        }
+
+        ReportUnlistedObjectSection(sectionName, index);
+        model.AdditionalSections[sectionName] = CopySectionEntries(sections[sectionName]);
+        return true;
+    }
+
+    /// <summary>
+    /// Reports <see cref="Diagnostics.ParseDiagnosticCodes.IniUnlistedObjectSection"/>.
+    /// Strict mode throws <see cref="EdsParseException"/> with the same code and message.
+    /// </summary>
+    private static void ReportUnlistedObjectSection(string sectionName, ushort index)
+    {
+        var message = string.Format(
+            CultureInfo.InvariantCulture,
+            "object section 0x{0:X4} not listed in any object list",
+            index);
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.IniUnlistedObjectSection,
+            path: sectionName,
+            message: message,
+            rawValue: sectionName));
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(message)
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.IniUnlistedObjectSection,
+                SectionName = sectionName
+            };
+        }
+    }
+
+    /// <summary>
+    /// Copies one INI section with a case-insensitive key comparer.
+    /// </summary>
+    private static Dictionary<string, string> CopySectionEntries(Dictionary<string, string> section)
+        => new(section, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Extension point for format-specific sections that must be parsed after
@@ -587,6 +664,9 @@ public abstract class CanOpenReaderBase
     /// <summary>
     /// Determines whether <paramref name="sectionName"/> is a known section for this file format.
     /// Unknown sections are preserved in <c>AdditionalSections</c> for round-trip fidelity.
+    /// A hexadecimal object index counts as known so a listed object is not copied into
+    /// <c>AdditionalSections</c> a second time. An index that is absent from every object
+    /// list is preserved with a diagnostic instead of being dropped.
     /// Derived classes may override this to recognise additional format-specific sections.
     /// </summary>
     protected virtual bool IsKnownSection(string sectionName)
@@ -594,8 +674,8 @@ public abstract class CanOpenReaderBase
         if (KnownSectionNames.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
             return true;
 
-        // Check for object sections (hex index)
-        if (ushort.TryParse(sectionName, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out _))
+        // Object section (hexadecimal index). Unlisted indexes are preserved separately.
+        if (TryParseObjectIndexSectionName(sectionName, out _))
             return true;
 
         // Check for sub-object sections (hex index + "sub" + hex subindex)
@@ -652,6 +732,15 @@ public abstract class CanOpenReaderBase
                && byte.TryParse(suffix, NumberStyles.AllowHexSpecifier,
                    CultureInfo.InvariantCulture, out _);
     }
+
+    /// <summary>
+    /// Parses a section name as a CANopen object index. The accepted spellings are the
+    /// same ones <see cref="IsKnownSection"/> has always treated as object sections:
+    /// a hexadecimal value that fits in <see cref="ushort"/>, including letter-only
+    /// names such as <c>Face</c>.
+    /// </summary>
+    private static bool TryParseObjectIndexSectionName(string sectionName, out ushort index)
+        => ushort.TryParse(sectionName, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out index);
 
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="value"/> is non-empty and
