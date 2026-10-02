@@ -19,7 +19,8 @@ using EdsDcfNet.Exceptions;
 /// File and stream bytes are decoded automatically unless
 /// <see cref="CanOpenFileOptions.Encoding"/> is set on a facade read: a byte-order mark
 /// wins, otherwise strict UTF-8 is tried and, on <see cref="System.Text.DecoderFallbackException"/>,
-/// the same buffered bytes are decoded as ISO-8859-1. Stream reads still limit the
+/// those same bytes are decoded as ISO-8859-1. A leading UTF-8 byte-order mark is excluded
+/// from both decodes. Stream reads still limit the
 /// decoded character count; the raw buffer is capped by <see cref="InputBufferLimit"/>.
 /// </para>
 /// </remarks>

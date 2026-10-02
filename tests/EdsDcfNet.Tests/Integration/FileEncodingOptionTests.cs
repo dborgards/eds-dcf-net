@@ -147,6 +147,65 @@ public class FileEncodingOptionTests
     }
 
     [Fact]
+    public void Read_Utf8BomThenInvalidUtf8_StripsBomBeforeIso88591Fallback()
+    {
+        // EF BB BF is a UTF-8 BOM. The following Latin-1 "ä" is not valid UTF-8, so
+        // automatic mode falls back. Leaving the BOM in that fallback decodes it as
+        // "ï»¿" and the leading [FileInfo] header is no longer a section.
+        var bytes = WithUtf8Bom(Latin1.GetBytes(EdsWithProduct(Geraet)));
+        using var stream = new MemoryStream(bytes);
+
+        var result = CanOpenFile.Eds.ReadStreamWithDiagnostics(stream);
+
+        result.Model.FileInfo.FileName.Should().Be("geraet.eds");
+        result.Model.DeviceInfo.ProductName.Should().Be(Geraet);
+        result.Diagnostics.Should().ContainSingle(d =>
+            d.Code == ParseDiagnosticCodes.IniDecodedAsIso88591 &&
+            d.Message == IniTextDecoder.Iso88591FallbackMessage);
+    }
+
+    [Theory]
+    [MemberData(nameof(WideEncodingsThatDoNotEmitAPreamble))]
+    public void Read_ExplicitWideEncodingWithoutPreamble_StripsMatchingBom(string name, Encoding encoding, byte[] bom)
+    {
+        encoding.GetPreamble().Should().BeEmpty(because: name + " is constructed not to emit a preamble");
+        var payload = encoding.GetBytes(EdsWithProduct(Geraet));
+        var bytes = new byte[bom.Length + payload.Length];
+        bom.CopyTo(bytes, 0);
+        payload.CopyTo(bytes, bom.Length);
+
+        using var stream = new MemoryStream(bytes);
+        var eds = CanOpenFile.Eds.ReadStream(stream, new CanOpenFileOptions { Encoding = encoding });
+
+        eds.FileInfo.FileName.Should().Be("geraet.eds");
+        eds.DeviceInfo.ProductName.Should().Be(Geraet);
+    }
+
+    public static IEnumerable<object[]> WideEncodingsThatDoNotEmitAPreamble()
+    {
+        yield return WideEncoding("utf-16", new UnicodeEncoding(bigEndian: false, byteOrderMark: false, throwOnInvalidBytes: true), 0xFF, 0xFE);
+        yield return WideEncoding("utf-16BE", new UnicodeEncoding(bigEndian: true, byteOrderMark: false, throwOnInvalidBytes: true), 0xFE, 0xFF);
+        yield return WideEncoding("utf-32", new UTF32Encoding(bigEndian: false, byteOrderMark: false, throwOnInvalidCharacters: true), 0xFF, 0xFE, 0x00, 0x00);
+        yield return WideEncoding("utf-32BE", new UTF32Encoding(bigEndian: true, byteOrderMark: false, throwOnInvalidCharacters: true), 0x00, 0x00, 0xFE, 0xFF);
+    }
+
+    [Fact]
+    public void Read_ExplicitUtf16LeWithoutPreamble_DoesNotStripOppositeBom()
+    {
+        var encoding = new UnicodeEncoding(bigEndian: false, byteOrderMark: false, throwOnInvalidBytes: true);
+        var payload = encoding.GetBytes(EdsWithProduct(Geraet));
+        var bytes = new byte[payload.Length + 2];
+        bytes[0] = 0xFE;
+        bytes[1] = 0xFF;
+        payload.CopyTo(bytes, 2);
+
+        using var stream = new MemoryStream(bytes);
+        var act = () => CanOpenFile.Eds.ReadStream(stream, new CanOpenFileOptions { Encoding = encoding });
+
+        act.Should().Throw<EdsParseException>().WithMessage("*outside of any section*");
+    }
+
+    [Fact]
     public async Task Read_Latin1ThenWrite_PreservesGeraet()
     {
         var dir = CreateTempDir();
@@ -666,6 +725,9 @@ public class FileEncodingOptionTests
         payload.CopyTo(bytes, preamble.Length);
         return bytes;
     }
+
+    private static object[] WideEncoding(string name, Encoding encoding, params byte[] bom)
+        => new object[] { name, encoding, bom };
 
     private static byte[] WithUtf8Bom(byte[] payload)
     {
