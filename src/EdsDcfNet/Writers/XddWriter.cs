@@ -343,14 +343,15 @@ public class XddWriter
         if (obj.DataType.HasValue)
             elem.Add(new XAttribute("PDOmapping", ToXddPdoMappingAttribute(obj.PdoMappingMode)));
 
-        // CiA 311 Annex A.1.4: objFlags is xsd:hexBinary, canonically at least four digits.
-        // A preserved lexical value is emitted only while ObjFlags is still the value
-        // captured at read time (a hexBinary quantity that does not fit in the property).
+        // CiA 311 Annex A.1.4: objFlags is xsd:hexBinary. Canonical width is at least
+        // four digits, and xsd:hexBinary requires an even count, so five- and
+        // seven-digit values are padded to six and eight. A preserved lexical value
+        // is emitted only while ObjFlags is still the value captured at read time
+        // (a hexBinary quantity that does not fit in the property).
         if (obj.ObjFlagsLexical != null && obj.ObjFlags == obj.ObjFlagsLexicalBaseline)
             elem.Add(new XAttribute("objFlags", obj.ObjFlagsLexical));
         else if (obj.ObjFlags > 0)
-            elem.Add(new XAttribute("objFlags",
-                obj.ObjFlags.ToString("X4", CultureInfo.InvariantCulture)));
+            elem.Add(new XAttribute("objFlags", FormatObjFlags(obj.ObjFlags)));
 
         AddUniqueIdRefAttribute(elem, obj.UniqueIdRef, projection);
 
@@ -514,6 +515,19 @@ public class XddWriter
             return;
 
         elem.Add(new XAttribute("uniqueIDRef", uniqueIdRef));
+    }
+
+    /// <summary>
+    /// Formats <c>objFlags</c> as uppercase hex with a minimum of four digits.
+    /// <c>xsd:hexBinary</c> requires an even number of digits, so a value whose
+    /// natural width is five or seven digits is padded to six or eight.
+    /// </summary>
+    private static string FormatObjFlags(uint flags)
+    {
+        var text = flags.ToString("X4", CultureInfo.InvariantCulture);
+        if ((text.Length & 1) != 0)
+            text = "0" + text;
+        return text;
     }
 
     // ── Protected format helpers (part of the extensibility API for subclasses) ──

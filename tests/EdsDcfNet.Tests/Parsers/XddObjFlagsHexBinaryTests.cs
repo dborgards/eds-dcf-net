@@ -304,8 +304,35 @@ public class XddObjFlagsHexBinaryTests
     }
 
     [Theory]
+    [InlineData("Xdd", 0x10000u, "010000")]
+    [InlineData("Xdc", 0x1000000u, "01000000")]
+    public void WriteToString_ObjFlagsOddHexWidth_PadsToEvenDigitCount(string format, uint flags, string expected)
+    {
+        // Arrange — X4 is a minimum width, so 0x10000 formats as five digits ("10000").
+        // xsd:hexBinary requires an even count (CiA 311 Annex A.1.4). Pad to six or eight.
+        // Values that already fit in four digits stay at four; this case is wider.
+
+        // Act
+        var written = Write(format, flags, validated: false);
+
+        // Assert
+        written.Should().Contain("objFlags=\"" + expected + "\"");
+        if (format == "Xdd")
+        {
+            CanOpenFile.Xdd.ReadString(written, Strict)
+                .ObjectDictionary.Objects[0x1000].ObjFlags.Should().Be(flags);
+        }
+        else
+        {
+            CanOpenFile.Xdc.ReadString(written, Strict)
+                .ObjectDictionary.Objects[0x1000].ObjFlags.Should().Be(flags);
+        }
+    }
+
+    [Theory]
     [InlineData("Xdd", 0x8u, "0008")]
     [InlineData("Xdc", 0x8u, "0008")]
+    [InlineData("Xdd", 0x100000u, "100000")]
     [InlineData("Xdd", 0x80000000u, "80000000")]
     [InlineData("Xdc", uint.MaxValue, "FFFFFFFF")]
     public void WriteToString_ObjFlagsReservedBits_UnvalidatedEmitsHexValidatedRejects(
