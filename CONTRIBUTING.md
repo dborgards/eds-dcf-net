@@ -253,6 +253,23 @@ BREAKING CHANGE: CanOpenFile.Eds.ReadFile now returns a Result type
 > `src/EdsDcfNet/ApiCompatSuppressions.xml` with a comment referencing the
 > approving issue/PR.
 >
+> `apicompat`, `npm-lockfile`, and `breaking-intent` run on every pull request
+> into `develop` or `main`, including a release PR from `develop` → `main`.
+> The release commit (`chore(release): <version>` in `.releaserc.json`,
+> committer `semantic-release-bot`) must not contain a skip directive
+> (`[skip ci]`, `[ci skip]`, `[no ci]`, `[skip actions]`, `[actions skip]`,
+> or a `skip-checks` trailer). The git message is that subject only. It must
+> not include generated notes (`${nextRelease.notes}`): notes can copy a skip
+> directive out of a release-visible commit, and GitHub honors those strings
+> anywhere in the commit message. GitHub applies those directives to the HEAD
+> commit of a pull request and skips the workflow before any job `if:` runs;
+> that release commit is usually the HEAD. The release push does not repeat
+> the build or start a second semantic-release run: `build.yml` and
+> `semantic-release.yml` skip those jobs when the pushed HEAD is that commit.
+> A job skipped by `if:` reports success, so required checks still clear.
+> Omitting the `message` setting restores `@semantic-release/git`'s default,
+> which appends `[skip ci]`.
+>
 > The checklist below covers what the tool **cannot** see: behavioural
 > changes, exception-contract changes, and source-level (not binary) breaks.
 
@@ -396,6 +413,16 @@ Releases are fully automated via semantic-release:
 - **Stable release**: merge `develop` into `main` (open a PR from `develop` → `main`) → semantic-release publishes `X.Y.Z` to NuGet and creates a GitHub release.
 
 Maintainers decide when to promote `develop` → `main`.
+
+The release commit message is exactly `chore(release): <version>`
+(`.releaserc.json`). Generated notes go to `CHANGELOG.md` and the GitHub
+release; they must not appear in the git commit message. Do not interpolate
+`${nextRelease.notes}` there, and do not add `[skip ci]` or any other skip
+directive. A notes body can copy a directive from a release-visible commit,
+and GitHub honors those strings anywhere in the message. The public API
+checklist above explains why: that commit is usually the HEAD of the next
+`develop` → `main` pull request, and a directive would skip `apicompat`,
+`npm-lockfile`, and `breaking-intent` on it.
 
 ### Communicating changes through semantic-release
 

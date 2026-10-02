@@ -274,12 +274,12 @@ public class XdcWriter : XddWriter
         // Align with DCF: omit only when every commissioning field is empty/zero.
         // Non-omitted commissioning with NodeId outside 1..127 fails in BuildDeviceCommissioning.
         if (commissioning != null && !DeviceCommissioningSemantics.IsOmitted(commissioning))
-            networkMgmt.Add(BuildDeviceCommissioning(commissioning));
+            networkMgmt.Add(BuildDeviceCommissioning(networkMgmt.Name, commissioning));
 
         return networkMgmt;
     }
 
-    private static XElement BuildDeviceCommissioning(DeviceCommissioning dc)
+    private static XElement BuildDeviceCommissioning(XName networkManagementName, DeviceCommissioning dc)
     {
         if (!CanOpenNodeId.IsInRange(dc.NodeId))
         {
@@ -292,7 +292,7 @@ public class XdcWriter : XddWriter
 
         // CiA 311 deviceCommissioning has no attributes for LssSerialNumber / NodeRefd /
         // NetRefd (CiA 306 DCF keys). Those properties are intentionally omitted here.
-        var elem = new XElement("deviceCommissioning");
+        var elem = XddNames.Element(networkManagementName, "deviceCommissioning");
 
         elem.Add(new XAttribute("nodeID",
             dc.NodeId.ToString(CultureInfo.InvariantCulture)));

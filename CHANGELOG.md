@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.15.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.1...v1.15.0-beta.2) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **xdd:** place elements in the namespaces required by the CiA 311 schema ([6aaf80e](https://github.com/dborgards/eds-dcf-net/commit/6aaf80e094600510ae78f736743129f74195ae17))
+
+## [1.15.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.14.1-beta.4...v1.15.0-beta.1) (2026-10-02)
+
+### ✨ Features
+
+* **xdd:** resolve uniqueIDRef against application process parameters and keep the reference ([9bea5b7](https://github.com/dborgards/eds-dcf-net/commit/9bea5b70635f090df9451331412b0db8cdc8fbfe))
+
 ## [1.14.1-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.14.1-beta.3...v1.14.1-beta.4) (2026-10-02)
 
 ### 🐛 Bug Fixes

@@ -1522,7 +1522,7 @@ public class XddReaderTests
     {
         var xdd = MinimalXdd.Replace(
             @"PDOmapping=""no""",
-            @"PDOmapping=""no"" objFlags="" 1 """);
+            @"PDOmapping=""no"" objFlags="" 0001 """);
 
         var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
 
@@ -1530,15 +1530,17 @@ public class XddReaderTests
     }
 
     [Fact]
-    public void ParseCanOpenObject_ObjFlagsWithLeadingPlus_StrictParsing_Parses()
+    public void ParseCanOpenObject_ObjFlagsWithLeadingPlus_StrictParsing_ThrowsEdsParseException()
     {
+        // objFlags is xsd:hexBinary (CiA 311 Annex A.1.4). A leading sign is not hexadecimal.
         var xdd = MinimalXdd.Replace(
             @"PDOmapping=""no""",
             @"PDOmapping=""no"" objFlags=""+1""");
 
-        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
 
-        result.ObjectDictionary.Objects[0x1000].ObjFlags.Should().Be(1u);
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*objFlags*+1*");
     }
 
     [Fact]

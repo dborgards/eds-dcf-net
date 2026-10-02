@@ -116,6 +116,53 @@ public static class ParseDiagnosticCodes
     /// <summary>Malformed XDD/XDC unsigned numeric attribute; lenient mode ignores it / leaves the value unset.</summary>
     public const string XddInvalidNumericAttribute = "XDD_INVALID_NUMERIC_ATTRIBUTE";
 
+    /// <summary>
+    /// XDD/XDC <c>objFlags</c> has an odd number of hex digits. <c>xsd:hexBinary</c> requires
+    /// an even count. Lenient mode still accepts the hexadecimal value; strict mode throws.
+    /// </summary>
+    public const string XddObjFlagsOddHexLength = "XDD_OBJ_FLAGS_ODD_HEX_LENGTH";
+
+    /// <summary>
+    /// XDD/XDC <c>objFlags</c> sets CiA 311 reserved bits 3..31 after hexadecimal
+    /// interpretation. The value is kept. Reported in lenient and strict mode, because a
+    /// multi-digit decimal spelling from a library version before the hexBinary fix can
+    /// otherwise change meaning without notice.
+    /// </summary>
+    public const string XddObjFlagsReservedBits = "XDD_OBJ_FLAGS_RESERVED_BITS";
+
+    /// <summary>
+    /// XDD/XDC <c>objFlags</c> is schema-valid <c>xsd:hexBinary</c> that does not fit in
+    /// <see cref="EdsDcfNet.Models.CanOpenObject.ObjFlags"/>. The property stays <c>0</c> and the
+    /// original text is preserved for writing. Reported in lenient and strict mode.
+    /// </summary>
+    public const string XddObjFlagsExceedsUInt32 = "XDD_OBJ_FLAGS_EXCEEDS_UINT32";
+
     /// <summary>Malformed XDD/XDC <c>dummyUsage</c> entry; lenient mode ignores or degrades it.</summary>
     public const string XddInvalidDummyUsage = "XDD_INVALID_DUMMY_USAGE";
+
+    /// <summary>
+    /// <c>uniqueIDRef</c> on a CANopen object or sub-object does not identify a
+    /// <c>parameter</c> in the application process. Lenient mode leaves the referenced
+    /// fields unset; strict mode throws.
+    /// </summary>
+    public const string XddUnresolvedUniqueIdRef = "XDD_UNRESOLVED_UNIQUE_ID_REF";
+
+    /// <summary>
+    /// The referenced parameter's <c>access</c> is <c>noAccess</c>, which has no CiA 306
+    /// access type. <c>AccessType</c> is left unchanged. Reported in lenient and strict mode.
+    /// </summary>
+    public const string XddUniqueIdRefNoAccess = "XDD_UNIQUE_ID_REF_NO_ACCESS";
+
+    /// <summary>
+    /// The parameter type, default, or allowed range is only available through
+    /// <c>variableRef</c> or <c>templateIDRef</c>. Those chains are not resolved.
+    /// Reported in lenient and strict mode.
+    /// </summary>
+    public const string XddUniqueIdRefIndirect = "XDD_UNIQUE_ID_REF_INDIRECT";
+
+    /// <summary>
+    /// A direct <c>dataTypeIDRef</c> does not identify a data type in <c>dataTypeList</c>
+    /// (or the chain cycles). Lenient mode leaves <c>DataType</c> unset; strict mode throws.
+    /// </summary>
+    public const string XddUnresolvedDataTypeIdRef = "XDD_UNRESOLVED_DATA_TYPE_ID_REF";
 }

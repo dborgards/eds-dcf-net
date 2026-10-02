@@ -80,8 +80,11 @@ internal static class ModelCloner
             DefaultValue = source.DefaultValue,
             LowLimit = source.LowLimit,
             HighLimit = source.HighLimit,
+            UniqueIdRef = source.UniqueIdRef,
             PdoMappingMode = source.PdoMappingMode,
             ObjFlags = source.ObjFlags,
+            ObjFlagsLexical = source.ObjFlagsLexical,
+            ObjFlagsLexicalBaseline = source.ObjFlagsLexicalBaseline,
             SubNumber = source.SubNumber,
             CompactSubObj = source.CompactSubObj,
             ParameterValue = source.ParameterValue,
@@ -93,6 +96,7 @@ internal static class ModelCloner
             ParamRefd = source.ParamRefd
         };
 
+        clone.CopyAccessTypeStateFrom(source);
         clone.ObjectLinks.AddRange(source.ObjectLinks);
         CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
 
@@ -119,6 +123,7 @@ internal static class ModelCloner
             DefaultValue = source.DefaultValue,
             LowLimit = source.LowLimit,
             HighLimit = source.HighLimit,
+            UniqueIdRef = source.UniqueIdRef,
             PdoMappingMode = source.PdoMappingMode,
             ParameterValue = source.ParameterValue,
             Denotation = source.Denotation,
@@ -127,6 +132,7 @@ internal static class ModelCloner
             ParamRefd = source.ParamRefd
         };
 
+        clone.CopyAccessTypeStateFrom(source);
         CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
         return clone;
     }

@@ -149,6 +149,57 @@ check "semantic-release sees the beta note" 1 \
 check "semantic-release sees the stable note" 1 \
   "$(grep -cF $'(tag: v1.2.0)\t{"channels":[null]}' <<<"$seen")"
 
+# --- repaired GitHub notes when the release commit body is empty ------------
+#
+# complete_release_publish calls release_notes_for_version. A subject-only
+# release commit has no body; the notes live in CHANGELOG.md at that tag.
+# A non-empty body (older release commits) still wins, so a repair of those
+# tags does not switch sources.
+
+cat >CHANGELOG.md <<'EOF'
+# Changelog
+
+## [9.9.0](https://example/compare/v9.8.0...v9.9.0) (2026-10-02)
+
+### Bug Fixes
+
+* fix: repaired from changelog
+
+## [9.8.0](https://example/compare/v9.7.0...v9.8.0) (2026-10-01)
+
+### Features
+
+* feat: older section must not leak
+EOF
+git add CHANGELOG.md
+git commit -q -m "chore(release): 9.9.0"
+git tag v9.9.0
+
+empty_body_notes="$(release_notes_for_version 9.9.0)"
+check "empty body: notes recovered" 0 "$?"
+check "empty body: changelog heading kept" 1 \
+  "$(grep -cF '## [9.9.0](https://example/compare/v9.8.0...v9.9.0) (2026-10-02)' <<<"$empty_body_notes")"
+check "empty body: changelog bullet kept" 1 \
+  "$(grep -cF '* fix: repaired from changelog' <<<"$empty_body_notes")"
+check "empty body: next section excluded" 0 \
+  "$(grep -cF 'feat: older section must not leak' <<<"$empty_body_notes")"
+check "empty body: notes are non-empty" 0 \
+  "$([[ -n "${empty_body_notes//[[:space:]]/}" ]]; echo $?)"
+
+git commit -q --allow-empty -m "$(printf '%s\n' 'chore(release): 9.8.0' '' 'body notes for 9.8.0')"
+git tag v9.8.0
+body_notes="$(release_notes_for_version 9.8.0)"
+check "non-empty body: repair succeeds" 0 "$?"
+check "non-empty body: commit body is used" 1 \
+  "$(grep -cF 'body notes for 9.8.0' <<<"$body_notes")"
+check "non-empty body: changelog is not substituted" 0 \
+  "$(grep -cF 'feat: older section must not leak' <<<"$body_notes")"
+
+git commit -q --allow-empty -m "chore(release): 9.7.0"
+git tag v9.7.0
+release_notes_for_version 9.7.0 >/dev/null 2>&1
+check "empty body without a changelog section is refused" 1 "$?"
+
 if [[ "$failures" -ne 0 ]]; then
   echo "$failures release channel note check(s) failed" >&2
   exit 1

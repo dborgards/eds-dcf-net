@@ -84,9 +84,18 @@ public sealed class CanOpenFileOptions
     /// lexical forms (optional leading sign, surrounding whitespace) are accepted after trim.
     /// </description></item>
     /// <item><description>
-    /// Malformed XDD/XDC unsigned numeric attributes such as <c>objFlags</c>, <c>subNumber</c>,
+    /// Malformed XDD/XDC unsigned numeric attributes such as <c>subNumber</c>,
     /// <c>pDOmappingIndex</c>, general-feature counts, and <c>networkNumber</c>
     /// (default: ignore / leave unset; surrounding whitespace and optional leading sign are accepted)
+    /// </description></item>
+    /// <item><description>
+    /// XDD/XDC <c>objFlags</c> is <c>xsd:hexBinary</c> (CiA 311 Annex A.1.4, four hex digits;
+    /// bits 0..2 defined, bits 3..31 reserved). Surrounding whitespace is trimmed. An odd
+    /// number of hex digits is accepted in lenient mode with a diagnostic and rejected in
+    /// strict mode. A schema-valid value that does not fit in 32 bits is reported and left
+    /// at <c>0</c> in both modes, and the original text is kept for writing until
+    /// <c>ObjFlags</c> changes. Reserved bits 3..31 are reported and still stored. A leading
+    /// sign or a <c>0x</c> prefix is not hexadecimal (default: ignore; strict: throw).
     /// </description></item>
     /// <item><description>
     /// Unknown CPJ <c>NodeNPresent</c> tokens in <c>ValueConverter.ParsePresentFlag</c>
