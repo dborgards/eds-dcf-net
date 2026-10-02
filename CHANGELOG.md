@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.1-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.14.1-beta.2...v1.14.1-beta.3) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **writer:** write files atomically and validate null models ([#593](https://github.com/dborgards/eds-dcf-net/issues/593)) ([06be74a](https://github.com/dborgards/eds-dcf-net/commit/06be74ae2cbeb63214835aa8e97228b4beee45e3))
+
 ## [1.14.1-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.14.1-beta.1...v1.14.1-beta.2) (2026-10-02)
 
 ### 🐛 Bug Fixes
