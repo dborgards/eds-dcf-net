@@ -162,6 +162,10 @@ public sealed class AtomicFileWriteTests : IDisposable
         AssertOnlyFiles("existing.txt");
     }
 
+    // net48 still enforces MAX_PATH (260). A 255-character name under the temp directory
+    // does not fit there. The temporary-name logic is the same source on both targets;
+    // net10 (long paths on Windows, NAME_MAX 255 on Linux) is where this limit is reachable.
+#if !NETFRAMEWORK
     [Fact]
     public void WriteFileAtomic_TargetNameAtComponentLimit_TempNameStaysBoundedAndCommits()
     {
@@ -170,14 +174,7 @@ public sealed class AtomicFileWriteTests : IDisposable
         const int componentLimit = 255;
         var name = new string('n', componentLimit);
         var target = Target(name);
-        try
-        {
-            File.WriteAllText(target, "old");
-        }
-        catch (PathTooLongException)
-        {
-            Assert.Skip($"This environment cannot create a {componentLimit}-character file name under '{_dir}'.");
-        }
+        File.WriteAllText(target, "old");
 
         string? tempName = null;
 
@@ -207,14 +204,7 @@ public sealed class AtomicFileWriteTests : IDisposable
         // Arrange
         var name = new string('a', 255);
         var target = Target(name);
-        try
-        {
-            File.WriteAllText(target, "STALE-LONG-NAME-MARKER");
-        }
-        catch (PathTooLongException)
-        {
-            Assert.Skip($"This environment cannot create a 255-character file name under '{_dir}'.");
-        }
+        File.WriteAllText(target, "STALE-LONG-NAME-MARKER");
 
         // Act
         WriteSync(format, target);
@@ -232,14 +222,7 @@ public sealed class AtomicFileWriteTests : IDisposable
         // Arrange
         var name = new string('b', 255);
         var target = Target(name);
-        try
-        {
-            File.WriteAllText(target, "STALE-LONG-NAME-MARKER");
-        }
-        catch (PathTooLongException)
-        {
-            Assert.Skip($"This environment cannot create a 255-character file name under '{_dir}'.");
-        }
+        File.WriteAllText(target, "STALE-LONG-NAME-MARKER");
 
         // Act
         await WriteAsync(format, target, CancellationToken.None);
@@ -249,6 +232,7 @@ public sealed class AtomicFileWriteTests : IDisposable
         new FileInfo(target).Length.Should().BeGreaterThan(0);
         AssertOnlyFiles(name);
     }
+#endif
 
     [Fact]
     public void GetOutputEncoding_IsUtf8WithoutBom()
