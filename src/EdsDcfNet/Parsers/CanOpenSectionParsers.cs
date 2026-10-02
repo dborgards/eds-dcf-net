@@ -382,6 +382,19 @@ internal static class CanOpenSectionParsers
 
     private static string? EmptyToNull(string value) => string.IsNullOrEmpty(value) ? null : value;
 
+    /// <summary>
+    /// CiA 306 treats a missing <c>ObjectType</c> as VAR (<c>0x7</c>). A present empty
+    /// value is that same omission. <see cref="ValueConverter.ParseByte"/> would
+    /// otherwise map <c>ObjectType=</c> to <c>0</c> (NULL).
+    /// </summary>
+    private static string FixedObjectTypeOrVar(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName)
+    {
+        var raw = IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral);
+        return string.IsNullOrWhiteSpace(raw) ? CanOpenObjectType.VarLiteral : raw;
+    }
+
     private static CanOpenObject ReadFixedObject(
         Dictionary<string, Dictionary<string, string>> sections,
         string sectionName,
@@ -395,7 +408,7 @@ internal static class CanOpenSectionParsers
                 sections,
                 sectionName,
                 "ObjectType",
-                IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral),
+                FixedObjectTypeOrVar(sections, sectionName),
                 fallback: CanOpenObjectType.Var,
                 code: ParseDiagnosticCodes.InvalidObjectType,
                 coercedTo: CanOpenObjectType.VarLiteral,
@@ -481,7 +494,7 @@ internal static class CanOpenSectionParsers
                 sections,
                 sectionName,
                 "ObjectType",
-                IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral),
+                FixedObjectTypeOrVar(sections, sectionName),
                 fallback: CanOpenObjectType.Var,
                 code: ParseDiagnosticCodes.InvalidObjectType,
                 coercedTo: CanOpenObjectType.VarLiteral,

@@ -410,6 +410,63 @@ public class ModuleSectionRoundTripTests
     }
 
     [Fact]
+    public void ReadString_EmptyFixedObjectType_BecomesVarAndRoundTrips()
+    {
+        // Arrange — ObjectType= is the omitted form, not NULL. An explicit 0x0 stays NULL.
+        var content = ModuleHeader() + """
+            [M1FixedObjects]
+            NrOfEntries=3
+            1=0x6423
+            2=0x6424
+            3=0x6425
+
+            [M1Fixed6423]
+            ParameterName=Inputs
+            ObjectType=
+            DataType=0x5
+            AccessType=ro
+            PDOMapping=0
+
+            [M1Fixed6423sub1]
+            ParameterName=Line
+            ObjectType=
+            DataType=0x5
+            AccessType=ro
+            PDOMapping=0
+
+            [M1Fixed6424]
+            ParameterName=Explicit null
+            ObjectType=0x0
+            DataType=0x5
+            AccessType=ro
+            PDOMapping=0
+
+            [M1Fixed6425]
+            ParameterName=Omitted
+            DataType=0x5
+            AccessType=ro
+            PDOMapping=0
+            """;
+
+        // Act
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+        var written = CanOpenFile.Eds.WriteToString(result.Model).Replace("\r\n", "\n");
+
+        // Assert
+        result.Diagnostics.Should().NotContain(diagnostic =>
+            diagnostic.Code == ParseDiagnosticCodes.InvalidObjectType);
+        var empty = result.Model.SupportedModules[0].FixedObjectDefinitions[0x6423];
+        empty.ObjectType.Should().Be(CanOpenObjectType.Var);
+        empty.SubObjects[1].ObjectType.Should().Be(CanOpenObjectType.Var);
+        result.Model.SupportedModules[0].FixedObjectDefinitions[0x6424].ObjectType.Should().Be(CanOpenObjectType.Null);
+        result.Model.SupportedModules[0].FixedObjectDefinitions[0x6425].ObjectType.Should().Be(CanOpenObjectType.Var);
+        SectionBody(written, "[M1Fixed6423]").Should().Contain("ObjectType=0x7\n").And.NotContain("ObjectType=0x0");
+        SectionBody(written, "[M1Fixed6423sub1]").Should().Contain("ObjectType=0x7\n");
+        SectionBody(written, "[M1Fixed6424]").Should().Contain("ObjectType=0x0\n");
+        SectionBody(written, "[M1Fixed6425]").Should().Contain("ObjectType=0x7\n");
+    }
+
+    [Fact]
     public void Validate_SubExtensionInsideDataType_ReturnsNoValueIssue()
     {
         // Arrange
@@ -966,6 +1023,14 @@ public class ModuleSectionRoundTripTests
         OrderCode=MOD
 
         """;
+
+    private static string SectionBody(string written, string header)
+    {
+        var start = written.IndexOf(header + "\n", StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0);
+        var next = written.IndexOf("\n[", start + header.Length, StringComparison.Ordinal);
+        return next < 0 ? written[start..] : written[start..next];
+    }
 
     private static ElectronicDataSheet SubExtensionEds(ModuleSubExtension extension)
     {
