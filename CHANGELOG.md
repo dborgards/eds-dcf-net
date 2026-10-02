@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.1-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.14.1-beta.3...v1.14.1-beta.4) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **writer:** reject control characters and separators that break INI round-trip ([e05f129](https://github.com/dborgards/eds-dcf-net/commit/e05f12971bc6dab657eb4ab66a8b9e7096667170))
+
 ## [1.14.1-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.14.1-beta.2...v1.14.1-beta.3) (2026-10-02)
 
 ### 🐛 Bug Fixes
