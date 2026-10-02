@@ -615,6 +615,10 @@ public abstract class IniWriterBase
     /// Writes <c>[MxFixedxxxx]</c> and its <c>[MxFixedxxxxsubx]</c> sections.
     /// Field order matches <see cref="WriteObject"/> so a module object body is
     /// the same canonical INI as a dictionary object, with the module prefix.
+    /// An explicit <see cref="CanOpenObject.SubNumber"/> is written as stored.
+    /// When it is absent and sub-objects exist, the emitted value is the described-entry
+    /// count (including sub-index 00h and excluding FFh), matching
+    /// <see cref="CanOpenObject.SubNumber"/>.
     /// </summary>
     private static void WriteModuleFixedObject(StringBuilder sb, int moduleNumber, ushort index, CanOpenObject obj)
     {
@@ -622,18 +626,7 @@ public abstract class IniWriterBase
             sb,
             string.Format(CultureInfo.InvariantCulture, "M{0}Fixed{1:X}", moduleNumber, index));
 
-        var subNumberToWrite = obj.SubNumber.GetValueOrDefault();
-        if (subNumberToWrite == 0 && obj.SubObjects.Count > 0)
-        {
-            byte maxSubIndex = 0;
-            foreach (var key in obj.SubObjects.Keys)
-            {
-                if (key > maxSubIndex)
-                    maxSubIndex = key;
-            }
-
-            subNumberToWrite = maxSubIndex;
-        }
+        var subNumberToWrite = obj.SubNumber ?? DescribedSubIndexCount(obj);
 
         if (subNumberToWrite > 0 || obj.SubObjects.Count > 0)
         {
@@ -719,6 +712,19 @@ public abstract class IniWriterBase
         {
             WriteModuleFixedSubObject(sb, moduleNumber, index, subEntry.Value);
         }
+    }
+
+    /// <summary>
+    /// Count of described sub-indices, including 00h and excluding FFh.
+    /// Byte keys without FFh hold at most 255 entries, so the count fits in a byte.
+    /// </summary>
+    private static byte DescribedSubIndexCount(CanOpenObject obj)
+    {
+        var count = obj.SubObjects.Count;
+        if (obj.SubObjects.ContainsKey(0xFF))
+            count--;
+
+        return (byte)count;
     }
 
     private static void WriteModuleFixedSubObject(

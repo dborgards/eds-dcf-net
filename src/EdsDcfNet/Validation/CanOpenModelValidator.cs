@@ -203,8 +203,9 @@ public static class CanOpenModelValidator
         // CancellationToken.None.
         var issues = new List<ValidationIssue>();
         ValidateDeviceInfo(eds.DeviceInfo, issues);
-        ValidateObjectDictionary(eds.ObjectDictionary, options, ObjectValueValidator.ResolveNodeIds(null), issues, cancellationToken);
-        ValidateSupportedModules(eds.SupportedModules, issues, cancellationToken);
+        var nodeIds = ObjectValueValidator.ResolveNodeIds(null);
+        ValidateObjectDictionary(eds.ObjectDictionary, options, nodeIds, issues, cancellationToken);
+        ValidateSupportedModules(eds.SupportedModules, options, nodeIds, issues, cancellationToken);
         if (options.RequireMandatoryEntries)
             ValidateMandatoryEntries(eds.FileInfo, eds.DeviceInfo, eds.ObjectDictionary, issues, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
@@ -226,7 +227,7 @@ public static class CanOpenModelValidator
         var nodeIds = ObjectValueValidator.ResolveNodeIds(
             commissioningOmitted ? null : dcf.DeviceCommissioning.NodeId);
         ValidateObjectDictionary(dcf.ObjectDictionary, options, nodeIds, issues, cancellationToken);
-        ValidateSupportedModules(dcf.SupportedModules, issues, cancellationToken);
+        ValidateSupportedModules(dcf.SupportedModules, options, nodeIds, issues, cancellationToken);
         ValidateDeviceCommissioning(dcf.DeviceCommissioning, issues);
         if (options.RequireMandatoryEntries)
         {
@@ -417,9 +418,13 @@ public static class CanOpenModelValidator
     /// (CiA 306-1 §8.3): <c>Lines</c> versus comment lines, <c>[MxSubExtends]</c>
     /// versus <c>[MxSubExtxxxx]</c> definitions, <c>[MxFixedObjects]</c> versus
     /// <c>[MxFixedxxxx]</c> bodies, and each definition's <c>Count</c> token.
+    /// Each stored fixed-object body is checked with the same object and sub-object
+    /// rules as an object-dictionary entry.
     /// </summary>
     private static void ValidateSupportedModules(
         List<ModuleInfo> modules,
+        CanOpenValidationOptions options,
+        byte[] nodeIds,
         List<ValidationIssue> issues,
         CancellationToken cancellationToken)
     {
@@ -429,7 +434,7 @@ public static class CanOpenModelValidator
             var module = modules[i];
             var path = string.Format(CultureInfo.InvariantCulture, "SupportedModules[{0}]", i);
             ValidateModuleComments(module, path, issues);
-            ValidateModuleFixedObjects(module, path, issues);
+            ValidateModuleFixedObjects(module, path, options, nodeIds, issues, cancellationToken);
             ValidateModuleSubExtensions(module, path, issues);
         }
     }
@@ -450,7 +455,13 @@ public static class CanOpenModelValidator
         }
     }
 
-    private static void ValidateModuleFixedObjects(ModuleInfo module, string path, List<ValidationIssue> issues)
+    private static void ValidateModuleFixedObjects(
+        ModuleInfo module,
+        string path,
+        CanOpenValidationOptions options,
+        byte[] nodeIds,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
     {
         if (module.FixedObjects.Count != module.FixedObjectDefinitions.Count)
         {
@@ -476,17 +487,29 @@ public static class CanOpenModelValidator
             }
         }
 
-        foreach (var index in module.FixedObjectDefinitions.Keys)
+        foreach (var entry in module.FixedObjectDefinitions)
         {
-            if (!module.FixedObjects.Contains(index))
+            if (!module.FixedObjects.Contains(entry.Key))
             {
                 issues.Add(new ValidationIssue(
                     path + ".FixedObjects",
                     string.Format(
                         CultureInfo.InvariantCulture,
                         "Fixed object 0x{0:X4} is defined but not listed in FixedObjects (CiA 306-1 §8.3).",
-                        index)));
+                        entry.Key)));
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            ValidateObjectContent(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0}.FixedObjectDefinitions[0x{1:X4}]",
+                    path,
+                    entry.Key),
+                entry.Value,
+                options,
+                nodeIds,
+                issues);
         }
     }
 
@@ -607,8 +630,25 @@ public static class CanOpenModelValidator
         byte[] nodeIds,
         List<ValidationIssue> issues)
     {
-        var objectPath = string.Format(CultureInfo.InvariantCulture, "ObjectDictionary.Objects[0x{0:X4}]", index);
+        ValidateObjectContent(
+            string.Format(CultureInfo.InvariantCulture, "ObjectDictionary.Objects[0x{0:X4}]", index),
+            obj,
+            options,
+            nodeIds,
+            issues);
+    }
 
+    /// <summary>
+    /// Object and sub-object checks shared by the object dictionary and module
+    /// <c>[MxFixedxxxx]</c> bodies. <paramref name="objectPath"/> locates the entry.
+    /// </summary>
+    private static void ValidateObjectContent(
+        string objectPath,
+        CanOpenObject obj,
+        CanOpenValidationOptions options,
+        byte[] nodeIds,
+        List<ValidationIssue> issues)
+    {
         ValidateMaxLength(
             obj.ParameterName,
             MaxParameterNameLength,
