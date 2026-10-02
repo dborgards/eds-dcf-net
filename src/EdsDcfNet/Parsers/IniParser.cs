@@ -19,7 +19,13 @@ using EdsDcfNet.Exceptions;
 /// </remarks>
 public static class IniParser
 {
-    private static readonly char[] LineEndChars = { '\r', '\n' };
+
+    /// <summary>
+    /// Sentinel <c>currentSection</c> after a malformed header in lenient mode: the keys that follow
+    /// are dropped (not attributed to the previous section) until the next valid header. Compared by
+    /// reference; it is never added to the parsed sections.
+    /// </summary>
+    private static readonly string DiscardedSection = new string('\0', 1);
     /// <summary>
     /// Default maximum input size (10 MB) used by parsing methods such as
     /// <see cref="ParseFile(string, long)"/>, <see cref="ParseFileAsync"/>,
@@ -58,8 +64,10 @@ public static class IniParser
     /// Maximum file size in bytes before an <see cref="EdsParseException"/> is thrown.
     /// </param>
     /// <param name="strictParsing">
-    /// When <see langword="true"/>, duplicate keys in a section throw
-    /// <see cref="EdsParseException"/> instead of last-write-wins.
+    /// When <see langword="true"/>, duplicate keys in a section, malformed section headers,
+    /// lines without <c>=</c> (or with an empty key) and duplicate section headers throw
+    /// <see cref="EdsParseException"/> instead of being repaired (last-write-wins, ignored, merged).
+    /// A line starting with <c>#</c> without <c>=</c> is ignored in both modes.
     /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
@@ -162,8 +170,10 @@ public static class IniParser
     /// This limit applies to parsed text content, not raw byte length.
     /// </param>
     /// <param name="strictParsing">
-    /// When <see langword="true"/>, duplicate keys in a section throw
-    /// <see cref="EdsParseException"/> instead of last-write-wins.
+    /// When <see langword="true"/>, duplicate keys in a section, malformed section headers,
+    /// lines without <c>=</c> (or with an empty key) and duplicate section headers throw
+    /// <see cref="EdsParseException"/> instead of being repaired (last-write-wins, ignored, merged).
+    /// A line starting with <c>#</c> without <c>=</c> is ignored in both modes.
     /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     public static Dictionary<string, Dictionary<string, string>> ParseStream(
@@ -228,8 +238,10 @@ public static class IniParser
     /// Maximum content length in characters before an <see cref="EdsParseException"/> is thrown.
     /// </param>
     /// <param name="strictParsing">
-    /// When <see langword="true"/>, duplicate keys in a section throw
-    /// <see cref="EdsParseException"/> instead of last-write-wins.
+    /// When <see langword="true"/>, duplicate keys in a section, malformed section headers,
+    /// lines without <c>=</c> (or with an empty key) and duplicate section headers throw
+    /// <see cref="EdsParseException"/> instead of being repaired (last-write-wins, ignored, merged).
+    /// A line starting with <c>#</c> without <c>=</c> is ignored in both modes.
     /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     /// <exception cref="EdsParseException">Thrown when the content length exceeds the configured size limit.</exception>
@@ -246,13 +258,32 @@ public static class IniParser
                         "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
                         content.Length, maxInputSize));
 
-            // Split on CR/LF as independent line terminators. RemoveEmptyEntries drops empty
-            // segments produced by splitting on both '\r' and '\n' (e.g., within CRLF); blank/
-            // whitespace-only lines are already ignored by ParseLine. This also means line
-            // numbers in exceptions from ParseString can differ from those produced by ParseReader.
-            var lines = content.Split(LineEndChars, StringSplitOptions.RemoveEmptyEntries);
-            return ParseLines(lines);
+            return ParseLines(SplitLines(content));
         }
+    }
+
+    /// <summary>
+    /// Splits content into physical lines exactly like the stream path: CR, LF and CRLF each end
+    /// one line, blank lines are kept (so line numbers match the file), and a trailing segment
+    /// without terminator counts only when it is non-empty.
+    /// </summary>
+    private static IEnumerable<string> SplitLines(string content)
+    {
+        var start = 0;
+        for (var i = 0; i < content.Length; i++)
+        {
+            var c = content[i];
+            if (c != '\r' && c != '\n')
+                continue;
+
+            yield return content.Substring(start, i - start);
+            if (c == '\r' && i + 1 < content.Length && content[i + 1] == '\n')
+                i++;
+            start = i + 1;
+        }
+
+        if (start < content.Length)
+            yield return content.Substring(start);
     }
 
     /// <summary>
@@ -466,27 +497,33 @@ public static class IniParser
             return;
 
         // Check for section header
-        if (line.StartsWith('[') && line.EndsWith(']'))
+        if (line.StartsWith('['))
         {
-            currentSection = line[1..^1].Trim();
-
-            if (!sections.ContainsKey(currentSection))
-            {
-                sections[currentSection] = new IniSectionDictionary();
-            }
-
+            ParseSectionHeader(line, lineNumber, ref currentSection, sections);
             return;
         }
 
         // Parse key-value pair
         var equalIndex = line.IndexOf('=');
         if (equalIndex <= 0)
+        {
+            // Real-world files comment lines out with '#'; such a line without '=' was always
+            // ignored silently. ('#' is not a general comment character: "#Key=Value" stays a key.)
+            if (equalIndex < 0 && line.StartsWith('#'))
+                return;
+
+            ReportMissingEquals(line, lineNumber, currentSection);
             return;
+        }
 
         if (currentSection == null)
         {
             throw new EdsParseException($"Key-value pair found outside of any section at line {lineNumber}", lineNumber);
         }
+
+        // Keys below a malformed header (lenient mode) are dropped; the header was already reported.
+        if (ReferenceEquals(currentSection, DiscardedSection))
+            return;
 
         var key = line[..equalIndex].Trim();
         var value = equalIndex < line.Length - 1
@@ -530,6 +567,130 @@ public static class IniParser
 
         section.Set(key, value);
         IniKeyLines.Record(sections, currentSection, key, lineNumber);
+    }
+
+    private static void ParseSectionHeader(
+        string line,
+        int lineNumber,
+        ref string? currentSection,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+        // A header is "[name]" optionally followed by a ';' comment. The name ends at the first ']'.
+        var closeIndex = line.IndexOf(']');
+        var trailing = closeIndex < 0 ? string.Empty : line[(closeIndex + 1)..].Trim();
+        if (closeIndex < 0 || (trailing.Length > 0 && !trailing.StartsWith(';')))
+        {
+            ReportMalformedHeader(line, lineNumber);
+            currentSection = DiscardedSection;
+            return;
+        }
+
+        var name = line[1..closeIndex].Trim();
+        if (sections.ContainsKey(name))
+        {
+            ReportDuplicateSection(name, lineNumber);
+        }
+        else
+        {
+            sections[name] = new IniSectionDictionary();
+        }
+
+        currentSection = name;
+    }
+
+    private static void ReportMalformedHeader(string line, int lineNumber)
+    {
+        var message = string.Format(
+            CultureInfo.InvariantCulture,
+            "Malformed section header '{0}' at line {1}; the header and the keys that follow it are ignored.",
+            line,
+            lineNumber);
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.IniMalformedSectionHeader,
+            path: "line " + lineNumber.ToString(CultureInfo.InvariantCulture),
+            message: message,
+            line: lineNumber,
+            rawValue: line));
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Malformed section header '{0}' at line {1}.",
+                    line,
+                    lineNumber),
+                lineNumber)
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.IniMalformedSectionHeader
+            };
+        }
+    }
+
+    private static void ReportMissingEquals(string line, int lineNumber, string? currentSection)
+    {
+        // Inside a discarded (malformed) section the header was already reported.
+        if (ReferenceEquals(currentSection, DiscardedSection))
+            return;
+
+        var section = currentSection;
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.IniMissingEquals,
+            path: section ?? "line " + lineNumber.ToString(CultureInfo.InvariantCulture),
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Line {0} '{1}' is not a 'key=value' pair (missing '=' or empty key); the line is ignored.",
+                lineNumber,
+                line),
+            line: lineNumber,
+            rawValue: line));
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            var message = string.Format(
+                CultureInfo.InvariantCulture,
+                "Line {0} '{1}' is not a 'key=value' pair (missing '=' or empty key).",
+                lineNumber,
+                line);
+            var exception = section == null
+                ? new EdsParseException(message, lineNumber)
+                : new EdsParseException(message, section, lineNumber);
+            exception.Code = Diagnostics.ParseDiagnosticCodes.IniMissingEquals;
+            throw exception;
+        }
+    }
+
+    private static void ReportDuplicateSection(string name, int lineNumber)
+    {
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.IniDuplicateSection,
+            path: name,
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Duplicate section '{0}' at line {1}; its keys are merged into the earlier section.",
+                name,
+                lineNumber),
+            line: lineNumber));
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Duplicate section '{0}' at line {1}.",
+                    name,
+                    lineNumber),
+                name,
+                lineNumber)
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.IniDuplicateSection
+            };
+        }
     }
 
     private static void ThrowIfNull(object? value, string parameterName)
