@@ -11,6 +11,8 @@ public sealed class CurrentDirectoryCollection;
 [Collection("CurrentDirectory")]
 public sealed class WriterPathAndCancellationTests : IDisposable
 {
+    private static readonly byte[] SeedPrefix = { 0x51, 0x52, 0x53, 0x54 };
+
     private readonly string _originalDirectory = Environment.CurrentDirectory;
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"pathcancel-{Guid.NewGuid():N}");
 
@@ -118,29 +120,33 @@ public sealed class WriterPathAndCancellationTests : IDisposable
     }
 
     [Fact]
-    public async Task XddWriteStreamAsync_InvalidXmlCharacter_ThrowsDocumentSectionException()
+    public async Task XddWriteStream_InvalidXmlCharacter_ThrowsAndLeavesStreamUnchanged()
     {
         // Arrange
         var eds = new EdsReader().ReadFile(Path.Combine("Fixtures", "sample_device.eds"));
         eds.DeviceInfo.ProductName = "bad \u0001 char";
-        using var stream = new MemoryStream();
+        using var syncStream = SeededStream();
+        using var asyncStream = SeededStream();
 
         // Act
-        var act = () => new XddWriter().WriteStreamAsync(eds, stream);
+        var sync = () => new XddWriter().WriteStream(eds, syncStream);
+        var async = () => new XddWriter().WriteStreamAsync(eds, asyncStream);
 
         // Assert
-        var ex = (await act.Should().ThrowAsync<EdsDcfNet.Exceptions.XddWriteException>()).Which;
-        ex.SectionName.Should().Be("Document");
+        sync.Should().Throw<EdsDcfNet.Exceptions.XddWriteException>().Which.SectionName.Should().Be("Document");
+        (await async.Should().ThrowAsync<EdsDcfNet.Exceptions.XddWriteException>()).Which.SectionName.Should().Be("Document");
+        AssertStreamUnchanged(syncStream);
+        AssertStreamUnchanged(asyncStream);
     }
 
     [Fact]
-    public async Task XdcWriteStream_InvalidXmlCharacter_ThrowsDocumentSectionException()
+    public async Task XdcWriteStream_InvalidXmlCharacter_ThrowsAndLeavesStreamUnchanged()
     {
         // Arrange
         var dcf = new DcfReader().ReadFile(Path.Combine("Fixtures", "minimal.dcf"));
         dcf.DeviceInfo.ProductName = "bad \u0001 char";
-        using var syncStream = new MemoryStream();
-        using var asyncStream = new MemoryStream();
+        using var syncStream = SeededStream();
+        using var asyncStream = SeededStream();
 
         // Act
         var sync = () => new XdcWriter().WriteStream(dcf, syncStream);
@@ -149,6 +155,21 @@ public sealed class WriterPathAndCancellationTests : IDisposable
         // Assert
         sync.Should().Throw<EdsDcfNet.Exceptions.XdcWriteException>().Which.SectionName.Should().Be("Document");
         (await async.Should().ThrowAsync<EdsDcfNet.Exceptions.XdcWriteException>()).Which.SectionName.Should().Be("Document");
+        AssertStreamUnchanged(syncStream);
+        AssertStreamUnchanged(asyncStream);
+    }
+
+    private static MemoryStream SeededStream()
+    {
+        var stream = new MemoryStream();
+        stream.Write(SeedPrefix, 0, SeedPrefix.Length);
+        return stream;
+    }
+
+    private static void AssertStreamUnchanged(MemoryStream stream)
+    {
+        stream.ToArray().Should().Equal(SeedPrefix);
+        stream.Position.Should().Be(SeedPrefix.Length);
     }
 
     private sealed class CancelOnFlushStream : MemoryStream

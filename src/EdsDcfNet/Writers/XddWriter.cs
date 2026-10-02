@@ -484,34 +484,46 @@ public class XddWriter
     }
 
     /// <summary>
-    /// Stream route: the <see cref="XmlWriter"/> writes straight into <paramref name="stream"/> with
-    /// the encoding from <see cref="TextFileIo.GetOutputEncoding"/> and emits the matching XML
-    /// declaration itself. No intermediate string is encoded, so the writer keeps its XML context
-    /// (and may escape characters the encoding cannot represent). The stream stays open.
+    /// Stream route shared by XDD and XDC. The <see cref="XmlWriter"/> serializes into a buffer
+    /// with the encoding from <see cref="TextFileIo.GetOutputEncoding"/> (it emits the matching
+    /// declaration itself and keeps its XML context, so characters the encoding cannot represent
+    /// are still escaped). The buffer is copied to <paramref name="stream"/> only after that
+    /// succeeds, so a content error such as an invalid XML character leaves the stream unchanged.
+    /// The bytes match <see cref="SerializeDocument(XDocument)"/>. The stream stays open.
     /// </summary>
     internal static void SerializeDocument(XDocument doc, Stream stream)
     {
-        try
-        {
-            using var writer = XmlWriter.Create(stream, CreateWriterSettings(async: false));
-            doc.Save(writer);
-        }
-        catch (ArgumentException ex)
-        {
-            // XmlWriter content errors (e.g. invalid characters) belong to the document, not the I/O target.
-            throw CreateDocumentException(ex);
-        }
+        var bytes = SerializeToBuffer(doc);
+        stream.Write(bytes, 0, bytes.Length);
+        stream.Flush();
     }
 
     /// <summary>Asynchronous variant of <see cref="SerializeDocument(XDocument, Stream)"/>.</summary>
     internal static async Task SerializeDocumentAsync(XDocument doc, Stream stream, CancellationToken cancellationToken)
     {
+        var bytes = SerializeToBuffer(doc);
+        cancellationToken.ThrowIfCancellationRequested();
+        await stream.WriteAsync(bytes, 0, bytes.Length, cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    /// <summary>
+    /// Fully serializes <paramref name="doc"/> in memory. <see cref="ArgumentException"/> from
+    /// <see cref="XmlWriter"/> (invalid characters and similar content errors) is reported as a
+    /// document-section failure and never reaches the caller stream.
+    /// </summary>
+    private static byte[] SerializeToBuffer(XDocument doc)
+    {
         try
         {
-            using var writer = XmlWriter.Create(stream, CreateWriterSettings(async: true));
-            await doc.WriteToAsync(writer, cancellationToken).ConfigureAwait(false);
-            await writer.FlushAsync().ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
+            using var buffer = new MemoryStream();
+            using (var writer = XmlWriter.Create(buffer, CreateWriterSettings(async: false)))
+            {
+                doc.Save(writer);
+            }
+
+            return buffer.ToArray();
         }
         catch (ArgumentException ex)
         {

@@ -10,8 +10,8 @@ using EdsDcfNet.Tests.Integration;
 /// Pins the exact bytes every writer emits (UTF-8 without BOM, text identical to
 /// <c>GenerateString</c>) for file and stream output, synchronous and asynchronous, over all
 /// fixtures. The byte output of all five writers is routed through one central encoding
-/// point; these tests guard that routing (and the XDD/XDC direct-to-stream XmlWriter path)
-/// against changing the output.
+/// point; these tests guard that routing (and the XDD/XDC XmlWriter path, which buffers
+/// the document before copying it to the caller stream) against changing the output.
 /// </summary>
 public class WriterByteOutputTests
 {
