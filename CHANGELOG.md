@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.1-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.14.1-beta.1...v1.14.1-beta.2) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **ini:** report malformed section headers and align string/stream line numbers ([#591](https://github.com/dborgards/eds-dcf-net/issues/591)) ([79e4b41](https://github.com/dborgards/eds-dcf-net/commit/79e4b41d018c0e98a3a53bf22b1c4a577a06f3bb))
+
 ## [1.14.1-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0...v1.14.1-beta.1) (2026-10-02)
 
 ### 🐛 Bug Fixes
