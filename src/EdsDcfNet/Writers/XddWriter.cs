@@ -343,9 +343,14 @@ public class XddWriter
         if (obj.DataType.HasValue)
             elem.Add(new XAttribute("PDOmapping", ToXddPdoMappingAttribute(obj.PdoMappingMode)));
 
-        if (obj.ObjFlags > 0)
+        // CiA 311 Annex A.1.4: objFlags is xsd:hexBinary, canonically at least four digits.
+        // A preserved lexical value is emitted only while ObjFlags is still the value
+        // captured at read time (a hexBinary quantity that does not fit in the property).
+        if (obj.ObjFlagsLexical != null && obj.ObjFlags == obj.ObjFlagsLexicalBaseline)
+            elem.Add(new XAttribute("objFlags", obj.ObjFlagsLexical));
+        else if (obj.ObjFlags > 0)
             elem.Add(new XAttribute("objFlags",
-                obj.ObjFlags.ToString(CultureInfo.InvariantCulture)));
+                obj.ObjFlags.ToString("X4", CultureInfo.InvariantCulture)));
 
         AddUniqueIdRefAttribute(elem, obj.UniqueIdRef, projection);
 
