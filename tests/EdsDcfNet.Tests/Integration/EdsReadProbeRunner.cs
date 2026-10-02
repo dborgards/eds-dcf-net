@@ -6,6 +6,14 @@ using Xunit.Sdk;
 
 internal static class EdsReadProbeRunner
 {
+    /// <summary>
+    /// Upper bound for one probe run. This is a hang guard (an endless loop at
+    /// SubNumber=0xFF never finishes), not a performance assertion. It must cover
+    /// a cold start of the probe host process on a loaded CI runner, which alone
+    /// can exceed several seconds on net48, so keep it generous.
+    /// </summary>
+    internal static readonly TimeSpan HangGuardTimeout = TimeSpan.FromSeconds(60);
+
     internal sealed record ProbeResult(byte SubNumber, bool HasSub0, bool HasSubFF);
 
     public static async Task<ProbeResult> RunAsync(string mode, string fixtureFileName, TimeSpan timeout)
