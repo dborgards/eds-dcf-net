@@ -318,7 +318,7 @@ public abstract class CanOpenReaderBase
         var accessTypeStr = IniParser.GetValue(sections, sectionName, "AccessType");
         if (!string.IsNullOrEmpty(accessTypeStr))
         {
-            obj.AccessType = ValueConverter.ParseAccessType(accessTypeStr);
+            obj.SetAccessTypeFromProfile(ValueConverter.ParseAccessType(accessTypeStr));
         }
 
         obj.DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue");
@@ -441,19 +441,20 @@ public abstract class CanOpenReaderBase
     {
         if (subIndex == 0)
         {
-            return new CanOpenSubObject
+            var count = new CanOpenSubObject
             {
                 SubIndex = 0,
                 ParameterName = "NrOfObjects",
                 ObjectType = CanOpenObjectType.Var,
                 DataType = Unsigned8DataType,
-                AccessType = AccessType.ReadOnly,
                 DefaultValue = parent.CompactSubObj!.Value.ToString(CultureInfo.InvariantCulture),
                 PdoMapping = false
             };
+            count.SetAccessTypeFromProfile(AccessType.ReadOnly);
+            return count;
         }
 
-        return new CanOpenSubObject
+        var sub = new CanOpenSubObject
         {
             SubIndex = subIndex,
             ParameterName = string.Concat(
@@ -461,10 +462,11 @@ public abstract class CanOpenReaderBase
                 subIndex.ToString(CultureInfo.InvariantCulture)),
             ObjectType = CanOpenObjectType.Var,
             DataType = parent.DataType ?? 0,
-            AccessType = parent.AccessType,
             DefaultValue = parent.DefaultValue,
             PdoMapping = parent.PdoMapping
         };
+        sub.SetAccessTypeFromProfile(parent.AccessType);
+        return sub;
     }
 
     /// <summary>
@@ -566,7 +568,6 @@ public abstract class CanOpenReaderBase
                 code: Diagnostics.ParseDiagnosticCodes.InvalidDataType,
                 coercedTo: "0",
                 fallbackDescription: LenientIniNumber.TreatAsZero),
-            AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
             HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
@@ -574,6 +575,9 @@ public abstract class CanOpenReaderBase
             SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
         };
+
+        subObj.SetAccessTypeFromProfile(
+            ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")));
 
         CaptureRemainingEntries(sections, sectionName, IsKnownSubObjectEntryKey, subObj.RemainingEntries);
 

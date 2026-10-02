@@ -65,7 +65,46 @@ public class CanOpenObject
     /// <summary>
     /// Access type (ro, wo, rw, rwr, rww, const).
     /// </summary>
-    public AccessType AccessType { get; set; }
+    /// <remarks>
+    /// Assigning this property marks the value as explicit for the XDD/XDC writer.
+    /// The untouched fallback (<see cref="AccessType.ReadOnly"/>, left in place when a
+    /// referenced parameter has <c>noAccess</c> and the source had no <c>accessType</c>)
+    /// is not explicit, so the writer does not invent <c>accessType="ro"</c>.
+    /// </remarks>
+    public AccessType AccessType
+    {
+        get => _accessType;
+        set
+        {
+            _accessType = value;
+            _accessTypeSpecified = true;
+        }
+    }
+
+    private AccessType _accessType;
+
+    private bool _accessTypeSpecified;
+
+    /// <summary>
+    /// <see langword="true"/> when <see cref="AccessType"/> was set from an XDD attribute,
+    /// from a resolved parameter access, or by assigning <see cref="AccessType"/>.
+    /// </summary>
+    internal bool AccessTypeSpecified => _accessTypeSpecified;
+
+    /// <summary>
+    /// Copies <see cref="AccessType"/> without treating a profile-file keyword as an
+    /// XDD explicit attribute.
+    /// </summary>
+    internal void SetAccessTypeFromProfile(AccessType value) => _accessType = value;
+
+    /// <summary>
+    /// Restores both the access value and whether it is explicit. Used by <c>ModelCloner</c>.
+    /// </summary>
+    internal void CopyAccessTypeStateFrom(CanOpenObject source)
+    {
+        _accessType = source._accessType;
+        _accessTypeSpecified = source._accessTypeSpecified;
+    }
 
     /// <summary>
     /// Default value for this object.
@@ -81,6 +120,50 @@ public class CanOpenObject
     /// Upper limit of the object value (only if applicable).
     /// </summary>
     public string? HighLimit { get; set; }
+
+    /// <summary>
+    /// CiA 311 <c>uniqueIDRef</c> of the application-process <c>parameter</c> this object
+    /// refers to, or <see langword="null"/> when the object does not carry the attribute.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// CiA 311 v1.1.0 § 6.5.2.3.2.1 Table 48 (schema
+    /// <c>CANopenObject</c> attribute order; Table 49 is the same for
+    /// <c>CANopenSubObject</c>, with <c>subIndex</c> in place of <c>index</c>) lists
+    /// <c>dataType</c>, <c>lowLimit</c>, <c>highLimit</c>, <c>accessType</c>, and
+    /// <c>defaultValue</c> before <c>uniqueIDRef</c>. The schema annotation says that when
+    /// <c>uniqueIDRef</c> is present those five attributes shall be defined by the referenced
+    /// application-process element.
+    /// </para>
+    /// <para>
+    /// An explicit attribute on the object wins: the reader keeps it and does not overwrite
+    /// it from the reference. Attributes that are absent are filled from the referenced
+    /// <c>parameter</c> (a direct simple type or <c>dataTypeIDRef</c>, <c>access</c>,
+    /// <c>defaultValue</c>, one unambiguous <c>allowedValues</c> range, and <c>label</c> for
+    /// <see cref="ParameterName"/> only when <c>name</c> is missing). <c>noAccess</c> is not
+    /// copied onto <see cref="AccessType"/>. <c>variableRef</c> and <c>templateIDRef</c> are
+    /// not followed.
+    /// </para>
+    /// <para>
+    /// The XDD/XDC writer emits <c>uniqueIDRef</c> again only while a parameter with this id
+    /// still exists on <see cref="ElectronicDataSheet.ApplicationProcess"/>. While the
+    /// reference is emitted, <c>dataType</c>, <c>lowLimit</c>, <c>highLimit</c>,
+    /// <c>accessType</c>, and <c>defaultValue</c> are omitted when they still match that
+    /// parameter, so the next read derives them again. A value changed after reading is
+    /// written as an explicit attribute and wins on the next read.
+    /// <c>noAccess</c> does not match a CiA 306 access type: the writer leaves
+    /// <c>accessType</c> off while <see cref="AccessType"/> is still the untouched fallback.
+    /// A mapped reference does the same when access was never supplied on the object, so
+    /// the next read takes the parameter access instead of an invented <c>accessType="ro"</c>.
+    /// The writer emits <c>accessType</c> when the source attribute, a resolved parameter
+    /// access, or a later assignment supplied one. An empty <c>defaultValue</c>,
+    /// <c>lowLimit</c>, or <c>highLimit</c> is written when it overrides a different value
+    /// from the emitted reference. When the parameter is removed, a resolved
+    /// <see cref="AccessType"/> is still written even if the object has no scalar
+    /// <see cref="DataType"/> (a struct-backed RECORD).
+    /// </para>
+    /// </remarks>
+    public string? UniqueIdRef { get; set; }
 
     /// <summary>
     /// CiA 311 PDO mapping mode. Prefer this for XDD/XDC round-trips.
@@ -220,7 +303,43 @@ public class CanOpenSubObject
     /// <summary>
     /// Access type.
     /// </summary>
-    public AccessType AccessType { get; set; }
+    /// <remarks>
+    /// Same explicit-assignment rule as <see cref="CanOpenObject.AccessType"/>.
+    /// </remarks>
+    public AccessType AccessType
+    {
+        get => _accessType;
+        set
+        {
+            _accessType = value;
+            _accessTypeSpecified = true;
+        }
+    }
+
+    private AccessType _accessType;
+
+    private bool _accessTypeSpecified;
+
+    /// <summary>
+    /// <see langword="true"/> when <see cref="AccessType"/> was set from an XDD attribute,
+    /// from a resolved parameter access, or by assigning <see cref="AccessType"/>.
+    /// </summary>
+    internal bool AccessTypeSpecified => _accessTypeSpecified;
+
+    /// <summary>
+    /// Copies <see cref="AccessType"/> without treating a profile-file keyword as an
+    /// XDD explicit attribute.
+    /// </summary>
+    internal void SetAccessTypeFromProfile(AccessType value) => _accessType = value;
+
+    /// <summary>
+    /// Restores both the access value and whether it is explicit. Used by <c>ModelCloner</c>.
+    /// </summary>
+    internal void CopyAccessTypeStateFrom(CanOpenSubObject source)
+    {
+        _accessType = source._accessType;
+        _accessTypeSpecified = source._accessTypeSpecified;
+    }
 
     /// <summary>
     /// Default value.
@@ -236,6 +355,19 @@ public class CanOpenSubObject
     /// High limit.
     /// </summary>
     public string? HighLimit { get; set; }
+
+    /// <summary>
+    /// CiA 311 <c>uniqueIDRef</c> of the application-process <c>parameter</c> this
+    /// sub-object refers to, or <see langword="null"/> when the attribute is absent.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Resolution and write-back follow <see cref="CanOpenObject.UniqueIdRef"/>
+    /// (CiA 311 v1.1.0 § 6.5.2.3.2.1 Table 49). An explicit attribute on the sub-object
+    /// wins over the referenced parameter.
+    /// </para>
+    /// </remarks>
+    public string? UniqueIdRef { get; set; }
 
     /// <summary>
     /// CiA 311 PDO mapping mode. Prefer this for XDD/XDC round-trips.

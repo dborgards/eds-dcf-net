@@ -31,7 +31,7 @@ internal static class XddCommNetProfileParser
             var objList = appLayers.Elements()
                 .FirstOrDefault(e => e.Name.LocalName == "CANopenObjectList");
             if (objList != null)
-                ParseObjectDictionary(objList, eds.ObjectDictionary, includeActualValues);
+                ParseObjectDictionary(objList, eds, includeActualValues);
 
             // Dummy usage
             var dummyUsage = appLayers.Elements()
@@ -81,8 +81,11 @@ internal static class XddCommNetProfileParser
         }
     }
 
-    private static void ParseObjectDictionary(XElement objList, ObjectDictionary dict, bool includeActualValues)
+    private static void ParseObjectDictionary(XElement objList, ElectronicDataSheet eds, bool includeActualValues)
     {
+        var dict = eds.ObjectDictionary;
+        var resolver = XddUniqueIdResolver.Create(eds.ApplicationProcess);
+
         // HashSets provide O(1) duplicate detection without the O(n) List.Contains cost.
         var seenMandatory = new HashSet<ushort>();
         var seenOptional = new HashSet<ushort>();
@@ -90,7 +93,7 @@ internal static class XddCommNetProfileParser
 
         foreach (var objElem in objList.Elements().Where(e => e.Name.LocalName == "CANopenObject"))
         {
-            var obj = ParseCanOpenObject(objElem, includeActualValues);
+            var obj = ParseCanOpenObject(objElem, includeActualValues, resolver);
             dict.Objects[obj.Index] = obj;
 
             // Classify object into the right list based on index range
@@ -98,12 +101,16 @@ internal static class XddCommNetProfileParser
         }
     }
 
-    private static CanOpenObject ParseCanOpenObject(XElement elem, bool includeActualValues)
+    private static CanOpenObject ParseCanOpenObject(
+        XElement elem,
+        bool includeActualValues,
+        XddUniqueIdResolver resolver)
     {
         var obj = new CanOpenObject();
 
         obj.Index = ParseRequiredHexIndexAttribute(elem, "CANopenObject");
         obj.ParameterName = elem.Attribute("name")?.Value ?? string.Empty;
+        obj.UniqueIdRef = ReadUniqueIdRef(elem);
         obj.ObjectType = ParseObjectTypeAttribute(elem, "CANopenObject");
 
         if (elem.Attribute("dataType")?.Value is string dataTypeStr)
@@ -150,10 +157,21 @@ internal static class XddCommNetProfileParser
         foreach (var subElem in elem.Elements().Where(e => e.Name.LocalName == "CANopenSubObject"))
         {
             var subObj = ParseCanOpenSubObject(subElem, includeActualValues);
+            subObj.UniqueIdRef = ReadUniqueIdRef(subElem);
+            resolver.ApplySubObject(obj.Index, subObj, ExplicitAttributes.From(subElem));
             obj.SubObjects[subObj.SubIndex] = subObj;
         }
 
+        resolver.ApplyObject(obj, ExplicitAttributes.From(elem));
         return obj;
+    }
+
+    private static string? ReadUniqueIdRef(XElement elem)
+    {
+        var value = elem.Attribute("uniqueIDRef")?.Value;
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+        return value!.Trim();
     }
 
     private static CanOpenSubObject ParseCanOpenSubObject(XElement elem, bool includeActualValues)
