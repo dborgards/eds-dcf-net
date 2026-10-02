@@ -1,0 +1,106 @@
+[FileInfo]
+FileName=module_sections.eds
+FileVersion=1
+FileRevision=0
+EDSVersion=4.0
+Description=Module sections
+CreationTime=
+CreationDate=
+CreatedBy=
+ModificationTime=
+ModificationDate=
+ModifiedBy=
+
+[DeviceInfo]
+VendorName=Modular Vendor
+VendorNumber=0x300
+ProductName=Bus Coupler
+ProductNumber=0x3001
+RevisionNumber=0x10000
+OrderCode=MOD-BC
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=1
+BaudRate_250=1
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=8
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=4
+NrOfTXPDO=4
+LSS_Supported=0
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=Device Type
+ObjectType=0x7
+DataType=0x7
+AccessType=ro
+DefaultValue=0x191
+PDOMapping=0
+
+[SupportedModules]
+NrOfEntries=1
+
+[M1ModuleInfo]
+ProductName=Digital Input Module
+ProductVersion=1
+ProductRevision=0
+OrderCode=MOD-DI-8
+
+[M1Comments]
+Lines=2
+Line1=Module with 16 input lines
+Line2=and 8 output lines.
+
+[M1FixedObjects]
+NrOfEntries=1
+1=0x6423
+
+[M1Fixed6423]
+SubNumber=1
+ParameterName=Module parameter
+ObjectType=0x7
+DataType=0x6
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[M1Fixed6423sub1]
+ParameterName=First channel
+ObjectType=0x7
+DataType=0x5
+AccessType=ro
+DefaultValue=1
+PDOMapping=1
+
+[M1SubExtends]
+NrOfEntries=2
+1=0x6000
+2=0xA0
+
+[M1SubExt6000]
+ParameterName=Input lines
+DataType=0x5
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+Count=4
+ObjExtend=128
+
+[M1SubExtA0]
+ParameterName=Packed bits
+DataType=0x5
+AccessType=rw
+PDOMapping=0
+Count=0;2
+ObjExtend=0
+

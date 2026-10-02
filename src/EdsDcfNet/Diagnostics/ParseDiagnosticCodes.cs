@@ -73,6 +73,12 @@ public static class ParseDiagnosticCodes
     public const string InvalidObjFlags = "INVALID_OBJ_FLAGS";
 
     /// <summary>
+    /// Malformed <c>ObjExtend</c> in a module <c>[MxSubExtxxxx]</c> section (CiA 306-1 §8.3);
+    /// lenient mode leaves it unset.
+    /// </summary>
+    public const string InvalidModuleObjExtend = "INVALID_MODULE_OBJ_EXTEND";
+
+    /// <summary>
     /// Malformed object-list count (<c>SupportedObjects</c>, <c>ObjectLinks</c>, or module <c>NrOfEntries</c>);
     /// lenient mode treats it as <c>0</c>.
     /// </summary>
