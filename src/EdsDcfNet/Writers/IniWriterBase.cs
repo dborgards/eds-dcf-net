@@ -710,7 +710,7 @@ public abstract class IniWriterBase
 
         foreach (var subEntry in obj.SubObjects.OrderBy(entry => entry.Key))
         {
-            WriteModuleFixedSubObject(sb, moduleNumber, index, subEntry.Value);
+            WriteModuleFixedSubObject(sb, moduleNumber, index, subEntry.Key, subEntry.Value);
         }
     }
 
@@ -731,8 +731,11 @@ public abstract class IniWriterBase
         StringBuilder sb,
         int moduleNumber,
         ushort index,
+        byte dictionaryKey,
         CanOpenSubObject subObj)
     {
+        // The section identity is the dictionary key. SubIndex defaults to 0, so
+        // two entries whose property was left unset would otherwise both be sub0.
         IniRoundTripText.WriteSectionHeader(
             sb,
             string.Format(
@@ -740,7 +743,7 @@ public abstract class IniWriterBase
                 "M{0}Fixed{1:X}sub{2:X}",
                 moduleNumber,
                 index,
-                subObj.SubIndex));
+                dictionaryKey));
         WriteKeyValue(sb, "ParameterName", subObj.ParameterName);
         WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(subObj.ObjectType));
         WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(subObj.DataType));

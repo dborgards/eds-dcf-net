@@ -354,6 +354,45 @@ public class ModuleSectionCoverageTests
     }
 
     [Fact]
+    public void WriteToString_ModuleFixedSubSection_UsesDictionaryKey()
+    {
+        // Arrange — SubIndex stays at its default of 0. The headers must still differ.
+        var obj = new CanOpenObject
+        {
+            Index = 0x6423,
+            ParameterName = "Inputs",
+            ObjectType = CanOpenObjectType.Array,
+            SubNumber = 2
+        };
+        obj.SubObjects[1] = new CanOpenSubObject
+        {
+            ParameterName = "First",
+            DataType = CanOpenDataType.Unsigned8
+        };
+        obj.SubObjects[2] = new CanOpenSubObject
+        {
+            SubIndex = 9,
+            ParameterName = "Second",
+            DataType = CanOpenDataType.Unsigned8
+        };
+        var eds = EdsWithModuleObject(obj);
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(eds).Replace("\r\n", "\n");
+        var reread = CanOpenFile.Eds.ReadString(written);
+
+        // Assert
+        written.Should().Contain("[M1Fixed6423sub1]\n");
+        written.Should().Contain("[M1Fixed6423sub2]\n");
+        written.Should().NotContain("[M1Fixed6423sub0]");
+        written.Should().NotContain("[M1Fixed6423sub9]");
+        var subs = reread.SupportedModules[0].FixedObjectDefinitions[0x6423].SubObjects;
+        subs.Keys.Should().BeEquivalentTo(new byte[] { 1, 2 });
+        subs[1].ParameterName.Should().Be("First");
+        subs[2].ParameterName.Should().Be("Second");
+    }
+
+    [Fact]
     public void Validate_ListedModuleFixedObject_RejectsInvalidObjectType()
     {
         // Arrange — counts match, so membership checks pass.
