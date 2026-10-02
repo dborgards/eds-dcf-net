@@ -3,6 +3,7 @@ namespace EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
+using EdsDcfNet.Validation;
 using EdsDcfNet.Writers;
 
 /// <summary>
@@ -15,7 +16,7 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
 
     private XdcCanOpenOperations()
         : base(
-            CanOpenWriteGuard.EnsureValidForWrite,
+            (model, options) => CanOpenWriteGuard.EnsureValidForWrite(model, options, XmlWriteRules.Apply),
             (filePath, maxInputSize) => new XdcReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new XdcReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),
@@ -30,7 +31,11 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
             (xdc, stream, cancellationToken) =>
                 new XdcWriter().WriteStreamAsync(xdc, stream, cancellationToken),
             xdc => new XdcWriter().GenerateString(xdc),
-            CanOpenWriteGuard.EnsureValidForWriteAsync)
+            (model, options, cancellationToken) => CanOpenWriteGuard.EnsureValidForWriteAsync(
+                model,
+                options,
+                XmlWriteRules.Apply,
+                cancellationToken))
     {
     }
 

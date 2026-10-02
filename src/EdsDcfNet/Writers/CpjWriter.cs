@@ -178,10 +178,10 @@ public class CpjWriter
                 section.Key,
                 () =>
                 {
-                    sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0}]", section.Key));
+                    IniRoundTripText.WriteSectionHeader(sb, section.Key);
                     foreach (var entry in section.Value.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase))
                     {
-                        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}={1}", entry.Key, entry.Value));
+                        IniRoundTripText.WriteKeyValue(sb, entry.Key, entry.Value);
                     }
                     sb.AppendLine();
                 });
@@ -192,21 +192,24 @@ public class CpjWriter
 
     private static void WriteTopology(StringBuilder sb, NetworkTopology topology, string sectionName)
     {
-        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0}]", sectionName));
+        IniRoundTripText.WriteSectionHeader(sb, sectionName);
 
         if (!string.IsNullOrEmpty(topology.NetName))
         {
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "NetName={0}", topology.NetName));
+            IniRoundTripText.WriteKeyValue(sb, "NetName", topology.NetName);
         }
 
         if (!string.IsNullOrEmpty(topology.NetRefd))
         {
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "NetRefd={0}", topology.NetRefd));
+            IniRoundTripText.WriteKeyValue(sb, "NetRefd", topology.NetRefd);
         }
 
         // Write Nodes count as hex
         var nodeCount = topology.Nodes.Count;
-        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "Nodes=0x{0:X2}", nodeCount));
+        IniRoundTripText.WriteKeyValue(
+            sb,
+            "Nodes",
+            string.Format(CultureInfo.InvariantCulture, "0x{0:X2}", nodeCount));
 
         // Write nodes ordered by node ID
         foreach (var nodeEntry in topology.Nodes.OrderBy(n => n.Key))
@@ -214,27 +217,39 @@ public class CpjWriter
             var node = nodeEntry.Value;
             var prefix = string.Format(CultureInfo.InvariantCulture, "Node{0}", node.NodeId);
 
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}Present={1}", prefix, node.Present ? "0x01" : "0x00"));
+            IniRoundTripText.WriteKeyValue(
+                sb,
+                string.Format(CultureInfo.InvariantCulture, "{0}Present", prefix),
+                node.Present ? "0x01" : "0x00");
 
             if (!string.IsNullOrEmpty(node.Name))
             {
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}Name={1}", prefix, node.Name));
+                IniRoundTripText.WriteKeyValue(
+                    sb,
+                    string.Format(CultureInfo.InvariantCulture, "{0}Name", prefix),
+                    node.Name);
             }
 
             if (!string.IsNullOrEmpty(node.Refd))
             {
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}Refd={1}", prefix, node.Refd));
+                IniRoundTripText.WriteKeyValue(
+                    sb,
+                    string.Format(CultureInfo.InvariantCulture, "{0}Refd", prefix),
+                    node.Refd);
             }
 
             if (!string.IsNullOrEmpty(node.DcfFileName))
             {
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}DCFName={1}", prefix, node.DcfFileName));
+                IniRoundTripText.WriteKeyValue(
+                    sb,
+                    string.Format(CultureInfo.InvariantCulture, "{0}DCFName", prefix),
+                    node.DcfFileName);
             }
         }
 
         if (!string.IsNullOrEmpty(topology.EdsBaseName))
         {
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "EDSBaseName={0}", topology.EdsBaseName));
+            IniRoundTripText.WriteKeyValue(sb, "EDSBaseName", topology.EdsBaseName);
         }
 
         sb.AppendLine();
@@ -245,6 +260,13 @@ public class CpjWriter
         try
         {
             writeAction();
+        }
+        catch (IniTextRejectedException ex)
+        {
+            throw new CpjWriteException(ex.Message)
+            {
+                SectionName = sectionName
+            };
         }
         catch (CpjWriteException)
         {

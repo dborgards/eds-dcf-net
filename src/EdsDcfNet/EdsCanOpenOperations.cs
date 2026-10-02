@@ -4,6 +4,7 @@ using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Utilities;
+using EdsDcfNet.Validation;
 using EdsDcfNet.Writers;
 using System.Globalization;
 
@@ -18,7 +19,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
 
     private EdsCanOpenOperations()
         : base(
-            CanOpenWriteGuard.EnsureValidForWrite,
+            (model, options) => CanOpenWriteGuard.EnsureValidForWrite(model, options, IniWriteRules.Apply),
             (filePath, maxInputSize) => new EdsReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new EdsReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),
@@ -33,7 +34,11 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
             (eds, stream, cancellationToken) =>
                 new EdsWriter().WriteStreamAsync(eds, stream, cancellationToken),
             eds => new EdsWriter().GenerateString(eds),
-            CanOpenWriteGuard.EnsureValidForWriteAsync)
+            (model, options, cancellationToken) => CanOpenWriteGuard.EnsureValidForWriteAsync(
+                model,
+                options,
+                IniWriteRules.Apply,
+                cancellationToken))
     {
     }
 

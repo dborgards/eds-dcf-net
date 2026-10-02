@@ -278,7 +278,9 @@ public class DcfWriter : IniWriterBase
             sectionName,
             () =>
             {
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}{1}]", obj.Index, suffix));
+                IniRoundTripText.WriteSectionHeader(
+                    sb,
+                    string.Format(CultureInfo.InvariantCulture, "{0:X}{1}", obj.Index, suffix));
                 WriteKeyValue(sb, "NrOfEntries", entries.Count.ToString(CultureInfo.InvariantCulture));
                 foreach (var entry in entries)
                 {
@@ -305,7 +307,7 @@ public class DcfWriter : IniWriterBase
         }
 
         // CiA 306-1 Table 12 spells the section with a single "m"; the reader accepts both spellings.
-        sb.AppendLine("[DeviceComissioning]");
+        IniRoundTripText.WriteSectionHeader(sb, "DeviceComissioning");
         WriteKeyValue(sb, "NodeID", dc.NodeId.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "NodeName", dc.NodeName);
 
@@ -335,7 +337,7 @@ public class DcfWriter : IniWriterBase
 
     private static void WriteConnectedModules(StringBuilder sb, List<int> connectedModules)
     {
-        sb.AppendLine("[ConnectedModules]");
+        IniRoundTripText.WriteSectionHeader(sb, "ConnectedModules");
         WriteKeyValue(sb, "NrOfEntries", connectedModules.Count.ToString(CultureInfo.InvariantCulture));
 
         for (int i = 0; i < connectedModules.Count; i++)
@@ -436,6 +438,13 @@ public class DcfWriter : IniWriterBase
         try
         {
             writeAction();
+        }
+        catch (IniTextRejectedException ex)
+        {
+            throw new DcfWriteException(ex.Message)
+            {
+                SectionName = sectionName
+            };
         }
         catch (DcfWriteException)
         {

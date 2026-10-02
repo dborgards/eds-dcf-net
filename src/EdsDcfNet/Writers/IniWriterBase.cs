@@ -15,13 +15,13 @@ public abstract class IniWriterBase
     /// <summary>Writes a single INI key=value pair.</summary>
     protected static void WriteKeyValue(StringBuilder sb, string key, string? value)
     {
-        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}={1}", key, value));
+        IniRoundTripText.WriteKeyValue(sb, key, value);
     }
 
     /// <summary>Writes the [FileInfo] section (shared EDS/DCF fields, without LastEDS).</summary>
     protected static void WriteFileInfo(StringBuilder sb, EdsFileInfo fileInfo)
     {
-        sb.AppendLine("[FileInfo]");
+        IniRoundTripText.WriteSectionHeader(sb, "FileInfo");
         WriteKeyValue(sb, "FileName", fileInfo.FileName);
         WriteKeyValue(sb, "FileVersion", fileInfo.FileVersion.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "FileRevision", fileInfo.FileRevision.ToString(CultureInfo.InvariantCulture));
@@ -38,7 +38,7 @@ public abstract class IniWriterBase
     /// <summary>Writes the [DeviceInfo] section.</summary>
     protected static void WriteDeviceInfo(StringBuilder sb, DeviceInfo deviceInfo)
     {
-        sb.AppendLine("[DeviceInfo]");
+        IniRoundTripText.WriteSectionHeader(sb, "DeviceInfo");
         WriteKeyValue(sb, "VendorName", deviceInfo.VendorName);
         WriteKeyValue(sb, "VendorNumber", ValueConverter.FormatInteger(deviceInfo.VendorNumber));
         WriteKeyValue(sb, "ProductName", deviceInfo.ProductName);
@@ -80,7 +80,7 @@ public abstract class IniWriterBase
     /// <summary>Writes the [DummyUsage] section.</summary>
     protected static void WriteDummyUsage(StringBuilder sb, ObjectDictionary objDict)
     {
-        sb.AppendLine("[DummyUsage]");
+        IniRoundTripText.WriteSectionHeader(sb, "DummyUsage");
 
         foreach (var dummy in objDict.DummyUsage.OrderBy(d => d.Key))
         {
@@ -108,7 +108,9 @@ public abstract class IniWriterBase
         var compactMax = GetCompactMaxSubIndex(obj);
         var useCompact = compactMax > 0;
 
-        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}]", obj.Index));
+        IniRoundTripText.WriteSectionHeader(
+            sb,
+            string.Format(CultureInfo.InvariantCulture, "{0:X}", obj.Index));
 
         // CiA 306: SubNumber is normally omitted under CompactSubObj. Keep/emit it when
         // expanded sub-objects exist above the compact range so the reader can reach them.
@@ -200,7 +202,9 @@ public abstract class IniWriterBase
                 linkSectionName,
                 () =>
                 {
-                    sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}ObjectLinks]", obj.Index));
+                    IniRoundTripText.WriteSectionHeader(
+                        sb,
+                        string.Format(CultureInfo.InvariantCulture, "{0:X}ObjectLinks", obj.Index));
                     WriteKeyValue(sb, "ObjectLinks", obj.ObjectLinks.Count.ToString(CultureInfo.InvariantCulture));
 
                     for (int i = 0; i < obj.ObjectLinks.Count; i++)
@@ -358,7 +362,9 @@ public abstract class IniWriterBase
             sectionName,
             () =>
             {
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}Name]", obj.Index));
+                IniRoundTripText.WriteSectionHeader(
+                    sb,
+                    string.Format(CultureInfo.InvariantCulture, "{0:X}Name", obj.Index));
                 WriteKeyValue(sb, "NrOfEntries", names.Count.ToString(CultureInfo.InvariantCulture));
                 foreach (var entry in names)
                 {
@@ -396,7 +402,9 @@ public abstract class IniWriterBase
     /// </summary>
     protected void WriteSubObject(StringBuilder sb, ushort index, CanOpenSubObject subObj)
     {
-        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}sub{1:X}]", index, subObj.SubIndex));
+        IniRoundTripText.WriteSectionHeader(
+            sb,
+            string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", index, subObj.SubIndex));
 
         WriteKeyValue(sb, "ParameterName", subObj.ParameterName);
         WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(subObj.ObjectType));
@@ -480,7 +488,7 @@ public abstract class IniWriterBase
     /// <summary>Writes the [SupportedModules] list and each [M{n}ModuleInfo] section.</summary>
     protected static void WriteSupportedModules(StringBuilder sb, List<ModuleInfo> modules)
     {
-        sb.AppendLine("[SupportedModules]");
+        IniRoundTripText.WriteSectionHeader(sb, "SupportedModules");
         WriteKeyValue(sb, "NrOfEntries", modules.Count.ToString(CultureInfo.InvariantCulture));
         sb.AppendLine();
 
@@ -493,7 +501,9 @@ public abstract class IniWriterBase
     /// <summary>Writes a single [M{n}ModuleInfo] section and its [M{n}FixedObjects].</summary>
     protected static void WriteModuleInfo(StringBuilder sb, ModuleInfo module)
     {
-        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[M{0}ModuleInfo]", module.ModuleNumber));
+        IniRoundTripText.WriteSectionHeader(
+            sb,
+            string.Format(CultureInfo.InvariantCulture, "M{0}ModuleInfo", module.ModuleNumber));
         WriteKeyValue(sb, "ProductName", module.ProductName);
         WriteKeyValue(sb, "ProductVersion", module.ProductVersion.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "ProductRevision", module.ProductRevision.ToString(CultureInfo.InvariantCulture));
@@ -502,7 +512,9 @@ public abstract class IniWriterBase
 
         if (module.FixedObjects.Count > 0)
         {
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[M{0}FixedObjects]", module.ModuleNumber));
+            IniRoundTripText.WriteSectionHeader(
+                sb,
+                string.Format(CultureInfo.InvariantCulture, "M{0}FixedObjects", module.ModuleNumber));
             WriteKeyValue(sb, "NrOfEntries", module.FixedObjects.Count.ToString(CultureInfo.InvariantCulture));
 
             for (int i = 0; i < module.FixedObjects.Count; i++)
@@ -517,7 +529,7 @@ public abstract class IniWriterBase
     /// <summary>Writes the [Comments] section.</summary>
     protected static void WriteComments(StringBuilder sb, Comments comments)
     {
-        sb.AppendLine("[Comments]");
+        IniRoundTripText.WriteSectionHeader(sb, "Comments");
         WriteKeyValue(sb, "Lines", comments.Lines.ToString(CultureInfo.InvariantCulture));
 
         foreach (var line in comments.CommentLines.OrderBy(l => l.Key))
@@ -531,7 +543,7 @@ public abstract class IniWriterBase
     /// <summary>Writes the [DynamicChannels] section.</summary>
     protected static void WriteDynamicChannels(StringBuilder sb, DynamicChannels dynamicChannels)
     {
-        sb.AppendLine("[DynamicChannels]");
+        IniRoundTripText.WriteSectionHeader(sb, "DynamicChannels");
         WriteKeyValue(sb, "NrOfSeg", dynamicChannels.Segments.Count.ToString(CultureInfo.InvariantCulture));
 
         for (int i = 0; i < dynamicChannels.Segments.Count; i++)
@@ -550,14 +562,16 @@ public abstract class IniWriterBase
     /// <summary>Writes the [Tools] list and each [Tool{n}] section.</summary>
     protected static void WriteTools(StringBuilder sb, List<ToolInfo> tools)
     {
-        sb.AppendLine("[Tools]");
+        IniRoundTripText.WriteSectionHeader(sb, "Tools");
         WriteKeyValue(sb, "Items", tools.Count.ToString(CultureInfo.InvariantCulture));
         sb.AppendLine();
 
         for (int i = 0; i < tools.Count; i++)
         {
             var idx = (i + 1).ToString(CultureInfo.InvariantCulture);
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[Tool{0}]", idx));
+            IniRoundTripText.WriteSectionHeader(
+                sb,
+                string.Format(CultureInfo.InvariantCulture, "Tool{0}", idx));
             WriteKeyValue(sb, "Name", tools[i].Name);
             WriteKeyValue(sb, "Command", tools[i].Command);
             sb.AppendLine();
@@ -567,7 +581,7 @@ public abstract class IniWriterBase
     /// <summary>Writes a non-standard additional section.</summary>
     protected static void WriteAdditionalSection(StringBuilder sb, string sectionName, Dictionary<string, string> entries)
     {
-        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0}]", sectionName));
+        IniRoundTripText.WriteSectionHeader(sb, sectionName);
 
         foreach (var entry in entries.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase))
         {

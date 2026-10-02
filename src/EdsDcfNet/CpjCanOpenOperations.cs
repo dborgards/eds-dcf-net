@@ -3,6 +3,7 @@ namespace EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
+using EdsDcfNet.Validation;
 using EdsDcfNet.Writers;
 
 /// <summary>
@@ -15,7 +16,7 @@ public sealed class CpjCanOpenOperations : FormatCanOpenOperations<NodelistProje
 
     private CpjCanOpenOperations()
         : base(
-            CanOpenWriteGuard.EnsureValidForWrite,
+            (model, options) => CanOpenWriteGuard.EnsureValidForWrite(model, options, IniWriteRules.Apply),
             (filePath, maxInputSize) => new CpjReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new CpjReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),
@@ -30,7 +31,11 @@ public sealed class CpjCanOpenOperations : FormatCanOpenOperations<NodelistProje
             (cpj, stream, cancellationToken) =>
                 new CpjWriter().WriteStreamAsync(cpj, stream, cancellationToken),
             cpj => new CpjWriter().GenerateString(cpj),
-            CanOpenWriteGuard.EnsureValidForWriteAsync)
+            (model, options, cancellationToken) => CanOpenWriteGuard.EnsureValidForWriteAsync(
+                model,
+                options,
+                IniWriteRules.Apply,
+                cancellationToken))
     {
     }
 
