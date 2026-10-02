@@ -147,6 +147,7 @@ internal static class CanOpenSectionParsers
 
     /// <summary>
     /// Parses optional <c>[MxComments]</c> (CiA 306-1 §8.3): <c>Lines</c> and <c>Line&lt;n&gt;</c>.
+    /// A present key with an empty value is a blank line and is stored. A missing key is not.
     /// </summary>
     private static void ParseModuleComments(
         Dictionary<string, Dictionary<string, string>> sections,
@@ -154,7 +155,7 @@ internal static class CanOpenSectionParsers
         ModuleInfo moduleInfo)
     {
         var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}Comments", moduleNumber);
-        if (!IniParser.HasSection(sections, sectionName))
+        if (!sections.TryGetValue(sectionName, out var section))
             return;
 
         var comments = new Comments
@@ -164,11 +165,9 @@ internal static class CanOpenSectionParsers
 
         for (var i = 1; i <= comments.Lines; i++)
         {
-            var line = IniParser.GetValue(sections, sectionName, string.Format(CultureInfo.InvariantCulture, "Line{0}", i));
-            if (!string.IsNullOrEmpty(line))
-            {
+            var key = string.Format(CultureInfo.InvariantCulture, "Line{0}", i);
+            if (section.TryGetValue(key, out var line))
                 comments.CommentLines[i] = line;
-            }
         }
 
         moduleInfo.Comments = comments;

@@ -459,6 +459,63 @@ public class ModuleSectionRoundTripTests
     }
 
     [Fact]
+    public void ReadString_BlankModuleCommentLine_ValidatesAndRoundTrips()
+    {
+        // Arrange — Line1= is present and empty. That is a real line, not a gap.
+        var content = ModuleHeader() + """
+            [M1Comments]
+            Lines=2
+            Line1=
+            Line2=text
+            """;
+
+        // Act
+        var eds = CanOpenFile.Eds.ReadString(content);
+        var issues = CanOpenModelValidator.Validate(eds);
+        var written = CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+        var reread = CanOpenFile.Eds.ReadString(written);
+        var second = CanOpenFile.Eds.WriteToString(reread, CanOpenWriteOptions.Validated);
+
+        // Assert
+        var comments = eds.SupportedModules[0].Comments;
+        comments.Should().NotBeNull();
+        comments!.Lines.Should().Be(2);
+        comments.CommentLines.Should().Equal(new Dictionary<int, string>
+        {
+            [1] = string.Empty,
+            [2] = "text"
+        });
+        issues.Should().NotContain(issue => issue.Path == "SupportedModules[0].Comments.Lines");
+        written.Replace("\r\n", "\n").Should().Contain("Line1=\n").And.Contain("Line2=text");
+        reread.SupportedModules[0].Comments!.CommentLines.Should().Equal(comments.CommentLines);
+        second.Should().Be(written);
+    }
+
+    [Fact]
+    public void ReadString_MissingModuleCommentLine_StaysInvalid()
+    {
+        // Arrange — Line1 is absent, so the contiguous 1..Lines range is still broken.
+        var content = ModuleHeader() + """
+            [M1Comments]
+            Lines=2
+            Line2=text
+            """;
+
+        // Act
+        var eds = CanOpenFile.Eds.ReadString(content);
+        var issues = CanOpenModelValidator.Validate(eds);
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        var comments = eds.SupportedModules[0].Comments!;
+        comments.Lines.Should().Be(2);
+        comments.CommentLines.Should().NotContainKey(1);
+        comments.CommentLines.Should().ContainKey(2);
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].Comments.Lines");
+        act.Should().Throw<ModelValidationException>();
+    }
+
+    [Fact]
     public void WriteToString_ValidatedCommentKeyOffset_ThrowsModelValidationException()
     {
         // Arrange
