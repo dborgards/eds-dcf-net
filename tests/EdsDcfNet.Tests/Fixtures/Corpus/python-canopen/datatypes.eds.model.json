@@ -1,0 +1,37 @@
+{
+  "objectCount": 24,
+  "subObjectCount": 5,
+  "emptyDataTypeCount": 1,
+  "objects": [
+    {"index": "0x1018", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "4", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0", "pdoMapping": "No"}
+    ]},
+    {"index": "0x2001", "objectType": 7, "dataType": "0x0001", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "Optional"},
+    {"index": "0x2002", "objectType": 7, "dataType": "0x0002", "accessType": "ReadWrite", "defaultValue": "12", "pdoMapping": "Optional"},
+    {"index": "0x2003", "objectType": 7, "dataType": "0x0003", "accessType": "ReadWrite", "defaultValue": "34", "pdoMapping": "Optional"},
+    {"index": "0x2004", "objectType": 7, "dataType": "0x0004", "accessType": "ReadWrite", "defaultValue": "45", "pdoMapping": "Optional"},
+    {"index": "0x2005", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "56", "pdoMapping": "Optional"},
+    {"index": "0x2006", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "8198", "pdoMapping": "Optional"},
+    {"index": "0x2007", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "537337864", "pdoMapping": "Optional"},
+    {"index": "0x2008", "objectType": 7, "dataType": "0x0008", "accessType": "ReadWrite", "defaultValue": "1.2", "pdoMapping": "Optional"},
+    {"index": "0x2009", "objectType": 7, "dataType": "0x0009", "accessType": "ReadWrite", "defaultValue": "ABCD", "pdoMapping": "Optional"},
+    {"index": "0x200A", "objectType": 7, "dataType": "0x000A", "accessType": "ReadWrite", "defaultValue": "ABCD", "pdoMapping": "Optional"},
+    {"index": "0x200B", "objectType": 7, "dataType": "0x000B", "accessType": "ReadWrite", "defaultValue": "abc✓", "pdoMapping": "Optional"},
+    {"index": "0x200F", "objectType": 7, "dataType": "0x000F", "accessType": "ReadWrite", "defaultValue": "@ABCD", "pdoMapping": "Optional"},
+    {"index": "0x2010", "objectType": 7, "dataType": "0x0010", "accessType": "ReadWrite", "defaultValue": "-1", "pdoMapping": "Optional"},
+    {"index": "0x2011", "objectType": 7, "dataType": "0x0011", "accessType": "ReadWrite", "defaultValue": "1.6", "pdoMapping": "Optional"},
+    {"index": "0x2012", "objectType": 7, "dataType": "0x0012", "accessType": "ReadWrite", "defaultValue": "-40", "pdoMapping": "Optional"},
+    {"index": "0x2013", "objectType": 7, "dataType": "0x0013", "accessType": "ReadWrite", "defaultValue": "-48", "pdoMapping": "Optional"},
+    {"index": "0x2014", "objectType": 7, "dataType": "0x0014", "accessType": "ReadWrite", "defaultValue": "-56", "pdoMapping": "Optional"},
+    {"index": "0x2015", "objectType": 7, "dataType": "0x0015", "accessType": "ReadWrite", "defaultValue": "-64", "pdoMapping": "Optional"},
+    {"index": "0x2016", "objectType": 7, "dataType": "0x0016", "accessType": "ReadWrite", "defaultValue": "24", "pdoMapping": "Optional"},
+    {"index": "0x2018", "objectType": 7, "dataType": "0x0018", "accessType": "ReadWrite", "defaultValue": "40", "pdoMapping": "Optional"},
+    {"index": "0x2019", "objectType": 7, "dataType": "0x0019", "accessType": "ReadWrite", "defaultValue": "48", "pdoMapping": "Optional"},
+    {"index": "0x201A", "objectType": 7, "dataType": "0x001A", "accessType": "ReadWrite", "defaultValue": "56", "pdoMapping": "Optional"},
+    {"index": "0x201B", "objectType": 7, "dataType": "0x001B", "accessType": "ReadWrite", "defaultValue": "64", "pdoMapping": "Optional"}
+  ]
+}

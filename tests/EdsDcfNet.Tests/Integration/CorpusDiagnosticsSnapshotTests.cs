@@ -13,7 +13,7 @@ using Xunit;
 /// lenient-mode behaviour shows up as a snapshot diff in the PR.
 ///
 /// Regenerate after an intentional parser change with
-/// <c>UPDATE_CORPUS_SNAPSHOTS=1 dotnet test --filter CorpusDiagnosticsSnapshotTests</c>
+/// <c>UPDATE_CORPUS_SNAPSHOTS=1 dotnet test -f net10.0 --filter CorpusDiagnosticsSnapshotTests</c>
 /// and review the diff like any other source change (see CONTRIBUTING.md).
 /// </summary>
 public class CorpusDiagnosticsSnapshotTests
@@ -103,10 +103,7 @@ public class CorpusDiagnosticsSnapshotTests
         var snapshotPath = filePath + SnapshotExtension;
         var actual = Serialize(diagnostics);
 
-        if (string.Equals(
-                Environment.GetEnvironmentVariable("UPDATE_CORPUS_SNAPSHOTS"),
-                "1",
-                StringComparison.Ordinal))
+        if (CorpusFiles.UpdateSnapshotsRequested)
         {
             var sourceSnapshotPath = Path.Combine(
                 CorpusFiles.FindSourceCorpusRoot(),
@@ -117,7 +114,7 @@ public class CorpusDiagnosticsSnapshotTests
 
         File.Exists(snapshotPath).Should().BeTrue(
             $"missing diagnostics snapshot at {snapshotPath}; regenerate with " +
-            "UPDATE_CORPUS_SNAPSHOTS=1 dotnet test --filter CorpusDiagnosticsSnapshotTests " +
+            "UPDATE_CORPUS_SNAPSHOTS=1 dotnet test -f net10.0 --filter CorpusDiagnosticsSnapshotTests " +
             "and commit the new snapshot");
 
         var expected = NormalizeNewlines(File.ReadAllText(snapshotPath));
@@ -163,32 +160,8 @@ public class CorpusDiagnosticsSnapshotTests
         bool trailingComma = true)
     {
         sb.Append("    \"").Append(name).Append("\": ");
-        AppendJsonString(sb, value);
+        CorpusFiles.AppendJsonString(sb, value);
         sb.Append(trailingComma ? ",\n" : "\n");
-    }
-
-    private static void AppendJsonString(StringBuilder sb, string value)
-    {
-        sb.Append('"');
-        foreach (var c in value)
-        {
-            switch (c)
-            {
-                case '"': sb.Append("\\\""); break;
-                case '\\': sb.Append("\\\\"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\t': sb.Append("\\t"); break;
-                default:
-                    if (c < ' ')
-                        sb.Append("\\u").Append(((int)c).ToString("x4"));
-                    else
-                        sb.Append(c);
-                    break;
-            }
-        }
-
-        sb.Append('"');
     }
 
     private static string NormalizeNewlines(string text)
