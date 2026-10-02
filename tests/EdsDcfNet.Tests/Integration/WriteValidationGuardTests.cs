@@ -740,6 +740,24 @@ public class WriteValidationGuardTests
     }
 
     [Fact]
+    public void ValidateSharedAsync_WithUnsupportedModelType_ThrowsArgumentException()
+    {
+        var guardType = typeof(CanOpenFile).Assembly.GetType("EdsDcfNet.CanOpenWriteGuard")
+            ?? throw new InvalidOperationException("CanOpenWriteGuard type not found.");
+        var validateSharedAsync = guardType.GetMethod(
+            "ValidateSharedAsync",
+            BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("ValidateSharedAsync method not found.");
+
+        var act = () => validateSharedAsync.Invoke(null, new object[] { "unsupported", CancellationToken.None });
+
+        var exception = act.Should().Throw<TargetInvocationException>().Which.InnerException;
+        exception.Should().BeOfType<ArgumentException>()
+            .Which.Message.Should().Contain("Unsupported model type: String");
+        ((ArgumentException)exception!).ParamName.Should().Be("model");
+    }
+
+    [Fact]
     public async Task EnsureValidForWriteAsync_WithUnsupportedModelType_ThrowsArgumentException()
     {
         var ensureValidForWriteAsync = GetEnsureValidForWriteAsyncMethod(typeof(string));

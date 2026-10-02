@@ -77,7 +77,6 @@ internal static class CanOpenWriteGuard
 
     private static IReadOnlyList<ValidationIssue> ValidateShared<T>(T model)
     {
-        EnsureSupportedModel(model);
         return model switch
         {
             ElectronicDataSheet eds => CanOpenFile.Validate(eds),

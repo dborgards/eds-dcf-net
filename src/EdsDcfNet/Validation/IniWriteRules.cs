@@ -2,6 +2,7 @@ namespace EdsDcfNet.Validation;
 
 using System.Globalization;
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Format-family checks applied after shared model validation when an EDS, DCF, or CPJ file is
@@ -128,7 +129,7 @@ internal static class IniWriteRules
         ApplyModules(model.SupportedModules, issues);
         ApplyDynamicChannels(model.DynamicChannels, issues);
         ApplyTools(model.Tools, issues);
-        ApplyAdditionalSections(model.AdditionalSections, issues);
+        ApplyAdditionalSections(model.AdditionalSections, issues, model.ObjectDictionary);
     }
 
     private static void ApplyFileInfo(EdsFileInfo fileInfo, bool includeLastEds, List<ValidationIssue> issues)
@@ -308,10 +309,19 @@ internal static class IniWriteRules
 
     private static void ApplyAdditionalSections(
         Dictionary<string, Dictionary<string, string>> sections,
-        List<ValidationIssue> issues)
+        List<ValidationIssue> issues,
+        ObjectDictionary? objectDictionary = null)
     {
         foreach (var section in sections)
         {
+            // EdsWriter and DcfWriter drop a stale [xxxxObjectLinks] section when that
+            // object already exists and emit ObjectLinks from the object instead.
+            if (objectDictionary != null
+                && ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, objectDictionary))
+            {
+                continue;
+            }
+
             var sectionPath = "AdditionalSections[" + section.Key + "]";
             Check(section.Key, IniTextSlot.SectionName, sectionPath, issues);
             if (section.Value == null)
