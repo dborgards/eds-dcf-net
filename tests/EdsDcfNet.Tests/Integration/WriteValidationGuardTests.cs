@@ -775,10 +775,11 @@ public class WriteValidationGuardTests
         var guardType = typeof(CanOpenFile).Assembly.GetType("EdsDcfNet.CanOpenWriteGuard")
             ?? throw new InvalidOperationException("CanOpenWriteGuard type not found.");
 
-        var method = guardType.GetMethod(
-            "EnsureValidForWriteAsync",
-            BindingFlags.NonPublic | BindingFlags.Static)
-            ?? throw new InvalidOperationException("EnsureValidForWriteAsync method not found.");
+        var method = guardType.GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+            .Single(candidate =>
+                candidate.Name == "EnsureValidForWriteAsync" &&
+                candidate.IsGenericMethodDefinition &&
+                candidate.GetParameters().Length == 3);
 
         return method.MakeGenericMethod(modelType);
     }
@@ -788,10 +789,11 @@ public class WriteValidationGuardTests
         var guardType = typeof(CanOpenFile).Assembly.GetType("EdsDcfNet.CanOpenWriteGuard")
             ?? throw new InvalidOperationException("CanOpenWriteGuard type not found.");
 
-        var method = guardType.GetMethod(
-            "EnsureValidForWrite",
-            BindingFlags.NonPublic | BindingFlags.Static)
-            ?? throw new InvalidOperationException("EnsureValidForWrite method not found.");
+        var method = guardType.GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+            .Single(candidate =>
+                candidate.Name == "EnsureValidForWrite" &&
+                candidate.IsGenericMethodDefinition &&
+                candidate.GetParameters().Length == 2);
 
         return method.MakeGenericMethod(modelType);
     }

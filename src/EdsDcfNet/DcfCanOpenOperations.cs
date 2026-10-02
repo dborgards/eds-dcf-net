@@ -3,6 +3,7 @@ namespace EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
+using EdsDcfNet.Validation;
 using EdsDcfNet.Writers;
 
 /// <summary>
@@ -15,7 +16,7 @@ public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
 
     private DcfCanOpenOperations()
         : base(
-            CanOpenWriteGuard.EnsureValidForWrite,
+            (model, options) => CanOpenWriteGuard.EnsureValidForWrite(model, options, IniWriteRules.Apply),
             (filePath, maxInputSize) => new DcfReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new DcfReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),
@@ -30,7 +31,11 @@ public sealed class DcfCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
             (dcf, stream, cancellationToken) =>
                 new DcfWriter().WriteStreamAsync(dcf, stream, cancellationToken),
             dcf => new DcfWriter().GenerateString(dcf),
-            CanOpenWriteGuard.EnsureValidForWriteAsync)
+            (model, options, cancellationToken) => CanOpenWriteGuard.EnsureValidForWriteAsync(
+                model,
+                options,
+                IniWriteRules.Apply,
+                cancellationToken))
     {
     }
 
