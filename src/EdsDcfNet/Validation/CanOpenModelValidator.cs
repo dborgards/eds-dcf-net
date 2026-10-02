@@ -439,15 +439,14 @@ public static class CanOpenModelValidator
         if (module.Comments == null)
             return;
 
-        if (module.Comments.Lines != module.Comments.CommentLines.Count)
+        if (!ModuleCommentKeysCoverLines(module.Comments))
         {
             issues.Add(new ValidationIssue(
                 path + ".Comments.Lines",
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "Lines is {0} but {1} comment lines are defined (CiA 306-1 §8.3).",
-                    module.Comments.Lines,
-                    module.Comments.CommentLines.Count)));
+                    "Lines is {0} but comment line keys are not exactly 1..{0} (CiA 306-1 §8.3).",
+                    module.Comments.Lines)));
         }
     }
 
@@ -540,6 +539,26 @@ public static class CanOpenModelValidator
                     "Count must be an Unsigned8, or 0;<bits> when several modules share one sub-index (CiA 306-1 §8.3)."));
             }
         }
+    }
+
+    /// <summary>
+    /// <c>Line1</c>..<c>LineN</c> must be present for <c>N = Lines</c>. A matching
+    /// count with a gap or an offset (for example <c>Lines = 1</c> and only
+    /// <c>Line2</c>) would be written and then dropped, because the parser reads
+    /// only keys <c>1..Lines</c>.
+    /// </summary>
+    private static bool ModuleCommentKeysCoverLines(Comments comments)
+    {
+        if (comments.CommentLines.Count != comments.Lines)
+            return false;
+
+        for (var n = 1; n <= comments.Lines; n++)
+        {
+            if (!comments.CommentLines.ContainsKey(n))
+                return false;
+        }
+
+        return true;
     }
 
     /// <summary>

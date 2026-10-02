@@ -424,6 +424,58 @@ public class ModuleSectionRoundTripTests
     }
 
     [Fact]
+    public void Validate_ModuleCommentsKeyOffset_ReturnsIssue()
+    {
+        // Arrange — same count as Lines, but the only key is 2, so a write/read would drop it.
+        var eds = ValidModuleEds();
+        var comments = new Comments { Lines = 1 };
+        comments.CommentLines[2] = "offset";
+        eds.SupportedModules[0].Comments = comments;
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        // Assert
+        issues.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].Comments.Lines" &&
+            issue.Message.Contains("1..1", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_ModuleCommentsKeyGap_ReturnsIssue()
+    {
+        // Arrange — count matches Lines, but key 2 is missing.
+        var eds = ValidModuleEds();
+        var comments = new Comments { Lines = 2 };
+        comments.CommentLines[1] = "first";
+        comments.CommentLines[3] = "skipped";
+        eds.SupportedModules[0].Comments = comments;
+
+        // Act
+        var issues = CanOpenModelValidator.Validate(eds);
+
+        // Assert
+        issues.Should().Contain(issue => issue.Path == "SupportedModules[0].Comments.Lines");
+    }
+
+    [Fact]
+    public void WriteToString_ValidatedCommentKeyOffset_ThrowsModelValidationException()
+    {
+        // Arrange
+        var eds = ValidModuleEds();
+        var comments = new Comments { Lines = 1 };
+        comments.CommentLines[2] = "offset";
+        eds.SupportedModules[0].Comments = comments;
+
+        // Act
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        act.Should().Throw<ModelValidationException>().Which.Issues.Should().Contain(issue =>
+            issue.Path == "SupportedModules[0].Comments.Lines");
+    }
+
+    [Fact]
     public void Validate_ModuleSubExtendsCountMismatch_ReturnsIssue()
     {
         // Arrange
