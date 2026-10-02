@@ -315,6 +315,63 @@ resume_release_publish() {
   fi
 }
 
+# Notes for a GitHub release created while repairing VERSION.
+#
+# Historical release commits embedded ${nextRelease.notes} in the commit body,
+# and that body is what this repair used to publish. The git message is now
+# the subject only, so a new release commit has an empty body — on purpose,
+# because notes can carry a skip directive into the develop→main PR head.
+# The changelog plugin still writes the same notes into CHANGELOG.md before
+# that commit, and the tag points at it. Prefer a non-empty body so an older
+# tag repairs exactly as it used to; otherwise take that changelog section.
+release_notes_for_version() {
+  local version="$1"
+  local tag="v${version}"
+  local body
+
+  body="$(git log -1 --format=%b "$tag")"
+  if [[ -n "${body//[[:space:]]/}" ]]; then
+    printf '%s\n' "$body"
+    return 0
+  fi
+
+  release_notes_from_changelog "$version"
+}
+
+release_notes_from_changelog() {
+  local version="$1"
+  local tag="v${version}"
+  local changelog_file line found=0 section=""
+  local heading="## [${version}]"
+
+  changelog_file="$(mktemp)"
+  if ! git show "${tag}:CHANGELOG.md" >"$changelog_file" 2>/dev/null; then
+    rm -f "$changelog_file"
+    echo "No CHANGELOG.md at ${tag}; cannot recover release notes for ${version}." >&2
+    return 1
+  fi
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    if [[ "$found" -eq 1 && "${line:0:3}" == "## " && "${line:0:${#heading}}" != "$heading" ]]; then
+      break
+    fi
+    if [[ "${line:0:${#heading}}" == "$heading" ]]; then
+      found=1
+    fi
+    if [[ "$found" -eq 1 ]]; then
+      section+="${line}"$'\n'
+    fi
+  done <"$changelog_file"
+  rm -f "$changelog_file"
+
+  if [[ "$found" -ne 1 || -z "${section//[[:space:]]/}" ]]; then
+    echo "CHANGELOG.md at ${tag} has no notes section for ${version}." >&2
+    return 1
+  fi
+  printf '%s' "$section"
+}
+
 complete_release_publish() {
   local version="$1"
   local tag="v${version}"
@@ -362,7 +419,9 @@ complete_release_publish() {
 
   if ! gh release view "$tag" >/dev/null 2>&1; then
     notes_file="$(mktemp)"
-    git log -1 --format=%b "$tag" >"$notes_file"
+    # Body when the release commit still has one; otherwise the CHANGELOG
+    # section at this tag. An empty file would publish a release with no notes.
+    release_notes_for_version "$version" >"$notes_file"
 
     while IFS= read -r name; do
       if [[ -f "${packages_dir}/${name}" ]]; then
