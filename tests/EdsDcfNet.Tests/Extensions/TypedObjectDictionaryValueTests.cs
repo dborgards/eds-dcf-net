@@ -179,7 +179,7 @@ public class TypedObjectDictionaryValueTests
     {
         CanOpenValueConverter.Format(true, 0x0001).Should().Be("1");
         CanOpenValueConverter.Format(1.5F, 0x0008).Should().Be("1.5");
-        CanOpenValueConverter.Format(new byte[] { 0x01, 0xAB }, 0x000A).Should().Be("0x01AB");
+        CanOpenValueConverter.Format(new byte[] { 0x01, 0xAB }, 0x000A).Should().Be("01AB");
     }
 
     [Fact]

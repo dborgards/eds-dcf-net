@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.14.1-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0...v1.14.1-beta.1) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **converter:** format OCTET_STRING without 0x prefix per CiA 306-1 ([#589](https://github.com/dborgards/eds-dcf-net/issues/589)) ([a585119](https://github.com/dborgards/eds-dcf-net/commit/a585119f6dc2d317740598411992dd46b182a321))
+
+### 📚 Documentation
+
+* add deep review of v1.14.0 and action plan (2026-09-30) ([#578](https://github.com/dborgards/eds-dcf-net/issues/578)) ([029366c](https://github.com/dborgards/eds-dcf-net/commit/029366cd7319c9b6467dd074b444cadca14953b3)), closes [#579](https://github.com/dborgards/eds-dcf-net/issues/579) [#580](https://github.com/dborgards/eds-dcf-net/issues/580) [#579](https://github.com/dborgards/eds-dcf-net/issues/579)
+* align copilot instructions and arc42 constraints with the codebase ([#587](https://github.com/dborgards/eds-dcf-net/issues/587)) ([12fc2e8](https://github.com/dborgards/eds-dcf-net/commit/12fc2e8d3f72a5fc9806a623fc43539da5119226))
+* **examples:** read sample file and cover CPJ, XDD, XDC, async and strict mode ([#588](https://github.com/dborgards/eds-dcf-net/issues/588)) ([50d87e0](https://github.com/dborgards/eds-dcf-net/commit/50d87e0a7a621a16a1c52d752d8799db2dab7d17))
+* **plan:** record maintainer decisions and the tracking issue ([#586](https://github.com/dborgards/eds-dcf-net/issues/586)) ([c931e4e](https://github.com/dborgards/eds-dcf-net/commit/c931e4eef606503e165aab800af5950bed8ec16d))
+
 ## [1.14.0](https://github.com/dborgards/eds-dcf-net/compare/v1.13.0...v1.14.0) (2026-09-26)
 
 ### ✨ Features

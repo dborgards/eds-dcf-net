@@ -1,0 +1,25 @@
+{
+  "objectCount": 6,
+  "subObjectCount": 10,
+  "emptyDataTypeCount": 2,
+  "objects": [
+    {"index": "0x1000", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+    {"index": "0x1001", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "Optional"},
+    {"index": "0x1003", "objectType": 8, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "3", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x07", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1008", "objectType": 7, "dataType": "0x0009", "accessType": "Constant", "defaultValue": "TEST DEVICE", "pdoMapping": "No"},
+    {"index": "0x1017", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0x0000", "pdoMapping": "No"},
+    {"index": "0x1018", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "Constant", "defaultValue": "4", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"}
+    ]}
+  ]
+}

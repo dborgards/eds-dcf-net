@@ -172,13 +172,21 @@ Contributing a corpus file:
    snapshots with:
 
    ```
-   UPDATE_CORPUS_SNAPSHOTS=1 dotnet test --filter CorpusDiagnosticsSnapshotTests
+   UPDATE_CORPUS_SNAPSHOTS=1 dotnet test -f net10.0 --filter CorpusDiagnosticsSnapshotTests
    ```
 
    Commit the snapshot diff together with the parser or corpus change that
    caused it, and review it like any other source change — the diff is the
    visible record of a lenient-behaviour change. Snapshots whose corpus file
    was removed are flagged as orphans; delete them with the file.
+
+   Every corpus file also carries a `<file>.model.json` snapshot of the parsed
+   object model (`CorpusModelSnapshotTests`): per object and sub-object index,
+   object type, data type, access type, default value and PDO mapping, plus
+   `uniqueIDRef` counts for XDD/XDC. Refresh it with
+   `UPDATE_CORPUS_SNAPSHOTS=1 dotnet test -f net10.0 --filter CorpusModelSnapshotTests`
+   and explain every diff in the PR description. Both update commands name
+   one target framework so that only one test process writes the files.
 
 ### CiA 311 schema fixtures
 
