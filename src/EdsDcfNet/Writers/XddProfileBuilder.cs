@@ -110,7 +110,16 @@ internal static class XddProfileBuilder
         return dummyElem;
     }
 
-    /// <summary>Builds the <c>dynamicChannels</c> element.</summary>
+    /// <summary>
+    /// Builds the <c>dynamicChannels</c> element.
+    /// </summary>
+    /// <remarks>
+    /// Every <c>dynamicChannel</c> carries the schema-required attributes
+    /// <c>dataType</c>, <c>accessType</c>, <c>startIndex</c>, <c>endIndex</c>,
+    /// <c>maxNumber</c>, and <c>addressOffset</c>. <c>bitAlignment</c> is written
+    /// only when <see cref="DynamicChannelSegment.BitAlignment"/> is set.
+    /// <c>pDOmappingIndex</c> is not part of the schema and is not written.
+    /// </remarks>
     internal static XElement BuildDynamicChannels(DynamicChannels channels)
     {
         var dynElem = XddNames.Element(ApplicationLayersName, "dynamicChannels");
@@ -118,24 +127,131 @@ internal static class XddProfileBuilder
         foreach (var seg in channels.Segments)
         {
             var chanElem = XddNames.Element(dynElem.Name, "dynamicChannel",
-                new XAttribute("dataType", XddFormatHelper.FormatDataType(seg.Type)),
-                new XAttribute("accessType", XddFormatHelper.AccessTypeToString(seg.Dir)));
+                new XAttribute("dataType", XddFormatHelper.FormatDynamicChannelDataType(seg.Type)),
+                new XAttribute("accessType", XddFormatHelper.DynamicChannelAccessTypeToString(seg.Dir)));
 
-            // Parse Range back to startIndex/endIndex
-            var rangeParts = seg.Range.Split('-');
-            if (rangeParts.Length >= 1)
-                chanElem.Add(new XAttribute("startIndex", rangeParts[0].Trim()));
-            if (rangeParts.Length >= 2)
-                chanElem.Add(new XAttribute("endIndex", rangeParts[1].Trim()));
+            AddDynamicChannelIndexes(chanElem, seg.Range);
+            chanElem.Add(new XAttribute(
+                "maxNumber",
+                (seg.MaxNumber ?? DeriveMaxNumber(seg.Range)).ToString(CultureInfo.InvariantCulture)));
+            chanElem.Add(new XAttribute("addressOffset", FormatAddressOffset(seg)));
 
-            if (seg.PPOffset > 0)
-                chanElem.Add(new XAttribute("pDOmappingIndex",
-                    seg.PPOffset.ToString(CultureInfo.InvariantCulture)));
+            if (seg.BitAlignment.HasValue)
+            {
+                chanElem.Add(new XAttribute(
+                    "bitAlignment",
+                    seg.BitAlignment.Value.ToString(CultureInfo.InvariantCulture)));
+            }
 
             dynElem.Add(chanElem);
         }
 
         return dynElem;
+    }
+
+    /// <summary>
+    /// Writes <c>startIndex</c> and <c>endIndex</c>. A single index is repeated
+    /// because <c>endIndex</c> is required. An unparsable range is written as <c>0000</c>.
+    /// </summary>
+    private static void AddDynamicChannelIndexes(XElement channel, string range)
+    {
+        SplitRange(range, out var startText, out var endText);
+        var hasStart = TryParseHexIndex(startText, out var start);
+        var hasEnd = TryParseHexIndex(endText, out var end);
+
+        if (!hasStart)
+        {
+            channel.Add(new XAttribute("startIndex", XddFormatHelper.FormatHexBinary(0)));
+            channel.Add(new XAttribute("endIndex", XddFormatHelper.FormatHexBinary(0)));
+            return;
+        }
+
+        channel.Add(new XAttribute("startIndex", XddFormatHelper.FormatHexBinary(start)));
+        channel.Add(new XAttribute("endIndex", XddFormatHelper.FormatHexBinary(hasEnd ? end : start)));
+    }
+
+    /// <summary>
+    /// Inclusive index span of <paramref name="range"/>, <c>1</c> for a single index,
+    /// or <c>0</c> when the range cannot be parsed or the end index is below the start.
+    /// </summary>
+    private static uint DeriveMaxNumber(string range)
+    {
+        SplitRange(range, out var startText, out var endText);
+        if (!TryParseHexIndex(startText, out var start))
+            return 0;
+        if (!TryParseHexIndex(endText, out var end))
+            return 1;
+        if (end < start)
+            return 0;
+
+        var span = end - start;
+        if (span == uint.MaxValue)
+            return uint.MaxValue;
+
+        return span + 1;
+    }
+
+    private static string FormatAddressOffset(DynamicChannelSegment segment)
+    {
+        if (segment.AddressOffsetLexical != null &&
+            segment.PPOffset == segment.AddressOffsetLexicalBaseline)
+        {
+            return segment.AddressOffsetLexical;
+        }
+
+        return XddFormatHelper.FormatHexBinary(segment.PPOffset);
+    }
+
+    private static void SplitRange(string range, out string start, out string end)
+    {
+        var hyphen = range.IndexOf('-');
+        if (hyphen < 0)
+        {
+            start = range.Trim();
+            end = string.Empty;
+            return;
+        }
+
+        start = range.Substring(0, hyphen).Trim();
+        end = range.Substring(hyphen + 1).Trim();
+    }
+
+    private static bool TryParseHexIndex(string text, out uint value)
+    {
+        value = 0;
+        if (string.IsNullOrEmpty(text))
+            return false;
+
+        var hex = RemoveXsdWhitespace(text);
+        if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            hex = hex.Substring(2);
+
+        if (hex.Length == 0)
+            return false;
+
+        return uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value);
+    }
+
+    private static string RemoveXsdWhitespace(string raw)
+    {
+        if (raw.IndexOf(' ') < 0 &&
+            raw.IndexOf('\t') < 0 &&
+            raw.IndexOf('\n') < 0 &&
+            raw.IndexOf('\r') < 0)
+        {
+            return raw;
+        }
+
+        var buffer = new char[raw.Length];
+        var count = 0;
+        for (var i = 0; i < raw.Length; i++)
+        {
+            var character = raw[i];
+            if (character != ' ' && character != '\t' && character != '\n' && character != '\r')
+                buffer[count++] = character;
+        }
+
+        return new string(buffer, 0, count);
     }
 
     // ── NetworkManagement static children ─────────────────────────────────────

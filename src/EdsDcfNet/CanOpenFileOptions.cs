@@ -84,8 +84,24 @@ public sealed class CanOpenFileOptions
     /// </description></item>
     /// <item><description>
     /// Malformed XDD/XDC unsigned numeric attributes such as <c>subNumber</c>,
-    /// <c>pDOmappingIndex</c>, general-feature counts, and <c>networkNumber</c>
+    /// <c>dynamicChannel</c> <c>maxNumber</c> and <c>bitAlignment</c>, general-feature
+    /// counts, and <c>networkNumber</c>
     /// (default: ignore / leave unset; surrounding whitespace and optional leading sign are accepted)
+    /// </description></item>
+    /// <item><description>
+    /// XDD/XDC <c>dynamicChannel</c>. Schema <c>accessType</c> values are
+    /// <c>readOnly</c>, <c>writeOnly</c>, and <c>readWriteOutput</c>. Lenient mode also
+    /// accepts the EDS short forms <c>ro</c>, <c>wo</c>, <c>rw</c>, <c>rwr</c>, <c>rww</c>,
+    /// and <c>const</c>; strict mode rejects them.
+    /// <c>addressOffset</c> is <c>xsd:hexBinary</c> with no fixed length. The original
+    /// spelling is kept for writing while <c>PPOffset</c> still matches it. A schema-valid
+    /// value that does not fit in 32 bits is reported and left at <c>0</c> in both modes
+    /// (strict does not throw), and the original text is kept until <c>PPOffset</c> changes.
+    /// An odd number of hex digits, a <c>0x</c> prefix, or a non-hex character is a parse
+    /// error (lenient: ignore; strict: throw).
+    /// <c>pDOmappingIndex</c> is a legacy attribute written by older versions of this
+    /// library. When <c>addressOffset</c> is absent, lenient mode copies a numeric value
+    /// to <c>PPOffset</c> and reports a diagnostic; strict mode throws.
     /// </description></item>
     /// <item><description>
     /// XDD/XDC <c>objFlags</c> is <c>xsd:hexBinary</c> (CiA 311 Annex A.1.4, four hex digits;
