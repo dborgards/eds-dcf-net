@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Utilities;
 
 using System.Text;
+using EdsDcfNet.Parsers;
 
 internal static class TextFileIo
 {
@@ -8,12 +9,25 @@ internal static class TextFileIo
 
     /// <summary>
     /// The single place that decides the encoding of every byte the writers produce
-    /// (EDS, DCF, CPJ, XDD, XDC; file and stream, sync and async). Currently UTF-8 without BOM.
-    /// INI writers encode their text with it; the XML writers pass it to
-    /// <see cref="System.Xml.XmlWriterSettings.Encoding"/> so the <c>XmlWriter</c> emits the
-    /// matching declaration and can escape characters the encoding cannot represent.
+    /// (EDS, DCF, CPJ, XDD, XDC; file and stream, sync and async).
+    /// <see cref="FileEncodingScope.CurrentWrite"/> null keeps UTF-8 without a BOM.
+    /// An explicit encoding is cloned with <see cref="EncoderFallback.ExceptionFallback"/>
+    /// so INI output throws instead of substituting '?'. The XML writers pass the same
+    /// instance to <see cref="System.Xml.XmlWriterSettings.Encoding"/>: the <c>XmlWriter</c>
+    /// emits the matching declaration and writes numeric character references for text and
+    /// attribute characters the encoding cannot represent. Characters that cannot be
+    /// referenced (for example comments) hit the exception fallback.
     /// </summary>
-    internal static Encoding GetOutputEncoding() => Utf8NoBom;
+    internal static Encoding GetOutputEncoding()
+    {
+        var requested = FileEncodingScope.CurrentWrite;
+        if (requested == null)
+            return Utf8NoBom;
+
+        var clone = (Encoding)requested.Clone();
+        clone.EncoderFallback = EncoderFallback.ExceptionFallback;
+        return clone;
+    }
 
     /// <summary>Writes <paramref name="content"/> to <paramref name="stream"/> using <see cref="GetOutputEncoding"/>.</summary>
     internal static void WriteOutputText(Stream stream, string content)
