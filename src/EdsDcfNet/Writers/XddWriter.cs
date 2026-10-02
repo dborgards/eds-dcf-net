@@ -321,10 +321,11 @@ public class XddWriter
         if (obj.DataType.HasValue && !ReferenceSuppliesDataType(projection, obj.DataType))
             elem.Add(new XAttribute("dataType", FormatDataType(obj.DataType.Value)));
 
-        // Omit accessType when the emitted uniqueIDRef still supplies it, so
-        // readWriteInput/readWriteOutput are not collapsed to "rw". A noAccess
-        // reference does not supply a CiA 306 access; the untouched ReadOnly fallback
-        // is left off, while a caller-assigned or source accessType is written.
+        // Omit accessType while the emitted uniqueIDRef still applies and the model
+        // access was not supplied (source attribute, resolved parameter access, or a
+        // later assignment). The untouched ReadOnly fallback must not become
+        // accessType="ro" and win on the next read. A matching reference is also
+        // omitted so readWriteInput/readWriteOutput are not collapsed to "rw".
         // With the parameter gone, a resolved access is written even when the object
         // has no scalar data type (struct-backed RECORD).
         if (ShouldWriteAccessAttribute(
@@ -432,8 +433,9 @@ public class XddWriter
 
     /// <summary>
     /// Writes <paramref name="modelValue"/> unless the emitted <c>uniqueIDRef</c> still
-    /// supplies the same text. <paramref name="projection"/> is null when the reference
-    /// is not emitted, and then the value is written as before.
+    /// supplies the same text. An empty string is kept when it overrides a different
+    /// projected value. <paramref name="projection"/> is null when the reference is not
+    /// emitted; empty strings are then omitted, as they were before references existed.
     /// </summary>
     private static void AddStringUnlessSupplied(
         XElement elem,
@@ -443,7 +445,10 @@ public class XddWriter
         bool supplied,
         string? projectedValue)
     {
-        if (string.IsNullOrEmpty(modelValue))
+        if (modelValue == null)
+            return;
+
+        if (modelValue.Length == 0 && projection == null)
             return;
 
         if (projection != null
@@ -464,9 +469,12 @@ public class XddWriter
 
     /// <summary>
     /// Decides whether <c>accessType</c> is written.
-    /// <paramref name="writeWhenUnspecified"/> keeps the historical rule: VAR objects
-    /// (those with a data type) and every sub-object emit access even without a reference,
-    /// while a complex object does not.
+    /// While <paramref name="projection"/> is emitted, only an access that was actually
+    /// supplied is written. The untouched <see cref="AccessType.ReadOnly"/> fallback is
+    /// left off so the next read can take the parameter access.
+    /// <paramref name="writeWhenUnspecified"/> keeps the historical rule once the
+    /// reference is gone: VAR objects (those with a data type) and every sub-object emit
+    /// access, while a complex object does not unless its access was resolved or assigned.
     /// </summary>
     private static bool ShouldWriteAccessAttribute(
         ParameterProjection? projection,
@@ -477,15 +485,10 @@ public class XddWriter
         if (ReferenceSuppliesAccess(projection, access))
             return false;
 
-        // noAccess and any other unmapped access leave the fallback in place.
-        // Writing that fallback would become an explicit attribute and win next time.
-        if (projection != null && projection.AccessKind != AccessProjectionKind.Mapped)
+        if (projection != null)
             return accessSpecified;
 
-        if (projection == null)
-            return writeWhenUnspecified || accessSpecified;
-
-        return true;
+        return writeWhenUnspecified || accessSpecified;
     }
 
     /// <summary>

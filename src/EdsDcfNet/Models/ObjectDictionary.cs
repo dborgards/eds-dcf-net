@@ -152,10 +152,15 @@ public class CanOpenObject
     /// parameter, so the next read derives them again. A value changed after reading is
     /// written as an explicit attribute and wins on the next read.
     /// <c>noAccess</c> does not match a CiA 306 access type: the writer leaves
-    /// <c>accessType</c> off while <see cref="AccessType"/> is still the untouched fallback,
-    /// and writes it only when the source attribute or a later assignment supplied one.
-    /// When the parameter is removed, a resolved <see cref="AccessType"/> is still written
-    /// even if the object has no scalar <see cref="DataType"/> (a struct-backed RECORD).
+    /// <c>accessType</c> off while <see cref="AccessType"/> is still the untouched fallback.
+    /// A mapped reference does the same when access was never supplied on the object, so
+    /// the next read takes the parameter access instead of an invented <c>accessType="ro"</c>.
+    /// The writer emits <c>accessType</c> when the source attribute, a resolved parameter
+    /// access, or a later assignment supplied one. An empty <c>defaultValue</c>,
+    /// <c>lowLimit</c>, or <c>highLimit</c> is written when it overrides a different value
+    /// from the emitted reference. When the parameter is removed, a resolved
+    /// <see cref="AccessType"/> is still written even if the object has no scalar
+    /// <see cref="DataType"/> (a struct-backed RECORD).
     /// </para>
     /// </remarks>
     public string? UniqueIdRef { get; set; }

@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Parsers;
 
+using System.Text;
 using System.Xml.Linq;
 using EdsDcfNet;
 using EdsDcfNet.Diagnostics;
@@ -750,6 +751,103 @@ public class XddUniqueIdRefTests
             Range = "2000-2001"
         });
         CanOpenFile.Xdd.WriteToString(model).Should().Contain("<dynamicChannel");
+    }
+
+    [Fact]
+    public void ReadString_LongDerivedAndArrayChain_ResolvesWithoutRecursion()
+    {
+        const int links = 4096;
+        var types = new StringBuilder();
+        types.Append("<dataTypeList>");
+        types.Append("<derived name=\"T0\" uniqueID=\"T0\"><UDINT/></derived>");
+        for (var i = 1; i < links; i++)
+        {
+            types.Append("<derived name=\"T").Append(i).Append("\" uniqueID=\"T").Append(i)
+                .Append("\"><dataTypeIDRef uniqueIDRef=\"T").Append(i - 1).Append("\"/></derived>");
+        }
+
+        types.Append("<derived name=\"Mid\" uniqueID=\"MID\"><USINT/></derived>");
+        types.Append("<array name=\"Wrapped\" uniqueID=\"ARR\"><subrange lowerLimit=\"0\" upperLimit=\"1\"/><dataTypeIDRef uniqueIDRef=\"MID\"/></array>");
+        types.Append("</dataTypeList><parameterList>");
+        types.Append("<parameter uniqueID=\"P_LONG\" access=\"read\"><dataTypeIDRef uniqueIDRef=\"T")
+            .Append(links - 1).Append("\"/></parameter>");
+        types.Append("<parameter uniqueID=\"P_ARR\" access=\"readWrite\"><dataTypeIDRef uniqueIDRef=\"ARR\"/></parameter>");
+        types.Append("</parameterList>");
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(
+            types.ToString(),
+            Object("2000", "Long", "7", "uniqueIDRef=\"P_LONG\"")
+            + Object("2001", "Arr", "8", "uniqueIDRef=\"P_ARR\"")));
+
+        result.Diagnostics.Should().BeEmpty();
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().Be(CanOpenDataType.Unsigned32);
+        result.Model.ObjectDictionary.Objects[0x2001].DataType.Should().Be(CanOpenDataType.Unsigned8);
+    }
+
+    [Fact]
+    public void WriteString_EmptyExplicitValues_OverrideProjectedReference()
+    {
+        var body = "<UDINT/><defaultValue value=\"42\"/><allowedValues><range><minValue value=\"1\"/><maxValue value=\"9\"/></range></allowedValues>";
+        var xml = BuildXdd(
+            Parameter("P1", "readWrite", body) + Parameter("P_SUB", "read", body),
+            @"<CANopenObject index=""2000"" name=""P"" objectType=""7"" defaultValue="""" lowLimit="""" highLimit="""" uniqueIDRef=""P1"">
+                <CANopenSubObject subIndex=""01"" name=""S"" objectType=""7"" defaultValue="""" lowLimit="""" highLimit="""" uniqueIDRef=""P_SUB""/>
+              </CANopenObject>");
+
+        var written = CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(xml));
+        var objElem = CanOpenObject(written, "2000");
+        var subElem = objElem.Elements().Single(e => e.Name.LocalName == "CANopenSubObject");
+        objElem.Attribute("uniqueIDRef")!.Value.Should().Be("P1");
+        objElem.Attribute("defaultValue")!.Value.Should().BeEmpty();
+        objElem.Attribute("lowLimit")!.Value.Should().BeEmpty();
+        objElem.Attribute("highLimit")!.Value.Should().BeEmpty();
+        subElem.Attribute("defaultValue")!.Value.Should().BeEmpty();
+        subElem.Attribute("lowLimit")!.Value.Should().BeEmpty();
+        subElem.Attribute("highLimit")!.Value.Should().BeEmpty();
+
+        var again = CanOpenFile.Xdd.ReadString(written).ObjectDictionary.Objects[0x2000];
+        again.DefaultValue.Should().BeEmpty();
+        again.LowLimit.Should().BeEmpty();
+        again.HighLimit.Should().BeEmpty();
+        again.SubObjects[0x01].DefaultValue.Should().BeEmpty();
+        again.SubObjects[0x01].LowLimit.Should().BeEmpty();
+        again.SubObjects[0x01].HighLimit.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void WriteString_AssignedUniqueIdRef_DoesNotInventReadOnlyAccess()
+    {
+        var xml = BuildXdd(
+            Parameter("P1", "readWriteInput", "<UDINT/>") + Parameter("P_SUB", "write", "<USINT/>"),
+            @"<CANopenObject index=""2000"" name=""P"" objectType=""7"">
+                <CANopenSubObject subIndex=""01"" name=""S"" objectType=""7""/>
+              </CANopenObject>");
+        var model = CanOpenFile.Xdd.ReadString(xml);
+        var obj = model.ObjectDictionary.Objects[0x2000];
+        obj.UniqueIdRef = "P1";
+        obj.SubObjects[0x01].UniqueIdRef = "P_SUB";
+        obj.AccessTypeSpecified.Should().BeFalse();
+        obj.SubObjects[0x01].AccessTypeSpecified.Should().BeFalse();
+
+        var written = CanOpenFile.Xdd.WriteToString(model);
+        var objElem = CanOpenObject(written, "2000");
+        var subElem = objElem.Elements().Single(e => e.Name.LocalName == "CANopenSubObject");
+        objElem.Attribute("uniqueIDRef")!.Value.Should().Be("P1");
+        objElem.Attribute("accessType").Should().BeNull();
+        subElem.Attribute("uniqueIDRef")!.Value.Should().Be("P_SUB");
+        subElem.Attribute("accessType").Should().BeNull();
+
+        var again = CanOpenFile.Xdd.ReadString(written).ObjectDictionary.Objects[0x2000];
+        again.AccessType.Should().Be(AccessType.ReadWriteInput);
+        again.DataType.Should().Be(CanOpenDataType.Unsigned32);
+        again.SubObjects[0x01].AccessType.Should().Be(AccessType.WriteOnly);
+
+        var assigned = CanOpenFile.Xdd.ReadString(written);
+        assigned.ObjectDictionary.Objects[0x2000].AccessType = AccessType.Constant;
+        var withOverride = CanOpenFile.Xdd.WriteToString(assigned);
+        CanOpenObject(withOverride, "2000").Attribute("accessType")!.Value.Should().Be("const");
+        CanOpenFile.Xdd.ReadString(withOverride).ObjectDictionary.Objects[0x2000].AccessType
+            .Should().Be(AccessType.Constant);
     }
 
     [Fact]

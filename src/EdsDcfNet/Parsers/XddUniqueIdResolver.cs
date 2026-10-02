@@ -300,6 +300,11 @@ internal sealed class XddUniqueIdResolver
         }
     }
 
+    /// <summary>
+    /// Walks a direct type chain (array element or derived base) on the heap.
+    /// A shallow document can still name an arbitrarily long acyclic chain, so this
+    /// must not recurse. A repeated id is a cycle and is reported as dangling.
+    /// </summary>
     private void DescribeType(ApParameter parameter, ParameterProjection projection)
     {
         if (parameter.TypeRef == null)
@@ -310,58 +315,50 @@ internal sealed class XddUniqueIdResolver
             return;
         }
 
-        var stack = new HashSet<string>(StringComparer.Ordinal);
-        DescribeTypeRef(parameter.TypeRef, stack, projection);
-    }
-
-    private void DescribeTypeRef(ApTypeRef typeRef, HashSet<string> stack, ParameterProjection projection)
-    {
-        var simpleTypeName = typeRef.SimpleTypeName;
-        if (!string.IsNullOrEmpty(simpleTypeName))
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var current = parameter.TypeRef;
+        while (current != null)
         {
-            if (SimpleTypeMap.TryGetValue(simpleTypeName!, out var code))
+            var simpleTypeName = current.SimpleTypeName;
+            if (!string.IsNullOrEmpty(simpleTypeName))
             {
-                projection.DataType = code;
-                projection.DataTypeKind = DataTypeProjectionKind.Resolved;
+                if (SimpleTypeMap.TryGetValue(simpleTypeName!, out var code))
+                {
+                    projection.DataType = code;
+                    projection.DataTypeKind = DataTypeProjectionKind.Resolved;
+                    return;
+                }
+
+                projection.DataTypeDetail = simpleTypeName;
+                projection.DataTypeKind = DataTypeProjectionKind.Unsupported;
                 return;
             }
 
-            projection.DataTypeDetail = simpleTypeName;
-            projection.DataTypeKind = DataTypeProjectionKind.Unsupported;
-            return;
-        }
+            var dataTypeIdRef = current.DataTypeIdRef;
+            if (string.IsNullOrEmpty(dataTypeIdRef))
+            {
+                projection.DataTypeKind = DataTypeProjectionKind.None;
+                return;
+            }
 
-        var dataTypeIdRef = typeRef.DataTypeIdRef;
-        if (string.IsNullOrEmpty(dataTypeIdRef))
-        {
-            projection.DataTypeKind = DataTypeProjectionKind.None;
-            return;
-        }
+            var id = dataTypeIdRef!;
+            if (!seen.Add(id))
+            {
+                projection.DataTypeDetail = id;
+                projection.DataTypeKind = DataTypeProjectionKind.Dangling;
+                return;
+            }
 
-        DescribeComplex(dataTypeIdRef!, stack, projection);
-    }
-
-    private void DescribeComplex(string id, HashSet<string> stack, ParameterProjection projection)
-    {
-        if (!stack.Add(id))
-        {
-            projection.DataTypeDetail = id;
-            projection.DataTypeKind = DataTypeProjectionKind.Dangling;
-            return;
-        }
-
-        try
-        {
             if (_arrays.TryGetValue(id, out var array))
             {
-                if (array.ElementType == null)
+                current = array.ElementType;
+                if (current == null)
                 {
                     projection.DataTypeKind = DataTypeProjectionKind.None;
                     return;
                 }
 
-                DescribeTypeRef(array.ElementType, stack, projection);
-                return;
+                continue;
             }
 
             if (_structs.ContainsKey(id))
@@ -394,22 +391,19 @@ internal sealed class XddUniqueIdResolver
 
             if (_derived.TryGetValue(id, out var derived))
             {
-                if (derived.BaseType == null)
+                current = derived.BaseType;
+                if (current == null)
                 {
                     projection.DataTypeKind = DataTypeProjectionKind.None;
                     return;
                 }
 
-                DescribeTypeRef(derived.BaseType, stack, projection);
-                return;
+                continue;
             }
 
             projection.DataTypeDetail = id;
             projection.DataTypeKind = DataTypeProjectionKind.Dangling;
-        }
-        finally
-        {
-            stack.Remove(id);
+            return;
         }
     }
 
