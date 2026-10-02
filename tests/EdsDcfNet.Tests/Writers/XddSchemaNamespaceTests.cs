@@ -120,6 +120,16 @@ public class XddSchemaNamespaceTests
     }
 
     [Fact]
+    public void XddNames_LabelOutsideADeclaringParent_StaysUnqualified()
+    {
+        // parameter declares g_labels. parameterTemplate does not; the writer
+        // still emits the historical unqualified elements there.
+        XddNames.Label(Cia + "parameter", "label").Namespace.Should().Be(XNamespace.None);
+        XddNames.Label(Cia + "parameterTemplate", "label").Namespace.Should().Be(XNamespace.None);
+        XddNames.Label(Cia + "parameterTemplate", "descriptionRef").Namespace.Should().Be(XNamespace.None);
+    }
+
+    [Fact]
     public void XddNames_UnknownChild_ThrowsInsteadOfGuessingANamespace()
     {
         var act = () => XddNames.Child(XddNames.ProfileContainer, "notAnElement");

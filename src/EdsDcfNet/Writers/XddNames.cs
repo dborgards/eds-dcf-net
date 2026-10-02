@@ -104,6 +104,25 @@ internal static class XddNames
         return localName;
     }
 
+    /// <summary>
+    /// Name of a <c>g_labels</c> element (<c>label</c>, <c>description</c>,
+    /// <c>labelRef</c>, <c>descriptionRef</c>). Every schema declaration of
+    /// those names is local. A parent that does not include the group still
+    /// gets the unqualified element, which is the form the writer emitted
+    /// before this table existed.
+    /// </summary>
+    internal static XName Label(XName parent, string localName)
+    {
+        if (!IsLabelName(localName))
+            throw new ArgumentException("Element local name is not a g_labels element.", nameof(localName));
+
+        var key = ElementKey(parent) + "\n" + localName;
+        if (Declarations.TryGetValue(key, out var qualified))
+            return qualified ? Namespace + localName : localName;
+
+        return localName;
+    }
+
     internal static XElement Element(XName parent, string localName, params object[] content)
         => new(Child(parent, localName), content);
 
@@ -128,6 +147,12 @@ internal static class XddNames
     }
 
     private static string ElementKey(XName parent) => "e:" + parent.ToString();
+
+    private static bool IsLabelName(string localName)
+        => localName == "label"
+            || localName == "description"
+            || localName == "labelRef"
+            || localName == "descriptionRef";
 
     /// <summary>
     /// Parent context, newline, child local name → <see langword="true"/> when

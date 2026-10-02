@@ -537,13 +537,13 @@ internal static class XddApplicationProcessBuilder
             return;
 
         foreach (var lbl in group.Labels)
-            elem.Add(XddNames.Element(elem.Name, "label",
+            elem.Add(new XElement(XddNames.Label(elem.Name, "label"),
                 new XAttribute("lang", lbl.Lang),
                 lbl.Text));
 
         foreach (var desc in group.Descriptions)
         {
-            var descElem = XddNames.Element(elem.Name, "description",
+            var descElem = new XElement(XddNames.Label(elem.Name, "description"),
                 new XAttribute("lang", desc.Lang),
                 desc.Text);
             if (!string.IsNullOrEmpty(desc.Uri))
@@ -554,7 +554,7 @@ internal static class XddApplicationProcessBuilder
         foreach (var tref in group.TextRefs)
         {
             var refName = tref.IsDescriptionRef ? "descriptionRef" : "labelRef";
-            var refElem = XddNames.Element(elem.Name, refName,
+            var refElem = new XElement(XddNames.Label(elem.Name, refName),
                 new XAttribute("dictID", tref.DictId),
                 new XAttribute("textID", tref.TextId));
             if (!string.IsNullOrEmpty(tref.Uri))
