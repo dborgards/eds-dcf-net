@@ -4,10 +4,13 @@
 # HEAD commit contains a skip directive, before any job `if:` runs, and leaves
 # required checks pending. The release commit is usually that HEAD.
 #
-# The fix is the release message in .releaserc.json (no skip directive; an
-# omitted message makes @semantic-release/git append "[skip ci]") plus a
-# push-only job `if:`. The guard keys off the commit message and the git
-# committer name. github.actor is the RELEASE_TOKEN owner, not
+# The fix is the release message in .releaserc.json (subject only: no
+# ${nextRelease.notes}, no skip directive; an omitted message makes
+# @semantic-release/git append "[skip ci]") plus a push-only job `if:`.
+# Notes stay in CHANGELOG.md. Interpolating them would copy a skip directive
+# from a release-visible commit into the release HEAD. The guard keys off
+# the commit message and the git committer name. github.actor is the
+# RELEASE_TOKEN owner, not
 # semantic-release-bot, so an actor filter either misses the push or also
 # skips a maintainer's ordinary pushes.
 #
@@ -40,17 +43,23 @@ for plugin in message["plugins"]:
         git_message = plugin[1].get("message")
         break
 
-expected_message = "chore(release): ${nextRelease.version}\n\n${nextRelease.notes}"
+expected_message = "chore(release): ${nextRelease.version}"
 if git_message != expected_message:
     fail(
-        "git plugin message must stay set to the release subject without a "
-        f"skip directive.\n  expected: {expected_message!r}\n  actual:   {git_message!r}"
+        "git plugin message must be the release subject only, with no notes "
+        f"and no skip directive.\n  expected: {expected_message!r}\n  actual:   {git_message!r}"
     )
 
-# GitHub matches these anywhere in the commit message, which includes the
-# generated notes. The template itself must not introduce one. Subjects that
-# already contain a directive cannot merge while `build` is required (the
-# pull_request workflow never starts), so they do not reach the notes.
+# Notes are written to CHANGELOG.md by @semantic-release/changelog. Putting
+# ${nextRelease.notes} in the git message copies commit subjects into the
+# release HEAD. GitHub matches skip directives anywhere in that message, so a
+# release-visible subject that contains one would skip the next develop→main
+# pull_request workflows again.
+if git_message and "${nextRelease.notes}" in git_message:
+    fail("release commit template interpolates ${nextRelease.notes}")
+if git_message and "nextRelease.notes" in git_message:
+    fail("release commit template references nextRelease.notes")
+
 skip_directives = (
     "[skip ci]",
     "[ci skip]",
@@ -209,6 +218,8 @@ for event, has_head, message, committer, want_build, want_api, want_release in c
 contributing = (root / "CONTRIBUTING.md").read_text()
 for snippet in (
     "must not contain a skip directive",
+    "must not appear in the git commit message",
+    "${nextRelease.notes}",
     "develop` → `main",
     "npm-lockfile",
     "breaking-intent",

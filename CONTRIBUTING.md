@@ -258,7 +258,10 @@ BREAKING CHANGE: CanOpenFile.Eds.ReadFile now returns a Result type
 > The release commit (`chore(release): <version>` in `.releaserc.json`,
 > committer `semantic-release-bot`) must not contain a skip directive
 > (`[skip ci]`, `[ci skip]`, `[no ci]`, `[skip actions]`, `[actions skip]`,
-> or a `skip-checks` trailer). GitHub applies those directives to the HEAD
+> or a `skip-checks` trailer). The git message is that subject only. It must
+> not include generated notes (`${nextRelease.notes}`): notes can copy a skip
+> directive out of a release-visible commit, and GitHub honors those strings
+> anywhere in the commit message. GitHub applies those directives to the HEAD
 > commit of a pull request and skips the workflow before any job `if:` runs;
 > that release commit is usually the HEAD. The release push does not repeat
 > the build or start a second semantic-release run: `build.yml` and
@@ -411,11 +414,15 @@ Releases are fully automated via semantic-release:
 
 Maintainers decide when to promote `develop` → `main`.
 
-The release commit message is `chore(release): <version>` followed by the
-generated notes (`.releaserc.json`). Do not add `[skip ci]` or any other skip
-directive. The public API checklist above explains why: that commit is usually
-the HEAD of the next `develop` → `main` pull request, and a directive would
-skip `apicompat`, `npm-lockfile`, and `breaking-intent` on it.
+The release commit message is exactly `chore(release): <version>`
+(`.releaserc.json`). Generated notes go to `CHANGELOG.md` and the GitHub
+release; they must not appear in the git commit message. Do not interpolate
+`${nextRelease.notes}` there, and do not add `[skip ci]` or any other skip
+directive. A notes body can copy a directive from a release-visible commit,
+and GitHub honors those strings anywhere in the message. The public API
+checklist above explains why: that commit is usually the HEAD of the next
+`develop` → `main` pull request, and a directive would skip `apicompat`,
+`npm-lockfile`, and `breaking-intent` on it.
 
 ### Communicating changes through semantic-release
 
