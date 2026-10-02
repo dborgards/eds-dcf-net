@@ -11,4 +11,17 @@ public static class ValidationIssueCodes
     /// the INI parser consumes (<c>=</c>, <c>[</c>, <c>]</c>, and a key that starts with <c>;</c>).
     /// </summary>
     public const string IniTextNotRoundTrippable = "INI_TEXT_NOT_ROUND_TRIPPABLE";
+
+    /// <summary>
+    /// XDD/XDC <c>ObjFlags</c> sets CiA 311 reserved bits 3..31. Checked only on a
+    /// validated XDD or XDC write. Bit 2 remains valid (CiA 311: change of value takes
+    /// effect after reset). The EDS/DCF limit, which also reserves bit 2, is separate.
+    /// </summary>
+    public const string XddObjFlagsReservedBits = "XDD_OBJ_FLAGS_RESERVED_BITS";
+
+    /// <summary>
+    /// XDD/XDC <c>ObjFlags</c> still carries a preserved <c>xsd:hexBinary</c> value that
+    /// does not fit in 32 bits. Checked only on a validated XDD or XDC write.
+    /// </summary>
+    public const string XddObjFlagsExceedsUInt32 = "XDD_OBJ_FLAGS_EXCEEDS_UINT32";
 }
