@@ -319,6 +319,55 @@ public class ModuleObjectKeyMatrixTests
         section.Should().NotContain("SubNumber=").And.NotContain("CompactSubObj=");
     }
 
+    [Fact]
+    public void WriteToString_ModuleFixedRecordSubObjectAndZeroCompactSubObj_OmitsNotSupportedKeys()
+    {
+        // Arrange — a RECORD-typed sub-index (Table 7: DataType, AccessType, DefaultValue,
+        // limits and PDOMapping "n"); CompactSubObj=0 is never written.
+        var obj = new CanOpenObject
+        {
+            Index = 0x6100,
+            ParameterName = "Record",
+            ObjectType = CanOpenObjectType.Record,
+            SubNumber = 1,
+            CompactSubObj = 0
+        };
+        var sub = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "Nested",
+            ObjectType = CanOpenObjectType.Record,
+            DataType = 0x0005,
+            DefaultValue = "1",
+            LowLimit = "0",
+            HighLimit = "9"
+        };
+        sub.RemainingEntries.Add("DataType", "0x0007");
+        obj.SubObjects[0] = sub;
+        var eds = ModelWithModule(obj);
+        eds.SupportedModules[0].SubExtends.Add(0x6000);
+        eds.SupportedModules[0].SubExtensionDefinitions[0x6000] = new ModuleSubExtension
+        {
+            Index = 0x6000,
+            ParameterName = "Ext",
+            ObjectType = CanOpenObjectType.Array,
+            SubNumber = 1,
+            CompactSubObj = 0,
+            Count = "1"
+        };
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(eds);
+
+        // Assert
+        Section(written, "M1Fixed6100").Should().NotContain("CompactSubObj=");
+        var subSection = Section(written, "M1Fixed6100sub0");
+        subSection.Should().Contain("ParameterName=Nested").And.Contain("ObjectType=0x9");
+        subSection.Should().NotContain("DataType=").And.NotContain("AccessType=").And.NotContain("DefaultValue=")
+            .And.NotContain("LowLimit=").And.NotContain("HighLimit=").And.NotContain("PDOMapping=");
+        Section(written, "M1SubExt6000").Should().NotContain("CompactSubObj=");
+    }
+
     // ---------------------------------------------------------------------------------------
     // Validated write checks only what is written
     // ---------------------------------------------------------------------------------------
