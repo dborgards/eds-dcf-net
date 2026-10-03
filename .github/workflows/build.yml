@@ -8,10 +8,22 @@ permissions:
 env:
   COVERAGE_MIN_PERCENT: "95.0"
 
+# Concurrency: pull_request runs are grouped per PR and a newer push to the PR
+# cancels the older run. Every other event (push to develop, workflow_dispatch,
+# workflow_run) gets its own group, so those runs are never cancelled or
+# replaced by a pending one: the relay for a release commit and the checks of a
+# develop push must always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 on:
+  # push is limited to develop. Branches with an open PR are built by the
+  # pull_request trigger, so a push to a PR branch no longer runs twice.
+  # main is built by semantic-release.yml. A branch without a PR is not built
+  # on push; open a (draft) PR or use workflow_dispatch to get a run.
   push:
-    branches-ignore:
-      - main
+    branches: [ develop ]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -37,7 +49,76 @@ on:
     branches: [main, develop]
 
 jobs:
+  # Classifies the change so documentation-only runs can skip the heavy steps.
+  # It is a job of its own, not a workflow-level `paths-ignore`: a workflow that
+  # does not start leaves the required checks (`build`, `coverage/threshold`)
+  # unreported and blocks the PR. The jobs below always start and report; only
+  # their steps are skipped via `if:`.
+  #
+  # docs_only is true only when every changed file is documentation (root
+  # *.md, docs/**, .github/*.md, LICENSE*) AND the run is a pull_request into
+  # develop or a push to develop. A pull_request into main always runs in full:
+  # Codecov's own required check on main is only reported after a coverage
+  # upload. Any doubt (workflow_dispatch, missing or unknown base/before SHA,
+  # empty diff, git error) yields a full run. Plain git, no third-party action.
+  #
+  # continue-on-error: if this job itself fails (e.g. checkout error), its
+  # conclusion is still success, so build and apicompat start with an empty
+  # docs_only and run in full instead of being skipped (which would leave the
+  # required checks unreported).
+  changes:
+    if: github.event_name != 'workflow_run'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+
+    - name: Detect documentation-only changes
+      id: classify
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        BASE_REF: ${{ github.event.pull_request.base.ref }}
+        PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        PUSH_BEFORE: ${{ github.event.before }}
+        PUSH_AFTER: ${{ github.sha }}
+      run: |
+        docs_only=false
+        range=""
+        if [[ "$EVENT_NAME" == "pull_request" && "$BASE_REF" == "develop" ]]; then
+          # Three-dot: changes since the merge base, like the PR's file list;
+          # --no-renames lists a rename's source path as well as its target.
+          range="${PR_BASE_SHA}...${PR_HEAD_SHA}"
+        elif [[ "$EVENT_NAME" == "push" && -n "$PUSH_BEFORE" && "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]]; then
+          range="${PUSH_BEFORE}...${PUSH_AFTER}"
+        fi
+
+        if [[ -n "$range" ]] && files=$(git diff --name-only --no-renames "$range") && [[ -n "$files" ]]; then
+          docs_only=true
+          while IFS= read -r file; do
+            case "$file" in
+              docs/*|LICENSE|LICENSE.*|.github/*.md) ;;
+              */*) docs_only=false ;;
+              *.md) ;;
+              *) docs_only=false ;;
+            esac
+          done <<< "$files"
+          echo "Changed files:"
+          echo "$files"
+        else
+          echo "No usable diff range for '${EVENT_NAME}' (base '${BASE_REF}'); running the full workflow."
+        fi
+        echo "docs_only=${docs_only}"
+        echo "docs_only=${docs_only}" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: changes
     # Skip workflow_run (relay-release-status owns that event) and skip a push
     # of the semantic-release commit. pull_request and workflow_dispatch still
     # run, including a develop→main PR whose HEAD is that commit.
@@ -51,12 +132,17 @@ jobs:
     # library's netstandard2.0 asset (net10.0 runs on the same job).
     runs-on: windows-latest
 
+    # On a documentation-only change (needs.changes.outputs.docs_only) the
+    # heavy steps below are skipped, the job still ends with success and the
+    # status step posts coverage/threshold, so both required checks report.
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      if: needs.changes.outputs.docs_only != 'true'
       with:
         fetch-depth: 0
 
     - name: Setup .NET
+      if: needs.changes.outputs.docs_only != 'true'
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
       with:
         # SDK 10 from global.json builds the library and runs net10.0 tests;
@@ -64,9 +150,11 @@ jobs:
         global-json-file: global.json
 
     - name: Restore dependencies
+      if: needs.changes.outputs.docs_only != 'true'
       run: dotnet restore
 
     - name: Build
+      if: needs.changes.outputs.docs_only != 'true'
       env:
         CI: true
       run: dotnet build --configuration Release --no-restore
@@ -79,6 +167,7 @@ jobs:
     # disabled so Git Bash does not rewrite the backslashes.
     - name: Test
       id: test
+      if: needs.changes.outputs.docs_only != 'true'
       shell: bash
       run: |
         if [[ -z "${RUNNER_TEMP:-}" ]]; then
@@ -102,6 +191,7 @@ jobs:
     # Shared gate with semantic-release.yml — see tools/enforce-coverage-threshold.sh.
     - name: Enforce coverage threshold
       id: coverage_gate
+      if: needs.changes.outputs.docs_only != 'true'
       shell: bash
       run: bash tools/enforce-coverage-threshold.sh "${{ steps.test.outputs.results_directory }}"
 
@@ -121,6 +211,7 @@ jobs:
     # not overwrite Codecov's patch check. Still run when coverage_files is
     # empty so a gate failure with no Cobertura reports can post failure
     # (avoids a pending required check).
+    # A documentation-only change posts success here instead of running the gate.
     - name: Post coverage/threshold status
       if: always() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
       continue-on-error: true
@@ -130,7 +221,11 @@ jobs:
         COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       run: |
         outcome="${{ steps.coverage_gate.outcome }}"
-        if [[ "$outcome" == "success" ]]; then
+        if [[ "${{ needs.changes.outputs.docs_only }}" == "true" ]]; then
+          # Nothing to measure: the coverage gate step was skipped on purpose.
+          state="success"
+          description="Documentation-only change; coverage gate not applicable"
+        elif [[ "$outcome" == "success" ]]; then
           state="success"
           description="Coverage ${{ steps.coverage_gate.outputs.coverage_percent }}% >= ${COVERAGE_MIN_PERCENT}%"
         elif [[ "$outcome" == "failure" ]]; then
@@ -247,7 +342,12 @@ jobs:
   # develop or main, including a develop→main release PR. That requires the
   # release commit to omit skip directives: GitHub would skip this workflow
   # before this `if:` is evaluated, which is how those PRs used to miss the gate.
+  #
+  # On a documentation-only change the build and compare steps are skipped
+  # (step-level `if:`, the job `if:` above stays as is); the job ends with
+  # success.
   apicompat:
+    needs: changes
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -261,12 +361,14 @@ jobs:
       # branch checkout below — no full-history clone needed here.
 
     - name: Checkout PR base branch
+      if: needs.changes.outputs.docs_only != 'true'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{ github.event.pull_request.base.sha }}
         path: base-branch
 
     - name: Setup .NET (PR head)
+      if: needs.changes.outputs.docs_only != 'true'
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
       with:
         global-json-file: global.json
@@ -279,18 +381,22 @@ jobs:
     # older SDK must be installed too, or the base build fails outright and
     # apicompat never runs.
     - name: Setup .NET (PR base branch)
+      if: needs.changes.outputs.docs_only != 'true'
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
       with:
         global-json-file: base-branch/global.json
 
     - name: Build library (PR head)
+      if: needs.changes.outputs.docs_only != 'true'
       run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
 
     - name: Build library (PR base branch)
+      if: needs.changes.outputs.docs_only != 'true'
       run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
       working-directory: base-branch
 
     - name: Install ApiCompat tool
+      if: needs.changes.outputs.docs_only != 'true'
       # Pinned to the global.json SDK version so a new tool release can't silently
       # change diagnostics or CLI flags underneath an unrelated PR.
       run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool --version 10.0.400
@@ -305,6 +411,7 @@ jobs:
     # release still ships as a Minor/Patch, silently breaking consumers.
     - name: Detect explicit breaking-change intent
       id: breaking
+      if: needs.changes.outputs.docs_only != 'true'
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -367,6 +474,7 @@ jobs:
 
     - name: Run ApiCompat against PR base branch
       id: apicompat
+      if: needs.changes.outputs.docs_only != 'true'
       run: |
         set +e
         bash tools/apicompat-check.sh src/EdsDcfNet/bin/Release base-branch/src/EdsDcfNet/bin/Release "$RUNNER_TEMP/apicompat"

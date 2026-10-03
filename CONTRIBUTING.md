@@ -49,6 +49,24 @@ refactor/xyz    ──┘      │           │
 
 7. Wait for CI (build + tests) to pass and for review.
 
+### CI behaviour
+
+- `build.yml` runs on **pull requests** into `develop` or `main`, on **pushes
+  to `develop`**, and on manual `workflow_dispatch`. A push to a PR branch is
+  built once, by the `pull_request` trigger; a newer push to the same PR
+  cancels the run still in progress.
+- A branch **without an open PR** is not built on push. Open a (draft) PR or
+  start `build.yml` manually (Actions tab, "Run workflow") to get a run.
+- **Documentation-only changes** (every changed file is a root `*.md`,
+  under `docs/`, a `.github/*.md`, or `LICENSE*`) in a PR into `develop` or in
+  a push to `develop` skip restore, build, tests, coverage and the ApiCompat
+  steps. The `changes` job decides this with plain `git diff`; any other
+  file, a PR into `main`, a manual run, or an unusable diff means a full run.
+  The `build` job still starts and ends with success, and it posts
+  `coverage/threshold` as success, so the required checks are reported and
+  the PR is not blocked. There is deliberately no workflow-level
+  `paths-ignore`: it would leave the required checks unreported.
+
 ## Coding conventions
 
 Repository-wide formatting and baseline analyzer severities are defined in
