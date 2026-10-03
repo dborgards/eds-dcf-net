@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.26](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.25...v1.15.0-beta.26) (2026-10-03)
+
+### ✨ Features
+
+* **cpj:** preserve unknown topology keys and node names without a present flag ([#638](https://github.com/dborgards/eds-dcf-net/issues/638)) ([ff5b1e3](https://github.com/dborgards/eds-dcf-net/commit/ff5b1e3c5453f8030f59fccafdc090014f6c9f8c))
+
 ## [1.15.0-beta.25](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.24...v1.15.0-beta.25) (2026-10-03)
 
 ### 🐛 Bug Fixes
