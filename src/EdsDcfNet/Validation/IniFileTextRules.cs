@@ -22,13 +22,25 @@ internal static class IniFileTextRules
     private const int MaxLineLength = 255;
     private const char MaxIso646Character = '\u007F';
 
-    internal static void Apply(ElectronicDataSheet eds, CanOpenValidationOptions options, List<ValidationIssue> issues)
-        => Apply(() => new EdsWriter().GenerateString(eds), options, issues);
+    internal static void Apply(
+        ElectronicDataSheet eds,
+        CanOpenValidationOptions options,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
+        => Apply(() => new EdsWriter().GenerateString(eds), options, issues, cancellationToken);
 
-    internal static void Apply(DeviceConfigurationFile dcf, CanOpenValidationOptions options, List<ValidationIssue> issues)
-        => Apply(() => new DcfWriter().GenerateString(dcf), options, issues);
+    internal static void Apply(
+        DeviceConfigurationFile dcf,
+        CanOpenValidationOptions options,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
+        => Apply(() => new DcfWriter().GenerateString(dcf), options, issues, cancellationToken);
 
-    private static void Apply(Func<string> generate, CanOpenValidationOptions options, List<ValidationIssue> issues)
+    private static void Apply(
+        Func<string> generate,
+        CanOpenValidationOptions options,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
     {
         if (!options.RequireIso646 && !options.CheckLineLength)
             return;
@@ -47,6 +59,7 @@ internal static class IniFileTextRules
         var lineNumber = 0;
         foreach (var rawLine in text.Split('\n'))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             lineNumber++;
             var line = rawLine.TrimEnd('\r');
             if (line.Length > 0 && line[0] == '[')

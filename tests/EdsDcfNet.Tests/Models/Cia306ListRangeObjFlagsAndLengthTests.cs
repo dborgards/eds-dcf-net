@@ -871,4 +871,16 @@ public class Cia306ListRangeObjFlagsAndLengthTests
 
         act.Should().Throw<ModelValidationException>();
     }
+
+    [Fact]
+    public void Apply_IniTextRulesWithCanceledToken_ThrowsOperationCanceledException()
+    {
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => IniFileTextRules.Apply(eds, Only(iso646: true), new List<ValidationIssue>(), cts.Token);
+
+        act.Should().Throw<OperationCanceledException>();
+    }
 }
