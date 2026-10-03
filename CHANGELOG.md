@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.10](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.9...v1.15.0-beta.10) (2026-10-03)
+
+### ✨ Features
+
+* **eds:** accept PPOffset address-difference tuple per CiA 306-3 ([#609](https://github.com/dborgards/eds-dcf-net/issues/609)) ([1a12e81](https://github.com/dborgards/eds-dcf-net/commit/1a12e8112d0c9ca8fe26dadd41fbf8c1e965c259))
+
 ## [1.15.0-beta.9](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.8...v1.15.0-beta.9) (2026-10-03)
 
 ### ✨ Features
