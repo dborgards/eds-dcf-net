@@ -440,7 +440,6 @@ public class DcfWriter : IniWriterBase
             WriteSection("Comments", () => WriteComments(sb, dcf.Comments!));
         }
 
-        var commissioningWritten = DeviceCommissioningSemantics.IsWrittenToDcf(dcf.DeviceCommissioning);
         foreach (var section in dcf.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
         {
             if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary))
@@ -450,8 +449,7 @@ public class DcfWriter : IniWriterBase
 
             // The reader keeps the second of two commissioning spellings here. A stale copy of the
             // generated name would duplicate the section: the generated one wins.
-            if (commissioningWritten &&
-                string.Equals(section.Key, "DeviceComissioning", StringComparison.OrdinalIgnoreCase))
+            if (DeviceCommissioningSemantics.IsDiscardedAdditionalSection(section.Key, dcf.DeviceCommissioning))
             {
                 continue;
             }

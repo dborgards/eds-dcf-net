@@ -447,6 +447,40 @@ public class DcfLenientNumericFieldsTests
     }
 
     [Fact]
+    public void WriteToString_ValidatedDiscardedAdditionalSectionWithInvalidValue_DoesNotThrow()
+    {
+        var dcf = CanOpenFile.Dcf.ReadString(Build(Array.Empty<string>(), NormativeSection()));
+        dcf.AdditionalSections["DeviceComissioning"] = new Dictionary<string, string> { ["Bad"] = "a\nb" };
+
+        var written = CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Validated);
+
+        CountLines(written, "[DeviceComissioning]").Should().Be(1);
+        written.Should().NotContain("Bad=");
+    }
+
+    [Fact]
+    public void WriteToString_ValidatedAdditionalSectionWithInvalidValueAndNoCommissioning_IsReported()
+    {
+        var dcf = new DeviceConfigurationFile();
+        dcf.AdditionalSections["DeviceComissioning"] = new Dictionary<string, string> { ["Bad"] = "a\nb" };
+
+        var act = () => CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>();
+    }
+
+    [Fact]
+    public void WriteToString_ValidatedEdsAdditionalSectionNamedLikeCommissioning_IsStillChecked()
+    {
+        var eds = new ElectronicDataSheet();
+        eds.AdditionalSections["DeviceComissioning"] = new Dictionary<string, string> { ["Bad"] = "a\nb" };
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>();
+    }
+
+    [Fact]
     public void WriteToString_AdditionalSectionWithGeneratedNameAndNoCommissioning_IsWrittenAsIs()
     {
         var dcf = new DeviceConfigurationFile();
