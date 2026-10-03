@@ -173,6 +173,37 @@ public class ObjectListKeptEntriesValidationTests
     }
 
     [Fact]
+    public void ApplyKeptObjectListEntries_CanceledToken_ThrowsOperationCanceledException()
+    {
+        // Arrange — called directly: the public async entry points already observe a token that
+        // is canceled before validation starts.
+        var eds = CanOpenFile.Eds.ReadString(AboveCount);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        // Act
+        var act = () => IniWriteRules.ApplyKeptObjectListEntries(eds, new List<ValidationIssue>(), cancellation.Token);
+
+        // Assert
+        act.Should().Throw<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task ValidateAsync_CanceledToken_ThrowsOperationCanceledException()
+    {
+        // Arrange
+        var eds = CanOpenFile.Eds.ReadString(AboveCount);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        // Act
+        var act = () => CanOpenFile.ValidateAsync(eds, EntriesOnly, cancellation.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
     public void ReadString_KeptEntryAboveSupportedObjects_ReaderStillReportsCountMismatch()
     {
         // Arrange / Act

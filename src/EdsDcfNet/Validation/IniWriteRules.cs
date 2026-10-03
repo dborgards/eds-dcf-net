@@ -587,19 +587,23 @@ internal static class IniWriteRules
     /// after the generated list, above <c>SupportedObjects</c>, unless a generated entry with the
     /// same number replaces it.
     /// </summary>
-    internal static void ApplyKeptObjectListEntries(ICanOpenFileModel model, List<ValidationIssue> issues)
+    internal static void ApplyKeptObjectListEntries(
+        ICanOpenFileModel model,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
     {
         var objectDictionary = model.ObjectDictionary;
-        ApplyKeptObjectListEntries(model, "MandatoryObjects", objectDictionary.MandatoryObjects.Count, issues);
-        ApplyKeptObjectListEntries(model, "OptionalObjects", objectDictionary.OptionalObjects.Count, issues);
-        ApplyKeptObjectListEntries(model, "ManufacturerObjects", objectDictionary.ManufacturerObjects.Count, issues);
+        ApplyKeptObjectListEntries(model, "MandatoryObjects", objectDictionary.MandatoryObjects.Count, issues, cancellationToken);
+        ApplyKeptObjectListEntries(model, "OptionalObjects", objectDictionary.OptionalObjects.Count, issues, cancellationToken);
+        ApplyKeptObjectListEntries(model, "ManufacturerObjects", objectDictionary.ManufacturerObjects.Count, issues, cancellationToken);
     }
 
     private static void ApplyKeptObjectListEntries(
         ICanOpenFileModel model,
         string listName,
         int writtenCount,
-        List<ValidationIssue> issues)
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
     {
         // A null store is "nothing kept"; the writer treats it the same way.
         if (!model.SectionRemainingEntries.TryGetValue(listName, out var kept) || kept == null)
@@ -607,6 +611,7 @@ internal static class IniWriteRules
 
         foreach (var entry in kept)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!SectionEntryKeys.TryParseEntryNumber(entry.Key, out var number))
                 continue;
 
