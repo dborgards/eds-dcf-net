@@ -229,9 +229,12 @@ public class XddWriter
             container.Add(WriteContext("DeviceProfile", () => BuildDeviceProfile(eds)));
             container.Add(WriteContext("CommunicationNetworkProfile", () => BuildCommNetProfile(eds, commissioning)));
 
-            return new XDocument(
-                new XDeclaration("1.0", null, null),
-                container);
+            var doc = new XDocument(new XDeclaration("1.0", null, null));
+            foreach (var comment in XddRootComments.Build(eds.Comments))
+                doc.Add(comment);
+
+            doc.Add(container);
+            return doc;
         }
     }
 

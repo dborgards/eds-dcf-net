@@ -91,17 +91,75 @@ internal static class XddProfileBuilder
     // ── DeviceIdentity ────────────────────────────────────────────────────────
 
     /// <summary>Builds the <c>DeviceIdentity</c> element from <see cref="DeviceInfo"/>.</summary>
+    /// <remarks>
+    /// <see cref="DeviceInfo.OrderNumbers"/> and <see cref="DeviceInfo.Versions"/> are authoritative: a
+    /// non-empty list is written as it is. Only an empty list falls back to
+    /// <see cref="DeviceInfo.OrderCode"/> (when not empty) and <see cref="DeviceInfo.RevisionNumber"/>
+    /// (as a firmware version, unless it is 0). The schema order is <c>orderNumber</c> before <c>version</c>.
+    /// </remarks>
     internal static XElement BuildDeviceIdentity(DeviceInfo deviceInfo)
     {
         var name = XddNames.ChildOfType(XddNames.DeviceProfileBodyType, "DeviceIdentity");
-        return new XElement(name,
+        var identity = new XElement(name,
             XddNames.Element(name, "vendorName", deviceInfo.VendorName),
             XddNames.Element(name, "vendorID",
                 string.Format(CultureInfo.InvariantCulture, "0x{0:X8}", deviceInfo.VendorNumber)),
             XddNames.Element(name, "productName", deviceInfo.ProductName),
             XddNames.Element(name, "productID",
                 string.Format(CultureInfo.InvariantCulture, "0x{0:X8}", deviceInfo.ProductNumber)));
+
+        var orderNumbers = deviceInfo.OrderNumbers.Count > 0
+            ? deviceInfo.OrderNumbers
+            : OrderCodeAsList(deviceInfo.OrderCode);
+        foreach (var orderNumber in orderNumbers)
+            identity.Add(BuildReadOnlyText(name, "orderNumber", orderNumber.Value, orderNumber.ReadOnly));
+
+        // A revision of 0 carries no information, so it is not written as a version.
+        var versions = deviceInfo.Versions.Count > 0 || deviceInfo.RevisionNumber == 0
+            ? deviceInfo.Versions
+            : new List<DeviceVersion>
+            {
+                new()
+                {
+                    Type = DeviceVersionType.Firmware,
+                    Value = deviceInfo.RevisionNumber.ToString(CultureInfo.InvariantCulture)
+                }
+            };
+        foreach (var version in versions)
+        {
+            var element = BuildReadOnlyText(name, "version", version.Value, version.ReadOnly);
+            element.Add(new XAttribute("versionType", FormatVersionType(version.Type)));
+            identity.Add(element);
+        }
+
+        return identity;
     }
+
+    private static List<DeviceOrderNumber> OrderCodeAsList(string orderCode)
+        => string.IsNullOrEmpty(orderCode)
+            ? new List<DeviceOrderNumber>()
+            : new List<DeviceOrderNumber> { new() { Value = orderCode } };
+
+    // readOnly defaults to true in the schema, so only false is written.
+    private static XElement BuildReadOnlyText(XName parent, string localName, string value, bool readOnly)
+    {
+        var element = XddNames.Element(parent, localName, value);
+        if (!readOnly)
+            element.Add(new XAttribute("readOnly", "false"));
+
+        return element;
+    }
+
+    private static string FormatVersionType(DeviceVersionType type) => type switch
+    {
+        DeviceVersionType.Software => "SW",
+        DeviceVersionType.Firmware => "FW",
+        DeviceVersionType.Hardware => "HW",
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(type),
+            type,
+            "DeviceVersion.Type is not a CiA 311 versionType (SW, FW or HW).")
+    };
 
     // ── ApplicationLayers static children ────────────────────────────────────
 
@@ -253,7 +311,7 @@ internal static class XddProfileBuilder
     /// <summary>Builds the <c>CANopenGeneralFeatures</c> element.</summary>
     internal static XElement BuildGeneralFeatures(DeviceInfo deviceInfo)
     {
-        return XddNames.Element(NetworkManagementName, "CANopenGeneralFeatures",
+        var features = XddNames.Element(NetworkManagementName, "CANopenGeneralFeatures",
             new XAttribute("granularity",
                 deviceInfo.Granularity.ToString(CultureInfo.InvariantCulture)),
             new XAttribute("nrOfRxPDO",
@@ -268,13 +326,28 @@ internal static class XddProfileBuilder
                 deviceInfo.GroupMessaging ? "true" : "false"),
             new XAttribute("dynamicChannels",
                 deviceInfo.DynamicChannelsSupported.ToString(CultureInfo.InvariantCulture)));
+        AddTrueFlag(features, "selfStartingDevice", deviceInfo.SelfStartingDevice);
+        AddTrueFlag(features, "SDORequestingDevice", deviceInfo.SdoRequestingDevice);
+        return features;
+    }
+
+    // These attributes default to false in the schema, so only true is written.
+    private static void AddTrueFlag(XElement element, string attribute, bool value)
+    {
+        if (value)
+            element.Add(new XAttribute(attribute, "true"));
     }
 
     /// <summary>Builds the <c>CANopenMasterFeatures</c> element.</summary>
     internal static XElement BuildMasterFeatures(DeviceInfo deviceInfo)
     {
-        return XddNames.Element(NetworkManagementName, "CANopenMasterFeatures",
+        var features = XddNames.Element(NetworkManagementName, "CANopenMasterFeatures",
             new XAttribute("bootUpMaster",
                 deviceInfo.SimpleBootUpMaster ? "true" : "false"));
+        AddTrueFlag(features, "flyingMaster", deviceInfo.FlyingMaster);
+        AddTrueFlag(features, "SDOManager", deviceInfo.SdoManager);
+        AddTrueFlag(features, "configurationManager", deviceInfo.ConfigurationManager);
+        AddTrueFlag(features, "layerSettingServiceMaster", deviceInfo.LayerSettingServiceMaster);
+        return features;
     }
 }
