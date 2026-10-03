@@ -192,9 +192,11 @@ internal static class LenientIniNumber
     }
 
     /// <summary>
-    /// Parses <c>ObjFlags</c>. A <c>$NODEID</c> formula has no node-id context here, so
-    /// <see cref="ValueConverter.ParseInteger(string, byte?)"/> throws
-    /// <see cref="NotSupportedException"/>. That failure is an invalid numeric key:
+    /// Parses an unsigned 32-bit INI number (<c>ObjFlags</c>, <c>[DeviceInfo]</c>
+    /// <c>VendorNumber</c>, <c>ProductNumber</c>, <c>RevisionNumber</c>, and the other
+    /// <see cref="ParseUInt32"/> keys). A <c>$NODEID</c> formula has no node-id context
+    /// here, so <see cref="ValueConverter.ParseInteger(string, byte?)"/> throws
+    /// <see cref="NotSupportedException"/>. The integer cannot store the formula (#577):
     /// lenient mode falls back, strict mode throws <see cref="EdsParseException"/>.
     /// </summary>
     private static uint ParseObjFlagsInteger(string value)
