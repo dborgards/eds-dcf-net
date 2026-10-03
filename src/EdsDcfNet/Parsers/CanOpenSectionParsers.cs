@@ -54,13 +54,25 @@ internal static class CanOpenSectionParsers
         string canonicalName,
         Func<string, bool> isKnownKey,
         Dictionary<string, OrderedStringDictionary> store)
+        => CaptureUnmappedEntries(sections, sectionName, canonicalName, (key, _) => isKnownKey(key), store);
+
+    /// <summary>
+    /// Like the overload with a key predicate, for list sections where a slot counts as
+    /// processed only with a usable value: <paramref name="isProcessedEntry"/> gets key and value.
+    /// </summary>
+    internal static void CaptureUnmappedEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string canonicalName,
+        Func<string, string, bool> isProcessedEntry,
+        Dictionary<string, OrderedStringDictionary> store)
     {
         if (!sections.TryGetValue(sectionName, out var section))
             return;
 
         foreach (var entry in EntriesInFileOrder(section))
         {
-            if (isKnownKey(entry.Key))
+            if (isProcessedEntry(entry.Key, entry.Value))
                 continue;
 
             if (!store.TryGetValue(canonicalName, out var destination))
@@ -284,7 +296,7 @@ internal static class CanOpenSectionParsers
         Dictionary<string, OrderedStringDictionary> store,
         Func<string, bool>? isLoadedValue = null)
     {
-        if (!sections.TryGetValue(sectionName, out var section))
+        if (!sections.ContainsKey(sectionName))
             return;
 
         var isLoaded = isLoadedValue ?? IsLoadableIndexValue;
@@ -293,10 +305,31 @@ internal static class CanOpenSectionParsers
             sections,
             sectionName,
             sectionName,
-            key => string.Equals(key, countKey, StringComparison.OrdinalIgnoreCase)
-                   || (SectionEntryKeys.IsCountedListKey(key, countKey, count)
-                       && section.TryGetValue(key, out var value)
-                       && isLoaded(value)),
+            (key, value) => string.Equals(key, countKey, StringComparison.OrdinalIgnoreCase)
+                            || (SectionEntryKeys.IsCountedListKey(key, countKey, count) && isLoaded(value)),
+            store);
+    }
+
+    /// <summary>
+    /// Keeps the entries of a compact sub-object list (<c>[xxxxName]</c>, DCF
+    /// <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c>) that the reader does not apply: every key
+    /// except <c>NrOfEntries</c> and sub-index keys with a non-empty value for an existing
+    /// sub-object of <paramref name="obj"/>. This mirrors <c>ApplyCompactListSection</c>, which
+    /// skips empty values and sub-indexes without a sub-object.
+    /// </summary>
+    internal static void CaptureCompactListEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        CanOpenObject obj,
+        Dictionary<string, OrderedStringDictionary> store)
+    {
+        CaptureUnmappedEntries(
+            sections,
+            sectionName,
+            sectionName,
+            (key, value) => string.Equals(key, SectionEntryKeys.NrOfEntriesKey, StringComparison.OrdinalIgnoreCase)
+                            || (!string.IsNullOrEmpty(value)
+                                && SectionEntryKeys.IsAppliedCompactListKey(key, obj.SubObjects.Keys)),
             store);
     }
 

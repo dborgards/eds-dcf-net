@@ -129,12 +129,7 @@ public abstract class CanOpenReaderBase
             if (obj.CompactSubObj.GetValueOrDefault() > 0)
             {
                 var nameSection = string.Concat(prefix, NameSectionSuffix);
-                CanOpenSectionParsers.CaptureUnmappedEntries(
-                    sections,
-                    nameSection,
-                    nameSection,
-                    key => SectionEntryKeys.IsAppliedCompactListKey(key, obj.SubObjects.Keys),
-                    store);
+                CanOpenSectionParsers.CaptureCompactListEntries(sections, nameSection, obj, store);
             }
 
             CanOpenSectionParsers.CaptureCountedListEntries(
