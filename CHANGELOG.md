@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.17](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.16...v1.15.0-beta.17) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** apply CiA 306-1 defaults for ObjectType, EDSVersion, DOMAIN and SubNumber ([#616](https://github.com/dborgards/eds-dcf-net/issues/616)) ([eeb1889](https://github.com/dborgards/eds-dcf-net/commit/eeb1889e86faa655ffd44da5af682b45c7c14f80)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
 ## [1.15.0-beta.16](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.15...v1.15.0-beta.16) (2026-10-03)
 
 ### ✨ Features
