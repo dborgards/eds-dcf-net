@@ -48,8 +48,10 @@ public sealed class CanOpenFileOptions
     /// <item><description>INI lines without <c>=</c> or with an empty key (default: ignore the line). A line starting with <c>#</c> without <c>=</c> is ignored in both modes</description></item>
     /// <item><description>Duplicate INI section headers (default: merge the keys into the earlier section)</description></item>
     /// <item><description>Unknown XDD/XDC baud-rate strings on <c>supportedBaudRate</c> and <c>baudRate/@defaultValue</c>; the CiA 311 values <c>100 Kbps</c> and <c>auto-baudRate</c> are known (default: treat as 0 / ignore)</description></item>
-    /// <item><description>Unknown boolean tokens in <c>ValueConverter.ParseBoolean</c> (default: treat as <see langword="false"/>)</description></item>
-    /// <item><description>Unknown access-type tokens in <c>ValueConverter.ParseAccessType</c> (default: <c>ro</c>)</description></item>
+    /// <item><description>Unknown boolean tokens in <c>ValueConverter.ParseBoolean</c> (default: treat as <see langword="false"/>).
+    /// EDS/DCF diagnostics carry the section, key and line (for example <c>DeviceInfo.BaudRate_10</c>)</description></item>
+    /// <item><description>Unknown access-type tokens in <c>ValueConverter.ParseAccessType</c> (default: <c>ro</c>).
+    /// EDS/DCF diagnostics carry the section, key and line (for example <c>DynamicChannels.Dir1</c>)</description></item>
     /// <item><description>
     /// Malformed EDS/DCF numeric keys on objects and sub-objects:
     /// <c>ObjectType</c> (default: VAR / <c>0x7</c>),
@@ -82,6 +84,14 @@ public sealed class CanOpenFileOptions
     /// <c>[DeviceComissioning]</c> and <c>[DeviceCommissioning]</c>, the normative first spelling is read
     /// and the second section is kept unchanged in <c>AdditionalSections</c> with a diagnostic
     /// (strict: throw).
+    /// </description></item>
+    /// <item><description>
+    /// Malformed EDS/DCF counter and version keys (CiA 306-1 Tables 9, 13, 14, 15 and 18; CiA 306-3
+    /// <c>[Tools]</c>): <c>[Comments]</c> and <c>[MxComments]</c> <c>Lines</c>, <c>[Tools]</c>
+    /// <c>Items</c>, <c>[SupportedModules]</c> and DCF <c>[ConnectedModules]</c> <c>NrOfEntries</c>
+    /// (default: <c>0</c>; the numbered entries, <c>Line&lt;n&gt;</c> lines and <c>[Tool&lt;n&gt;]</c>
+    /// sections are kept unchanged), and <c>[MxModuleInfo]</c> <c>ProductVersion</c> (default: <c>1</c>)
+    /// and <c>ProductRevision</c> (default: <c>0</c>).
     /// </description></item>
     /// <item><description>
     /// Malformed <c>[DynamicChannels]</c> keys <c>NrOfSeg</c> (default: <c>0</c>), <c>Type&lt;n&gt;</c>
@@ -161,10 +171,8 @@ public sealed class CanOpenFileOptions
     /// </description></item>
     /// </list>
     /// <para>
-    /// Not covered: a malformed numeric count or version key of the <c>[Comments]</c>
-    /// (<c>Lines</c>), <c>[Tools]</c> (<c>Items</c>), <c>[SupportedModules]</c> /
-    /// <c>[ConnectedModules]</c> (<c>NrOfEntries</c>) and module (<c>ProductVersion</c>,
-    /// <c>ProductRevision</c>, <c>Lines</c>) sections throws <see cref="Exceptions.EdsParseException"/>
+    /// Not covered: a malformed <c>NrOfEntries</c> of a compact sub-object list (<c>[xxxxName]</c>,
+    /// DCF <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c>) throws <see cref="Exceptions.EdsParseException"/>
     /// in both modes.
     /// </para>
     /// </remarks>

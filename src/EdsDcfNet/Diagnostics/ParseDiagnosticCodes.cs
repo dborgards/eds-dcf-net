@@ -187,6 +187,32 @@ public static class ParseDiagnosticCodes
     /// <summary>Malformed <c>[DynamicChannels]</c> <c>NrOfSeg</c>; lenient mode treats it as <c>0</c>.</summary>
     public const string InvalidDynamicChannelCount = "INVALID_DYNAMIC_CHANNEL_COUNT";
 
+    /// <summary>
+    /// Malformed EDS/DCF <c>[Comments]</c> or <c>[MxComments]</c> <c>Lines</c> (UNSIGNED16, CiA 306-1
+    /// Tables 9 and 15); lenient mode treats it as <c>0</c> and keeps the <c>Line&lt;n&gt;</c> entries
+    /// as remaining entries.
+    /// </summary>
+    public const string InvalidCommentLineCount = "INVALID_COMMENT_LINE_COUNT";
+
+    /// <summary>
+    /// Malformed EDS/DCF <c>[Tools]</c> <c>Items</c>; lenient mode treats it as <c>0</c>, so the
+    /// <c>[Tool&lt;n&gt;]</c> sections are kept in <c>AdditionalSections</c>.
+    /// </summary>
+    public const string InvalidToolCount = "INVALID_TOOL_COUNT";
+
+    /// <summary>
+    /// Malformed EDS/DCF <c>[SupportedModules]</c> or DCF <c>[ConnectedModules]</c> <c>NrOfEntries</c>
+    /// (UNSIGNED16, CiA 306-1 Tables 13 and 18); lenient mode treats it as <c>0</c> and keeps the
+    /// numbered entries as remaining entries.
+    /// </summary>
+    public const string InvalidModuleCount = "INVALID_MODULE_COUNT";
+
+    /// <summary>
+    /// Malformed EDS/DCF <c>[MxModuleInfo]</c> <c>ProductVersion</c> or <c>ProductRevision</c>
+    /// (UNSIGNED8, CiA 306-1 Table 14); lenient mode uses the absent-key default (<c>1</c> or <c>0</c>).
+    /// </summary>
+    public const string InvalidModuleVersion = "INVALID_MODULE_VERSION";
+
     /// <summary>Malformed <c>[DynamicChannels]</c> <c>Type&lt;n&gt;</c>; lenient mode treats it as <c>0</c>.</summary>
     public const string InvalidDynamicChannelType = "INVALID_DYNAMIC_CHANNEL_TYPE";
 

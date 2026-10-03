@@ -106,7 +106,7 @@ internal static class XddParsingPrimitives
     /// <see cref="AccessType.ReadOnly"/> (absent field). Unknown non-empty tokens
     /// map to <see cref="AccessType.ReadOnly"/> when lenient, or throw
     /// <see cref="EdsParseException"/> when <see cref="StrictParsingScope"/> is enabled.
-    /// <c>rwr</c>/<c>rww</c> match EDS <see cref="Utilities.ValueConverter.ParseAccessType"/>;
+    /// <c>rwr</c>/<c>rww</c> match EDS <see cref="Utilities.ValueConverter.ParseAccessType(string)"/>;
     /// the XDD writer still emits <c>rw</c> for those model values (no CiA 311 equivalent).
     /// </remarks>
     internal static AccessType ParseXddAccessType(string value)

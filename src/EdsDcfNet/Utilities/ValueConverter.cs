@@ -93,6 +93,14 @@ public static class ValueConverter
     /// otherwise <see langword="false"/>.
     /// </returns>
     public static bool ParseBoolean(string value)
+        => ParseBoolean(value, sectionName: null, keyName: null, line: null);
+
+    /// <summary>
+    /// <see cref="ParseBoolean(string)"/> for an INI key: the diagnostic path is
+    /// <c>section.key</c> with the source line, and the strict-mode exception carries the
+    /// section and line. Without a section the path stays empty.
+    /// </summary>
+    internal static bool ParseBoolean(string value, string? sectionName, string? keyName, int? line)
     {
         value = value.Trim();
 
@@ -119,14 +127,17 @@ public static class ValueConverter
                     "Unknown boolean token '{0}'. Expected one of: 0, 1, true, false, yes, no, 0x0, 0x1.",
                     value))
             {
-                Code = Diagnostics.ParseDiagnosticCodes.UnknownBooleanToken
+                Code = Diagnostics.ParseDiagnosticCodes.UnknownBooleanToken,
+                SectionName = sectionName,
+                LineNumber = line
             };
         }
 
         Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
             Diagnostics.ParseSeverity.Warning,
             Diagnostics.ParseDiagnosticCodes.UnknownBooleanToken,
-            path: string.Empty,
+            path: KeyPath(sectionName, keyName),
+            line: line,
             rawValue: value,
             coercedTo: "false",
             message: string.Format(
@@ -145,7 +156,7 @@ public static class ValueConverter
     /// <para>Recognized true tokens (case-insensitive where alphabetic):</para>
     /// <list type="bullet">
     /// <item><description><c>0x01</c>, <c>0x1</c> (writer emits <c>0x01</c>)</description></item>
-    /// <item><description><c>1</c>, <c>true</c>, <c>yes</c> (same as <see cref="ParseBoolean"/>)</description></item>
+    /// <item><description><c>1</c>, <c>true</c>, <c>yes</c> (same as <see cref="ParseBoolean(string)"/>)</description></item>
     /// </list>
     /// <para>Recognized false tokens include <c>0x00</c>, <c>0x0</c>, <c>0</c>, <c>false</c>,
     /// and <c>no</c>. Empty/whitespace maps to <see langword="false"/>. Unrecognized
@@ -368,6 +379,14 @@ public static class ValueConverter
     /// (lenient mode).
     /// </returns>
     public static AccessType ParseAccessType(string value)
+        => ParseAccessType(value, sectionName: null, keyName: null, line: null);
+
+    /// <summary>
+    /// <see cref="ParseAccessType(string)"/> for an INI key: the diagnostic path is
+    /// <c>section.key</c> with the source line, and the strict-mode exception carries the
+    /// section and line. Without a section the path stays empty.
+    /// </summary>
+    internal static AccessType ParseAccessType(string value, string? sectionName, string? keyName, int? line)
     {
         var token = value?.Trim().ToLowerInvariant();
         // Missing AccessType/Dir keys yield "" from IniParser.GetValue; treat as absent default.
@@ -388,18 +407,21 @@ public static class ValueConverter
                     "Unknown access type token '{0}'. Expected one of: ro, wo, rw, rwr, rww, const.",
                     value))
             {
-                Code = Diagnostics.ParseDiagnosticCodes.UnknownAccessTypeToken
+                Code = Diagnostics.ParseDiagnosticCodes.UnknownAccessTypeToken,
+                SectionName = sectionName,
+                LineNumber = line
             },
-            _ => ReportUnknownAccessType(value)
+            _ => ReportUnknownAccessType(value, sectionName, keyName, line)
         };
     }
 
-    private static AccessType ReportUnknownAccessType(string? value)
+    private static AccessType ReportUnknownAccessType(string? value, string? sectionName, string? keyName, int? line)
     {
         Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
             Diagnostics.ParseSeverity.Warning,
             Diagnostics.ParseDiagnosticCodes.UnknownAccessTypeToken,
-            path: string.Empty,
+            path: KeyPath(sectionName, keyName),
+            line: line,
             rawValue: value,
             coercedTo: "ro",
             message: string.Format(
@@ -409,6 +431,10 @@ public static class ValueConverter
 
         return AccessType.ReadOnly;
     }
+
+    /// <summary><c>section.key</c> for a diagnostic, or empty when the caller gave no section.</summary>
+    private static string KeyPath(string? sectionName, string? keyName)
+        => sectionName == null ? string.Empty : sectionName + "." + keyName;
 
     /// <summary>
     /// Converts an AccessType to string representation.
