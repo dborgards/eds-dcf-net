@@ -144,6 +144,9 @@ This project uses a **develop → main** integration model:
    git checkout -b feat/my-feature develop
    ```
 2. Open a PR from the feature branch **into `develop`** (never directly into `main`).
+   Merge it with **squash** (or rebase), never a merge commit; the develop ruleset
+   enforces this (see `CONTRIBUTING.md` § "Merge strategy"). The squash commit
+   message must be a valid Conventional Commit, because semantic-release analyzes it.
 3. On merge to `develop`, semantic-release publishes a `beta` pre-release to NuGet automatically.
 4. When ready for a stable release, open a PR from `develop` → `main`.
    **Important:** merge this PR with a **regular merge commit** (not squash, not rebase).
