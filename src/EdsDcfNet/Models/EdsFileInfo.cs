@@ -65,6 +65,10 @@ public class EdsFileInfo
     /// </summary>
     /// <remarks>
     /// The XDD/XDC writers emit either form as <c>xsd:time</c> and omit a value that is neither.
+    /// The EDS/DCF writers emit an <c>xsd:time</c> as <c>hh:mmAM/PM</c> (CiA 306-1 § 6.4): the clock
+    /// time is kept, a time zone is not converted to another zone, and seconds and fractions are
+    /// dropped because the target form has neither. A value that is neither form is written
+    /// unchanged; a validated EDS/DCF write rejects it.
     /// </remarks>
     public string CreationTime { get; set; } = string.Empty;
 
