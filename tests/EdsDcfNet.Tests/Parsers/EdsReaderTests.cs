@@ -1963,9 +1963,11 @@ VendorKey=VendorData
         // Assert - custom hex-prefixed "sub*" names must round-trip via AdditionalSections
         result.AdditionalSections.Should().ContainKey("1000subExtra");
         result.AdditionalSections["1000subExtra"]["VendorKey"].Should().Be("VendorData");
-        // Valid [1000sub0] remains known (not dumped into AdditionalSections)
-        result.AdditionalSections.Should().NotContainKey("1000sub0");
+        // [1000sub0] of a VAR without SubNumber is not loaded as a sub-object; it is kept
+        // unchanged instead of being dropped (INI_ORPHAN_SUB_OBJECT_SECTION).
+        result.AdditionalSections["1000sub0"]["ParameterName"].Should().Be("Highest sub-index");
         result.ObjectDictionary.Objects.Should().ContainKey((ushort)0x1000);
+        result.ObjectDictionary.Objects[0x1000].SubObjects.Should().BeEmpty();
     }
 
     [Fact]
@@ -2139,9 +2141,10 @@ PDOMapping=0
     }
 
     [Fact]
-    public void ReadString_ModuleSectionWithSubExtendSuffix_RecognizedAsKnown()
+    public void ReadString_ModuleSectionWithSubExtendSuffix_PreservedInAdditionalSections()
     {
-        // Arrange - "M1SubExtend1" has suffix "SubExtend1" which StartsWith("SubExtend")
+        // Arrange - "M1SubExtend1" is no section the module parser loads (it reads
+        // [MxSubExtends] and [MxSubExtxxxx] with a hexadecimal index), so it is kept.
         var content = @"
 [DeviceInfo]
 VendorName=Test
@@ -2165,8 +2168,8 @@ SomeKey=SomeValue
         // Act
         var result = _reader.ReadString(content);
 
-        // Assert - M1SubExtend1 is a known module section, NOT in AdditionalSections
-        result.AdditionalSections.Should().NotContainKey("M1SubExtend1");
+        // Assert - M1SubExtend1 is an ordinary additional section, not dropped as known
+        result.AdditionalSections["M1SubExtend1"]["SomeKey"].Should().Be("SomeValue");
     }
 
     [Fact]

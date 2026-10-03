@@ -141,6 +141,43 @@ public class EdsWriter : IniWriterBase
     private static string GenerateEdsContent(ElectronicDataSheet eds)
     {
         var sb = new StringBuilder();
+        WriteGeneratedSections(sb, eds);
+
+        // Collected before the first additional section is written, and only when there is one.
+        HashSet<string>? generatedHeaders = null;
+        foreach (var section in eds.AdditionalSectionOrder.Sections(eds.AdditionalSections))
+        {
+            generatedHeaders ??= GetGeneratedSectionHeaders(sb);
+            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, eds.ObjectDictionary) ||
+                IsGeneratedSection(generatedHeaders, section.Key))
+            {
+                continue;
+            }
+
+            WriteSection(
+                section.Key,
+                () => WriteAdditionalSection(
+                    sb, section.Key, eds.AdditionalSectionOrder.Entries(section.Key, section.Value)));
+        }
+
+        return TextFileIo.ApplyOutputNewLine(sb.ToString());
+    }
+
+    /// <summary>
+    /// The section headers this writer generates from the model, before the additional
+    /// sections. Validated writes use it to check only the additional sections that are
+    /// written (<see cref="IniWriterBase.GetGeneratedSectionHeaders(StringBuilder)"/>).
+    /// </summary>
+    internal static HashSet<string> CollectGeneratedSectionHeaders(ElectronicDataSheet eds)
+    {
+        var sb = new StringBuilder();
+        WriteGeneratedSections(sb, eds);
+        return GetGeneratedSectionHeaders(sb);
+    }
+
+    /// <summary>Writes every section generated from the model; additional sections follow.</summary>
+    private static void WriteGeneratedSections(StringBuilder sb, ElectronicDataSheet eds)
+    {
         var sectionEntries = eds.SectionRemainingEntries;
 
         WriteSection("FileInfo", () =>
@@ -180,21 +217,6 @@ public class EdsWriter : IniWriterBase
         {
             WriteSection("Comments", () => WriteComments(sb, eds.Comments!));
         }
-
-        foreach (var section in eds.AdditionalSectionOrder.Sections(eds.AdditionalSections))
-        {
-            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, eds.ObjectDictionary))
-            {
-                continue;
-            }
-
-            WriteSection(
-                section.Key,
-                () => WriteAdditionalSection(
-                    sb, section.Key, eds.AdditionalSectionOrder.Entries(section.Key, section.Value)));
-        }
-
-        return TextFileIo.ApplyOutputNewLine(sb.ToString());
     }
 
     private static void WriteObjects(

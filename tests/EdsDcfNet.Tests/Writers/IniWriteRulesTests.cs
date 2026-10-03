@@ -302,4 +302,89 @@ public class IniWriteRulesTests
             ["1"] = "Evil\n[FileInfo]\nFileName=pwned.eds"
         };
     }
+
+    [Fact]
+    public void WriteToString_AdditionalSectionNamedLikeGeneratedSection_ValidatedEdsWriteSkipsIt()
+    {
+        // Arrange — the writer generates [FileInfo] and skips the kept copy, so its value is not checked.
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.AdditionalSections["FileInfo"] = InvalidSection();
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        CountHeaders(written, "[FileInfo]").Should().Be(1);
+        written.Should().NotContain("Key=");
+    }
+
+    [Fact]
+    public void WriteToString_AdditionalSectionNamedLikeGeneratedSection_ValidatedDcfWriteSkipsIt()
+    {
+        // Arrange
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
+        dcf.AdditionalSections["fileinfo"] = InvalidSection();
+
+        // Act
+        var written = CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Validated);
+
+        // Assert
+        CountHeaders(written, "[FileInfo]").Should().Be(1);
+        written.Should().NotContain("Key=");
+    }
+
+    [Fact]
+    public void WriteToString_NonCollidingInvalidAdditionalSection_ValidatedWriteStillRejects()
+    {
+        // Arrange
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.AdditionalSections["FileInfo"] = InvalidSection();
+        eds.AdditionalSections["Vendor"] = InvalidSection();
+
+        // Act
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        act.Should().Throw<ModelValidationException>().Which.Issues.Select(issue => issue.Path)
+            .Should().Contain("AdditionalSections[Vendor].Key")
+            .And.NotContain("AdditionalSections[FileInfo].Key");
+    }
+
+    [Fact]
+    public void WriteToString_GeneratedPartRejected_ValidatedEdsWriteChecksEveryAdditionalSection()
+    {
+        // Arrange — the writer would reject [DeviceInfo]; without its headers every kept section is checked.
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.DeviceInfo.VendorName = "bad\nvendor";
+        eds.AdditionalSections["FileInfo"] = InvalidSection();
+
+        // Act
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        act.Should().Throw<ModelValidationException>().Which.Issues.Select(issue => issue.Path)
+            .Should().Contain("AdditionalSections[FileInfo].Key");
+    }
+
+    [Fact]
+    public void WriteToString_GeneratedPartRejected_ValidatedDcfWriteChecksEveryAdditionalSection()
+    {
+        // Arrange
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
+        dcf.DeviceInfo.VendorName = "bad\nvendor";
+        dcf.AdditionalSections["FileInfo"] = InvalidSection();
+
+        // Act
+        var act = () => CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Validated);
+
+        // Assert
+        act.Should().Throw<ModelValidationException>().Which.Issues.Select(issue => issue.Path)
+            .Should().Contain("AdditionalSections[FileInfo].Key");
+    }
+
+    private static Dictionary<string, string> InvalidSection()
+        => new() { ["Key"] = "bad\nvalue" };
+
+    private static int CountHeaders(string text, string header)
+        => text.Split('\n').Count(line => string.Equals(line.TrimEnd('\r'), header, StringComparison.OrdinalIgnoreCase));
 }
