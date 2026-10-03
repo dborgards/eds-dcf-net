@@ -5,7 +5,6 @@ using System.Globalization;
 /// <summary>Severity of a checker finding.</summary>
 public enum Severity
 {
-    Info,
     Warning,
     Error,
 }

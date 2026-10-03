@@ -144,12 +144,20 @@ public sealed class MandatoryFieldsChecker
 
     private void CheckDeviceCommissioning()
     {
-        var section = _doc.Get("DeviceComissioning") ?? _doc.Get("DeviceCommissioning");
+        var section = _doc.GetDeviceCommissioning();
         if (section is null)
         {
             _findings.Add(new Finding(Severity.Error, "MND001", _file, null, "DeviceComissioning", null, null,
                 "Mandatory DCF section is missing."));
             return;
+        }
+
+        var common = _doc.Get("DeviceCommissioning");
+        if (common is not null && !ReferenceEquals(common, section))
+        {
+            // DcfReader reads the normative section and keeps the other one only as an additional section.
+            Add(Severity.Warning, "DCF003", common, null, null,
+                "Both [DeviceComissioning] and [DeviceCommissioning] are present; EdsDcfNet reads [DeviceComissioning] and ignores [DeviceCommissioning].");
         }
 
         if (section.Name.Equals("DeviceCommissioning", StringComparison.OrdinalIgnoreCase))

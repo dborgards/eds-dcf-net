@@ -106,7 +106,7 @@ public sealed class RawObjectChecker
             return allNodeIds;
         }
 
-        var commissioning = _doc.Get("DeviceComissioning") ?? _doc.Get("DeviceCommissioning");
+        var commissioning = _doc.GetDeviceCommissioning();
         var entry = commissioning?.Get("NodeID");
         if (commissioning is null || entry is null || string.IsNullOrWhiteSpace(entry.Value))
         {
@@ -341,7 +341,9 @@ public sealed class RawObjectChecker
         var compactSubObj = ParseOptionalByte(section, "CompactSubObj");
         var subNumber = ParseOptionalByte(section, "SubNumber");
 
-        var isComposite = objectType is CanOpenObjectType.Array or CanOpenObjectType.Record or CanOpenObjectType.DefStruct;
+        // An invalid ObjectType (already reported) must not hide its sub-index sections: check them as a composite.
+        var isComposite = objectType is CanOpenObjectType.Array or CanOpenObjectType.Record or CanOpenObjectType.DefStruct ||
+                          (objectType is null && subCount > 0);
         CheckedValues? compactTemplate = null;
         // CompactSubObj still generates sub-indices when ObjectType is omitted (it defaults to VAR).
         if (isComposite || compactSubObj is > 0)
@@ -456,6 +458,11 @@ public sealed class RawObjectChecker
             if (objectType == CanOpenObjectType.Var)
             {
                 CheckEntryValues(section, index, null);
+            }
+            else if (objectType == CanOpenObjectType.Domain)
+            {
+                // DOMAIN has no checkable value, but it still needs a valid AccessType.
+                CheckAccessType(section);
             }
         }
         else if (objectType is null && subCount == 0)
