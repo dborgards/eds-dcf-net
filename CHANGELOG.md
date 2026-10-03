@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.19](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.18...v1.15.0-beta.19) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **xdd:** preserve unmodelled XDD/XDC content and emit a schema-valid DeviceFunction ([#618](https://github.com/dborgards/eds-dcf-net/issues/618)) ([f475f27](https://github.com/dborgards/eds-dcf-net/commit/f475f27af6d74dbc46c89874a99f10839d721b3a)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
 ## [1.15.0-beta.18](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.17...v1.15.0-beta.18) (2026-10-03)
 
 ### 🐛 Bug Fixes
