@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.15.0-beta.25](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.24...v1.15.0-beta.25) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **converter:** build a trimmed DCF description when the EDS has no FileName ([#636](https://github.com/dborgards/eds-dcf-net/issues/636)) ([929e747](https://github.com/dborgards/eds-dcf-net/commit/929e747615e09c5ff9eeb269d448c6ec551d925d))
+
+### 📚 Documentation
+
+* mention FileVersionText, the squash merge rule and the WriteException base ([#635](https://github.com/dborgards/eds-dcf-net/issues/635)) ([6e6fc9e](https://github.com/dborgards/eds-dcf-net/commit/6e6fc9e4814be629827dad486e3adaf4e36c47e7))
+* **plan:** mark all work packages as merged and record implementation notes ([#628](https://github.com/dborgards/eds-dcf-net/issues/628)) ([17a6b1c](https://github.com/dborgards/eds-dcf-net/commit/17a6b1c73ba7097276a8c4007c4ce880784e6428))
+
 ## [1.15.0-beta.24](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.23...v1.15.0-beta.24) (2026-10-03)
 
 ### 🐛 Bug Fixes
