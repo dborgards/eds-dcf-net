@@ -214,6 +214,13 @@ public class CanOpenObject
     internal uint ObjFlagsLexicalBaseline { get; set; }
 
     /// <summary>
+    /// Attributes of the XDD/XDC <c>CANopenObject</c> that the reader does not map onto a property
+    /// (for example <c>rangeSelector</c>), as read. The XDD/XDC writers emit them after the
+    /// attributes they generate; a generated attribute of the same name wins.
+    /// </summary>
+    internal List<System.Xml.Linq.XAttribute>? XddPreservedAttributes { get; set; }
+
+    /// <summary>
     /// Number of sub-indexes available at this index (Unsigned8).
     /// Not counting sub-index FFh.
     /// </summary>
@@ -442,6 +449,13 @@ public class CanOpenSubObject
     /// The same names in an EDS sub-object section are kept here.
     /// </remarks>
     public OrderedStringDictionary RemainingEntries { get; } = new();
+
+    /// <summary>
+    /// Attributes of the XDD/XDC <c>CANopenSubObject</c> that the reader does not map onto a
+    /// property (for example <c>objFlags</c> or <c>rangeSelector</c>), as read; see
+    /// <see cref="CanOpenObject.XddPreservedAttributes"/>.
+    /// </summary>
+    internal List<System.Xml.Linq.XAttribute>? XddPreservedAttributes { get; set; }
 }
 
 /// <summary>

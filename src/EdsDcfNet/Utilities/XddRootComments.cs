@@ -84,6 +84,13 @@ internal static class XddRootComments
     }
 
     /// <summary>
+    /// <see langword="true"/> when <paramref name="value"/> is a comment this class reads back
+    /// (the identifier, a line number 1..65535 and the separator). Other comments before the root
+    /// element, such as generator or copyright lines, are kept as they are by the XDD/XDC reader.
+    /// </summary>
+    internal static bool IsMarked(string value) => TryParse(value, out _, out _);
+
+    /// <summary>
     /// <see langword="true"/> when a line can be written as an XML comment: its number is 1..65535
     /// and its text holds only characters that are valid in XML.
     /// </summary>

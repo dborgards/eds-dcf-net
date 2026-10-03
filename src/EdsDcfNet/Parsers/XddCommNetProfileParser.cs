@@ -61,10 +61,10 @@ internal static class XddCommNetProfileParser
         if (networkMgmt != null)
             ParseNetworkManagement(networkMgmt, eds.DeviceInfo);
 
-        // Capture unknown CommunicationNetwork ProfileBody children as INI-shaped
-        // AdditionalSections entries (attributes only). Device ProfileBody unknowns are
-        // not captured. Nested element content is not preserved, and XddWriter does not
-        // re-emit these entries into ProfileBody — see architecture docs §8.4.
+        // Mirror unknown CommunicationNetwork ProfileBody children as INI-shaped
+        // AdditionalSections entries (attributes only) for callers. The XDD/XDC writers do not
+        // emit these entries; they write the element itself, which XddPreservedContentReader
+        // keeps whole — see architecture docs §8.4.
         var knownNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "ApplicationLayers",
@@ -148,10 +148,13 @@ internal static class XddCommNetProfileParser
                 obj.Denotation = denotation;
         }
 
+        obj.XddPreservedAttributes = XddPreservedContentReader.ObjectAttributes(elem, includeActualValues);
+
         // Parse sub-objects
         foreach (var subElem in elem.Elements().Where(e => e.Name.LocalName == "CANopenSubObject"))
         {
             var subObj = ParseCanOpenSubObject(subElem, includeActualValues);
+            subObj.XddPreservedAttributes = XddPreservedContentReader.SubObjectAttributes(subElem, includeActualValues);
             subObj.UniqueIdRef = ReadUniqueIdRef(subElem);
             resolver.ApplySubObject(obj.Index, subObj, ExplicitAttributes.From(subElem));
             obj.SubObjects[subObj.SubIndex] = subObj;
