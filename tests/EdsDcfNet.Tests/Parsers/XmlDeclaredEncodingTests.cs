@@ -18,6 +18,8 @@ public class XmlDeclaredEncodingTests
 
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
+    private static readonly Encoding Utf32Be = new UTF32Encoding(bigEndian: true, byteOrderMark: false);
+
     private const string Geraet = "Gerät";
 
     [Fact]
@@ -133,6 +135,127 @@ public class XmlDeclaredEncodingTests
 
         var act = () => ReadProduct(xdc: false, bytes, options: null);
         act.Should().Throw<EdsParseException>().WithMessage("*X-NO-SUCH-EBCDIC*");
+    }
+
+    [Fact]
+    public void Read_EbcdicSignatureWithoutDeclaration_NamesEbcdic()
+    {
+        var signatureOnly = new byte[] { 0x4C, 0x6F, 0xA7, 0x94 };
+        var act = () => ReadProduct(xdc: false, signatureOnly, options: null);
+        act.Should().Throw<EdsParseException>().WithMessage("*EBCDIC*does not declare*");
+
+        var encoding = RequireIbm037();
+        var undeclared = encoding.GetBytes(WithXmlDeclaration(Written(xdc: false, "Plain"), "<?xml version=\"1.0\"?>"));
+        undeclared[0].Should().Be(0x4C);
+        var missingName = () => ReadProduct(xdc: false, undeclared, options: null);
+        missingName.Should().Throw<EdsParseException>().WithMessage("*EBCDIC*does not declare*");
+    }
+
+    [Fact]
+    public void Read_Ibm1026Quotes_PreserveText()
+    {
+        var encoding = RequireEbcdic("IBM1026");
+        var bytes = encoding.GetBytes(WithDeclaration(Written(xdc: false, Geraet), "IBM1026"));
+        var declEnd = IndexOf(bytes, 0x6F, 0x6E);
+        declEnd.Should().BeGreaterThan(4);
+        bytes.Take(declEnd).Should().Contain((byte)0xFC);
+        ReadProduct(xdc: false, bytes, options: null).Should().Be(Geraet);
+    }
+
+    [Fact]
+    public void Read_Ibm1047LineFeedInDeclaration_PreservesText()
+    {
+        var encoding = RequireEbcdic("IBM01047");
+        var text = WithXmlDeclaration(Written(xdc: false, Geraet), "<?xml version=\"1.0\"\nencoding=\"IBM01047\"?>");
+        var bytes = encoding.GetBytes(text);
+        var declEnd = IndexOf(bytes, 0x6F, 0x6E);
+        declEnd.Should().BeGreaterThan(4);
+        bytes.Take(declEnd).Should().Contain((byte)0x15);
+        ReadProduct(xdc: false, bytes, options: null).Should().Be(Geraet);
+    }
+
+    [Theory]
+    [InlineData("utf-16")]
+    [InlineData("utf-16be")]
+    [InlineData("utf-16le")]
+    [InlineData("utf-32")]
+    [InlineData("utf-32be")]
+    [InlineData("utf-32le")]
+    [InlineData("ucs-2")]
+    [InlineData("iso-10646-ucs-2")]
+    public void Read_DeclaredWideNameWithoutBom_NamesEncoding(string name)
+    {
+        var bytes = Encoding.ASCII.GetBytes("<?xml version=\"1.0\" encoding=\"" + name + "\"?><x/>");
+        var act = () => ReadProduct(xdc: false, bytes, options: null);
+        act.Should().Throw<EdsParseException>().WithMessage("*encoding '" + name + "'*byte order mark*");
+    }
+
+    [Theory]
+    [InlineData("utf-16-be-bom")]
+    [InlineData("utf-16-be")]
+    [InlineData("utf-16-le")]
+    [InlineData("utf-32-be-bom")]
+    [InlineData("utf-32-be")]
+    [InlineData("utf-32-le")]
+    public void Read_WideSignatures_PreserveText(string kind)
+    {
+        var text = Written(xdc: false, Geraet);
+        var bytes = WideBytes(text, kind);
+        ReadProduct(xdc: false, bytes, options: null).Should().Be(Geraet);
+    }
+
+    [Fact]
+    public void Read_Utf8WithoutEncodingAttribute_PreservesText()
+    {
+        var text = WithXmlDeclaration(Written(xdc: false, Geraet), "<?xml version=\"1.0\"?>");
+        text.Should().NotContain("encoding=");
+        var bytes = StrictUtf8.GetBytes(text);
+        ReadProduct(xdc: false, bytes, options: null).Should().Be(Geraet);
+    }
+
+    [Fact]
+    public void Read_DeclarationWhitespaceAndSingleQuote_PreserveText()
+    {
+        var text = WithXmlDeclaration(
+            Written(xdc: false, Geraet),
+            "<?xml version='1.0' encoding \t\r\n=\t\r\n 'utf-8'?>");
+        var bytes = StrictUtf8.GetBytes(text);
+        ReadProduct(xdc: false, bytes, options: null).Should().Be(Geraet);
+    }
+
+    [Theory]
+    [InlineData("<?xml version=\"1.0\" encoding=\"\"?>")]
+    [InlineData("<?xml version=\"1.0\" encoding=\"   \"?>")]
+    public void Read_EmptyEncodingAttribute_FallsBackToUtf8(string declaration)
+    {
+        var text = WithXmlDeclaration(Written(xdc: false, Geraet), declaration);
+        var bytes = StrictUtf8.GetBytes(text);
+        ReadProduct(xdc: false, bytes, options: null).Should().Be(Geraet);
+    }
+
+    [Theory]
+    [InlineData("<?xml version=\"1.0\" encoding=\"utf-8\"")]
+    [InlineData("<?xml encoding?>")]
+    [InlineData("<?xml encoding X?>")]
+    [InlineData("<?xml encoding=?>")]
+    [InlineData("<?xml encoding=X?>")]
+    [InlineData("<?xml version=\"1.0\" encoding=\"utf-8?>")]
+    public void Read_MalformedDeclaration_FailsParse(string declaration)
+    {
+        var tail = declaration.Contains("?>", StringComparison.Ordinal)
+            ? "<x/>"
+            : "><x/>";
+        var bytes = Encoding.ASCII.GetBytes(declaration + tail);
+        bytes[0].Should().Be(0x3C);
+        var act = () => ReadProduct(xdc: false, bytes, options: null);
+        act.Should().Throw<EdsParseException>().WithMessage("*Failed to parse*");
+    }
+
+    [Fact]
+    public void Read_ShortBuffer_DoesNotMatchAWideSignature()
+    {
+        var act = () => ReadProduct(xdc: false, new byte[] { 0x00, 0xFF }, options: null);
+        act.Should().Throw<EdsParseException>().WithMessage("*utf-8*");
     }
 
     [Theory]
@@ -467,6 +590,66 @@ public class XmlDeclaredEncodingTests
         return CanOpenFile.Xdc.WriteToString(file);
     }
 
+    private static byte[] WideBytes(string text, string kind)
+    {
+        switch (kind)
+        {
+            case "utf-16-be-bom":
+                var utf16BeBom = Prefix(Encoding.BigEndianUnicode.GetBytes(text), 0xFE, 0xFF);
+                utf16BeBom[0].Should().Be(0xFE);
+                utf16BeBom[1].Should().Be(0xFF);
+                return utf16BeBom;
+            case "utf-16-be":
+                var utf16Be = Encoding.BigEndianUnicode.GetBytes(text);
+                utf16Be[0].Should().Be(0x00);
+                utf16Be[1].Should().Be(0x3C);
+                return utf16Be;
+            case "utf-16-le":
+                var utf16Le = Encoding.Unicode.GetBytes(text);
+                utf16Le.Take(4).Should().Equal(0x3C, 0x00, 0x3F, 0x00);
+                return utf16Le;
+            case "utf-32-be-bom":
+                return Prefix(Utf32Be.GetBytes(text), 0x00, 0x00, 0xFE, 0xFF);
+            case "utf-32-be":
+                var utf32Be = Utf32Be.GetBytes(text);
+                utf32Be.Take(4).Should().Equal(0x00, 0x00, 0x00, 0x3C);
+                return utf32Be;
+            case "utf-32-le":
+                var utf32Le = Encoding.UTF32.GetBytes(text);
+                utf32Le.Take(4).Should().Equal(0x3C, 0x00, 0x00, 0x00);
+                return utf32Le;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(kind));
+        }
+    }
+
+    private static byte[] Prefix(byte[] payload, params byte[] bom)
+    {
+        var bytes = new byte[bom.Length + payload.Length];
+        bom.CopyTo(bytes, 0);
+        payload.CopyTo(bytes, bom.Length);
+        return bytes;
+    }
+
+    private static int IndexOf(byte[] bytes, byte first, byte second)
+    {
+        for (var i = 0; i < bytes.Length - 1; i++)
+        {
+            if (bytes[i] == first && bytes[i + 1] == second)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static string WithXmlDeclaration(string text, string declaration)
+    {
+        var end = text.IndexOf("?>", StringComparison.Ordinal);
+        end.Should().BeGreaterThan(0);
+        text.StartsWith("<?xml", StringComparison.Ordinal).Should().BeTrue();
+        return declaration + text.Substring(end + 2);
+    }
+
     private static string WithDeclaration(string text, string encodingName)
     {
         const string marker = "encoding=\"utf-8\"";
@@ -551,37 +734,45 @@ public class XmlDeclaredEncodingTests
     private static int _ibm037ProviderRegistered;
 #endif
 
-    private static Encoding RequireIbm037()
+    private static Encoding RequireIbm037() => RequireEbcdic("IBM037");
+
+    private static Encoding RequireEbcdic(string name)
     {
 #if !NETFRAMEWORK
         if (Interlocked.Exchange(ref _ibm037ProviderRegistered, 1) == 0)
             Encoding.RegisterProvider(new EbcdicOnlyEncodingProvider());
 #endif
-        return Encoding.GetEncoding("IBM037");
+        return Encoding.GetEncoding(name);
     }
 
 #if !NETFRAMEWORK
     /// <summary>
-    /// Exposes IBM037 from the runtime code-page provider without registering every
+    /// Exposes the EBCDIC pages used by declaration tests without registering every
     /// code page. A full registration would make windows-1252 available to other tests.
     /// </summary>
     private sealed class EbcdicOnlyEncodingProvider : EncodingProvider
     {
         public override Encoding? GetEncoding(string name)
         {
-            if (!IsIbm037(name))
+            if (!IsDeclarationEbcdic(name))
                 return null;
 
             return CodePagesEncodingProvider.Instance.GetEncoding(name);
         }
 
         public override Encoding? GetEncoding(int codepage)
-            => codepage == 37 ? CodePagesEncodingProvider.Instance.GetEncoding(codepage) : null;
+            => codepage is 37 or 1026 or 1047
+                ? CodePagesEncodingProvider.Instance.GetEncoding(codepage)
+                : null;
 
-        private static bool IsIbm037(string name)
+        private static bool IsDeclarationEbcdic(string name)
             => name.Equals("IBM037", StringComparison.OrdinalIgnoreCase)
                || name.Equals("cp037", StringComparison.OrdinalIgnoreCase)
-               || name.Equals("csIBM037", StringComparison.OrdinalIgnoreCase);
+               || name.Equals("csIBM037", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("IBM1026", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("cp1026", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("IBM01047", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("cp1047", StringComparison.OrdinalIgnoreCase);
     }
 #endif
 
