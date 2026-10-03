@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.31](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.30...v1.15.0-beta.31) (2026-10-03)
+
+### ✨ Features
+
+* **validation:** report preserved object-list entries above the counter as an opt-in rule ([#642](https://github.com/dborgards/eds-dcf-net/issues/642)) ([4e9c89c](https://github.com/dborgards/eds-dcf-net/commit/4e9c89c7c62a564dfa2f23738749d547282d6749)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
 ## [1.15.0-beta.30](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.29...v1.15.0-beta.30) (2026-10-03)
 
 ### 🐛 Bug Fixes
