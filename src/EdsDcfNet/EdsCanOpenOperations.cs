@@ -103,6 +103,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
         dcf.Tools.AddRange(ModelCloner.CloneTools(eds.Tools));
         foreach (var kvp in ModelCloner.CloneAdditionalSections(eds.AdditionalSections))
             dcf.AdditionalSections[kvp.Key] = kvp.Value;
+        ModelCloner.CopyAdditionalSectionOrder(eds, dcf);
         foreach (var kvp in ModelCloner.CloneSectionRemainingEntries(eds.SectionRemainingEntries))
             dcf.SectionRemainingEntries[kvp.Key] = kvp.Value;
 
