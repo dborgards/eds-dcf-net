@@ -20,7 +20,6 @@ public class ConvertToDcfLastEdsTests
 
         // Act
         var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 5, timestamp: Timestamp);
-        AvoidTrailingSpaceInGeneratedDescription(dcf);
         var written = CanOpenFile.Dcf.WriteToString(dcf);
 
         // Assert
@@ -38,7 +37,6 @@ public class ConvertToDcfLastEdsTests
 
         // Act
         var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 5, timestamp: Timestamp);
-        AvoidTrailingSpaceInGeneratedDescription(dcf);
         var written = CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Validated);
 
         // Assert — an empty value is no LastEds, so the kept entry is written back as it was.
@@ -71,7 +69,6 @@ public class ConvertToDcfLastEdsTests
 
         // Act
         var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 5, timestamp: Timestamp);
-        AvoidTrailingSpaceInGeneratedDescription(dcf);
         var written = CanOpenFile.Dcf.WriteToString(dcf);
 
         // Assert
@@ -79,14 +76,6 @@ public class ConvertToDcfLastEdsTests
         CountLines(written, "LastEDS=").Should().Be(0);
         written.Should().Contain("Vendor=file");
     }
-
-    /// <summary>
-    /// Without <c>FileName</c>, ConvertToDcf generates <c>Description="DCF generated from "</c>.
-    /// The trailing space makes the writer reject the file. That is a separate issue; these
-    /// tests replace the description so they test only <c>LastEDS</c>.
-    /// </summary>
-    private static void AvoidTrailingSpaceInGeneratedDescription(DeviceConfigurationFile dcf)
-        => dcf.FileInfo.Description = "converted";
 
     private static string Fixture(params string[] fileInfoLines)
         => string.Join(

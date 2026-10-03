@@ -53,7 +53,8 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <remarks>
     /// The timestamp is formatted with invariant culture as <c>MM-dd-yyyy</c> for
     /// <c>CreationDate</c> and <c>hh:mmtt</c> for <c>CreationTime</c>; no timezone
-    /// conversion is applied.
+    /// conversion is applied. The generated <c>Description</c> names the source EDS file; when the
+    /// EDS has no <c>FileName</c> it is <c>DCF generated from EDS</c>.
     /// </remarks>
     /// <returns>A new DeviceConfigurationFile</returns>
     public DeviceConfigurationFile ConvertToDcf(
@@ -77,7 +78,9 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
                 FileVersion = eds.FileInfo.FileVersion,
                 FileRevision = (byte)Math.Min(eds.FileInfo.FileRevision + 1, byte.MaxValue),
                 EdsVersion = eds.FileInfo.EdsVersion,
-                Description = $"DCF generated from {eds.FileInfo.FileName}",
+                Description = string.IsNullOrWhiteSpace(eds.FileInfo.FileName)
+                    ? "DCF generated from EDS"
+                    : $"DCF generated from {eds.FileInfo.FileName.Trim()}",
                 CreationDate = timestamp.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
                 CreationTime = timestamp.ToString("hh:mmtt", CultureInfo.InvariantCulture),
                 CreatedBy = "EdsDcfNet Library",
