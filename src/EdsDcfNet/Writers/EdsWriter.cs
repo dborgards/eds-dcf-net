@@ -31,19 +31,15 @@ public class EdsWriter : IniWriterBase
     {
         ThrowIfNull(eds, nameof(eds));
 
-        try
-        {
-            var content = GenerateEdsContent(eds);
-            TextFileIo.WriteOutputTextToFile(filePath, content);
-        }
-        catch (EdsWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new EdsWriteException($"Failed to write EDS file to {filePath}", ex);
-        }
+        WriteEntryPoints.ToFile(
+            filePath,
+            "EDS",
+            () =>
+            {
+                var content = GenerateEdsContent(eds);
+                TextFileIo.WriteOutputTextToFile(filePath, content);
+            },
+            (message, inner) => new EdsWriteException(message, inner));
     }
 
     /// <summary>
@@ -59,19 +55,14 @@ public class EdsWriter : IniWriterBase
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            var content = GenerateEdsContent(eds);
-            TextFileIo.WriteOutputText(stream, content);
-        }
-        catch (EdsWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new EdsWriteException("Failed to write EDS content to stream.", ex);
-        }
+        WriteEntryPoints.ToStream(
+            "EDS",
+            () =>
+            {
+                var content = GenerateEdsContent(eds);
+                TextFileIo.WriteOutputText(stream, content);
+            },
+            (message, inner) => new EdsWriteException(message, inner));
     }
 
     /// <summary>
@@ -95,24 +86,16 @@ public class EdsWriter : IniWriterBase
     {
         ThrowIfNull(eds, nameof(eds));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateEdsContent(eds);
-            await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (EdsWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new EdsWriteException($"Failed to write EDS file to {filePath}", ex);
-        }
+        await WriteEntryPoints.ToFileAsync(
+            filePath,
+            "EDS",
+            async () =>
+            {
+                var content = GenerateEdsContent(eds);
+                await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new EdsWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -132,24 +115,15 @@ public class EdsWriter : IniWriterBase
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateEdsContent(eds);
-            await TextFileIo.WriteOutputTextAsync(stream, content, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (EdsWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new EdsWriteException("Failed to write EDS content to stream.", ex);
-        }
+        await WriteEntryPoints.ToStreamAsync(
+            "EDS",
+            async () =>
+            {
+                var content = GenerateEdsContent(eds);
+                await TextFileIo.WriteOutputTextAsync(stream, content, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new EdsWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

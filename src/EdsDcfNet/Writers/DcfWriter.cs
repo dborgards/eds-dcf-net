@@ -31,19 +31,15 @@ public class DcfWriter : IniWriterBase
     {
         ThrowIfNull(dcf, nameof(dcf));
 
-        try
-        {
-            var content = GenerateDcfContent(dcf);
-            TextFileIo.WriteOutputTextToFile(filePath, content);
-        }
-        catch (DcfWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new DcfWriteException($"Failed to write DCF file to {filePath}", ex);
-        }
+        WriteEntryPoints.ToFile(
+            filePath,
+            "DCF",
+            () =>
+            {
+                var content = GenerateDcfContent(dcf);
+                TextFileIo.WriteOutputTextToFile(filePath, content);
+            },
+            (message, inner) => new DcfWriteException(message, inner));
     }
 
     /// <summary>
@@ -59,19 +55,14 @@ public class DcfWriter : IniWriterBase
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            var content = GenerateDcfContent(dcf);
-            TextFileIo.WriteOutputText(stream, content);
-        }
-        catch (DcfWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new DcfWriteException("Failed to write DCF content to stream.", ex);
-        }
+        WriteEntryPoints.ToStream(
+            "DCF",
+            () =>
+            {
+                var content = GenerateDcfContent(dcf);
+                TextFileIo.WriteOutputText(stream, content);
+            },
+            (message, inner) => new DcfWriteException(message, inner));
     }
 
     /// <summary>
@@ -95,24 +86,16 @@ public class DcfWriter : IniWriterBase
     {
         ThrowIfNull(dcf, nameof(dcf));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateDcfContent(dcf);
-            await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (DcfWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new DcfWriteException($"Failed to write DCF file to {filePath}", ex);
-        }
+        await WriteEntryPoints.ToFileAsync(
+            filePath,
+            "DCF",
+            async () =>
+            {
+                var content = GenerateDcfContent(dcf);
+                await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new DcfWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -132,24 +115,15 @@ public class DcfWriter : IniWriterBase
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateDcfContent(dcf);
-            await TextFileIo.WriteOutputTextAsync(stream, content, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (DcfWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new DcfWriteException("Failed to write DCF content to stream.", ex);
-        }
+        await WriteEntryPoints.ToStreamAsync(
+            "DCF",
+            async () =>
+            {
+                var content = GenerateDcfContent(dcf);
+                await TextFileIo.WriteOutputTextAsync(stream, content, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new DcfWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

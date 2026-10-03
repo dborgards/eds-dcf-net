@@ -34,19 +34,15 @@ public class XddWriter
     {
         ThrowIfNull(eds, nameof(eds));
 
-        try
-        {
-            var doc = BuildOutputDocument(eds, commissioning: null);
-            TextFileIo.WriteFileAtomic(filePath, stream => SerializeDocument(doc, stream));
-        }
-        catch (XddWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new XddWriteException($"Failed to write XDD file to {filePath}", ex);
-        }
+        WriteEntryPoints.ToFile(
+            filePath,
+            "XDD",
+            () =>
+            {
+                var doc = BuildOutputDocument(eds, commissioning: null);
+                TextFileIo.WriteFileAtomic(filePath, stream => SerializeDocument(doc, stream));
+            },
+            (message, inner) => new XddWriteException(message, inner));
     }
 
     /// <summary>
@@ -62,19 +58,14 @@ public class XddWriter
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            var doc = BuildOutputDocument(eds, commissioning: null);
-            SerializeDocument(doc, stream);
-        }
-        catch (XddWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new XddWriteException("Failed to write XDD content to stream.", ex);
-        }
+        WriteEntryPoints.ToStream(
+            "XDD",
+            () =>
+            {
+                var doc = BuildOutputDocument(eds, commissioning: null);
+                SerializeDocument(doc, stream);
+            },
+            (message, inner) => new XddWriteException(message, inner));
     }
 
     /// <summary>
@@ -97,27 +88,19 @@ public class XddWriter
     {
         ThrowIfNull(eds, nameof(eds));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var doc = BuildOutputDocument(eds, commissioning: null);
-            await TextFileIo.WriteFileAtomicAsync(
-                filePath,
-                stream => SerializeDocumentAsync(doc, stream, cancellationToken),
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (XddWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new XddWriteException($"Failed to write XDD file to {filePath}", ex);
-        }
+        await WriteEntryPoints.ToFileAsync(
+            filePath,
+            "XDD",
+            async () =>
+            {
+                var doc = BuildOutputDocument(eds, commissioning: null);
+                await TextFileIo.WriteFileAtomicAsync(
+                    filePath,
+                    stream => SerializeDocumentAsync(doc, stream, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new XddWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -137,24 +120,15 @@ public class XddWriter
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var doc = BuildOutputDocument(eds, commissioning: null);
-            await SerializeDocumentAsync(doc, stream, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (XddWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new XddWriteException("Failed to write XDD content to stream.", ex);
-        }
+        await WriteEntryPoints.ToStreamAsync(
+            "XDD",
+            async () =>
+            {
+                var doc = BuildOutputDocument(eds, commissioning: null);
+                await SerializeDocumentAsync(doc, stream, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new XddWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

@@ -29,19 +29,15 @@ public class CpjWriter
     {
         ThrowIfNull(cpj, nameof(cpj));
 
-        try
-        {
-            var content = GenerateCpjContent(cpj);
-            TextFileIo.WriteOutputTextToFile(filePath, content);
-        }
-        catch (CpjWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new CpjWriteException($"Failed to write CPJ file to {filePath}", ex);
-        }
+        WriteEntryPoints.ToFile(
+            filePath,
+            "CPJ",
+            () =>
+            {
+                var content = GenerateCpjContent(cpj);
+                TextFileIo.WriteOutputTextToFile(filePath, content);
+            },
+            (message, inner) => new CpjWriteException(message, inner));
     }
 
     /// <summary>
@@ -57,19 +53,14 @@ public class CpjWriter
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            var content = GenerateCpjContent(cpj);
-            TextFileIo.WriteOutputText(stream, content);
-        }
-        catch (CpjWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new CpjWriteException("Failed to write CPJ content to stream.", ex);
-        }
+        WriteEntryPoints.ToStream(
+            "CPJ",
+            () =>
+            {
+                var content = GenerateCpjContent(cpj);
+                TextFileIo.WriteOutputText(stream, content);
+            },
+            (message, inner) => new CpjWriteException(message, inner));
     }
 
     /// <summary>
@@ -93,24 +84,16 @@ public class CpjWriter
     {
         ThrowIfNull(cpj, nameof(cpj));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateCpjContent(cpj);
-            await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (CpjWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new CpjWriteException($"Failed to write CPJ file to {filePath}", ex);
-        }
+        await WriteEntryPoints.ToFileAsync(
+            filePath,
+            "CPJ",
+            async () =>
+            {
+                var content = GenerateCpjContent(cpj);
+                await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new CpjWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -130,24 +113,15 @@ public class CpjWriter
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateCpjContent(cpj);
-            await TextFileIo.WriteOutputTextAsync(stream, content, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (CpjWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new CpjWriteException("Failed to write CPJ content to stream.", ex);
-        }
+        await WriteEntryPoints.ToStreamAsync(
+            "CPJ",
+            async () =>
+            {
+                var content = GenerateCpjContent(cpj);
+                await TextFileIo.WriteOutputTextAsync(stream, content, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new CpjWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
