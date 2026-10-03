@@ -154,7 +154,8 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
             ObjectDictionary = eds.ObjectDictionary,
             Comments = eds.Comments,
             DynamicChannels = eds.DynamicChannels,
-            ApplicationProcess = eds.ApplicationProcess
+            ApplicationProcess = eds.ApplicationProcess,
+            XddPreserved = eds.XddPreserved
         };
 
         dcf.SupportedModules.AddRange(eds.SupportedModules);

@@ -686,9 +686,9 @@ public class XddRequiredAttributesTimeFormatTests
     // ── schema conformance ───────────────────────────────────────────────────
 
     [Fact]
-    public void WriterOutput_XddWithCompleteMetadata_OnlyTheDeviceFunctionGapRemains()
+    public void WriterOutput_XddWithCompleteMetadata_ValidatesAgainstSchema()
     {
-        // Arrange — the remaining gap (DeviceFunction/capabilities) belongs to another package.
+        // Arrange
         var eds = ValidXmlEds();
         eds.FileInfo.CreationTime = "02:30PM";
         eds.FileInfo.ModificationDate = "03-04-2027";
@@ -699,11 +699,11 @@ public class XddRequiredAttributesTimeFormatTests
         var problems = Cia311Schema.Validate(CanOpenFile.Xdd.WriteToString(eds, CanOpenWriteOptions.Validated));
 
         // Assert
-        problems.Should().ContainSingle().Which.Should().Contain("DeviceFunction");
+        problems.Should().BeEmpty();
     }
 
     [Fact]
-    public void WriterOutput_XdcWithPreservedValues_OnlyTheDeviceFunctionGapRemains()
+    public void WriterOutput_XdcWithPreservedValues_ValidatesAgainstSchema()
     {
         // Arrange
         var dcf = CanOpenFile.Xdc.ReadString(
@@ -713,7 +713,7 @@ public class XddRequiredAttributesTimeFormatTests
         var problems = Cia311Schema.Validate(CanOpenFile.Xdc.WriteToString(dcf, CanOpenWriteOptions.Validated));
 
         // Assert
-        problems.Should().ContainSingle().Which.Should().Contain("DeviceFunction");
+        problems.Should().BeEmpty();
     }
 
     [Fact]

@@ -135,6 +135,48 @@ internal static class XddProfileBuilder
         return identity;
     }
 
+    // ── DeviceFunction ────────────────────────────────────────────────────────
+
+    /// <summary>Language of the fixed English characteristic name below.</summary>
+    private const string DefaultCharacteristicLanguage = "en";
+
+    /// <summary>Name of the one characteristic written when the model has no <c>DeviceFunction</c>.</summary>
+    internal const string DefaultCharacteristicName = "Product name";
+
+    /// <summary>
+    /// Builds the smallest schema-valid <c>DeviceFunction</c>: <c>capabilities</c> with one
+    /// <c>characteristicsList</c> holding one <c>characteristic</c>, "Product name", whose content
+    /// is <see cref="DeviceInfo.ProductName"/>.
+    /// </summary>
+    /// <remarks>
+    /// The schema requires at least one characteristic and gives no neutral one. The product name
+    /// is a value the model has for every device and that <c>DeviceIdentity</c> already states, so
+    /// the characteristic claims no capability the source did not describe. <c>lang</c> is required
+    /// on every label; <c>en</c> is the language of the characteristic name written here. The
+    /// reader recognizes exactly this content and does not keep it, so it follows a later change of
+    /// <see cref="DeviceInfo.ProductName"/>.
+    /// </remarks>
+    internal static XElement BuildDefaultDeviceFunction(DeviceInfo deviceInfo)
+    {
+        var function = XddNames.ElementOfType(XddNames.DeviceProfileBodyType, "DeviceFunction");
+        var capabilities = XddNames.Element(function.Name, "capabilities");
+        var list = XddNames.Element(capabilities.Name, "characteristicsList");
+        var characteristic = XddNames.Element(list.Name, "characteristic");
+        var name = XddNames.Element(characteristic.Name, "characteristicName");
+        name.Add(BuildLabel(name.Name, DefaultCharacteristicName));
+        var content = XddNames.Element(characteristic.Name, "characteristicContent");
+        content.Add(BuildLabel(content.Name, deviceInfo.ProductName));
+
+        characteristic.Add(name, content);
+        list.Add(characteristic);
+        capabilities.Add(list);
+        function.Add(capabilities);
+        return function;
+    }
+
+    private static XElement BuildLabel(XName parent, string text)
+        => new(XddNames.Label(parent, "label"), new XAttribute("lang", DefaultCharacteristicLanguage), text);
+
     private static List<DeviceOrderNumber> OrderCodeAsList(string orderCode)
         => string.IsNullOrEmpty(orderCode)
             ? new List<DeviceOrderNumber>()

@@ -230,6 +230,12 @@ public class XddWriter
             container.Add(WriteContext("CommunicationNetworkProfile", () => BuildCommNetProfile(eds, commissioning)));
 
             var doc = new XDocument(new XDeclaration("1.0", null, null));
+
+            // Comments of the source document (generator, copyright) come first, then the
+            // comments that carry the model's Comments section.
+            foreach (var text in (eds.XddPreserved ?? new XddPreservedContent()).RootComments)
+                doc.Add(new XComment(text));
+
             foreach (var comment in XddRootComments.Build(eds.Comments))
                 doc.Add(comment);
 
@@ -238,36 +244,97 @@ public class XddWriter
         }
     }
 
+    /// <remarks>
+    /// <c>DeviceManager</c> and <c>DeviceFunction</c> are not modelled. Kept ones from an XDD/XDC
+    /// read replace the defaults: an empty <c>DeviceManager</c> and the smallest schema-valid
+    /// <c>DeviceFunction</c> (<see cref="XddProfileBuilder.BuildDefaultDeviceFunction"/>).
+    /// </remarks>
     private static XElement BuildDeviceProfile(ElectronicDataSheet eds)
     {
+        var preserved = eds.XddPreserved ?? new XddPreservedContent();
         var profileBody = new XElement(ProfileBodyName,
             XddNames.TypeAttribute(XddNames.DeviceProfileBodyType));
 
         XddProfileBuilder.AddFileInfoAttributes(profileBody, eds.FileInfo);
+        XddPreservedContentWriter.AddAttributes(profileBody, preserved.AttributesAt(XddPreservedContent.DeviceProfileBody));
 
-        profileBody.Add(XddProfileBuilder.BuildDeviceIdentity(eds.DeviceInfo));
+        var identity = XddProfileBuilder.BuildDeviceIdentity(eds.DeviceInfo);
+        foreach (var child in identity.Elements())
+        {
+            XddPreservedContentWriter.AddAttributes(
+                child,
+                preserved.AttributesAt(XddPreservedContent.DeviceIdentity + "/" + child.Name.LocalName));
+        }
+
+        XddPreservedContentWriter.MergeElements(
+            identity,
+            preserved.ElementsAt(XddPreservedContent.DeviceIdentity),
+            XddPreservedContentWriter.DeviceIdentityOrder);
+        profileBody.Add(identity);
         profileBody.Add(XddNames.ElementOfType(XddNames.DeviceProfileBodyType, "DeviceManager"));
-        profileBody.Add(XddNames.ElementOfType(XddNames.DeviceProfileBodyType, "DeviceFunction"));
+        profileBody.Add(XddProfileBuilder.BuildDefaultDeviceFunction(eds.DeviceInfo));
 
         if (eds.ApplicationProcess != null)
             profileBody.Add(XddApplicationProcessBuilder.Build(eds.ApplicationProcess));
 
-        return XddProfileBuilder.BuildProfile("Device", profileBody);
+        XddPreservedContentWriter.MergeElements(
+            profileBody,
+            preserved.ElementsAt(XddPreservedContent.DeviceProfileBody),
+            XddPreservedContentWriter.DeviceProfileBodyOrder,
+            "DeviceManager",
+            "DeviceFunction");
+
+        var profile = XddProfileBuilder.BuildProfile("Device", profileBody);
+        XddPreservedContentWriter.MergeElements(
+            profile,
+            preserved.ElementsAt(XddPreservedContent.DeviceProfile),
+            XddPreservedContentWriter.ProfileOrder,
+            "ProfileHeader");
+        return profile;
     }
 
     [SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Calls virtual members via instance dispatch.")]
     private XElement BuildCommNetProfile(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
+        var preserved = eds.XddPreserved ?? new XddPreservedContent();
         var profileBody = new XElement(ProfileBodyName,
             XddNames.TypeAttribute(XddNames.NetworkProfileBodyType));
 
-        XddProfileBuilder.AddFileInfoAttributes(profileBody, eds.FileInfo);
-        profileBody.Add(BuildApplicationLayers(eds));
-        profileBody.Add(XddTransportLayersBuilder.Build(eds.DeviceInfo));
-        profileBody.Add(BuildNetworkManagement(eds, commissioning));
+        XddProfileBuilder.AddFileInfoAttributes(profileBody, XddPreservedContentWriter.NetworkFileInfo(preserved, eds.FileInfo));
+        XddPreservedContentWriter.AddAttributes(profileBody, preserved.AttributesAt(XddPreservedContent.NetworkProfileBody));
 
-        return XddProfileBuilder.BuildProfile("CommunicationNetwork", profileBody);
+        var appLayers = BuildApplicationLayers(eds);
+        XddPreservedContentWriter.AddAttributes(appLayers, preserved.AttributesAt(XddPreservedContent.ApplicationLayers));
+        XddPreservedContentWriter.MergeElements(
+            appLayers,
+            preserved.ElementsAt(XddPreservedContent.ApplicationLayers),
+            XddPreservedContentWriter.ApplicationLayersOrder);
+        profileBody.Add(appLayers);
+        profileBody.Add(XddTransportLayersBuilder.Build(eds.DeviceInfo));
+
+        // An XDC write has commissioning from the model; it wins over a deviceCommissioning kept
+        // from an XDD read (rule 13).
+        var networkMgmt = BuildNetworkManagement(eds, commissioning);
+        XddPreservedContentWriter.MergeElements(
+            networkMgmt,
+            preserved.ElementsAt(XddPreservedContent.NetworkManagement)
+                .Where(element => commissioning == null || element.Name.LocalName != "deviceCommissioning"),
+            XddPreservedContentWriter.NetworkManagementOrder);
+        profileBody.Add(networkMgmt);
+
+        XddPreservedContentWriter.MergeElements(
+            profileBody,
+            preserved.ElementsAt(XddPreservedContent.NetworkProfileBody),
+            XddPreservedContentWriter.NetworkProfileBodyOrder);
+
+        var profile = XddProfileBuilder.BuildProfile("CommunicationNetwork", profileBody);
+        XddPreservedContentWriter.MergeElements(
+            profile,
+            preserved.ElementsAt(XddPreservedContent.NetworkProfile),
+            XddPreservedContentWriter.ProfileOrder,
+            "ProfileHeader");
+        return profile;
     }
 
     [SuppressMessage("Performance", "CA1822:Mark members as static",
@@ -363,6 +430,7 @@ public class XddWriter
                 obj.SubNumber.Value.ToString(CultureInfo.InvariantCulture)));
 
         AddCanOpenObjectXdcAttributes(elem, obj);
+        AddPreservedObjectAttributes(elem, obj.XddPreservedAttributes);
 
         // Sub-objects
         foreach (var subObj in obj.SubObjects.OrderBy(s => s.Key).Select(s => s.Value))
@@ -414,9 +482,28 @@ public class XddWriter
         AddUniqueIdRefAttribute(elem, subObject.UniqueIdRef, projection);
 
         AddCanOpenSubObjectXdcAttributes(elem, subObject);
+        AddPreservedObjectAttributes(elem, subObject.XddPreservedAttributes);
 
         return elem;
     }
+
+    /// <summary>
+    /// Adds the attributes kept from an XDD/XDC read (<c>rangeSelector</c>, …) after the generated
+    /// ones; a generated attribute of the same name wins.
+    /// </summary>
+    private void AddPreservedObjectAttributes(XElement elem, List<XAttribute>? kept)
+    {
+        if (kept == null)
+            return;
+
+        XddPreservedContentWriter.AddAttributes(elem, kept.Where(attribute => KeepsPreservedObjectAttribute(attribute.Name)));
+    }
+
+    /// <summary>
+    /// <see langword="false"/> for a kept object attribute that this format represents in the model,
+    /// so the model value wins (rule 13). XDD models no object attribute that it keeps.
+    /// </summary>
+    internal virtual bool KeepsPreservedObjectAttribute(XName name) => true;
 
     /// <summary>
     /// Hook for subclasses to add extra attributes to CANopenSubObject elements.

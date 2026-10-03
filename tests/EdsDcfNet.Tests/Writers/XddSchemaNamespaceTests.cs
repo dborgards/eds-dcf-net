@@ -187,10 +187,10 @@ public class XddSchemaNamespaceTests
     }
 
     [Theory]
-    [InlineData("Fixtures/sample_device.xdd", "xdd", 3)]
-    [InlineData("Fixtures/sample_device.eds", "eds", 1)]
-    [InlineData(CorpusXdd, "xdd", 1)]
-    [InlineData("Fixtures/minimal.xdc", "xdc", 1)]
+    [InlineData("Fixtures/sample_device.xdd", "xdd", 2)]
+    [InlineData("Fixtures/sample_device.eds", "eds", 0)]
+    [InlineData(CorpusXdd, "xdd", 0)]
+    [InlineData("Fixtures/minimal.xdc", "xdc", 0)]
     public void WriterOutput_SchemaProblems_AreTheKnownNonNamespaceRemainder(string path, string kind, int count)
     {
         // Arrange — content gaps that later work packages shrink. None of them are
@@ -277,22 +277,12 @@ public class XddSchemaNamespaceTests
     {
         "Fixtures/sample_device.xdd" => new[]
         {
-            "The element 'DeviceFunction' in namespace 'http://www.canopen.org/xml/1.1' has incomplete content. List of possible elements expected: 'capabilities' in namespace 'http://www.canopen.org/xml/1.1'.",
             "The element 'enum' in namespace 'http://www.canopen.org/xml/1.1' has invalid child element 'USINT'. List of possible elements expected: 'label, description, labelRef, descriptionRef' as well as 'enumValue' in namespace 'http://www.canopen.org/xml/1.1'.",
             "The element 'parameterGroup' in namespace 'http://www.canopen.org/xml/1.1' has invalid child element 'parameterGroup' in namespace 'http://www.canopen.org/xml/1.1'. List of possible elements expected: 'parameterRef' in namespace 'http://www.canopen.org/xml/1.1'.",
         },
-        "Fixtures/sample_device.eds" => new[]
-        {
-            "The element 'DeviceFunction' in namespace 'http://www.canopen.org/xml/1.1' has incomplete content. List of possible elements expected: 'capabilities' in namespace 'http://www.canopen.org/xml/1.1'.",
-        },
-        CorpusXdd => new[]
-        {
-            "The element 'DeviceFunction' in namespace 'http://www.canopen.org/xml/1.1' has incomplete content. List of possible elements expected: 'capabilities' in namespace 'http://www.canopen.org/xml/1.1'.",
-        },
-        "Fixtures/minimal.xdc" => new[]
-        {
-            "The element 'DeviceFunction' in namespace 'http://www.canopen.org/xml/1.1' has incomplete content. List of possible elements expected: 'capabilities' in namespace 'http://www.canopen.org/xml/1.1'.",
-        },
+        "Fixtures/sample_device.eds" => Array.Empty<string>(),
+        CorpusXdd => Array.Empty<string>(),
+        "Fixtures/minimal.xdc" => Array.Empty<string>(),
         _ => throw new ArgumentOutOfRangeException(nameof(path), path, "No expected schema remainder."),
     };
 
