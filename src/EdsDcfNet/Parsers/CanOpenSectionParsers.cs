@@ -134,25 +134,25 @@ internal static class CanOpenSectionParsers
         deviceInfo.OrderCode = IniParser.GetValue(sections, "DeviceInfo", "OrderCode");
 
         // Parse baud rates
-        deviceInfo.SupportedBaudRates.BaudRate10 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_10"));
-        deviceInfo.SupportedBaudRates.BaudRate20 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_20"));
-        deviceInfo.SupportedBaudRates.BaudRate50 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_50"));
-        deviceInfo.SupportedBaudRates.BaudRate125 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_125"));
-        deviceInfo.SupportedBaudRates.BaudRate250 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_250"));
-        deviceInfo.SupportedBaudRates.BaudRate500 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_500"));
-        deviceInfo.SupportedBaudRates.BaudRate800 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_800"));
-        deviceInfo.SupportedBaudRates.BaudRate1000 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_1000"));
+        deviceInfo.SupportedBaudRates.BaudRate10 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_10");
+        deviceInfo.SupportedBaudRates.BaudRate20 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_20");
+        deviceInfo.SupportedBaudRates.BaudRate50 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_50");
+        deviceInfo.SupportedBaudRates.BaudRate125 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_125");
+        deviceInfo.SupportedBaudRates.BaudRate250 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_250");
+        deviceInfo.SupportedBaudRates.BaudRate500 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_500");
+        deviceInfo.SupportedBaudRates.BaudRate800 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_800");
+        deviceInfo.SupportedBaudRates.BaudRate1000 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_1000");
 
-        deviceInfo.SimpleBootUpMaster = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "SimpleBootUpMaster"));
-        deviceInfo.SimpleBootUpSlave = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "SimpleBootUpSlave"));
+        deviceInfo.SimpleBootUpMaster = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "SimpleBootUpMaster");
+        deviceInfo.SimpleBootUpSlave = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "SimpleBootUpSlave");
         deviceInfo.Granularity = DeviceInfoByte(sections, "Granularity", 8);
         deviceInfo.DynamicChannelsSupported = DeviceInfoByte(sections, "DynamicChannelsSupported", 0);
-        deviceInfo.GroupMessaging = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "GroupMessaging"));
+        deviceInfo.GroupMessaging = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "GroupMessaging");
         deviceInfo.NrOfRxPdo = DeviceInfoUInt16(sections, "NrOfRXPDO");
         deviceInfo.NrOfTxPdo = DeviceInfoUInt16(sections, "NrOfTXPDO");
-        deviceInfo.LssSupported = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "LSS_Supported"));
+        deviceInfo.LssSupported = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "LSS_Supported");
         deviceInfo.CompactPdo = DeviceInfoByte(sections, "CompactPDO", 0);
-        deviceInfo.CANopenSafetySupported = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "CANopenSafetySupported"));
+        deviceInfo.CANopenSafetySupported = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "CANopenSafetySupported");
 
         // Includes the entries § 6.5 reserves for compatibility (ProductVersion, LMT_*, ExtendedBootUp*).
         CaptureUnmappedEntries(sections, "DeviceInfo", SectionEntryKeys.IsDeviceInfoKey, deviceInfo.RemainingEntries);
@@ -200,6 +200,21 @@ internal static class CanOpenSectionParsers
     }
 
     /// <summary>
+    /// <c>Lines</c> of <c>[Comments]</c> or <c>[MxComments]</c> (UNSIGNED16, CiA 306-1 Tables 9 and 15).
+    /// A malformed value is <c>0</c>, so every <c>Line&lt;n&gt;</c> stays a remaining entry.
+    /// </summary>
+    private static ushort ParseCommentLineCount(Dictionary<string, Dictionary<string, string>> sections, string sectionName)
+        => LenientIniNumber.ParseUInt16(
+            sections,
+            sectionName,
+            "Lines",
+            IniParser.GetValue(sections, sectionName, "Lines", "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidCommentLineCount,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
+
+    /// <summary>
     /// Parses the <c>[Comments]</c> section into a <see cref="Comments"/> object,
     /// or returns <see langword="null"/> if the section is absent.
     /// </summary>
@@ -210,7 +225,7 @@ internal static class CanOpenSectionParsers
 
         var comments = new Comments
         {
-            Lines = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "Comments", "Lines", "0"))
+            Lines = ParseCommentLineCount(sections, "Comments")
         };
 
         for (int i = 1; i <= comments.Lines; i++)
@@ -250,7 +265,7 @@ internal static class CanOpenSectionParsers
         Dictionary<string, OrderedStringDictionary> store)
     {
         var modules = new List<ModuleInfo>();
-        var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "SupportedModules", "NrOfEntries", "0"));
+        var count = ParseModuleCount(sections, "SupportedModules");
 
         for (int i = 1; i <= count; i++)
         {
@@ -265,6 +280,22 @@ internal static class CanOpenSectionParsers
 
         return modules;
     }
+
+    /// <summary>
+    /// <c>NrOfEntries</c> of <c>[SupportedModules]</c> or <c>[ConnectedModules]</c> (UNSIGNED16,
+    /// CiA 306-1 Tables 13 and 18). A malformed value is <c>0</c>; the numbered entries are then
+    /// kept as remaining entries.
+    /// </summary>
+    internal static ushort ParseModuleCount(Dictionary<string, Dictionary<string, string>> sections, string sectionName)
+        => LenientIniNumber.ParseUInt16(
+            sections,
+            sectionName,
+            SectionEntryKeys.NrOfEntriesKey,
+            IniParser.GetValue(sections, sectionName, SectionEntryKeys.NrOfEntriesKey, "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidModuleCount,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
 
     /// <summary>
     /// Parses the <c>[M{moduleNumber}ModuleInfo]</c> section for the given module number.
@@ -286,8 +317,8 @@ internal static class CanOpenSectionParsers
         {
             ModuleNumber = moduleNumber,
             ProductName = IniParser.GetValue(sections, sectionName, "ProductName"),
-            ProductVersion = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ProductVersion", "1")),
-            ProductRevision = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ProductRevision", "0")),
+            ProductVersion = ParseModuleVersion(sections, sectionName, "ProductVersion", 1),
+            ProductRevision = ParseModuleVersion(sections, sectionName, "ProductRevision", 0),
             OrderCode = IniParser.GetValue(sections, sectionName, "OrderCode")
         };
 
@@ -314,6 +345,28 @@ internal static class CanOpenSectionParsers
             store);
 
         return moduleInfo;
+    }
+
+    /// <summary>
+    /// <c>ProductVersion</c> / <c>ProductRevision</c> of <c>[MxModuleInfo]</c> (UNSIGNED8, CiA 306-1
+    /// Table 14). A malformed value is the absent-key default <paramref name="defaultValue"/>.
+    /// </summary>
+    private static byte ParseModuleVersion(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string key,
+        byte defaultValue)
+    {
+        var defaultText = defaultValue.ToString(CultureInfo.InvariantCulture);
+        return LenientIniNumber.ParseByte(
+            sections,
+            sectionName,
+            key,
+            IniParser.GetValue(sections, sectionName, key, defaultText),
+            defaultValue,
+            ParseDiagnosticCodes.InvalidModuleVersion,
+            coercedTo: defaultText,
+            fallbackDescription: "Treated as " + defaultText + ".");
     }
 
     /// <summary>
@@ -409,7 +462,7 @@ internal static class CanOpenSectionParsers
 
         var comments = new Comments
         {
-            Lines = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "Lines", "0"))
+            Lines = ParseCommentLineCount(sections, sectionName)
         };
 
         for (var i = 1; i <= comments.Lines; i++)
@@ -567,11 +620,11 @@ internal static class CanOpenSectionParsers
                 code: ParseDiagnosticCodes.InvalidDataType,
                 coercedTo: "0",
                 fallbackDescription: LenientIniNumber.TreatAsZero),
-            AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
+            AccessType = IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"),
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = EmptyToNull(IniParser.GetValue(sections, sectionName, "LowLimit")),
             HighLimit = EmptyToNull(IniParser.GetValue(sections, sectionName, "HighLimit")),
-            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
+            PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping"),
             Count = IniParser.GetValue(sections, sectionName, "Count")
         };
 
@@ -669,12 +722,12 @@ internal static class CanOpenSectionParsers
                 code: ParseDiagnosticCodes.InvalidObjectType,
                 coercedTo: CanOpenObjectType.VarLiteral,
                 fallbackDescription: LenientIniNumber.TreatAsVar),
-            AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
+            AccessType = IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"),
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
             HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
-            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
-            SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
+            PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping"),
+            SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping"),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD"),
             ObjFlags = LenientIniNumber.ParseObjFlags(
                 sections,
@@ -764,12 +817,12 @@ internal static class CanOpenSectionParsers
                 code: ParseDiagnosticCodes.InvalidDataType,
                 coercedTo: "0",
                 fallbackDescription: LenientIniNumber.TreatAsZero),
-            AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
+            AccessType = IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"),
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
             HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
-            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
-            SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
+            PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping"),
+            SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping"),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD"),
             ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue"),
             Denotation = IniParser.GetValue(sections, sectionName, "Denotation"),
@@ -1016,7 +1069,7 @@ internal static class CanOpenSectionParsers
             var segment = new DynamicChannelSegment
             {
                 Type = type,
-                Dir = ValueConverter.ParseAccessType(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Dir{0}", i))),
+                Dir = IniKeyTokens.ParseAccessType(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Dir{0}", i)),
                 Range = IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Range{0}", i)),
                 PPOffset = ppOffset.Offset,
                 PPOffsetAddressDifference = ppOffset.AddressDifference
@@ -1046,10 +1099,22 @@ internal static class CanOpenSectionParsers
             return false;
         }
 
-        // ParseTools has already parsed Items successfully, so this cannot throw here.
-        var items = ValueConverter.ParseByte(IniParser.GetValue(sections, "Tools", "Items", "0"));
-        return number <= items
+        // ParseTools has already read Items (and reported a malformed value, read as 0).
+        return number <= ToolCountOrZero(sections)
                && string.Equals(sectionName, "Tool" + number.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary><c>[Tools] Items</c> as <see cref="ParseTools(Dictionary{string, Dictionary{string, string}}, Dictionary{string, OrderedStringDictionary})"/> uses it, without reporting: a malformed value is <c>0</c>.</summary>
+    private static byte ToolCountOrZero(Dictionary<string, Dictionary<string, string>> sections)
+    {
+        try
+        {
+            return ValueConverter.ParseByte(IniParser.GetValue(sections, "Tools", "Items", "0"));
+        }
+        catch (EdsParseException)
+        {
+            return 0;
+        }
     }
 
     internal static List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
@@ -1067,7 +1132,15 @@ internal static class CanOpenSectionParsers
 
         var tools = new List<ToolInfo>();
 
-        var items = ValueConverter.ParseByte(IniParser.GetValue(sections, "Tools", "Items", "0"));
+        var items = LenientIniNumber.ParseByte(
+            sections,
+            "Tools",
+            "Items",
+            IniParser.GetValue(sections, "Tools", "Items", "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidToolCount,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
 
         for (int i = 1; i <= items; i++)
         {

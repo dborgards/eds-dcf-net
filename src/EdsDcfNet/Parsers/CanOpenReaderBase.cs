@@ -541,8 +541,7 @@ public abstract class CanOpenReaderBase
 
                 if (SectionEntryKeys.TryParseDummyUsageKey(key, out var index))
                 {
-                    objDict.DummyUsage[index] = ValueConverter.ParseBoolean(
-                        IniParser.GetValue(sections, "DummyUsage", key));
+                    objDict.DummyUsage[index] = IniKeyTokens.ParseBoolean(sections, "DummyUsage", key);
                     continue;
                 }
 
@@ -702,7 +701,7 @@ public abstract class CanOpenReaderBase
         var accessTypeStr = IniParser.GetValue(sections, sectionName, "AccessType");
         if (!string.IsNullOrEmpty(accessTypeStr))
         {
-            obj.SetAccessTypeFromProfile(ValueConverter.ParseAccessType(accessTypeStr));
+            obj.SetAccessTypeFromProfile(IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"));
         }
 
         ApplyDomainDefaults(obj, dataTypeStr, accessTypeStr);
@@ -710,8 +709,8 @@ public abstract class CanOpenReaderBase
         obj.DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue");
         obj.LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit");
         obj.HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit");
-        obj.PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping"));
-        obj.SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping"));
+        obj.PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping");
+        obj.SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping");
         obj.InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD");
         obj.ObjFlags = LenientIniNumber.ParseObjFlags(
             sections,
@@ -960,13 +959,13 @@ public abstract class CanOpenReaderBase
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
             HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
-            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
-            SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
+            PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping"),
+            SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping"),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
         };
 
         subObj.SetAccessTypeFromProfile(
-            ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")));
+            IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"));
 
         // Every Table 7 key counts; SubNumber and CompactSubObj are not supported in any
         // sub-index section (CanOpenSubObject has neither). A reported key is not kept as a

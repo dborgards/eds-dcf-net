@@ -347,7 +347,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
             fallbackDescription: LenientIniNumber.TreatAsZero);
         dc.NetworkName = IniParser.GetValue(sections, sectionName, "NetworkName");
         dc.NetRefd = IniParser.GetValue(sections, sectionName, "NetRefd");
-        dc.CANopenManager = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "CANopenManager"));
+        dc.CANopenManager = IniKeyTokens.ParseBoolean(sections, sectionName, "CANopenManager");
 
         var lssSerialStr = IniParser.GetValue(sections, sectionName, "LSS_SerialNumber");
         if (!string.IsNullOrEmpty(lssSerialStr))
@@ -415,7 +415,7 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
             static value => TryParseConnectedModule(value, out _));
 
         var modules = new List<int>();
-        var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "ConnectedModules", "NrOfEntries", "0"));
+        var count = CanOpenSectionParsers.ParseModuleCount(sections, "ConnectedModules");
 
         for (int i = 1; i <= count; i++)
         {
