@@ -117,6 +117,23 @@ public sealed class AtomicFileWriteTargetTests : IDisposable
     }
 
     [Fact]
+    public void WriteFileAtomic_SymbolicLinkLoop_ThrowsIOExceptionAndLeavesNoTemp()
+    {
+        // Arrange
+        var first = PathOf("first.eds");
+        var second = PathOf("second.eds");
+        CreateSymbolicLinkOrSkip(first, second);
+        CreateSymbolicLinkOrSkip(second, first);
+
+        // Act
+        var act = () => TextFileIo.WriteFileAtomic(first, s => s.Write(NewContent, 0, NewContent.Length));
+
+        // Assert
+        act.Should().Throw<IOException>().WithMessage("*symbolic links*");
+        Directory.EnumerateFiles(_dir, ".edsdcf.*").Should().BeEmpty();
+    }
+
+    [Fact]
     public void WriteFileAtomic_DanglingSymbolicLink_CreatesTargetAndKeepsLink()
     {
         // Arrange

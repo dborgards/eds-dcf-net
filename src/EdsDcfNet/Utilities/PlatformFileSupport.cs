@@ -35,11 +35,19 @@ internal static class PlatformFileSupport
     internal static string ResolveLinkTarget(string fullPath)
     {
 #if NET10_0_OR_GREATER
-        var info = new FileInfo(fullPath);
-        if (info.LinkTarget == null)
-            return fullPath;
+        // Walks the raw link text instead of ResolveLinkTarget(returnFinalTarget: true), which
+        // rewrites a UNC target into "<cwd>\UNC\server\share\..." on Windows.
+        var current = fullPath;
+        for (var depth = 0; depth <= SymbolicLinkPath.MaxDepth; depth++)
+        {
+            var rawTarget = new FileInfo(current).LinkTarget;
+            if (rawTarget == null)
+                return current;
 
-        return info.ResolveLinkTarget(returnFinalTarget: true)!.FullName;
+            current = SymbolicLinkPath.Next(current, rawTarget);
+        }
+
+        throw new IOException("Too many levels of symbolic links: " + fullPath);
 #else
         return fullPath;
 #endif
