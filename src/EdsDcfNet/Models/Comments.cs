@@ -51,17 +51,17 @@ public class Comments
     /// </summary>
     internal ushort WrittenLineCount()
     {
-        // Line numbers start at 1; a key below 1 is not a comment line.
+        // Line numbers are 1..65535 (Lines is Unsigned16); any other key is not a comment line.
         var count = 0;
         foreach (var number in CommentLines.Keys)
         {
-            if (number >= 1)
+            if (number >= 1 && number <= ushort.MaxValue)
                 count++;
         }
 
         foreach (var number in CommentLines.Keys)
         {
-            if (number > count)
+            if (number > count && number <= ushort.MaxValue)
                 count = number;
         }
 
@@ -76,7 +76,7 @@ public class Comments
             }
         }
 
-        return (ushort)Math.Min(count, ushort.MaxValue);
+        return (ushort)count;
     }
 
     /// <summary>

@@ -367,6 +367,16 @@ internal static class IniWriteRules
                     number)));
         }
 
+        foreach (var number in comments.CommentLines.Keys.Where(key => key > ushort.MaxValue).OrderBy(key => key))
+        {
+            issues.Add(new ValidationIssue(
+                "Comments.CommentLines",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Comment line number {0} is above 65535, the largest value of Lines (Unsigned16). The line would not be read back.",
+                    number)));
+        }
+
         if (comments.TryFindMissingLine(out var missing))
         {
             issues.Add(new ValidationIssue(

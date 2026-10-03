@@ -688,7 +688,7 @@ public static class CanOpenModelValidator
     /// parser reads only keys <c>1..Lines</c>.
     /// </summary>
     private static bool ModuleCommentKeysCoverLines(Comments comments)
-        => !comments.CommentLines.Keys.Any(key => key < 1) && !comments.TryFindMissingLine(out _);
+        => !comments.CommentLines.Keys.Any(key => key < 1 || key > ushort.MaxValue) && !comments.TryFindMissingLine(out _);
 
     /// <summary>
     /// CiA 306-1 §8.3 <c>Count</c> is <c>Unsigned8</c>, or <c>0;&lt;Unsigned8&gt;</c>

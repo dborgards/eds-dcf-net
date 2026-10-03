@@ -826,4 +826,49 @@ public class Cia306ListRangeObjFlagsAndLengthTests
         written.Should().Contain("Lines=0").And.Contain("Line01=padded");
         reread.Comments!.RemainingEntries["Line01"].Should().Be("padded");
     }
+
+    [Theory]
+    [InlineData(65535, false)]
+    [InlineData(65536, true)]
+    public void WriteToString_CommentLineKeyAtMaxValue_ValidatedRejectsAboveUInt16(int key, bool rejected)
+    {
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.Comments = new Comments();
+        if (rejected)
+        {
+            eds.Comments.CommentLines[1] = "first";
+            eds.Comments.CommentLines[key] = "above";
+        }
+        else
+        {
+            // Dense numbering up to the largest line number Lines can hold.
+            for (var n = 1; n <= key; n++)
+                eds.Comments.CommentLines[n] = "l";
+        }
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        if (rejected)
+        {
+            act.Should().Throw<ModelValidationException>().Which.Issues.Should().Contain(i =>
+                i.Path == "Comments.CommentLines" && i.Message.Contains("65535", StringComparison.Ordinal));
+            CanOpenFile.Eds.WriteToString(eds).Should().Contain("Lines=1");
+        }
+        else
+        {
+            act.Should().NotThrow();
+        }
+    }
+
+    [Fact]
+    public void WriteToString_ModuleCommentLineKeyAboveUInt16_ValidatedRejects()
+    {
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.SupportedModules.Add(ModuleWithComments(new Comments()));
+        eds.SupportedModules[0].Comments!.CommentLines[65536] = "above";
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>();
+    }
 }
