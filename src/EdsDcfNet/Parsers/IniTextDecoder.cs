@@ -54,7 +54,11 @@ internal static class IniTextDecoder
         }
     }
 
-    private static string DecodeExplicit(byte[] bytes, Encoding encoding)
+    /// <summary>
+    /// Decodes <paramref name="bytes"/> with <paramref name="encoding"/> and drops a leading
+    /// byte-order mark for that encoding. XDD/XDC explicit overrides use the same rules.
+    /// </summary>
+    internal static string DecodeExplicit(byte[] bytes, Encoding encoding)
     {
         var bomLength = MatchingBomLength(bytes, encoding);
         if (bomLength > 0)

@@ -20,6 +20,16 @@ public class SecureXmlParserTests
             "Internal type EdsDcfNet.Parsers.SecureXmlParser+DepthLimitingXmlReader not found.");
 
     [Fact]
+    public void NextReadSize_ProbeEdges_SaturateAndRejectNegativeRemainder()
+    {
+        SecureXmlParser.NextReadSize(long.MaxValue, total: 0).Should().Be(8192);
+        SecureXmlParser.NextReadSize(maxBytes: 10, total: 11).Should().Be(0);
+        SecureXmlParser.NextReadSize(maxBytes: int.MaxValue, total: 0).Should().Be(8192);
+        SecureXmlParser.NextReadSize(maxBytes: (long)int.MaxValue - 1, total: 0).Should().Be(8192);
+        SecureXmlParser.NextReadSize(maxBytes: 10, total: 0).Should().Be(11);
+    }
+
+    [Fact]
     public void ReadContentFromStreamWithLimit_ValidStream_ReturnsContent()
     {
         const string xml = "<root><value>ok</value></root>";

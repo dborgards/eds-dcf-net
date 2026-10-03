@@ -106,25 +106,32 @@ public sealed class CanOpenFileOptions
     public bool StrictParsing { get; init; }
 
     /// <summary>
-    /// Gets the encoding used to decode EDS, DCF, and CPJ bytes.
+    /// Gets the encoding used to decode EDS, DCF, CPJ, XDD, and XDC bytes.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <see langword="null"/> (the default) selects automatic detection. A byte-order mark
-    /// selects UTF-8, UTF-16, or UTF-32 and is not returned as text. Otherwise the buffered
-    /// bytes are decoded as strict UTF-8 (<c>throwOnInvalidBytes</c>). When that fails with
-    /// <see cref="DecoderFallbackException"/>, the bytes passed to that strict decode are
-    /// decoded as ISO-8859-1. A leading UTF-8 byte-order mark is excluded from both decodes.
-    /// A diagnostic is reported
+    /// <see langword="null"/> (the default) selects automatic detection for EDS, DCF, and CPJ.
+    /// A byte-order mark selects UTF-8, UTF-16, or UTF-32 and is not returned as text.
+    /// Otherwise the buffered bytes are decoded as strict UTF-8 (<c>throwOnInvalidBytes</c>).
+    /// When that fails with <see cref="DecoderFallbackException"/>, the bytes passed to that
+    /// strict decode are decoded as ISO-8859-1. A leading UTF-8 byte-order mark is excluded
+    /// from both decodes. A diagnostic is reported
     /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniDecodedAsIso88591"/>,
     /// &quot;file is not valid UTF-8, decoded as ISO-8859-1&quot;). The bytes are buffered
     /// once, including from a non-seekable stream, and decoded from that buffer.
     /// </para>
     /// <para>
-    /// An explicit value is used as supplied and does not fall back to ISO-8859-1. A
-    /// byte-order mark for that encoding is still removed, including when the encoding
-    /// instance was constructed not to emit a preamble. String overloads are
-    /// already decoded text and ignore this property.
+    /// For XDD and XDC, <see langword="null"/> follows a byte-order mark when one is present
+    /// (UTF-8, UTF-16, or UTF-32). Otherwise the encoding named by the XML declaration is
+    /// used, and UTF-8 is used when the declaration does not name one. A declared name that
+    /// this runtime cannot create fails the read with <see cref="Exceptions.EdsParseException"/>;
+    /// the message includes that name. Invalid byte sequences are not replaced with U+FFFD.
+    /// </para>
+    /// <para>
+    /// An explicit value is used as supplied and does not fall back to ISO-8859-1. On XDD and
+    /// XDC it overrides the XML declaration. A byte-order mark for that encoding is still
+    /// removed, including when the encoding instance was constructed not to emit a preamble.
+    /// String overloads are already decoded text and ignore this property.
     /// </para>
     /// </remarks>
     public Encoding? Encoding { get; init; }
