@@ -68,7 +68,7 @@ public class Comments
         foreach (var entry in RemainingEntries)
         {
             if (entry.Key.StartsWith("Line", StringComparison.OrdinalIgnoreCase)
-                && int.TryParse(entry.Key[4..], NumberStyles.None, CultureInfo.InvariantCulture, out var number)
+                && SectionEntryKeys.TryParseEntryNumber(entry.Key[4..], out var number)
                 && number <= Lines
                 && number > count)
             {

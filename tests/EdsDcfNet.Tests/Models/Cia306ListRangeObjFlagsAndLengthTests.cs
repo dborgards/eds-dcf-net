@@ -812,4 +812,18 @@ public class Cia306ListRangeObjFlagsAndLengthTests
 
         written.Should().Contain("Lines=2").And.Contain("Line1=kept").And.Contain("Line2=added");
     }
+
+    [Fact]
+    public void WriteToString_PaddedCommentLineKey_IsAPlainEntryNotALine()
+    {
+        // The reader reads only canonical Line1..Line<Lines>; Line01 is kept as an ordinary entry.
+        var eds = CanOpenFile.Eds.ReadString(EdsHeader + "[Comments]\nLines=1\nLine01=padded\n");
+
+        var written = CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+        var reread = CanOpenFile.Eds.ReadString(written);
+
+        eds.Comments!.CommentLines.Should().BeEmpty();
+        written.Should().Contain("Lines=0").And.Contain("Line01=padded");
+        reread.Comments!.RemainingEntries["Line01"].Should().Be("padded");
+    }
 }

@@ -321,7 +321,7 @@ internal static class SectionEntryKeys
     private static bool IsEntryNumber(string text, int max)
         => TryParseEntryNumber(text, out var number) && number <= max;
 
-    private static bool TryParseEntryNumber(string text, out int number)
+    internal static bool TryParseEntryNumber(string text, out int number)
     {
         number = 0;
         if (text.Length == 0 || text.Length > 9 || text[0] == '0')
