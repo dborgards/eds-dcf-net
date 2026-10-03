@@ -258,6 +258,9 @@ PPOffset2=16
     [InlineData("0x10")]
     [InlineData("zz")]
     [InlineData("+10")]
+    [InlineData("++")]
+    [InlineData("::")]
+    [InlineData("0G")]
     public void ReadString_AddressOffsetNotHexBinary_LenientIgnoresStrictThrows(string raw)
     {
         // Act
@@ -333,6 +336,49 @@ PPOffset2=16
         strict.DynamicChannels!.Segments[0].PPOffset.Should().Be(0x10u);
         Attribute(rewritten, "addressOffset").Trim().Should().Be("0010");
         CanOpenFile.Xdd.ReadString(rewritten, Strict).DynamicChannels!.Segments[0].PPOffset.Should().Be(0x10u);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void ReadString_AddressOffsetEmpty_IsZeroAndSpellingIsKept(string raw)
+    {
+        // Arrange — zero-length hexBinary is valid and denotes no octets.
+        var xml = WithChannels(Channel(
+            "dataType=\"07\" accessType=\"readOnly\" startIndex=\"1000\" endIndex=\"1000\" maxNumber=\"1\" addressOffset=\"" + raw + "\""));
+
+        // Act
+        var lenient = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml);
+        var strict = CanOpenFile.Xdd.ReadString(xml, Strict);
+        var preserved = CanOpenFile.Xdd.WriteToString(strict);
+        strict.DynamicChannels!.Segments[0].PPOffset = 1;
+        var replaced = CanOpenFile.Xdd.WriteToString(strict);
+
+        // Assert
+        lenient.Diagnostics.Should().BeEmpty();
+        lenient.Model.DynamicChannels!.Segments[0].PPOffset.Should().Be(0u);
+        lenient.Model.DynamicChannels.Segments[0].AddressOffsetLexical.Should().Be(raw);
+        Attribute(preserved, "addressOffset").Should().Be(raw);
+        Attribute(replaced, "addressOffset").Should().Be("0001");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void ReadString_EmptyAccessType_MapsToReadOnlyInBothModes(string raw)
+    {
+        // Arrange
+        var xml = WithChannels(Channel(
+            "dataType=\"07\" accessType=\"" + raw + "\" startIndex=\"1000\" endIndex=\"1000\" maxNumber=\"1\" addressOffset=\"0000\""));
+
+        // Act
+        var lenient = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml);
+        var strict = CanOpenFile.Xdd.ReadString(xml, Strict);
+
+        // Assert
+        lenient.Diagnostics.Should().BeEmpty();
+        lenient.Model.DynamicChannels!.Segments[0].Dir.Should().Be(AccessType.ReadOnly);
+        strict.DynamicChannels!.Segments[0].Dir.Should().Be(AccessType.ReadOnly);
     }
 
     [Fact]
@@ -656,6 +702,56 @@ PPOffset2=16
         Attribute(written, "bitAlignment").Should().Be("32");
         again.DynamicChannels!.Segments[0].AddressOffsetLexical.Should().Be("00000010");
         again.DynamicChannels.Segments[0].MaxNumber.Should().Be(3u);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("zz")]
+    [InlineData("0x")]
+    [InlineData("0x-0x2000")]
+    [InlineData("16 00-17FF")]
+    public void WriteToString_UnparsableRangeStart_WritesZeroIndexesAndMaxNumber(string range)
+    {
+        // Arrange — startIndex, endIndex, and maxNumber are required by the schema,
+        // so an unparsable range still produces well-formed attributes.
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.DynamicChannels = new DynamicChannels();
+        eds.DynamicChannels.Segments.Add(new DynamicChannelSegment
+        {
+            Type = 0x0007,
+            Dir = AccessType.ReadOnly,
+            Range = range
+        });
+
+        // Act
+        var written = CanOpenFile.Xdd.WriteToString(eds);
+
+        // Assert
+        Attribute(written, "startIndex").Should().Be("0000");
+        Attribute(written, "endIndex").Should().Be("0000");
+        Attribute(written, "maxNumber").Should().Be("0");
+    }
+
+    [Fact]
+    public void WriteToString_RangeSpanningWholeUInt32_DerivesMaxNumberAtMaxValue()
+    {
+        // Arrange — end - start overflows the inclusive count by one.
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.DynamicChannels = new DynamicChannels();
+        eds.DynamicChannels.Segments.Add(new DynamicChannelSegment
+        {
+            Type = 0x0007,
+            Dir = AccessType.ReadOnly,
+            Range = "0x0-0xFFFFFFFF"
+        });
+
+        // Act
+        var written = CanOpenFile.Xdd.WriteToString(eds);
+
+        // Assert
+        Attribute(written, "startIndex").Should().Be("0000");
+        Attribute(written, "endIndex").Should().Be("FFFFFFFF");
+        Attribute(written, "maxNumber").Should().Be("4294967295");
     }
 
     [Theory]

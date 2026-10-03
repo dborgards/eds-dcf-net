@@ -216,42 +216,25 @@ internal static class XddProfileBuilder
         end = range.Substring(hyphen + 1).Trim();
     }
 
+    /// <summary>
+    /// Parses one side of a <see cref="DynamicChannelSegment.Range"/> as hexadecimal
+    /// with an optional <c>0x</c> prefix. <see cref="SplitRange"/> has already removed
+    /// surrounding whitespace; interior whitespace is not a valid index.
+    /// </summary>
     private static bool TryParseHexIndex(string text, out uint value)
     {
         value = 0;
         if (string.IsNullOrEmpty(text))
             return false;
 
-        var hex = RemoveXsdWhitespace(text);
-        if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            hex = hex.Substring(2);
+        var hex = text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? text.Substring(2)
+            : text;
 
         if (hex.Length == 0)
             return false;
 
         return uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value);
-    }
-
-    private static string RemoveXsdWhitespace(string raw)
-    {
-        if (raw.IndexOf(' ') < 0 &&
-            raw.IndexOf('\t') < 0 &&
-            raw.IndexOf('\n') < 0 &&
-            raw.IndexOf('\r') < 0)
-        {
-            return raw;
-        }
-
-        var buffer = new char[raw.Length];
-        var count = 0;
-        for (var i = 0; i < raw.Length; i++)
-        {
-            var character = raw[i];
-            if (character != ' ' && character != '\t' && character != '\n' && character != '\r')
-                buffer[count++] = character;
-        }
-
-        return new string(buffer, 0, count);
     }
 
     // ── NetworkManagement static children ─────────────────────────────────────
