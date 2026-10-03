@@ -648,6 +648,38 @@ public class XddPreservedContentTests
     }
 
     [Fact]
+    public void WriteToString_PreservedAttributesWithQNameValues_KeepTheBindingsTheyReferTo()
+    {
+        // Arrange — attributes kept apart from fragments: object, profile body, identity child, ApplicationLayers.
+        XNamespace vendor = "urn:vendor";
+        var xml = Mutate(FixtureXdd, doc =>
+        {
+            var obj = Object(doc, "1000");
+            obj.SetAttributeValue(XNamespace.Xmlns + "vendor", vendor.NamespaceName);
+            obj.SetAttributeValue("custom", "vendor:choice");
+            obj.SetAttributeValue("other", "vendor:second");
+            obj.SetAttributeValue("plain", "unbound: text");
+            DeviceBody(doc).SetAttributeValue(XNamespace.Xmlns + "vendor", vendor.NamespaceName);
+            DeviceBody(doc).SetAttributeValue("custom", "vendor:body");
+            Single(doc, "DeviceIdentity").Element(Co + "vendorName")!.SetAttributeValue("custom", "vendor:identity");
+            Single(doc, "ApplicationLayers").SetAttributeValue("custom", "xsi:string");
+        });
+
+        // Act
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(xml)));
+
+        // Assert
+        var obj = Object(written, "1000");
+        obj.GetNamespaceOfPrefix("vendor").Should().Be(vendor);
+        ((string?)obj.Attribute("custom")).Should().Be("vendor:choice");
+        obj.Attributes().Count(a => a.IsNamespaceDeclaration).Should().Be(1);
+        DeviceBody(written).GetNamespaceOfPrefix("vendor").Should().Be(vendor);
+        var vendorName = Single(written, "DeviceIdentity").Element(Co + "vendorName")!;
+        ((string?)vendorName.Attribute(XNamespace.Xmlns + "vendor")).Should().Be(vendor.NamespaceName);
+        Single(written, "ApplicationLayers").Attributes().Should().NotContain(a => a.IsNamespaceDeclaration);
+    }
+
+    [Fact]
     public void ReadString_MalformedCommentMarker_IsKeptAsToolComment()
     {
         // Arrange

@@ -95,13 +95,27 @@ internal static class XddPreservedContentReader
 
     private static List<XAttribute>? UnmodelledAttributes(XElement element, HashSet<string> modelled, bool includeActualValues)
     {
-        List<XAttribute>? kept = null;
-        foreach (var attribute in element.Attributes())
-        {
-            if (attribute.IsNamespaceDeclaration || IsModelled(attribute.Name, modelled, includeActualValues))
-                continue;
+        var kept = KeptAttributes(
+            element,
+            element.Attributes().Where(a => !a.IsNamespaceDeclaration && !IsModelled(a.Name, modelled, includeActualValues)));
+        return kept.Count == 0 ? null : kept;
+    }
 
-            (kept ??= new List<XAttribute>()).Add(new XAttribute(attribute));
+    /// <summary>
+    /// Copies of <paramref name="attributes"/> of <paramref name="source"/>. For a value that starts
+    /// with a prefix (<c>custom="vendor:choice"</c>), the binding in scope at
+    /// <paramref name="source"/> is kept as a namespace declaration next to it, so the element that
+    /// receives the attributes on write can resolve the prefix.
+    /// </summary>
+    private static List<XAttribute> KeptAttributes(XElement source, IEnumerable<XAttribute> attributes)
+    {
+        var kept = new List<XAttribute>();
+        foreach (var attribute in attributes)
+        {
+            kept.Add(new XAttribute(attribute));
+            var declaration = ReferencedBinding(source, attribute.Value);
+            if (declaration != null && !kept.Any(a => a.Name == declaration.Name))
+                kept.Add(declaration);
         }
 
         return kept;
@@ -162,8 +176,8 @@ internal static class XddPreservedContentReader
             var local = child.Name.LocalName;
             if (ModelledIdentityChildren.Contains(local) && seen.Add(local))
             {
-                foreach (var attribute in child.Attributes().Where(a => !a.IsNamespaceDeclaration))
-                    content.AddAttribute(XddPreservedContent.DeviceIdentity + "/" + local, new XAttribute(attribute));
+                foreach (var attribute in KeptAttributes(child, child.Attributes().Where(a => !a.IsNamespaceDeclaration)))
+                    content.AddAttribute(XddPreservedContent.DeviceIdentity + "/" + local, attribute);
                 continue;
             }
 
@@ -195,8 +209,8 @@ internal static class XddPreservedContentReader
 
         if (applicationLayers != null)
         {
-            foreach (var attribute in applicationLayers.Attributes().Where(a => !a.IsNamespaceDeclaration))
-                content.AddAttribute(XddPreservedContent.ApplicationLayers, new XAttribute(attribute));
+            foreach (var attribute in KeptAttributes(applicationLayers, applicationLayers.Attributes().Where(a => !a.IsNamespaceDeclaration)))
+                content.AddAttribute(XddPreservedContent.ApplicationLayers, attribute);
 
             KeepChildren(
                 content,
@@ -256,15 +270,12 @@ internal static class XddPreservedContentReader
     // (formatName, formatVersion, supportedLanguages, deviceClass, …) is kept.
     private static void KeepBodyAttributes(XddPreservedContent content, string key, XElement body)
     {
-        foreach (var attribute in body.Attributes())
-        {
-            if (attribute.IsNamespaceDeclaration
-                || attribute.Name == XddNames.Xsi + "type"
-                || (attribute.Name.Namespace == XNamespace.None && ModelledFileAttributes.Contains(attribute.Name.LocalName)))
-                continue;
-
-            content.AddAttribute(key, new XAttribute(attribute));
-        }
+        var unmodelled = body.Attributes().Where(attribute =>
+            !attribute.IsNamespaceDeclaration
+            && attribute.Name != XddNames.Xsi + "type"
+            && !(attribute.Name.Namespace == XNamespace.None && ModelledFileAttributes.Contains(attribute.Name.LocalName)));
+        foreach (var attribute in KeptAttributes(body, unmodelled))
+            content.AddAttribute(key, attribute);
     }
 
     /// <summary>
@@ -334,18 +345,31 @@ internal static class XddPreservedContentReader
             .ToList();
         foreach (var value in values)
         {
-            var match = QNamePrefix.Match(value);
-            if (!match.Success)
+            var declaration = ReferencedBinding(original, value);
+            if (declaration == null || copy.GetNamespaceOfPrefix(declaration.Name.LocalName)?.NamespaceName == declaration.Value)
                 continue;
 
-            var prefix = match.Groups[1].Value;
-            var bound = original.GetNamespaceOfPrefix(prefix);
-            if (bound == null
-                || (WriterBindings.TryGetValue(prefix, out var declared) && declared == bound)
-                || copy.GetNamespaceOfPrefix(prefix) == bound)
-                continue;
-
-            copy.SetAttributeValue(XNamespace.Xmlns + prefix, bound.NamespaceName);
+            copy.Add(declaration);
         }
+    }
+
+    /// <summary>
+    /// Declaration of the binding that <paramref name="value"/> refers to with a leading
+    /// <c>prefix:</c>, as in scope at <paramref name="source"/>; <see langword="null"/> when the value
+    /// has no prefix, the prefix is not bound, or the writer declares the same binding on the
+    /// document element.
+    /// </summary>
+    private static XAttribute? ReferencedBinding(XElement source, string value)
+    {
+        var match = QNamePrefix.Match(value);
+        if (!match.Success)
+            return null;
+
+        var prefix = match.Groups[1].Value;
+        var bound = source.GetNamespaceOfPrefix(prefix);
+        if (bound == null || (WriterBindings.TryGetValue(prefix, out var declared) && declared == bound))
+            return null;
+
+        return new XAttribute(XNamespace.Xmlns + prefix, bound.NamespaceName);
     }
 }
