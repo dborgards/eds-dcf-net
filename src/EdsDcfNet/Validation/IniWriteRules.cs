@@ -393,6 +393,23 @@ internal static class IniWriteRules
             path,
             issues);
 
+        // A preserved Line<n> is emitted unchanged (kept empty line, or a line above Lines).
+        foreach (var entry in comments.RemainingEntries)
+        {
+            if (!SectionEntryKeys.IsGeneratedCommentsKey(entry.Key, comments.CommentLines.Keys)
+                && entry.Key.StartsWith("Line", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(entry.Key[4..], NumberStyles.None, CultureInfo.InvariantCulture, out _))
+            {
+                CheckMaxLength(
+                    entry.Value,
+                    maxLineLength,
+                    path + ".RemainingEntries[" + entry.Key + "]",
+                    "Comment line",
+                    table,
+                    issues);
+            }
+        }
+
         foreach (var line in comments.CommentLines)
         {
             var linePath = string.Format(CultureInfo.InvariantCulture, "{0}.CommentLines[{1}]", path, line.Key);

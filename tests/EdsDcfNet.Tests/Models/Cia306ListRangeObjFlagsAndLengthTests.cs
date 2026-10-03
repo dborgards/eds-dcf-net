@@ -721,4 +721,45 @@ public class Cia306ListRangeObjFlagsAndLengthTests
         staleAct.Should().NotThrow();
         readAct.Should().NotThrow();
     }
+
+    [Theory]
+    [InlineData(249, false)]
+    [InlineData(250, true)]
+    public void WriteToString_PreservedCommentLineEntriesAtMaxValue_ValidatedRejectsOverLongValue(int length, bool rejected)
+    {
+        // Line1 above Lines=0 is not a comment line; the writer emits it unchanged from RemainingEntries.
+        var content = EdsHeader + "[Comments]\nLines=0\nLine1=" + new string('c', length) + "\n";
+        var eds = CanOpenFile.Eds.ReadString(content);
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        AssertLengthRule(act, rejected, "Comments.RemainingEntries[Line1]");
+    }
+
+    [Theory]
+    [InlineData(248, false)]
+    [InlineData(249, true)]
+    public void WriteToString_PreservedModuleCommentLineEntriesAtMaxValue_ValidatedRejectsOverLongValue(int length, bool rejected)
+    {
+        var content = EdsHeader +
+            "[SupportedModules]\nNrOfEntries=1\n" +
+            "[M1ModuleInfo]\nProductName=M\nProductVersion=1\nProductRevision=0\nOrderCode=O\n" +
+            "[M1Comments]\nLines=0\nLine1=" + new string('c', length) + "\n";
+        var eds = CanOpenFile.Eds.ReadString(content);
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        AssertLengthRule(act, rejected, "SupportedModules[0].Comments.RemainingEntries[Line1]");
+    }
+
+    [Fact]
+    public void WriteToString_PreservedNonLineCommentEntryOfAnyLength_IsNotLengthChecked()
+    {
+        var content = EdsHeader + "[Comments]\nLines=0\nVendorNote=" + new string('c', 300) + "\n";
+        var eds = CanOpenFile.Eds.ReadString(content);
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        act.Should().NotThrow();
+    }
 }
