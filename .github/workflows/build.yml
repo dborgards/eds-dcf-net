@@ -61,8 +61,14 @@ jobs:
   # Codecov's own required check on main is only reported after a coverage
   # upload. Any doubt (workflow_dispatch, missing or unknown base/before SHA,
   # empty diff, git error) yields a full run. Plain git, no third-party action.
+  #
+  # continue-on-error: if this job itself fails (e.g. checkout error), its
+  # conclusion is still success, so build and apicompat start with an empty
+  # docs_only and run in full instead of being skipped (which would leave the
+  # required checks unreported).
   changes:
     if: github.event_name != 'workflow_run'
+    continue-on-error: true
     runs-on: ubuntu-latest
     outputs:
       docs_only: ${{ steps.classify.outputs.docs_only }}
