@@ -16,7 +16,9 @@ using EdsDcfNet.Models;
 /// </remarks>
 public class SectionRemainingEntriesTests
 {
-    private const string Base = """
+    // Raw literals take the line endings of the checkout (CRLF on Windows). The tests edit these
+    // fixtures with "\n" patterns, so they are normalized to LF first.
+    private static readonly string Base = Lf("""
         [FileInfo]
         FileName=test.eds
         FileVersion=1
@@ -39,9 +41,9 @@ public class SectionRemainingEntriesTests
         DefaultValue=0
         PDOMapping=0
 
-        """;
+        """);
 
-    private const string Dcf = """
+    private static readonly string Dcf = Lf("""
         [DeviceComissioning]
         NodeID=2
         NodeName=Node
@@ -50,7 +52,9 @@ public class SectionRemainingEntriesTests
         NetworkName=Net
         CANopenManager=0
 
-        """;
+        """);
+
+    private static string Lf(string text) => text.Replace("\r\n", "\n");
 
     [Theory]
     [InlineData(false)]
