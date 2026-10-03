@@ -67,12 +67,9 @@ internal static class XddRootComments
     internal static Comments? Read(XDocument doc)
     {
         Comments? comments = null;
-        foreach (var node in doc.Nodes())
+        foreach (var comment in doc.Nodes().TakeWhile(node => node is not XElement).OfType<XComment>())
         {
-            if (node is XElement)
-                break;
-
-            if (node is not XComment comment || !TryParse(comment.Value, out var number, out var text))
+            if (!TryParse(comment.Value, out var number, out var text))
                 continue;
 
             comments ??= new Comments();
