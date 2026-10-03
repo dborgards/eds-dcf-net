@@ -203,6 +203,22 @@ public class CpjTopologyRemainingEntriesTests
     }
 
     [Fact]
+    public void WriteToString_NodeIdDiffersFromDictionaryKey_CollisionUsesEmittedNodeId()
+    {
+        var topology = new NetworkTopology();
+        topology.Nodes[2] = new NetworkNode { NodeId = 3, Present = true, Name = "Real" };
+        topology.RemainingEntries.Add("Node2Name", "Kept");
+        topology.RemainingEntries.Add("Node3Name", "Stale");
+        var cpj = new NodelistProject();
+        cpj.Networks.Add(topology);
+
+        var written = CanOpenFile.Cpj.WriteToString(cpj);
+
+        written.Should().Contain("Node3Name=Real").And.Contain("Node2Name=Kept").And.NotContain("Stale");
+        CountOccurrences(written, "Node3Name=").Should().Be(1);
+    }
+
+    [Fact]
     public void WriteToString_ValidatedRemainingValueWithLineBreak_ThrowsModelValidationException()
     {
         var topology = new NetworkTopology();

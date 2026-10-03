@@ -342,7 +342,7 @@ internal static class SectionEntryKeys
     /// <see langword="true"/> for a <c>[Topology]</c> key that the CPJ reader maps onto a property of
     /// <paramref name="topology"/> and the CPJ writer generates from it: <c>NetName</c>, <c>NetRefd</c>,
     /// <c>Nodes</c>, <c>EDSBaseName</c>, and <c>NodeXPresent</c>/<c>NodeXName</c>/<c>NodeXRefd</c>/
-    /// <c>NodeXDCFName</c> of a node X that is in <see cref="NetworkTopology.Nodes"/>.
+    /// <c>NodeXDCFName</c> of a node whose <see cref="NetworkNode.NodeId"/> is X (the IDs the writer emits).
     /// </summary>
     internal static bool IsWrittenTopologyKey(NetworkTopology topology, string key)
     {
@@ -354,7 +354,17 @@ internal static class SectionEntryKeys
             return true;
         }
 
-        return TryParseTopologyNodeKey(key, out var nodeId, out _) && topology.Nodes.ContainsKey(nodeId);
+        if (!TryParseTopologyNodeKey(key, out var nodeId, out _))
+            return false;
+
+        // The writer names the keys after NetworkNode.NodeId, not after the dictionary key.
+        foreach (var node in topology.Nodes.Values)
+        {
+            if (node.NodeId == nodeId)
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
