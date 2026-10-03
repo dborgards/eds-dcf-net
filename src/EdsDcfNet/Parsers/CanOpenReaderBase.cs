@@ -89,6 +89,11 @@ public abstract class CanOpenReaderBase
                 model.AdditionalSections[sectionName] = CopySectionEntries(sections[sectionName]);
             }
         }
+
+        // Every path that placed a section in AdditionalSections (kept unlisted object sections,
+        // the second commissioning spelling, unknown sections) is covered by this one capture,
+        // which records the file order of the sections and of their keys.
+        model.AdditionalSectionOrder.Capture(model.AdditionalSections, sections);
     }
 
     /// <summary>

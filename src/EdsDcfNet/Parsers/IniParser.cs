@@ -348,7 +348,7 @@ public static class IniParser
 
     private static Dictionary<string, Dictionary<string, string>> ParseLines(IEnumerable<string> lines)
     {
-        var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        var sections = new IniSectionsDictionary();
         string? currentSection = null;
         var lineNumber = 0;
 
@@ -469,7 +469,7 @@ public static class IniParser
         }
         else
         {
-            sections[name] = new IniSectionDictionary();
+            ((IniSectionsDictionary)sections).Set(name, new IniSectionDictionary());
         }
 
         currentSection = name;

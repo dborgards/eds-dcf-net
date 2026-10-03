@@ -207,14 +207,17 @@ public class EdsWriter : IniWriterBase
             WriteSection("Comments", () => WriteComments(sb, eds.Comments!));
         }
 
-        foreach (var section in eds.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var section in eds.AdditionalSectionOrder.Sections(eds.AdditionalSections))
         {
             if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, eds.ObjectDictionary))
             {
                 continue;
             }
 
-            WriteSection(section.Key, () => WriteAdditionalSection(sb, section.Key, section.Value));
+            WriteSection(
+                section.Key,
+                () => WriteAdditionalSection(
+                    sb, section.Key, eds.AdditionalSectionOrder.Entries(section.Key, section.Value)));
         }
 
         return sb.ToString();

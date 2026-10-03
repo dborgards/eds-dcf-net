@@ -1131,7 +1131,7 @@ public class DcfWriterTests
     }
 
     [Fact]
-    public void GenerateString_AdditionalSections_AreWrittenDeterministically()
+    public void GenerateString_AdditionalSectionsAddedByCaller_AreWrittenInInsertionOrder()
     {
         // Arrange
         var dcf = CreateMinimalDcf();
@@ -1150,19 +1150,17 @@ public class DcfWriterTests
         var result = _writer.GenerateString(dcf);
 
         // Assert
-        var aSectionIndex = result.IndexOf("[ASection]", StringComparison.Ordinal);
         var zSectionIndex = result.IndexOf("[zSection]", StringComparison.Ordinal);
-        aSectionIndex.Should().BeGreaterThanOrEqualTo(0);
+        var aSectionIndex = result.IndexOf("[ASection]", StringComparison.Ordinal);
         zSectionIndex.Should().BeGreaterThanOrEqualTo(0);
-        aSectionIndex.Should().BeLessThan(zSectionIndex);
+        aSectionIndex.Should().BeGreaterThanOrEqualTo(0);
+        zSectionIndex.Should().BeLessThan(aSectionIndex);
 
-        var aSectionStart = aSectionIndex;
-        aSectionStart.Should().BeGreaterThanOrEqualTo(0);
-        var aKeyPos = result.IndexOf("aKey=A", aSectionStart, StringComparison.Ordinal);
-        var bKeyPos = result.IndexOf("bKey=B", aSectionStart, StringComparison.Ordinal);
-        aKeyPos.Should().BeGreaterThanOrEqualTo(0);
-        bKeyPos.Should().BeGreaterThanOrEqualTo(0);
-        aKeyPos.Should().BeLessThan(bKeyPos);
+        var zKeyPos = result.IndexOf("zKey=Z", zSectionIndex, StringComparison.Ordinal);
+        var upperAKeyPos = result.IndexOf("AKey=A", zSectionIndex, StringComparison.Ordinal);
+        zKeyPos.Should().BeGreaterThanOrEqualTo(0);
+        upperAKeyPos.Should().BeGreaterThanOrEqualTo(0);
+        zKeyPos.Should().BeLessThan(upperAKeyPos);
     }
 
     [Fact]

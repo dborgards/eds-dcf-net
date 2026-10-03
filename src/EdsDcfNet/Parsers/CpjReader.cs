@@ -133,6 +133,7 @@ public class CpjReader : IFileReader<NodelistProject>
             }
         }
 
+        project.AdditionalSectionOrder.Capture(project.AdditionalSections, sections);
         return project;
     }
 
