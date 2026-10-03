@@ -1446,17 +1446,17 @@ public class XddReaderTests
     [InlineData("NaN")]
     [InlineData("1.x")]
     [InlineData("abc")]
-    public void FileInfo_InvalidFileVersion_ThrowsEdsParseExceptionWithAttribution(string fileVersion)
+    public void FileInfo_NonNumericFileVersion_KeepsTextAndDefaultVersionWithoutThrowing(string fileVersion)
     {
+        // fileVersion is an xsd:string (CiA 311): valid text the Unsigned8 property cannot hold is kept.
         var xdd = MinimalXdd.Replace(
             @"fileVersion=""1""",
             $@"fileVersion=""{fileVersion}""");
 
-        var act = () => _reader.ReadString(xdd);
+        var result = _reader.ReadString(xdd);
 
-        var ex = act.Should().Throw<EdsParseException>().Which;
-        ex.Message.Should().Contain("fileVersion");
-        ex.Message.Should().Contain(fileVersion);
+        result.FileInfo.FileVersion.Should().Be(1);
+        result.FileInfo.FileVersionText.Should().Be(fileVersion);
     }
 
     [Fact]

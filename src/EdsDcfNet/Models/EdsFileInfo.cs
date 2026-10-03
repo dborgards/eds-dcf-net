@@ -23,6 +23,23 @@ public class EdsFileInfo
     public byte FileVersion { get; set; } = 1;
 
     /// <summary>
+    /// Original <c>fileVersion</c> text of an XDD/XDC read, or text to write there.
+    /// </summary>
+    /// <remarks>
+    /// CiA 311 declares <c>fileVersion</c> as a free <c>xsd:string</c> (for example <c>vendor-r7</c> or
+    /// <c>1.0</c>), which <see cref="FileVersion"/> cannot hold. The XDD/XDC reader keeps the text here
+    /// when it is not the plain decimal spelling of <see cref="FileVersion"/>; <see cref="FileVersion"/>
+    /// then holds the major component, or <c>1</c> when no number can be derived. The XDD/XDC writers emit
+    /// the text while <see cref="FileVersion"/> is unchanged since the read; once the caller changes
+    /// <see cref="FileVersion"/>, the number is written instead. A text assigned to a model that was not
+    /// read from XDD/XDC is always written. EDS and DCF writers always use <see cref="FileVersion"/>.
+    /// </remarks>
+    public string? FileVersionText { get; set; }
+
+    /// <summary><see cref="FileVersion"/> captured when <see cref="FileVersionText"/> was read.</summary>
+    internal byte? FileVersionTextBaseline { get; set; }
+
+    /// <summary>
     /// Actual file revision (CiA 306 <c>Unsigned8</c> integer).
     /// </summary>
     /// <remarks>

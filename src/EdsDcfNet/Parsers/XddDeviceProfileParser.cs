@@ -17,73 +17,16 @@ internal static class XddDeviceProfileParser
         fileInfo.CreatedBy = profileBody.Attribute("fileCreator")?.Value ?? string.Empty;
         fileInfo.ModifiedBy = profileBody.Attribute("fileModifiedBy")?.Value ?? string.Empty;
 
-        // fileVersion is a string like "1.0", "1,0", or "1" — map to Unsigned8 FileVersion.
-        // Plain values always use NumberStyles.None (historical XDD decimal path), so
-        // zero-padded tokens like "010" stay decimal 10 in both modes — never CiA octal
-        // via ParseByte. Lenient: also accept major/minor tooling forms. StrictParsing:
-        // reject major/minor only. Invalid tokens throw in both modes (ProfileBody attribution).
-        // Trim before the empty check so whitespace-only attributes match missing/empty
-        // and keep the model default (1).
-        var fileVersionStr = (profileBody.Attribute("fileVersion")?.Value ?? string.Empty).Trim();
+        // fileVersion is an xsd:string (CiA 311 Annex A.1.2), FileVersion an Unsigned8. A plain decimal
+        // number (zero-padded "010" stays decimal 10, never CiA octal) sets the property. Anything
+        // else is kept as text in FileVersionText: the lenient major/minor tooling form ("1.0",
+        // "1,0") also sets the major component, other text leaves the default and is reported, in
+        // both modes. StrictParsing rejects major/minor only. Whitespace-only matches a missing
+        // attribute and keeps the model default (1).
+        var fileVersionText = profileBody.Attribute("fileVersion")?.Value ?? string.Empty;
+        var fileVersionStr = fileVersionText.Trim();
         if (!string.IsNullOrEmpty(fileVersionStr))
-        {
-            try
-            {
-                if (ValueConverter.TrySplitMajorMinorDecimal(fileVersionStr, out var major))
-                {
-                    if (StrictParsingScope.IsEnabled)
-                    {
-                        throw new EdsParseException(
-                            string.Format(
-                                CultureInfo.InvariantCulture,
-                                "Invalid byte value: '{0}'.",
-                                fileVersionStr))
-                        {
-                            Code = Diagnostics.ParseDiagnosticCodes.XddFileVersionMajorMinor
-                        };
-                    }
-
-                    Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
-                        Diagnostics.ParseSeverity.Warning,
-                        Diagnostics.ParseDiagnosticCodes.XddFileVersionMajorMinor,
-                        path: "ProfileBody.fileVersion",
-                        rawValue: fileVersionStr,
-                        coercedTo: major,
-                        message: string.Format(
-                            CultureInfo.InvariantCulture,
-                            "fileVersion '{0}' uses a major/minor tooling form; the major component {1} is used.",
-                            fileVersionStr,
-                            major)));
-
-                    // Leading-zero majors stay decimal (e.g. "012.5" → 12).
-                    fileInfo.FileVersion = ValueConverter.ParseByteAllowingMajorMinor(fileVersionStr);
-                }
-                else if (byte.TryParse(fileVersionStr, NumberStyles.None, CultureInfo.InvariantCulture, out var ver))
-                {
-                    fileInfo.FileVersion = ver;
-                }
-                else
-                {
-                    throw new EdsParseException(
-                        string.Format(
-                            CultureInfo.InvariantCulture,
-                            "Invalid byte value: '{0}'.",
-                            fileVersionStr));
-                }
-            }
-            catch (EdsParseException ex)
-            {
-                throw new EdsParseException(
-                    string.Format(
-                        CultureInfo.InvariantCulture,
-                        "ProfileBody fileVersion: {0}",
-                        ex.Message),
-                    ex)
-                {
-                    Code = ex.Code
-                };
-            }
-        }
+            ReadFileVersion(fileInfo, fileVersionText, fileVersionStr);
 
         // fileCreationDate is xsd:date "YYYY-MM-DD" → convert to EDS "MM-DD-YYYY". The original
         // spelling (it may carry a time zone) is kept so the writer can emit it unchanged.
@@ -131,5 +74,67 @@ internal static class XddDeviceProfileParser
             deviceInfo.ProductNumber = ParseHexId(productIdStr);
 
         return deviceInfo;
+    }
+
+    private static void ReadFileVersion(EdsFileInfo fileInfo, string text, string trimmed)
+    {
+        byte version;
+        if (ValueConverter.TrySplitMajorMinorDecimal(trimmed, out var major))
+        {
+            if (StrictParsingScope.IsEnabled)
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "ProfileBody fileVersion: Invalid byte value: '{0}'.",
+                        trimmed))
+                {
+                    Code = Diagnostics.ParseDiagnosticCodes.XddFileVersionMajorMinor
+                };
+            }
+
+            // Leading-zero majors stay decimal (e.g. "012.5" → 12).
+            if (byte.TryParse(major, NumberStyles.None, CultureInfo.InvariantCulture, out version))
+            {
+                Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                    Diagnostics.ParseSeverity.Warning,
+                    Diagnostics.ParseDiagnosticCodes.XddFileVersionMajorMinor,
+                    path: "ProfileBody.fileVersion",
+                    rawValue: trimmed,
+                    coercedTo: major,
+                    message: string.Format(
+                        CultureInfo.InvariantCulture,
+                        "fileVersion '{0}' uses a major/minor tooling form; the major component {1} is used.",
+                        trimmed,
+                        major)));
+                fileInfo.FileVersion = version;
+                KeepFileVersionText(fileInfo, text);
+                return;
+            }
+        }
+        else if (byte.TryParse(trimmed, NumberStyles.None, CultureInfo.InvariantCulture, out version))
+        {
+            fileInfo.FileVersion = version;
+            return;
+        }
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.XddFileVersionNotNumeric,
+            path: "ProfileBody.fileVersion",
+            rawValue: trimmed,
+            coercedTo: fileInfo.FileVersion.ToString(CultureInfo.InvariantCulture),
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "fileVersion '{0}' holds no number from 0 to 255; the text is preserved and FileVersion keeps {1}.",
+                trimmed,
+                fileInfo.FileVersion)));
+        KeepFileVersionText(fileInfo, text);
+    }
+
+    private static void KeepFileVersionText(EdsFileInfo fileInfo, string text)
+    {
+        fileInfo.FileVersionText = text;
+        fileInfo.FileVersionTextBaseline = fileInfo.FileVersion;
     }
 }
