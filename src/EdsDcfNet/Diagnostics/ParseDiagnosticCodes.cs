@@ -104,6 +104,41 @@ public static class ParseDiagnosticCodes
     /// </summary>
     public const string InvalidDynamicChannelPpOffset = "INVALID_DYNAMIC_CHANNEL_PPOFFSET";
 
+    /// <summary>
+    /// Both <c>[DeviceComissioning]</c> (CiA 306-1 § 7.3.5, normative) and <c>[DeviceCommissioning]</c>
+    /// are present. The normative section is read; the other one is kept unchanged in
+    /// <c>AdditionalSections</c>. Strict mode throws.
+    /// </summary>
+    public const string IniDuplicateDeviceCommissioning = "INI_DUPLICATE_DEVICE_COMMISSIONING";
+
+    /// <summary>
+    /// Malformed or out-of-range <c>NodeID</c> in the DCF <c>[DeviceComissioning]</c> section.
+    /// Lenient mode treats an unreadable value as <c>1</c> (the absent-key default) and keeps a
+    /// readable value outside <c>1..127</c> for validation to report.
+    /// </summary>
+    public const string InvalidNodeId = "INVALID_NODE_ID";
+
+    /// <summary>Malformed <c>Baudrate</c> in <c>[DeviceComissioning]</c>; lenient mode treats it as <c>250</c>.</summary>
+    public const string InvalidBaudrate = "INVALID_BAUDRATE";
+
+    /// <summary>Malformed <c>NetNumber</c> in <c>[DeviceComissioning]</c>; lenient mode treats it as <c>0</c>.</summary>
+    public const string InvalidNetNumber = "INVALID_NET_NUMBER";
+
+    /// <summary>Malformed <c>LSS_SerialNumber</c> in <c>[DeviceComissioning]</c>; lenient mode leaves it unset.</summary>
+    public const string InvalidLssSerialNumber = "INVALID_LSS_SERIAL_NUMBER";
+
+    /// <summary>
+    /// Malformed numeric key in <c>[DeviceInfo]</c> (CiA 306-1 § 6.5), such as <c>VendorNumber</c>
+    /// or <c>NrOfRXPDO</c>; lenient mode uses the value the key has when absent.
+    /// </summary>
+    public const string InvalidDeviceInfoNumber = "INVALID_DEVICE_INFO_NUMBER";
+
+    /// <summary>Malformed <c>[DynamicChannels]</c> <c>NrOfSeg</c>; lenient mode treats it as <c>0</c>.</summary>
+    public const string InvalidDynamicChannelCount = "INVALID_DYNAMIC_CHANNEL_COUNT";
+
+    /// <summary>Malformed <c>[DynamicChannels]</c> <c>Type&lt;n&gt;</c>; lenient mode treats it as <c>0</c>.</summary>
+    public const string InvalidDynamicChannelType = "INVALID_DYNAMIC_CHANNEL_TYPE";
+
     /// <summary>XDD/XDC document contains more than one device profile body; lenient mode uses the last one.</summary>
     public const string XddDuplicateDeviceProfile = "XDD_DUPLICATE_DEVICE_PROFILE";
 

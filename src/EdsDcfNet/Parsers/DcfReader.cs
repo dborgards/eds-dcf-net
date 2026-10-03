@@ -2,6 +2,7 @@ namespace EdsDcfNet.Parsers;
 
 using System.Globalization;
 
+using EdsDcfNet.Diagnostics;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
@@ -133,7 +134,8 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         ICanOpenFileModel model,
         Dictionary<string, Dictionary<string, string>> sections)
     {
-        ((DeviceConfigurationFile)model).DeviceCommissioning = ParseDeviceCommissioning(sections);
+        var dcf = (DeviceConfigurationFile)model;
+        dcf.DeviceCommissioning = ParseDeviceCommissioning(dcf, sections);
     }
 
     /// <inheritdoc/>
@@ -272,34 +274,77 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
 
     #region DCF-only parsing methods
 
-    private static DeviceCommissioning ParseDeviceCommissioning(Dictionary<string, Dictionary<string, string>> sections)
+    private const string NormativeCommissioningSection = "DeviceComissioning";
+    private const string CommonCommissioningSection = "DeviceCommissioning";
+
+    private static DeviceCommissioning ParseDeviceCommissioning(
+        DeviceConfigurationFile dcf,
+        Dictionary<string, Dictionary<string, string>> sections)
     {
         var dc = new DeviceCommissioning();
 
-        // Accept both spec spelling "DeviceComissioning" (one 'm') and common spelling (two 'm's)
-        var sectionName = IniParser.HasSection(sections, "DeviceCommissioning")
-            ? "DeviceCommissioning"
-            : IniParser.HasSection(sections, "DeviceComissioning")
-                ? "DeviceComissioning"
+        // CiA 306-1 v1.4.0 § 7.3.5 Table 12 spells the section "DeviceComissioning" (one 'm');
+        // the two-'m' spelling is common in the wild. The normative spelling wins when both exist.
+        var hasNormative = IniParser.HasSection(sections, NormativeCommissioningSection);
+        var hasCommon = IniParser.HasSection(sections, CommonCommissioningSection);
+        if (hasNormative && hasCommon)
+            KeepSecondCommissioningSection(dcf, sections);
+
+        var sectionName = hasNormative
+            ? NormativeCommissioningSection
+            : hasCommon
+                ? CommonCommissioningSection
                 : null;
 
         if (sectionName == null)
             return dc;
 
-        dc.NodeId = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "NodeID", "1"));
+        dc.NodeId = LenientIniNumber.ParseByte(
+            sections,
+            sectionName,
+            "NodeID",
+            IniParser.GetValue(sections, sectionName, "NodeID", "1"),
+            fallback: 1,
+            code: ParseDiagnosticCodes.InvalidNodeId,
+            coercedTo: "1",
+            fallbackDescription: "Treated as 1.");
         if (!CanOpenNodeId.IsInRange(dc.NodeId))
         {
-            throw new EdsParseException(
-                $"Invalid NodeID '{dc.NodeId}' in [{sectionName}]. CANopen Node-ID must be in range {CanOpenNodeId.RangeDescription}.")
-            {
-                SectionName = sectionName
-            };
+            // The value is kept: CanOpenModelValidator reports Node-ID 0 and values above 127.
+            LenientIniNumber.ReportOutOfRange(
+                sections,
+                sectionName,
+                "NodeID",
+                IniParser.GetValue(sections, sectionName, "NodeID"),
+                ParseDiagnosticCodes.InvalidNodeId,
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Invalid NodeID '{0}' in [{1}]. CANopen Node-ID must be in range {2}.",
+                    dc.NodeId,
+                    sectionName,
+                    CanOpenNodeId.RangeDescription));
         }
 
         dc.NodeName = IniParser.GetValue(sections, sectionName, "NodeName");
         dc.NodeRefd = IniParser.GetValue(sections, sectionName, "NodeRefd");
-        dc.Baudrate = ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, "Baudrate", "250"));
-        dc.NetNumber = ValueConverter.ParseInteger(IniParser.GetValue(sections, sectionName, "NetNumber", "0"));
+        dc.Baudrate = LenientIniNumber.ParseUInt16(
+            sections,
+            sectionName,
+            "Baudrate",
+            IniParser.GetValue(sections, sectionName, "Baudrate", "250"),
+            fallback: 250,
+            code: ParseDiagnosticCodes.InvalidBaudrate,
+            coercedTo: "250",
+            fallbackDescription: "Treated as 250.");
+        dc.NetNumber = LenientIniNumber.ParseUInt32(
+            sections,
+            sectionName,
+            "NetNumber",
+            IniParser.GetValue(sections, sectionName, "NetNumber", "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidNetNumber,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
         dc.NetworkName = IniParser.GetValue(sections, sectionName, "NetworkName");
         dc.NetRefd = IniParser.GetValue(sections, sectionName, "NetRefd");
         dc.CANopenManager = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "CANopenManager"));
@@ -307,13 +352,55 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         var lssSerialStr = IniParser.GetValue(sections, sectionName, "LSS_SerialNumber");
         if (!string.IsNullOrEmpty(lssSerialStr))
         {
-            dc.LssSerialNumber = ValueConverter.ParseInteger(lssSerialStr);
+            dc.LssSerialNumber = LenientIniNumber.ParseOptionalUInt32(
+                sections,
+                sectionName,
+                "LSS_SerialNumber",
+                lssSerialStr,
+                ParseDiagnosticCodes.InvalidLssSerialNumber,
+                LenientIniNumber.LeaveUnset);
         }
 
         CanOpenSectionParsers.CaptureUnmappedEntries(
             sections, sectionName, SectionEntryKeys.IsDeviceCommissioningKey, dc.RemainingEntries);
 
         return dc;
+    }
+
+    /// <summary>
+    /// Both spellings are present: the second section is not read into the model. It is reported
+    /// and kept unchanged in <see cref="DeviceConfigurationFile.AdditionalSections"/>
+    /// (strict mode throws).
+    /// </summary>
+    private static void KeepSecondCommissioningSection(
+        DeviceConfigurationFile dcf,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+        // The sections dictionary is case-insensitive; take the spelling the file used.
+        var name = sections.Keys.First(k => string.Equals(k, CommonCommissioningSection, StringComparison.OrdinalIgnoreCase));
+        var message = string.Format(
+            CultureInfo.InvariantCulture,
+            "Both [{0}] (CiA 306-1) and [{1}] are present. [{0}] is read; [{1}] is kept unchanged in AdditionalSections.",
+            NormativeCommissioningSection,
+            name);
+
+        ParseDiagnosticScope.Report(new ParseDiagnostic(
+            ParseSeverity.Warning,
+            ParseDiagnosticCodes.IniDuplicateDeviceCommissioning,
+            path: name,
+            message: message,
+            rawValue: name));
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(message)
+            {
+                Code = ParseDiagnosticCodes.IniDuplicateDeviceCommissioning,
+                SectionName = name
+            };
+        }
+
+        dcf.AdditionalSections[name] = AdditionalSectionsCloner.CloneSectionEntriesCaseInsensitive(sections[name]);
     }
 
     private static List<int> ParseConnectedModules(

@@ -127,10 +127,10 @@ internal static class CanOpenSectionParsers
             throw new EdsParseException("Required section [DeviceInfo] not found");
 
         deviceInfo.VendorName = IniParser.GetValue(sections, "DeviceInfo", "VendorName");
-        deviceInfo.VendorNumber = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DeviceInfo", "VendorNumber", "0"));
+        deviceInfo.VendorNumber = DeviceInfoUInt32(sections, "VendorNumber");
         deviceInfo.ProductName = IniParser.GetValue(sections, "DeviceInfo", "ProductName");
-        deviceInfo.ProductNumber = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DeviceInfo", "ProductNumber", "0"));
-        deviceInfo.RevisionNumber = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DeviceInfo", "RevisionNumber", "0"));
+        deviceInfo.ProductNumber = DeviceInfoUInt32(sections, "ProductNumber");
+        deviceInfo.RevisionNumber = DeviceInfoUInt32(sections, "RevisionNumber");
         deviceInfo.OrderCode = IniParser.GetValue(sections, "DeviceInfo", "OrderCode");
 
         // Parse baud rates
@@ -145,19 +145,58 @@ internal static class CanOpenSectionParsers
 
         deviceInfo.SimpleBootUpMaster = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "SimpleBootUpMaster"));
         deviceInfo.SimpleBootUpSlave = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "SimpleBootUpSlave"));
-        deviceInfo.Granularity = ValueConverter.ParseByte(IniParser.GetValue(sections, "DeviceInfo", "Granularity", "8"));
-        deviceInfo.DynamicChannelsSupported = ValueConverter.ParseByte(IniParser.GetValue(sections, "DeviceInfo", "DynamicChannelsSupported", "0"));
+        deviceInfo.Granularity = DeviceInfoByte(sections, "Granularity", 8);
+        deviceInfo.DynamicChannelsSupported = DeviceInfoByte(sections, "DynamicChannelsSupported", 0);
         deviceInfo.GroupMessaging = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "GroupMessaging"));
-        deviceInfo.NrOfRxPdo = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DeviceInfo", "NrOfRXPDO", "0"));
-        deviceInfo.NrOfTxPdo = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DeviceInfo", "NrOfTXPDO", "0"));
+        deviceInfo.NrOfRxPdo = DeviceInfoUInt16(sections, "NrOfRXPDO");
+        deviceInfo.NrOfTxPdo = DeviceInfoUInt16(sections, "NrOfTXPDO");
         deviceInfo.LssSupported = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "LSS_Supported"));
-        deviceInfo.CompactPdo = ValueConverter.ParseByte(IniParser.GetValue(sections, "DeviceInfo", "CompactPDO", "0"));
+        deviceInfo.CompactPdo = DeviceInfoByte(sections, "CompactPDO", 0);
         deviceInfo.CANopenSafetySupported = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "CANopenSafetySupported"));
 
         // Includes the entries § 6.5 reserves for compatibility (ProductVersion, LMT_*, ExtendedBootUp*).
         CaptureUnmappedEntries(sections, "DeviceInfo", SectionEntryKeys.IsDeviceInfoKey, deviceInfo.RemainingEntries);
 
         return deviceInfo;
+    }
+
+    private static uint DeviceInfoUInt32(Dictionary<string, Dictionary<string, string>> sections, string key)
+        => LenientIniNumber.ParseUInt32(
+            sections,
+            "DeviceInfo",
+            key,
+            IniParser.GetValue(sections, "DeviceInfo", key, "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidDeviceInfoNumber,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
+
+    private static ushort DeviceInfoUInt16(Dictionary<string, Dictionary<string, string>> sections, string key)
+        => LenientIniNumber.ParseUInt16(
+            sections,
+            "DeviceInfo",
+            key,
+            IniParser.GetValue(sections, "DeviceInfo", key, "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidDeviceInfoNumber,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
+
+    private static byte DeviceInfoByte(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string key,
+        byte defaultValue)
+    {
+        var defaultText = defaultValue.ToString(CultureInfo.InvariantCulture);
+        return LenientIniNumber.ParseByte(
+            sections,
+            "DeviceInfo",
+            key,
+            IniParser.GetValue(sections, "DeviceInfo", key, defaultText),
+            defaultValue,
+            ParseDiagnosticCodes.InvalidDeviceInfoNumber,
+            coercedTo: defaultText,
+            fallbackDescription: "Treated as " + defaultText + ".");
     }
 
     /// <summary>
@@ -860,7 +899,15 @@ internal static class CanOpenSectionParsers
     /// </summary>
     internal static DynamicChannels? ParseDynamicChannels(Dictionary<string, Dictionary<string, string>> sections)
     {
-        var nrOfSeg = ValueConverter.ParseByte(IniParser.GetValue(sections, "DynamicChannels", "NrOfSeg", "0"));
+        var nrOfSeg = LenientIniNumber.ParseByte(
+            sections,
+            "DynamicChannels",
+            "NrOfSeg",
+            IniParser.GetValue(sections, "DynamicChannels", "NrOfSeg", "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidDynamicChannelCount,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
         var dynamicChannels = new DynamicChannels();
         CaptureUnmappedEntries(
             sections,
@@ -874,6 +921,16 @@ internal static class CanOpenSectionParsers
 
         for (int i = 1; i <= nrOfSeg; i++)
         {
+            var typeKey = string.Format(CultureInfo.InvariantCulture, "Type{0}", i);
+            var type = LenientIniNumber.ParseUInt16(
+                sections,
+                "DynamicChannels",
+                typeKey,
+                IniParser.GetValue(sections, "DynamicChannels", typeKey, "0"),
+                fallback: 0,
+                code: ParseDiagnosticCodes.InvalidDynamicChannelType,
+                coercedTo: "0",
+                fallbackDescription: LenientIniNumber.TreatAsZero);
             var ppOffsetKey = string.Format(CultureInfo.InvariantCulture, "PPOffset{0}", i);
             var ppOffset = LenientIniNumber.ParsePpOffset(
                 sections,
@@ -882,7 +939,7 @@ internal static class CanOpenSectionParsers
                 IniParser.GetValue(sections, "DynamicChannels", ppOffsetKey, "0"));
             var segment = new DynamicChannelSegment
             {
-                Type = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Type{0}", i), "0")),
+                Type = type,
                 Dir = ValueConverter.ParseAccessType(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Dir{0}", i))),
                 Range = IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Range{0}", i)),
                 PPOffset = ppOffset.Offset,
