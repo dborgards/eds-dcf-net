@@ -290,14 +290,20 @@ internal static class XddPreservedContentReader
     /// <summary>
     /// Deep copy without namespace declarations. For a source without any namespace, every element
     /// is named from the parent-based table: the copy's own name from <paramref name="rootName"/>,
-    /// each descendant from its (already renamed) parent.
+    /// each descendant from its (already renamed) parent. A binding that a QName value of the
+    /// fragment refers to (<c>xsi:type="vendor:Extension"</c>) is declared again on that element,
+    /// unless the writer declares the same binding on the document element.
     /// </summary>
     private static XElement Copy(XElement source, Func<string, XName> rootName, bool qualify)
     {
         var copy = new XElement(source);
-        foreach (var element in copy.DescendantsAndSelf().ToList())
+        var originals = source.DescendantsAndSelf().ToList();
+        var copies = copy.DescendantsAndSelf().ToList();
+        for (var i = 0; i < copies.Count; i++)
         {
+            var element = copies[i];
             element.Attributes().Where(a => a.IsNamespaceDeclaration).Remove();
+            KeepReferencedBindings(originals[i], element);
             if (!qualify)
                 continue;
 
@@ -307,5 +313,39 @@ internal static class XddPreservedContentReader
         }
 
         return copy;
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex QNamePrefix = new(
+        @"^\s*([A-Za-z_][\w.-]*):",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>Bindings the XDD/XDC writers declare on the document element.</summary>
+    private static readonly Dictionary<string, XNamespace> WriterBindings = new(StringComparer.Ordinal)
+    {
+        [XddNames.Prefix] = XddNames.Namespace,
+        ["xsi"] = XddNames.Xsi,
+        ["xml"] = XNamespace.Xml,
+    };
+
+    private static void KeepReferencedBindings(XElement original, XElement copy)
+    {
+        var values = copy.Attributes().Select(a => a.Value)
+            .Concat(copy.Nodes().OfType<XText>().Select(t => t.Value))
+            .ToList();
+        foreach (var value in values)
+        {
+            var match = QNamePrefix.Match(value);
+            if (!match.Success)
+                continue;
+
+            var prefix = match.Groups[1].Value;
+            var bound = original.GetNamespaceOfPrefix(prefix);
+            if (bound == null
+                || (WriterBindings.TryGetValue(prefix, out var declared) && declared == bound)
+                || copy.GetNamespaceOfPrefix(prefix) == bound)
+                continue;
+
+            copy.SetAttributeValue(XNamespace.Xmlns + prefix, bound.NamespaceName);
+        }
     }
 }

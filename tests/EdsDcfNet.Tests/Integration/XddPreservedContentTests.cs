@@ -618,6 +618,36 @@ public class XddPreservedContentTests
     }
 
     [Fact]
+    public void WriteToString_FragmentWithQNameValues_KeepsTheBindingsTheyReferTo()
+    {
+        // Arrange — the prefixes are used only inside attribute values and text.
+        XNamespace vendor = "urn:vendor";
+        XNamespace other = "urn:other";
+        var xml = Mutate(FixtureXdd, doc => Single(doc, "NetworkManagement").Add(
+            new XElement("vendorExtension",
+                new XAttribute(XNamespace.Xmlns + "vendor", vendor.NamespaceName),
+                new XAttribute(XNamespace.Xmlns + "co", other.NamespaceName),
+                new XAttribute(Xsi + "type", "vendor:Extension"),
+                new XAttribute("ref", "co:Thing"),
+                new XElement("inner", new XAttribute("kind", "vendor:Inner"), "note: plain text"))));
+
+        // Act
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(xml)));
+
+        // Assert
+        var extension = Single(written, "vendorExtension");
+        var inner = extension.Element("inner")!;
+        extension.GetNamespaceOfPrefix("vendor").Should().Be(vendor);
+        extension.GetNamespaceOfPrefix("co").Should().Be(other);
+        extension.GetNamespaceOfPrefix("xsi").Should().Be(Xsi);
+        extension.Attributes().Where(a => a.IsNamespaceDeclaration).Select(a => a.Name.LocalName)
+            .Should().BeEquivalentTo("vendor", "co");
+        inner.GetNamespaceOfPrefix("vendor").Should().Be(vendor);
+        inner.Attributes().Should().NotContain(a => a.IsNamespaceDeclaration);
+        written.Root!.GetNamespaceOfPrefix("co").Should().Be(Co);
+    }
+
+    [Fact]
     public void ReadString_MalformedCommentMarker_IsKeptAsToolComment()
     {
         // Arrange
