@@ -31,6 +31,7 @@ public class Cia311SchemaValidationTests
     {
         yield return new object[] { "corpus:canopen-node/basicDevice.xdd" };
         yield return new object[] { "fixture:preserved_content.xdd" };
+        yield return new object[] { "XddWriter:sample_device.xdd" };
         yield return new object[] { "XddWriter:sample_device.eds" };
         yield return new object[] { "XddWriter:corpus/basicDevice.xdd" };
         yield return new object[] { "XddWriter:preserved_content.xdd" };
@@ -46,10 +47,9 @@ public class Cia311SchemaValidationTests
     /// </summary>
     public static IEnumerable<object[]> KnownGaps()
     {
-        // XddApplicationProcessBuilder writes an enum's simple type before its enumValue
-        // elements and a parameterGroup's parameterRef before nested groups; the schema
-        // requires the opposite order. Not part of WP-43 (reported separately).
-        yield return new object[] { "XddWriter:sample_device.xdd", "enum" };
+        // Empty: every writer output listed in ConformantDocuments validates. A new gap is
+        // added here as { document, token }.
+        yield break;
     }
 
     /// <summary>Input fixtures without a namespace, with the stable token of their first problem.</summary>
@@ -130,21 +130,37 @@ public class Cia311SchemaValidationTests
         problems.Should().BeEmpty();
     }
 
-    [Theory]
-    [MemberData(nameof(KnownGaps))]
-    public void Validate_KnownGap_StillReportsExpectedFirstProblem(string document, string expectedToken)
+    // A fact rather than a theory: xUnit fails a theory whose data source is empty.
+    [Fact]
+    public void Validate_KnownGaps_StillReportExpectedFirstProblem()
+    {
+        foreach (var gap in KnownGaps())
+        {
+            var document = (string)gap[0];
+            var expectedToken = (string)gap[1];
+
+            // Act
+            var problems = Cia311Schema.Validate(Resolve(document));
+
+            // Assert
+            problems.Should().NotBeEmpty(
+                "{0} is listed as a known schema gap; move it to ConformantDocuments now that it validates",
+                document);
+            problems[0].Should().Contain(
+                expectedToken,
+                "the first schema problem of {0} changed; update the KnownGaps entry to the next remaining problem",
+                document);
+        }
+    }
+
+    [Fact]
+    public void KnownGaps_AfterPhase3_IsEmpty()
     {
         // Act
-        var problems = Cia311Schema.Validate(Resolve(document));
+        var gaps = KnownGaps().ToList();
 
         // Assert
-        problems.Should().NotBeEmpty(
-            "{0} is listed as a known schema gap; move it to ConformantDocuments now that it validates",
-            document);
-        problems[0].Should().Contain(
-            expectedToken,
-            "the first schema problem of {0} changed; update the KnownGaps entry to the next remaining problem",
-            document);
+        gaps.Should().BeEmpty();
     }
 
     [Theory]
