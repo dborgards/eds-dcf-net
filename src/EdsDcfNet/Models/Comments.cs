@@ -28,7 +28,14 @@ public class Comments
     /// </summary>
     internal ushort WrittenLineCount()
     {
-        var count = CommentLines.Count;
+        // Line numbers start at 1; a key below 1 is not a comment line.
+        var count = 0;
+        foreach (var number in CommentLines.Keys)
+        {
+            if (number >= 1)
+                count++;
+        }
+
         foreach (var number in CommentLines.Keys)
         {
             if (number > count)

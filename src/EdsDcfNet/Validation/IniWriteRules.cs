@@ -357,6 +357,16 @@ internal static class IniWriteRules
 
         // The writer emits Lines as the highest line number, so a gap would leave a Line<n> missing
         // inside Lines. An empty Line<n> the reader kept in RemainingEntries fills its gap.
+        foreach (var number in comments.CommentLines.Keys.Where(key => key < 1).OrderBy(key => key))
+        {
+            issues.Add(new ValidationIssue(
+                "Comments.CommentLines",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Comment line number {0} is below 1. Line numbers start at 1 (CiA 306-1 Table 9); the line would not be read back.",
+                    number)));
+        }
+
         var highest = comments.WrittenLineCount();
         for (var n = 1; n < highest; n++)
         {

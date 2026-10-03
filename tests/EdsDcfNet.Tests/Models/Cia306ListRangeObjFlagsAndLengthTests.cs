@@ -774,4 +774,26 @@ public class Cia306ListRangeObjFlagsAndLengthTests
         act.Should().Throw<ModelValidationException>().Which.Issues.Should().ContainSingle(i =>
             i.Path == "Comments.CommentLines" && i.Message.Contains("2", StringComparison.Ordinal));
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void WriteToString_CommentLineKeyBelowOne_ValidatedRejectsAndLinesCountsOnlyValidKeys(int key)
+    {
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.Comments = new Comments();
+        eds.Comments.CommentLines[key] = "bad";
+        eds.Comments.CommentLines[1] = "good";
+        var module = ValidCanOpenModelBuilder.CreateValidEds();
+        module.SupportedModules.Add(ModuleWithComments(new Comments()));
+        module.SupportedModules[0].Comments!.CommentLines[key] = "bad";
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+        var moduleAct = () => CanOpenFile.Eds.WriteToString(module, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>().Which.Issues.Should().ContainSingle(i =>
+            i.Path == "Comments.CommentLines" && i.Message.Contains("below 1", StringComparison.Ordinal));
+        moduleAct.Should().Throw<ModelValidationException>();
+        CanOpenFile.Eds.WriteToString(eds).Should().Contain("Lines=1");
+    }
 }
