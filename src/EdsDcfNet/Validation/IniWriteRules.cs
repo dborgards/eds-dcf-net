@@ -624,6 +624,11 @@ internal static class IniWriteRules
             CheckIfPresent(network.NetName, IniTextSlot.Value, path + ".NetName", issues);
             CheckIfPresent(network.NetRefd, IniTextSlot.Value, path + ".NetRefd", issues);
             CheckIfPresent(network.EdsBaseName, IniTextSlot.Value, path + ".EdsBaseName", issues);
+            ApplyRemaining(
+                network.RemainingEntries,
+                key => SectionEntryKeys.IsWrittenTopologyKey(network, key),
+                path,
+                issues);
 
             foreach (var nodeEntry in network.Nodes)
             {
