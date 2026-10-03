@@ -226,6 +226,15 @@ public class CpjWriter
             IniRoundTripText.WriteKeyValue(sb, "EDSBaseName", topology.EdsBaseName);
         }
 
+        // Kept entries follow in file order; a key generated above wins over a kept one.
+        foreach (var entry in topology.RemainingEntries)
+        {
+            if (SectionEntryKeys.IsWrittenTopologyKey(topology, entry.Key))
+                continue;
+
+            IniRoundTripText.WriteKeyValue(sb, entry.Key, entry.Value);
+        }
+
         sb.AppendLine();
     }
 
