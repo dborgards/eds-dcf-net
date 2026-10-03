@@ -56,6 +56,13 @@ public abstract class CanOpenReaderBase
         var listedIndexes = new HashSet<ushort>(model.ObjectDictionary.MandatoryObjects);
         listedIndexes.UnionWith(model.ObjectDictionary.OptionalObjects);
         listedIndexes.UnionWith(model.ObjectDictionary.ManufacturerObjects);
+        var bodyIndexes = new HashSet<ushort>();
+        foreach (var sectionName in sections.Keys)
+        {
+            if (TryParseObjectIndexSectionName(sectionName, out var bodyIndex))
+                bodyIndexes.Add(bodyIndex);
+        }
+
         var reportedUnlistedIndexes = new HashSet<ushort>();
         foreach (var sectionName in sections.Keys)
         {
@@ -66,8 +73,11 @@ public abstract class CanOpenReaderBase
                 continue;
             }
 
-            if (TryPreserveUnlistedObjectSection(model, sections, sectionName, listedIndexes, reportedUnlistedIndexes))
+            if (TryPreserveUnlistedObjectSection(
+                    model, sections, sectionName, listedIndexes, bodyIndexes, reportedUnlistedIndexes))
+            {
                 continue;
+            }
 
             if (!IsKnownSection(sectionName))
             {
@@ -85,8 +95,9 @@ public abstract class CanOpenReaderBase
     /// index; strict mode throws on the first reported section.
     /// </summary>
     /// <remarks>
-    /// The warning is attached to the object body when the file has one, even if a
-    /// companion section precedes it; otherwise the first companion carries it.
+    /// The warning is attached to the object body when the file has one (in any spelling
+    /// of the index, see <paramref name="bodyIndexes"/>), even if a companion section
+    /// precedes it; otherwise the first companion carries it.
     /// </remarks>
     /// <returns>
     /// <see langword="true"/> when <paramref name="sectionName"/> belongs to an unlisted
@@ -97,6 +108,7 @@ public abstract class CanOpenReaderBase
         Dictionary<string, Dictionary<string, string>> sections,
         string sectionName,
         HashSet<ushort> listedIndexes,
+        HashSet<ushort> bodyIndexes,
         HashSet<ushort> reportedIndexes)
     {
         // Standard section names are never object indexes. Checking them first keeps a
@@ -111,8 +123,7 @@ public abstract class CanOpenReaderBase
         if (listedIndexes.Contains(index))
             return false;
 
-        if ((isObjectBody || !IniParser.HasSection(sections, ToHexInvariant(index))) &&
-            reportedIndexes.Add(index))
+        if ((isObjectBody || !bodyIndexes.Contains(index)) && reportedIndexes.Add(index))
         {
             ReportUnlistedObjectSection(sectionName, index);
         }

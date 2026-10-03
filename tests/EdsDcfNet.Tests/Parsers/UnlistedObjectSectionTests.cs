@@ -426,6 +426,36 @@ public class UnlistedObjectSectionTests
     }
 
     [Fact]
+    public void ReadString_CompanionBeforePaddedUnlistedBody_ReportsOnBodyAndPreservesAll()
+    {
+        // Arrange — the body is spelled [0040], not [40], and a companion precedes it.
+        var content = Eds("""
+            [0040sub1]
+            ParameterName=Entry
+
+            [0040]
+            ParameterName=Padded Body
+            ObjectType=0x9
+            SubNumber=1
+            """);
+
+        // Act
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+        var strictAct = () => CanOpenFile.Eds.ReadString(content, Strict);
+
+        // Assert
+        result.Model.ObjectDictionary.Objects.Should().NotContainKey(0x0040);
+        result.Model.AdditionalSections.Keys.Should().BeEquivalentTo("0040sub1", "0040");
+        result.Model.AdditionalSections["0040"]["ParameterName"].Should().Be("Padded Body");
+        var diagnostic = result.Diagnostics.Should().ContainSingle(d =>
+            d.Code == ParseDiagnosticCodes.IniUnlistedObjectSection).Which;
+        diagnostic.Path.Should().Be("0040");
+        diagnostic.RawValue.Should().Be("0040");
+        diagnostic.Message.Should().Be("object section 0x0040 not listed in any object list");
+        strictAct.Should().Throw<EdsParseException>().Which.SectionName.Should().Be("0040");
+    }
+
+    [Fact]
     public void ReadString_UnlistedSubObjectSection_StrictParsing_ThrowsEdsParseException()
     {
         // Arrange
