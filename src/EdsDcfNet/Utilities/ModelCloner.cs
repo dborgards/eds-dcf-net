@@ -45,8 +45,20 @@ internal static class ModelCloner
             NrOfTxPdo = source.NrOfTxPdo,
             LssSupported = source.LssSupported,
             CompactPdo = source.CompactPdo,
-            CANopenSafetySupported = source.CANopenSafetySupported
+            CANopenSafetySupported = source.CANopenSafetySupported,
+            SelfStartingDevice = source.SelfStartingDevice,
+            SdoRequestingDevice = source.SdoRequestingDevice,
+            FlyingMaster = source.FlyingMaster,
+            SdoManager = source.SdoManager,
+            ConfigurationManager = source.ConfigurationManager,
+            LayerSettingServiceMaster = source.LayerSettingServiceMaster
         };
+
+        foreach (var version in source.Versions)
+            clone.Versions.Add(new DeviceVersion { Type = version.Type, Value = version.Value, ReadOnly = version.ReadOnly });
+
+        foreach (var orderNumber in source.OrderNumbers)
+            clone.OrderNumbers.Add(new DeviceOrderNumber { Value = orderNumber.Value, ReadOnly = orderNumber.ReadOnly });
 
         CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
         return clone;

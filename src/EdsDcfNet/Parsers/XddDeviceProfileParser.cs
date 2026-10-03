@@ -72,7 +72,76 @@ internal static class XddDeviceProfileParser
         if (!string.IsNullOrEmpty(productIdStr))
             deviceInfo.ProductNumber = ParseHexId(productIdStr);
 
+        // Both lists are kept whole (value and readOnly, in file order). The XDD/XDC writer writes
+        // them back; OrderCode only mirrors the first order number for EDS and DCF.
+        foreach (var element in identity.Elements().Where(e => e.Name.LocalName == "orderNumber"))
+        {
+            deviceInfo.OrderNumbers.Add(new DeviceOrderNumber
+            {
+                Value = element.Value,
+                ReadOnly = ReadReadOnly(element)
+            });
+        }
+
+        if (deviceInfo.OrderNumbers.Count > 0)
+            deviceInfo.OrderCode = deviceInfo.OrderNumbers[0].Value.Trim();
+
+        foreach (var element in identity.Elements().Where(e => e.Name.LocalName == "version"))
+        {
+            var type = ReadVersionType(element);
+            if (type.HasValue)
+            {
+                deviceInfo.Versions.Add(new DeviceVersion
+                {
+                    Type = type.Value,
+                    Value = element.Value,
+                    ReadOnly = ReadReadOnly(element)
+                });
+            }
+        }
+
         return deviceInfo;
+    }
+
+    // readOnly is xsd:boolean with the default true.
+    private static bool ReadReadOnly(XElement element)
+        => element.Attribute("readOnly")?.Value is not string readOnly || ParseXmlBool(readOnly);
+
+    // versionType is required and one of SW, FW, HW. A missing or unknown value is not a CiA 311
+    // version: it is reported and the element is not kept (strict mode rejects it).
+    private static DeviceVersionType? ReadVersionType(XElement element)
+    {
+        var raw = element.Attribute("versionType")?.Value;
+        var token = raw?.Trim();
+        switch (token)
+        {
+            case "SW":
+                return DeviceVersionType.Software;
+            case "FW":
+                return DeviceVersionType.Firmware;
+            case "HW":
+                return DeviceVersionType.Hardware;
+        }
+
+        var message = string.Format(
+            CultureInfo.InvariantCulture,
+            "DeviceIdentity version has versionType '{0}'; expected SW, FW or HW. The element is ignored.",
+            raw ?? "(missing)");
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(message)
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.XddUnknownVersionType
+            };
+        }
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.XddUnknownVersionType,
+            path: "DeviceIdentity/version/@versionType",
+            rawValue: raw,
+            message: message));
+        return null;
     }
 
     private static void ReadFileVersion(EdsFileInfo fileInfo, string text, string trimmed)

@@ -29,12 +29,46 @@ public class DeviceInfo
     /// <summary>
     /// Product revision number according to identity object sub-index 03h (Unsigned32).
     /// </summary>
+    /// <remarks>
+    /// For XDD and XDC the typed <see cref="Versions"/> list is authoritative. While that list is not
+    /// empty the XDD/XDC writer writes exactly the list and this property has no effect on the output;
+    /// the XDD/XDC reader does not derive it from the versions. Only when <see cref="Versions"/> is
+    /// empty (a model read from EDS or DCF) the writer outputs this number as one <c>version</c>
+    /// element of type <see cref="DeviceVersionType.Firmware"/> (<c>FW</c>), in decimal. EDS and DCF
+    /// always write this property.
+    /// </remarks>
     public uint RevisionNumber { get; set; }
 
     /// <summary>
     /// Order code for this product (max 245 characters).
     /// </summary>
+    /// <remarks>
+    /// The XDD/XDC reader sets this to the first entry of <see cref="OrderNumbers"/>. For XDD and XDC
+    /// that list is authoritative: while it is not empty the writer writes exactly the list and a
+    /// changed <see cref="OrderCode"/> only affects EDS and DCF. Only when <see cref="OrderNumbers"/>
+    /// is empty (a model read from EDS or DCF) a non-empty value is written as the single
+    /// <c>orderNumber</c> element.
+    /// </remarks>
     public string OrderCode { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Typed, ordered <c>version</c> elements of the XDD/XDC <c>DeviceIdentity</c>.
+    /// </summary>
+    /// <remarks>
+    /// Authoritative for XDD and XDC; see <see cref="RevisionNumber"/> for how the two relate. The
+    /// list is not part of EDS or DCF and is empty for models read from those formats. To change the
+    /// versions of a model read from XDD/XDC, change this list.
+    /// </remarks>
+    public List<DeviceVersion> Versions { get; } = new();
+
+    /// <summary>
+    /// Ordered <c>orderNumber</c> elements of the XDD/XDC <c>DeviceIdentity</c>.
+    /// </summary>
+    /// <remarks>
+    /// Authoritative for XDD and XDC; see <see cref="OrderCode"/> for how the two relate. The list is
+    /// not part of EDS or DCF and is empty for models read from those formats.
+    /// </remarks>
+    public List<DeviceOrderNumber> OrderNumbers { get; } = new();
 
     /// <summary>
     /// Supported baud rates (Boolean, 0 = not supported, 1 = supported).
@@ -93,6 +127,45 @@ public class DeviceInfo
     /// CANopen Safety supported according to EN 50325-5 (Boolean, 0 = not supported, 1 = supported).
     /// </summary>
     public bool CANopenSafetySupported { get; set; }
+
+    /// <summary>
+    /// Self-starting device functionality (XDD/XDC <c>CANopenGeneralFeatures/@selfStartingDevice</c>).
+    /// </summary>
+    /// <remarks>EDS and DCF have no key for this value; the INI writers do not emit it.</remarks>
+    public bool SelfStartingDevice { get; set; }
+
+    /// <summary>
+    /// Device can request SDOs (XDD/XDC <c>CANopenGeneralFeatures/@SDORequestingDevice</c>).
+    /// </summary>
+    /// <remarks>EDS and DCF have no key for this value; the INI writers do not emit it.</remarks>
+    public bool SdoRequestingDevice { get; set; }
+
+    /// <summary>
+    /// Flying master functionality (XDD/XDC <c>CANopenMasterFeatures/@flyingMaster</c>).
+    /// </summary>
+    /// <remarks>EDS and DCF have no key for this value; the INI writers do not emit it.</remarks>
+    public bool FlyingMaster { get; set; }
+
+    /// <summary>
+    /// SDO manager functionality (XDD/XDC <c>CANopenMasterFeatures/@SDOManager</c>).
+    /// </summary>
+    /// <remarks>EDS and DCF have no key for this value; the INI writers do not emit it.</remarks>
+    public bool SdoManager { get; set; }
+
+    /// <summary>
+    /// Configuration manager functionality (XDD/XDC <c>CANopenMasterFeatures/@configurationManager</c>).
+    /// </summary>
+    /// <remarks>EDS and DCF have no key for this value; the INI writers do not emit it.</remarks>
+    public bool ConfigurationManager { get; set; }
+
+    /// <summary>
+    /// LSS master functionality (XDD/XDC <c>CANopenMasterFeatures/@layerSettingServiceMaster</c>).
+    /// </summary>
+    /// <remarks>
+    /// EDS and DCF have no key for this value; the INI writers do not emit it. The slave side is
+    /// <see cref="LssSupported"/>.
+    /// </remarks>
+    public bool LayerSettingServiceMaster { get; set; }
 
     /// <summary>
     /// Entries of the <c>[DeviceInfo]</c> section that the reader does not map onto a

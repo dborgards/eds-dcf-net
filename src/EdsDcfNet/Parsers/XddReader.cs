@@ -214,7 +214,11 @@ public class XddReader : IFileReader<ElectronicDataSheet>
         if (commNetProfileBody == null)
             throw new EdsParseException("XDD document does not contain a CommunicationNetwork ProfileBody.");
 
-        var eds = new ElectronicDataSheet();
+        var eds = new ElectronicDataSheet
+        {
+            // Only comments with the identifier written by this library; see XddRootComments.
+            Comments = Utilities.XddRootComments.Read(doc)
+        };
 
         // Parse FileInfo from device profile body (preferred) or comm-net body
         var fileInfoSource = deviceProfileBody ?? commNetProfileBody;

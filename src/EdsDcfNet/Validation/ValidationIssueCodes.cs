@@ -64,4 +64,11 @@ public static class ValidationIssueCodes
     /// XDC write.
     /// </summary>
     public const string XddActualBaudRateNotSet = "XDD_ACTUAL_BAUD_RATE_NOT_SET";
+
+    /// <summary>
+    /// A <see cref="Models.Comments.CommentLines"/> entry cannot be carried as an XML comment in XDD/XDC:
+    /// its text holds a character that is not valid in XML, or its line number is outside 1..65535.
+    /// An unvalidated write leaves the line out. Checked only on a validated XDD or XDC write.
+    /// </summary>
+    public const string XddCommentLineNotRepresentable = "XDD_COMMENT_LINE_NOT_REPRESENTABLE";
 }
