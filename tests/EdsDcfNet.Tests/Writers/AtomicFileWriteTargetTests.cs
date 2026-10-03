@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Writers;
 
+using System.Runtime.Versioning;
 using EdsDcfNet.Utilities;
 
 /// <summary>
@@ -146,6 +147,120 @@ public sealed class AtomicFileWriteTargetTests : IDisposable
         // Assert
         new FileInfo(link).LinkTarget.Should().Be(target);
         CanOpenFile.Eds.ReadFile(target).DeviceInfo.ProductName.Should().Be(eds.DeviceInfo.ProductName);
+    }
+
+    // ---- Unix permissions of the replaced file ----
+
+    private const UnixFileMode OwnerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+
+    private const UnixFileMode Group0640 = OwnerOnly | UnixFileMode.GroupRead;
+
+    private static void SkipOnWindows()
+        => Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix file modes do not exist on Windows.");
+
+    [UnsupportedOSPlatform("windows")]
+    [Theory]
+    [InlineData(OwnerOnly)]
+    [InlineData(Group0640)]
+    public void WriteFileAtomic_ExistingFileWithRestrictiveMode_KeepsMode(UnixFileMode mode)
+    {
+        SkipOnWindows();
+
+        // Arrange
+        var target = PathOf("secret.eds");
+        File.WriteAllText(target, "old");
+        File.SetUnixFileMode(target, mode);
+
+        // Act
+        TextFileIo.WriteFileAtomic(target, s => s.Write(NewContent, 0, NewContent.Length));
+
+        // Assert
+        File.GetUnixFileMode(target).Should().Be(mode);
+        File.ReadAllBytes(target).Should().Equal(NewContent);
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    [Fact]
+    public async Task WriteFileAtomicAsync_ExistingFileWithMode0600_KeepsMode()
+    {
+        SkipOnWindows();
+
+        // Arrange
+        var target = PathOf("secret.eds");
+        File.WriteAllText(target, "old");
+        File.SetUnixFileMode(target, OwnerOnly);
+
+        // Act
+        await TextFileIo.WriteFileAtomicAsync(target, s => s.WriteAsync(NewContent, 0, NewContent.Length));
+
+        // Assert
+        File.GetUnixFileMode(target).Should().Be(OwnerOnly);
+        File.ReadAllBytes(target).Should().Equal(NewContent);
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    [Fact]
+    public void WriteFileAtomic_ExistingFileWithMode0600_TemporaryFileIsNeverWider()
+    {
+        SkipOnWindows();
+
+        // Arrange
+        var target = PathOf("secret.eds");
+        File.WriteAllText(target, "old");
+        File.SetUnixFileMode(target, OwnerOnly);
+        UnixFileMode? tempModeWhileWriting = null;
+
+        // Act
+        TextFileIo.WriteFileAtomic(target, s =>
+        {
+            var temp = Directory.EnumerateFiles(_dir, ".edsdcf.*").Single();
+            tempModeWhileWriting = File.GetUnixFileMode(temp);
+            s.Write(NewContent, 0, NewContent.Length);
+        });
+
+        // Assert
+        tempModeWhileWriting.Should().Be(OwnerOnly, "the content must not be readable by others while it is written");
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    [Fact]
+    public void WriteFileAtomic_SymbolicLinkToFileWithMode0600_KeepsTargetMode()
+    {
+        SkipOnWindows();
+
+        // Arrange
+        var target = PathOf("secret.eds");
+        var link = PathOf("link.eds");
+        File.WriteAllText(target, "old");
+        File.SetUnixFileMode(target, OwnerOnly);
+        CreateSymbolicLinkOrSkip(link, target);
+
+        // Act
+        TextFileIo.WriteFileAtomic(link, s => s.Write(NewContent, 0, NewContent.Length));
+
+        // Assert
+        File.GetUnixFileMode(target).Should().Be(OwnerOnly);
+        new FileInfo(link).LinkTarget.Should().Be(target);
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    [Fact]
+    public void DcfWriteFile_ExistingFileWithMode0600_KeepsMode()
+    {
+        SkipOnWindows();
+
+        // Arrange
+        var target = PathOf("secret.dcf");
+        File.WriteAllText(target, "old");
+        File.SetUnixFileMode(target, OwnerOnly);
+        var dcf = CanOpenFile.Dcf.ReadFile(Path.Combine("Fixtures", "minimal.dcf"));
+
+        // Act
+        CanOpenFile.Dcf.WriteFile(dcf, target);
+
+        // Assert
+        File.GetUnixFileMode(target).Should().Be(OwnerOnly);
+        CanOpenFile.Dcf.ReadFile(target).DeviceInfo.ProductName.Should().Be(dcf.DeviceInfo.ProductName);
     }
 #endif
 }

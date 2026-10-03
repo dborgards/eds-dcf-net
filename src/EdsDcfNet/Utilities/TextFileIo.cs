@@ -2,6 +2,11 @@ namespace EdsDcfNet.Utilities;
 
 using System.Text;
 using EdsDcfNet.Parsers;
+#if !NET10_0_OR_GREATER
+using System.Reflection;
+using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
+#endif
 
 internal static class TextFileIo
 {
@@ -78,6 +83,10 @@ internal static class TextFileIo
     /// Windows) is therefore written in place through the link: the content is first
     /// serialized completely into memory, so a serialization failure leaves the target
     /// untouched, but an I/O failure while writing can leave it truncated.
+    /// On Unix the replacing file receives the permission bits of the file it replaces. The
+    /// netstandard2.0 build reads them through <c>File.GetUnixFileMode</c> when the runtime
+    /// provides it (.NET 7 and later); on older Unix runtimes it writes an existing file in place
+    /// in the same way, which keeps its mode.
     /// </remarks>
     internal static void WriteFileAtomic(string filePath, Action<Stream> write)
     {
@@ -100,6 +109,7 @@ internal static class TextFileIo
                 FileShare.None,
                 bufferSize: 4096))
             {
+                CopyUnixFileMode(filePath, tempPath);
                 write(stream);
                 stream.Flush(flushToDisk: true);
             }
@@ -140,6 +150,7 @@ internal static class TextFileIo
                 bufferSize: 4096,
                 options: FileOptions.Asynchronous))
             {
+                CopyUnixFileMode(filePath, tempPath);
                 await write(stream).ConfigureAwait(false);
                 await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 stream.Flush(flushToDisk: true);
@@ -176,10 +187,36 @@ internal static class TextFileIo
 #if !NET10_0_OR_GREATER
     /// <summary>
     /// netstandard2.0 cannot resolve a link target, so a reparse point is written in place
-    /// through the link instead of being replaced.
+    /// through the link instead of being replaced. On a Unix runtime without
+    /// <c>File.SetUnixFileMode</c> an existing file is written in place as well, so it keeps its mode.
     /// </summary>
     private static bool MustWriteInPlace(string filePath)
-        => IsReparsePoint(filePath);
+        => IsReparsePoint(filePath)
+           || (!IsWindows && SetUnixFileModeMethod == null && File.Exists(filePath));
+
+    private static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
+    // File.GetUnixFileMode/SetUnixFileMode exist from .NET 7 on, which also runs this build.
+    // Looked up by reflection: the Polyfill substitute shells out to stat/chmod.
+    private static readonly MethodInfo? GetUnixFileModeMethod
+        = typeof(File).GetMethod("GetUnixFileMode", new[] { typeof(string) });
+
+    private static readonly MethodInfo? SetUnixFileModeMethod = GetUnixFileModeMethod == null
+        ? null
+        : typeof(File).GetMethod("SetUnixFileMode", new[] { typeof(string), GetUnixFileModeMethod.ReturnType });
+
+    private static object? InvokeStatic(MethodInfo method, params object?[] arguments)
+    {
+        try
+        {
+            return method.Invoke(null, arguments);
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException != null)
+        {
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw;
+        }
+    }
 
     private static bool IsReparsePoint(string filePath)
     {
@@ -226,6 +263,29 @@ internal static class TextFileIo
         stream.Flush(flushToDisk: true);
     }
 #endif
+
+    /// <summary>
+    /// Gives the temporary file the Unix permission bits of the file it will replace, before any
+    /// content is written. <see cref="File.Replace(string, string, string?)"/> renames the
+    /// temporary file over the target on Unix, so without this the new file would receive the
+    /// umask default (typically 0644) and widen a restrictive mode such as 0600. No-op on Windows,
+    /// where the replace keeps the target's attributes and ACL, and when the target does not exist.
+    /// </summary>
+    private static void CopyUnixFileMode(string filePath, string tempPath)
+    {
+#if NET10_0_OR_GREATER
+        if (OperatingSystem.IsWindows() || !File.Exists(filePath))
+            return;
+
+        File.SetUnixFileMode(tempPath, File.GetUnixFileMode(filePath));
+#else
+        if (IsWindows || SetUnixFileModeMethod == null || !File.Exists(filePath))
+            return;
+
+        var mode = InvokeStatic(GetUnixFileModeMethod!, filePath);
+        InvokeStatic(SetUnixFileModeMethod, tempPath, mode);
+#endif
+    }
 
     private static string CreateTempPath(string filePath)
     {
