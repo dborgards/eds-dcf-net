@@ -174,12 +174,28 @@ public abstract class IniWriterBase
             sb,
             string.Format(CultureInfo.InvariantCulture, "{0:X}", obj.Index));
 
+        // CiA 306-1 Table 7: keys marked "n" for the object type are not written.
+        bool IsWritten(string key) => IsObjectKeyWritten(obj, key);
+
         // CiA 306: SubNumber is normally omitted under CompactSubObj. Keep/emit it when
-        // expanded sub-objects exist above the compact range so the reader can reach them.
-        // Also emit when expanded SubObjects exist even if the highest sub-index is 0
-        // (SubNumber=0), so the key is not silently dropped for that boundary case.
+        // expanded sub-objects exist above the compact range so the reader can reach them
+        // (S18, Table 7 "nc"). Also emit when expanded SubObjects exist even if the highest
+        // sub-index is 0 (SubNumber=0), so the key is not silently dropped for that boundary case.
+        // Table 7 marks SubNumber "n" for VAR/DEFTYPE/DOMAIN, but it is still written while such
+        // an object has sub-objects, so an unvalidated write loses nothing on re-read (decision
+        // E10: reject only on validated writes, see IniWriteRules).
         var subNumberToWrite = ResolveSubNumberForWrite(obj, compactMax, useCompact);
-        if (subNumberToWrite > 0 || (!useCompact && obj.SubObjects.Count > 0))
+        var keepsSubNumberForSubObjects = !IsWritten("SubNumber") && obj.SubObjects.Count > 0;
+        if (keepsSubNumberForSubObjects)
+        {
+            // The reader loads sub-objects of these types only for SubNumber > 0, so the E10 path
+            // writes the sub-object count (at least 1), not the highest sub-index: a lone
+            // sub-index 0 must not become SubNumber=0. The general S11 correction is WP-11.
+            subNumberToWrite = Math.Max((byte)1, DescribedSubIndexCount(obj));
+        }
+
+        if ((subNumberToWrite > 0 || (!useCompact && obj.SubObjects.Count > 0)) &&
+            (IsWritten("SubNumber") || keepsSubNumberForSubObjects))
         {
             WriteKeyValue(sb, "SubNumber", subNumberToWrite.ToString(CultureInfo.InvariantCulture));
         }
@@ -187,29 +203,35 @@ public abstract class IniWriterBase
         WriteKeyValue(sb, "ParameterName", obj.ParameterName);
         WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(obj.ObjectType));
 
-        if (obj.DataType.HasValue)
+        if (obj.DataType.HasValue && IsWritten("DataType"))
         {
             WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(obj.DataType.Value));
         }
 
-        WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(obj.AccessType));
+        if (IsWritten("AccessType"))
+        {
+            WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(obj.AccessType));
+        }
 
-        if (!string.IsNullOrEmpty(obj.DefaultValue))
+        if (!string.IsNullOrEmpty(obj.DefaultValue) && IsWritten("DefaultValue"))
         {
             WriteKeyValue(sb, "DefaultValue", obj.DefaultValue);
         }
 
-        if (!string.IsNullOrEmpty(obj.LowLimit))
+        if (!string.IsNullOrEmpty(obj.LowLimit) && IsWritten("LowLimit"))
         {
             WriteKeyValue(sb, "LowLimit", obj.LowLimit);
         }
 
-        if (!string.IsNullOrEmpty(obj.HighLimit))
+        if (!string.IsNullOrEmpty(obj.HighLimit) && IsWritten("HighLimit"))
         {
             WriteKeyValue(sb, "HighLimit", obj.HighLimit);
         }
 
-        WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(obj.PdoMapping));
+        if (IsWritten("PDOMapping"))
+        {
+            WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(obj.PdoMapping));
+        }
 
         if (obj.SrdoMapping)
         {
@@ -334,12 +356,31 @@ public abstract class IniWriterBase
     }
 
     /// <summary>
+    /// <see langword="false"/> when CiA 306-1 Table 7 marks <paramref name="key"/> as not supported
+    /// for <paramref name="obj"/>, so the object writer omits it. Shared with the validated-write
+    /// rules, which check only keys that are written.
+    /// </summary>
+    internal static bool IsObjectKeyWritten(CanOpenObject obj, string key)
+        => !ObjectTypeKeyMatrix.IsNotSupported(obj.ObjectType, GetCompactMaxSubIndex(obj) > 0, key);
+
+    /// <summary>
+    /// Sub-object counterpart of <see cref="IsObjectKeyWritten"/>; <c>SubNumber</c> and
+    /// <c>CompactSubObj</c> are never written in a sub-index section.
+    /// </summary>
+    internal static bool IsSubObjectKeyWritten(CanOpenSubObject subObj, string key)
+        => !ObjectTypeKeyMatrix.IsNotSupportedInSubObject(subObj.ObjectType, key);
+
+    /// <summary>
     /// Highest compact-listable sub-index for <paramref name="obj"/>, or 0 when
-    /// CompactSubObj is absent/zero. Caps at 254 per CiA 306.
+    /// CompactSubObj is absent/zero. Caps at 254 per CiA 306. Also 0 for VAR, DEFTYPE and
+    /// DOMAIN, for which CiA 306-1 Table 7 does not support <c>CompactSubObj</c>: their
+    /// sub-objects are written as expanded sections and the key is omitted.
     /// </summary>
     internal static int GetCompactMaxSubIndex(CanOpenObject obj)
     {
         if (!obj.CompactSubObj.HasValue || obj.CompactSubObj.Value == 0)
+            return 0;
+        if (ObjectTypeKeyMatrix.IsNotSupported(obj.ObjectType, hasCompactSubObj: true, "CompactSubObj"))
             return 0;
         return Math.Min((int)obj.CompactSubObj.Value, 254);
     }
@@ -509,27 +550,42 @@ public abstract class IniWriterBase
             sb,
             string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", index, subObj.SubIndex));
 
+        // CiA 306-1 Table 7 applies to sub-index sections as well; a sub-object has no
+        // CompactSubObj of its own.
+        bool IsWritten(string key) => IsSubObjectKeyWritten(subObj, key);
+
         WriteKeyValue(sb, "ParameterName", subObj.ParameterName);
         WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(subObj.ObjectType));
-        WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(subObj.DataType));
-        WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(subObj.AccessType));
 
-        if (!string.IsNullOrEmpty(subObj.DefaultValue))
+        if (IsWritten("DataType"))
+        {
+            WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(subObj.DataType));
+        }
+
+        if (IsWritten("AccessType"))
+        {
+            WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(subObj.AccessType));
+        }
+
+        if (!string.IsNullOrEmpty(subObj.DefaultValue) && IsWritten("DefaultValue"))
         {
             WriteKeyValue(sb, "DefaultValue", subObj.DefaultValue);
         }
 
-        if (!string.IsNullOrEmpty(subObj.LowLimit))
+        if (!string.IsNullOrEmpty(subObj.LowLimit) && IsWritten("LowLimit"))
         {
             WriteKeyValue(sb, "LowLimit", subObj.LowLimit);
         }
 
-        if (!string.IsNullOrEmpty(subObj.HighLimit))
+        if (!string.IsNullOrEmpty(subObj.HighLimit) && IsWritten("HighLimit"))
         {
             WriteKeyValue(sb, "HighLimit", subObj.HighLimit);
         }
 
-        WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(subObj.PdoMapping));
+        if (IsWritten("PDOMapping"))
+        {
+            WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(subObj.PdoMapping));
+        }
 
         if (subObj.SrdoMapping)
         {
@@ -542,7 +598,14 @@ public abstract class IniWriterBase
         }
 
         WriteSubObjectExtension(sb, subObj);
-        WriteRemainingEntries(sb, subObj.RemainingEntries, IsDedicatedSubObjectEntryKey);
+
+        // A kept key that Table 7 marks "n" for the sub-object type (for example SubNumber on a
+        // VAR) is dropped like the dedicated "n" keys above. Object sections need no such filter:
+        // every Table 7 key is a dedicated object key.
+        WriteRemainingEntries(
+            sb,
+            subObj.RemainingEntries,
+            key => IsDedicatedSubObjectEntryKey(key) || !IsSubObjectKeyWritten(subObj, key));
 
         sb.AppendLine();
     }

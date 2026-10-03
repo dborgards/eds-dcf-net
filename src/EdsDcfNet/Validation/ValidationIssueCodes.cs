@@ -13,6 +13,13 @@ public static class ValidationIssueCodes
     public const string IniTextNotRoundTrippable = "INI_TEXT_NOT_ROUND_TRIPPABLE";
 
     /// <summary>
+    /// EDS/DCF object of type VAR, DEFTYPE, or DOMAIN has sub-objects. CiA 306-1 Table 7 does
+    /// not support <c>SubNumber</c> for these object types. An unvalidated write still emits it
+    /// so the sub-objects are read back. Checked only on a validated EDS or DCF write.
+    /// </summary>
+    public const string IniSubObjectsNotSupported = "INI_SUB_OBJECTS_NOT_SUPPORTED";
+
+    /// <summary>
     /// XDD/XDC <c>ObjFlags</c> sets CiA 311 reserved bits 3..31. Checked only on a
     /// validated XDD or XDC write. Bit 2 remains valid (CiA 311: change of value takes
     /// effect after reset). The EDS/DCF limit, which also reserves bit 2, is separate.

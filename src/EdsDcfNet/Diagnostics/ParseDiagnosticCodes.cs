@@ -49,6 +49,15 @@ public static class ParseDiagnosticCodes
     /// </summary>
     public const string IniVersionMajorMinor = "INI_VERSION_MAJOR_MINOR";
 
+    /// <summary>
+    /// EDS/DCF object or sub-object section contains a key that CiA 306-1 Table 7 marks as not
+    /// supported ("n") for its <c>ObjectType</c>, for example <c>AccessType</c> on a RECORD
+    /// without <c>CompactSubObj</c>, <c>SubNumber</c> on a VAR, or <c>PDOMapping</c> on a DOMAIN.
+    /// Lenient mode reads the value and reports a warning; the INI writers omit the key.
+    /// Strict mode throws.
+    /// </summary>
+    public const string IniObjectKeyNotSupported = "INI_OBJECT_KEY_NOT_SUPPORTED";
+
     /// <summary>Unknown boolean token; lenient mode treats it as <see langword="false"/>.</summary>
     public const string UnknownBooleanToken = "UNKNOWN_BOOLEAN_TOKEN";
 
