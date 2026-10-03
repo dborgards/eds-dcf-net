@@ -9,12 +9,15 @@ The library uses **exceptions** as its primary error mechanism:
 | Exception               | Use Case                                                    | Additional Information       |
 |-------------------------|-------------------------------------------------------------|------------------------------|
 | `EdsParseException`     | Errors during EDS/DCF/CPJ/XDD/XDC parsing                   | `LineNumber`, `SectionName`  |
+| `WriteException` (abstract base) | Common base of the format-specific write exceptions below; allows catching any format's write error | `SectionName` |
 | `EdsWriteException`     | Errors during EDS writing                                   | `SectionName`                |
 | `DcfWriteException`     | Errors during DCF writing                                   | `SectionName`                |
 | `CpjWriteException`     | Errors during CPJ writing                                   | `SectionName`                |
 | `XddWriteException`     | Errors during XDD writing                                   | `SectionName`                |
 | `XdcWriteException`     | Errors during XDC writing (including commissioning validation) | `SectionName`             |
 | `ArgumentException`     | Invalid input parameters where validation is performed by the API | Standard .NET          |
+
+> **Note:** `ModelValidationException` derives directly from `Exception` and is independent of `WriteException`; it is thrown by `CanOpenFile.EnsureValid*` and by writes with `CanOpenWriteOptions.Validated` when validation issues are found.
 
 > **Note:** `CanOpenFile.Eds.ConvertToDcf` (and the obsolete `CanOpenFile.EdsToDcf` facade that delegates to it), DCF parsing, and XDC writing enforce CANopen Node-ID constraints for explicit commissioning data. EDS-to-DCF conversion and DCF parsing require `1..127`; XDC writing emits commissioning only when a configured NodeId is present and valid and throws `XdcWriteException` for out-of-range values.
 
