@@ -95,6 +95,53 @@ internal static class LenientIniNumber
     }
 
     /// <summary>
+    /// Parses a <c>[DynamicChannels]</c> <c>PPOffset&lt;n&gt;</c> value: <c>offset</c> or
+    /// <c>offset, addressDifference</c> (CiA 306-3 § 5.2.2). An empty value is offset <c>0</c>.
+    /// A malformed value is offset <c>0</c> without an address difference in lenient mode.
+    /// </summary>
+    internal static (uint Offset, uint? AddressDifference) ParsePpOffset(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string keyName,
+        string rawValue)
+        => Parse<(uint Offset, uint? AddressDifference)>(
+            sections,
+            sectionName,
+            keyName,
+            rawValue,
+            ParsePpOffsetTuple,
+            (0u, null),
+            Diagnostics.ParseDiagnosticCodes.InvalidDynamicChannelPpOffset,
+            coercedTo: "0",
+            TreatAsZero);
+
+    private static (uint Offset, uint? AddressDifference) ParsePpOffsetTuple(string value)
+    {
+        if (value.Trim().Length == 0)
+            return (0u, null);
+
+        var parts = value.Split(',');
+        if (parts.Length > 2)
+        {
+            throw new EdsParseException(
+                "Invalid PPOffset value: '" + value + "'. Expected 'offset' or 'offset, addressDifference'.");
+        }
+
+        var offset = ParseUInt32Part(parts[0]);
+        return parts.Length == 2 ? (offset, ParseUInt32Part(parts[1])) : (offset, null);
+    }
+
+    private static uint ParseUInt32Part(string part)
+    {
+        // An empty part ("0," or ",1") is malformed here, unlike an empty whole value.
+        if (part.Trim().Length == 0)
+            throw new EdsParseException("Invalid PPOffset value: an empty offset or address difference.");
+
+        // ParseObjFlagsInteger turns the $NODEID NotSupportedException into EdsParseException.
+        return ParseObjFlagsInteger(part);
+    }
+
+    /// <summary>
     /// Parses a present numeric key. Lenient failure returns <see langword="null"/>
     /// (the same result as an absent key). Callers must skip empty values themselves:
     /// <see cref="ValueConverter"/> maps empty input to <c>0</c>, which is a real value.

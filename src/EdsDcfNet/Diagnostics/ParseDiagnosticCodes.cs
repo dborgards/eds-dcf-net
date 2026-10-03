@@ -97,6 +97,13 @@ public static class ParseDiagnosticCodes
     /// </summary>
     public const string InvalidObjectIndex = "INVALID_OBJECT_INDEX";
 
+    /// <summary>
+    /// Malformed <c>[DynamicChannels]</c> <c>PPOffset&lt;n&gt;</c>: not <c>offset</c> or
+    /// <c>offset, addressDifference</c> with unsigned 32-bit values (CiA 306-3 § 5.2.2).
+    /// Lenient mode treats the offset as <c>0</c> without an address difference.
+    /// </summary>
+    public const string InvalidDynamicChannelPpOffset = "INVALID_DYNAMIC_CHANNEL_PPOFFSET";
+
     /// <summary>XDD/XDC document contains more than one device profile body; lenient mode uses the last one.</summary>
     public const string XddDuplicateDeviceProfile = "XDD_DUPLICATE_DEVICE_PROFILE";
 

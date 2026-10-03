@@ -55,7 +55,7 @@ public class DynamicChannels
 /// <description><c>maxNumber</c> (<c>xsd:unsignedInt</c>, required).</description>
 /// </item>
 /// <item>
-/// <term><c>PPOffset</c> (first value only)</term>
+/// <term><c>PPOffset</c> (first value; the second value is <see cref="PPOffsetAddressDifference"/>)</term>
 /// <description><c>addressOffset</c> (<c>xsd:hexBinary</c>, required). Process-image offset (CiA 311 Table 51).</description>
 /// </item>
 /// <item>
@@ -125,6 +125,27 @@ public class DynamicChannelSegment
     /// </para>
     /// </remarks>
     public uint PPOffset { get; set; }
+
+    /// <summary>
+    /// Address difference between two consecutive BOOLEAN variables of the segment, coded in
+    /// bits, or <see langword="null"/> when the <c>PPOffset</c> entry has no second value.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// CiA 306-3 v1.2.0 § 5.2.2 Table 2: <c>PPOffsetX=[offset], [address difference]</c>.
+    /// The value is 1 when BOOLEAN variables are packed into bytes one bit after the other
+    /// and 8 when each BOOLEAN occupies a byte cell. The first value is
+    /// <see cref="PPOffset"/>. The EDS/DCF reader accepts one or two values separated by a
+    /// comma (decimal or <c>0x</c> hexadecimal, whitespace trimmed); the EDS/DCF writer
+    /// emits <c>offset, addressDifference</c> only when this property has a value, including
+    /// <c>0</c>.
+    /// </para>
+    /// <para>
+    /// CiA 311 has no counterpart: the XDD/XDC reader leaves this property unset and the
+    /// XDD/XDC writer ignores it.
+    /// </para>
+    /// </remarks>
+    public uint? PPOffsetAddressDifference { get; set; }
 
     /// <summary>
     /// Maximum number of objects that can be allocated in this segment
