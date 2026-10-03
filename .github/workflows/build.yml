@@ -183,9 +183,10 @@ jobs:
         if command -v cygpath >/dev/null 2>&1; then
           dotnet_results="$(cygpath -w "$results")"
         fi
-        # xUnit.net v3 runs the test executable in its own process and does not
-        # create AppDomains, so the v2 xUnit.AppDomain=denied switch is not
-        # passed. coverlet.collector still writes Cobertura through VSTest.
+        # xUnit.net v3 (xunit.v3.mtp-off) runs the test executable in its own
+        # process and does not create AppDomains, so the v2
+        # xUnit.AppDomain=denied switch is not passed. MTP stays off so
+        # coverlet.collector can still write Cobertura through VSTest.
         MSYS_NO_PATHCONV=1 dotnet test --configuration Release --no-build --verbosity normal \
           --collect:"XPlat Code Coverage" \
           --results-directory "$dotnet_results"

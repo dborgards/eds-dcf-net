@@ -111,7 +111,7 @@ retained non-obsolete shim, and `Validate*` / `EnsureValid*` live directly on `C
 
 | Category | Technology |
 |---|---|
-| **Test framework** | xUnit.net v3 (`xunit.v3` 4.0.1) |
+| **Test framework** | xUnit.net v3 (`xunit.v3.mtp-off` 4.0.1, VSTest + coverlet) |
 | **Assertions** | AwesomeAssertions 9.6.0 |
 | **Code coverage** | coverlet.collector 10.1.0 (XPlat Code Coverage, cobertura format) |
 | **Coverage reporting** | Codecov |
