@@ -819,6 +819,13 @@ internal static class ModelCloner
     }
 
     /// <summary>
+    /// Copies the reader order of the additional sections and their keys, so that a converted
+    /// model writes them in the same order.
+    /// </summary>
+    internal static void CopyAdditionalSectionOrder(ICanOpenFileModel source, ICanOpenFileModel destination)
+        => destination.AdditionalSectionOrder.CopyFrom(source.AdditionalSectionOrder);
+
+    /// <summary>
     /// Creates a deep copy of additional sections (string-keyed dictionaries)
     /// preserving case-insensitive key comparison.
     /// </summary>
