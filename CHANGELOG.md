@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.24](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.23...v1.15.0-beta.24) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** write file times read from XDD in CiA 306 format ([#625](https://github.com/dborgards/eds-dcf-net/issues/625)) ([66977fc](https://github.com/dborgards/eds-dcf-net/commit/66977fcb539af9882149ec751a9a76574a11b261))
+
 ## [1.15.0-beta.23](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.22...v1.15.0-beta.23) (2026-10-03)
 
 ### ✨ Features
