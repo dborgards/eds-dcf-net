@@ -187,7 +187,7 @@ public class CpjWriter
                 });
         }
 
-        return sb.ToString();
+        return TextFileIo.ApplyOutputNewLine(sb.ToString());
     }
 
     private static void WriteTopology(StringBuilder sb, NetworkTopology topology, string sectionName)

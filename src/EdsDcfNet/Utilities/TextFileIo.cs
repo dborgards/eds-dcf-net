@@ -29,6 +29,23 @@ internal static class TextFileIo
         return clone;
     }
 
+    /// <summary>
+    /// The single place where INI output (EDS, DCF, CPJ) receives its line ending. The writers
+    /// build text with <see cref="StringBuilder.AppendLine(string)"/> and pass it through here
+    /// just before returning it. When no <see cref="CanOpenWriteOptions.NewLine"/> was chosen the
+    /// text is returned unchanged; otherwise every line break (CRLF or LF) becomes the
+    /// chosen one. The INI write rules reject values that contain line breaks, so only the
+    /// writers' own line terminators (CRLF or LF) occur.
+    /// </summary>
+    internal static string ApplyOutputNewLine(string text)
+    {
+        var newLine = FileEncodingScope.CurrentWriteNewLine;
+        if (newLine == null)
+            return text;
+
+        return text.Replace("\r\n", "\n").Replace("\n", newLine);
+    }
+
     /// <summary>Writes <paramref name="content"/> to <paramref name="stream"/> using <see cref="GetOutputEncoding"/>.</summary>
     internal static void WriteOutputText(Stream stream, string content)
         => WriteAllText(stream, content, GetOutputEncoding(), leaveOpen: true);
