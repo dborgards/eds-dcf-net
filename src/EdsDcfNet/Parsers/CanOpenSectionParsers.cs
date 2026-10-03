@@ -874,12 +874,19 @@ internal static class CanOpenSectionParsers
 
         for (int i = 1; i <= nrOfSeg; i++)
         {
+            var ppOffsetKey = string.Format(CultureInfo.InvariantCulture, "PPOffset{0}", i);
+            var ppOffset = LenientIniNumber.ParsePpOffset(
+                sections,
+                "DynamicChannels",
+                ppOffsetKey,
+                IniParser.GetValue(sections, "DynamicChannels", ppOffsetKey, "0"));
             var segment = new DynamicChannelSegment
             {
                 Type = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Type{0}", i), "0")),
                 Dir = ValueConverter.ParseAccessType(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Dir{0}", i))),
                 Range = IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Range{0}", i)),
-                PPOffset = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "PPOffset{0}", i), "0"))
+                PPOffset = ppOffset.Offset,
+                PPOffsetAddressDifference = ppOffset.AddressDifference
             };
             dynamicChannels.Segments.Add(segment);
         }

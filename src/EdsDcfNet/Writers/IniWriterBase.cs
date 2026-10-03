@@ -1242,7 +1242,10 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, $"Type{idx}", ValueConverter.FormatInteger(seg.Type));
             WriteKeyValue(sb, $"Dir{idx}", ValueConverter.AccessTypeToString(seg.Dir));
             WriteKeyValue(sb, $"Range{idx}", seg.Range);
-            WriteKeyValue(sb, $"PPOffset{idx}", seg.PPOffset.ToString(CultureInfo.InvariantCulture));
+            var ppOffset = seg.PPOffset.ToString(CultureInfo.InvariantCulture);
+            if (seg.PPOffsetAddressDifference.HasValue)
+                ppOffset += ", " + seg.PPOffsetAddressDifference.Value.ToString(CultureInfo.InvariantCulture);
+            WriteKeyValue(sb, $"PPOffset{idx}", ppOffset);
         }
 
         WriteRemainingEntries(
