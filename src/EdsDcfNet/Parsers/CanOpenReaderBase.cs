@@ -53,6 +53,9 @@ public abstract class CanOpenReaderBase
         // object index: listed indexes are parsed as objects, and an index that is in
         // no object list is kept here (with its sub-object and companion sections)
         // instead of being dropped.
+        var listedIndexes = new HashSet<ushort>(model.ObjectDictionary.MandatoryObjects);
+        listedIndexes.UnionWith(model.ObjectDictionary.OptionalObjects);
+        listedIndexes.UnionWith(model.ObjectDictionary.ManufacturerObjects);
         var reportedUnlistedIndexes = new HashSet<ushort>();
         foreach (var sectionName in sections.Keys)
         {
@@ -63,7 +66,7 @@ public abstract class CanOpenReaderBase
                 continue;
             }
 
-            if (TryPreserveUnlistedObjectSection(model, sections, sectionName, reportedUnlistedIndexes))
+            if (TryPreserveUnlistedObjectSection(model, sections, sectionName, listedIndexes, reportedUnlistedIndexes))
                 continue;
 
             if (!IsKnownSection(sectionName))
@@ -93,6 +96,7 @@ public abstract class CanOpenReaderBase
         ICanOpenFileModel model,
         Dictionary<string, Dictionary<string, string>> sections,
         string sectionName,
+        HashSet<ushort> listedIndexes,
         HashSet<ushort> reportedIndexes)
     {
         // Standard section names are never object indexes. Checking them first keeps a
@@ -104,13 +108,8 @@ public abstract class CanOpenReaderBase
         if (!isObjectBody && !TryParseObjectCompanionSectionName(sectionName, out index))
             return false;
 
-        var dictionary = model.ObjectDictionary;
-        if (dictionary.MandatoryObjects.Contains(index) ||
-            dictionary.OptionalObjects.Contains(index) ||
-            dictionary.ManufacturerObjects.Contains(index))
-        {
+        if (listedIndexes.Contains(index))
             return false;
-        }
 
         if ((isObjectBody || !IniParser.HasSection(sections, ToHexInvariant(index))) &&
             reportedIndexes.Add(index))
