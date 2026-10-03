@@ -395,7 +395,7 @@ public static class IniParser
 
         if (currentSection == null)
         {
-            throw new EdsParseException($"Key-value pair found outside of any section at line {lineNumber}", lineNumber);
+            throw new EdsParseException("Key-value pair found outside of any section at line " + lineNumber.ToString(CultureInfo.InvariantCulture), lineNumber);
         }
 
         // Keys below a malformed header (lenient mode) are dropped; the header was already reported.

@@ -433,7 +433,7 @@ public static class ValueConverter
     public static string FormatInteger(uint value, bool useHex = true)
     {
         if (useHex)
-            return $"0x{value:X}";
+            return "0x" + value.ToString("X", CultureInfo.InvariantCulture);
         return value.ToString(CultureInfo.InvariantCulture);
     }
 

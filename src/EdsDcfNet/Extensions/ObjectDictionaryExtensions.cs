@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Extensions;
 
+using System.Globalization;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
@@ -107,7 +108,7 @@ public static class ObjectDictionaryExtensions
         // (same sentinel sub-objects use when the field is omitted).
         if (obj!.DataType is null or 0)
         {
-            throw new InvalidOperationException($"Object 0x{index:X4} does not define a CANopen data type.");
+            throw new InvalidOperationException("Object 0x" + index.ToString("X4", CultureInfo.InvariantCulture) + " does not define a CANopen data type.");
         }
 
         return CanOpenValueConverter.Parse(value, obj.DataType.Value, nodeId);
@@ -127,7 +128,7 @@ public static class ObjectDictionaryExtensions
         if (subObj!.DataType == 0)
         {
             throw new InvalidOperationException(
-                $"Sub-object 0x{index:X4}:{subIndex:X2} does not define a CANopen data type.");
+                "Sub-object 0x" + index.ToString("X4", CultureInfo.InvariantCulture) + ":" + subIndex.ToString("X2", CultureInfo.InvariantCulture) + " does not define a CANopen data type.");
         }
 
         return CanOpenValueConverter.Parse(value, subObj.DataType, nodeId);
@@ -170,7 +171,7 @@ public static class ObjectDictionaryExtensions
         // (same sentinel sub-objects use when the field is omitted).
         if (obj.DataType is null or 0)
         {
-            throw new InvalidOperationException($"Object 0x{index:X4} does not define a CANopen data type.");
+            throw new InvalidOperationException("Object 0x" + index.ToString("X4", CultureInfo.InvariantCulture) + " does not define a CANopen data type.");
         }
 
         obj.ParameterValue = CanOpenValueConverter.Format(value, obj.DataType.Value);
@@ -196,7 +197,7 @@ public static class ObjectDictionaryExtensions
         if (subObj.DataType == 0)
         {
             throw new InvalidOperationException(
-                $"Sub-object 0x{index:X4}:{subIndex:X2} does not define a CANopen data type.");
+                "Sub-object 0x" + index.ToString("X4", CultureInfo.InvariantCulture) + ":" + subIndex.ToString("X2", CultureInfo.InvariantCulture) + " does not define a CANopen data type.");
         }
 
         subObj.ParameterValue = CanOpenValueConverter.Format(value, subObj.DataType);
@@ -247,7 +248,9 @@ public static class ObjectDictionaryExtensions
 
     private static T CastParameterValue<T>(object? value, ushort index, byte? subIndex)
     {
-        var address = subIndex.HasValue ? $"0x{index:X4}:{subIndex.Value:X2}" : $"0x{index:X4}";
+        var address = subIndex.HasValue
+            ? "0x" + index.ToString("X4", CultureInfo.InvariantCulture) + ":" + subIndex.Value.ToString("X2", CultureInfo.InvariantCulture)
+            : "0x" + index.ToString("X4", CultureInfo.InvariantCulture);
         if (value == null)
         {
             throw new KeyNotFoundException($"Object Dictionary value {address} does not exist.");
