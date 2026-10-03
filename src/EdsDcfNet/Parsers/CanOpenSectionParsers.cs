@@ -183,10 +183,12 @@ internal static class CanOpenSectionParsers
             }
         }
 
+        // Only stored lines count as processed: an empty Line<n> is not added to CommentLines
+        // and is kept verbatim instead.
         CaptureUnmappedEntries(
             sections,
             "Comments",
-            key => SectionEntryKeys.IsCommentsKey(key, comments.Lines),
+            key => SectionEntryKeys.IsGeneratedCommentsKey(key, comments.CommentLines.Keys),
             comments.RemainingEntries);
 
         return comments;
