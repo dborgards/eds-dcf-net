@@ -61,8 +61,16 @@ public sealed class CanOpenFileOptions
     /// and <c>ObjFlags</c> (default: <c>0</c>).
     /// Object-list counts (<c>SupportedObjects</c>, <c>ObjectLinks</c>, module <c>NrOfEntries</c>)
     /// default to <c>0</c>; a malformed index entry is skipped and the rest of the list is read.
-    /// The object itself is kept. Strict mode throws <see cref="Exceptions.EdsParseException"/>
+    /// A malformed <c>NrOfEntries</c> of a compact sub-object list (<c>[xxxxName]</c>, DCF
+    /// <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c>) is reported and the sub-index entries are
+    /// still applied. The object itself is kept. Strict mode throws <see cref="Exceptions.EdsParseException"/>
     /// with the same <see cref="Diagnostics.ParseDiagnostic.Code"/>.
+    /// </description></item>
+    /// <item><description>
+    /// A key that CiA 306-1 Table 7 marks as not supported for the object type, in an EDS/DCF object
+    /// or sub-index section and in the module object sections <c>[MxFixedxxxx]</c>,
+    /// <c>[MxFixedxxxxsubx]</c> and <c>[MxSubExtxxxx]</c> (default: the value is read and reported,
+    /// and the writers omit the key).
     /// </description></item>
     /// <item><description>
     /// An EDS/DCF <c>ObjFlags</c> with reserved bits 2..31 set (CiA 306-1 Table 8), and a
@@ -170,11 +178,6 @@ public sealed class CanOpenFileOptions
     /// invalid <c>Nodes</c> value is reported in default mode and throws in strict mode.
     /// </description></item>
     /// </list>
-    /// <para>
-    /// Not covered: a malformed <c>NrOfEntries</c> of a compact sub-object list (<c>[xxxxName]</c>,
-    /// DCF <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c>) throws <see cref="Exceptions.EdsParseException"/>
-    /// in both modes.
-    /// </para>
     /// </remarks>
     public bool StrictParsing { get; init; }
 

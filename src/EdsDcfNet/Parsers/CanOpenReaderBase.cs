@@ -741,12 +741,7 @@ public abstract class CanOpenReaderBase
                 LenientIniNumber.LeaveUnset);
         }
 
-        ReportNotSupportedKeys(
-            sections,
-            sectionName,
-            obj.ObjectType,
-            obj.CompactSubObj.GetValueOrDefault() > 0,
-            key => ObjectTypeKeyMatrix.IsNotSupported(obj.ObjectType, obj.CompactSubObj.GetValueOrDefault() > 0, key));
+        ReportNotSupportedObjectKeys(sections, sectionName, obj.ObjectType, obj.CompactSubObj.GetValueOrDefault() > 0);
 
         // Parse sub-objects for composite types, CompactSubObj templates (CiA 306 §4.5.2.4.2),
         // or an explicit SubNumber. CompactSubObj may be non-zero while SubNumber is 0/absent.
@@ -876,10 +871,18 @@ public abstract class CanOpenReaderBase
         if (!sections.TryGetValue(sectionName, out var section))
             return;
 
-        // Validate even when not used as a loop bound (preserves prior ParseUInt16 failure mode).
+        // NrOfEntries is not a loop bound, but a malformed value is still reported (strict: thrown).
         if (section.TryGetValue(NrOfEntriesKey, out var nrOfEntries))
         {
-            _ = ValueConverter.ParseUInt16(nrOfEntries);
+            _ = LenientIniNumber.ParseUInt16(
+                sections,
+                sectionName,
+                NrOfEntriesKey,
+                nrOfEntries,
+                fallback: 0,
+                code: Diagnostics.ParseDiagnosticCodes.InvalidCompactListCount,
+                coercedTo: null,
+                fallbackDescription: "The sub-index entries are still applied.");
         }
 
         foreach (var entry in section)
@@ -972,12 +975,7 @@ public abstract class CanOpenReaderBase
         // remaining entry, so it is not written back. ObjFlags is optional in a sub-index
         // section and stays a remaining entry.
         bool IsNotSupportedKey(string key) => ObjectTypeKeyMatrix.IsNotSupportedInSubObject(subObj.ObjectType, key);
-        ReportNotSupportedKeys(
-            sections,
-            sectionName,
-            subObj.ObjectType,
-            hasCompactSubObj: false,
-            IsNotSupportedKey);
+        ReportNotSupportedSubObjectKeys(sections, sectionName, subObj.ObjectType);
 
         CaptureRemainingEntries(
             sections,
@@ -987,6 +985,37 @@ public abstract class CanOpenReaderBase
 
         return subObj;
     }
+
+    /// <summary>
+    /// Reports the keys of an object section (<c>[xxxx]</c>, <c>[MxFixedxxxx]</c>,
+    /// <c>[MxSubExtxxxx]</c>) that CiA 306-1 Table 7 marks "n" for <paramref name="objectType"/>.
+    /// </summary>
+    internal static void ReportNotSupportedObjectKeys(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        byte objectType,
+        bool hasCompactSubObj)
+        => ReportNotSupportedKeys(
+            sections,
+            sectionName,
+            objectType,
+            hasCompactSubObj,
+            key => ObjectTypeKeyMatrix.IsNotSupported(objectType, hasCompactSubObj, key));
+
+    /// <summary>
+    /// Reports the keys of a sub-index section (<c>[xxxxsubx]</c>, <c>[MxFixedxxxxsubx]</c>) that
+    /// CiA 306-1 Table 7 marks "n" (<see cref="ObjectTypeKeyMatrix.IsNotSupportedInSubObject"/>).
+    /// </summary>
+    internal static void ReportNotSupportedSubObjectKeys(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        byte objectType)
+        => ReportNotSupportedKeys(
+            sections,
+            sectionName,
+            objectType,
+            hasCompactSubObj: false,
+            key => ObjectTypeKeyMatrix.IsNotSupportedInSubObject(objectType, key));
 
     /// <summary>
     /// Reports every key of <paramref name="sectionName"/> that CiA 306-1 Table 7 marks as not

@@ -686,6 +686,14 @@ internal static class CanOpenSectionParsers
                 LenientIniNumber.LeaveUnset);
         }
 
+        // CiA 306-1 § 8.3: the same entries as a standard object description, so Table 7 applies;
+        // a missing ObjectType is VAR.
+        CanOpenReaderBase.ReportNotSupportedObjectKeys(
+            sections,
+            sectionName,
+            extension.ObjectType ?? CanOpenObjectType.Var,
+            extension.CompactSubObj.GetValueOrDefault() > 0);
+
         return extension;
     }
 
@@ -781,6 +789,10 @@ internal static class CanOpenSectionParsers
                 LenientIniNumber.LeaveUnset);
         }
 
+        // CiA 306-1 § 8.3: [MxFixedxxxx] has the contents of an object description, Table 7 included.
+        CanOpenReaderBase.ReportNotSupportedObjectKeys(
+            sections, sectionName, obj.ObjectType, obj.CompactSubObj.GetValueOrDefault() > 0);
+
         CanOpenReaderBase.CaptureRemainingEntries(
             sections,
             sectionName,
@@ -829,10 +841,13 @@ internal static class CanOpenSectionParsers
             ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd")
         };
 
+        // As for [xxxxsubx]: a reported "n" key is not kept, so it is not written back.
+        CanOpenReaderBase.ReportNotSupportedSubObjectKeys(sections, sectionName, subObj.ObjectType);
         CanOpenReaderBase.CaptureRemainingEntries(
             sections,
             sectionName,
-            SectionEntryKeys.IsDcfSubObjectKey,
+            key => SectionEntryKeys.IsDcfSubObjectKey(key)
+                   || ObjectTypeKeyMatrix.IsNotSupportedInSubObject(subObj.ObjectType, key),
             subObj.RemainingEntries);
 
         return subObj;
