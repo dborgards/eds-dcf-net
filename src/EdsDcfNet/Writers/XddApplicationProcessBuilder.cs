@@ -113,9 +113,7 @@ internal static class XddApplicationProcessBuilder
 
         ApAddLabelGroup(elem, en.LabelGroup);
 
-        if (!string.IsNullOrEmpty(en.SimpleTypeName))
-            elem.Add(new XElement(XddNames.SimpleType(elem.Name, en.SimpleTypeName!)));
-
+        // Schema order: g_labels, enumValue+, then the optional g_simple element.
         foreach (var ev in en.EnumValues)
         {
             var evElem = XddNames.Element(elem.Name, "enumValue");
@@ -124,6 +122,9 @@ internal static class XddApplicationProcessBuilder
             ApAddLabelGroup(evElem, ev.LabelGroup);
             elem.Add(evElem);
         }
+
+        if (!string.IsNullOrEmpty(en.SimpleTypeName))
+            elem.Add(new XElement(XddNames.SimpleType(elem.Name, en.SimpleTypeName!)));
 
         return elem;
     }
@@ -461,12 +462,13 @@ internal static class XddApplicationProcessBuilder
 
         ApAddLabelGroup(elem, pg.LabelGroup);
 
+        // Schema order: g_labels, parameterGroup*, parameterRef*.
+        foreach (var sub in pg.SubGroups)
+            elem.Add(BuildParameterGroup(elem.Name, sub));
+
         foreach (var pref in pg.ParameterRefs)
             elem.Add(XddNames.Element(elem.Name, "parameterRef",
                 new XAttribute("uniqueIDRef", pref)));
-
-        foreach (var sub in pg.SubGroups)
-            elem.Add(BuildParameterGroup(elem.Name, sub));
 
         return elem;
     }
