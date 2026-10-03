@@ -102,6 +102,7 @@ internal static class TextFileIo
         var tempPath = CreateTempPath(filePath);
         try
         {
+            object? mode;
             using (var stream = new FileStream(
                 tempPath,
                 FileMode.CreateNew,
@@ -109,11 +110,12 @@ internal static class TextFileIo
                 FileShare.None,
                 bufferSize: 4096))
             {
-                CopyUnixFileMode(filePath, tempPath);
+                mode = CopyUnixFileMode(filePath, tempPath);
                 write(stream);
                 stream.Flush(flushToDisk: true);
             }
 
+            ReapplyUnixFileMode(tempPath, mode);
             Commit(tempPath, filePath);
         }
         catch
@@ -142,6 +144,7 @@ internal static class TextFileIo
         var tempPath = CreateTempPath(filePath);
         try
         {
+            object? mode;
             using (var stream = new FileStream(
                 tempPath,
                 FileMode.CreateNew,
@@ -150,13 +153,14 @@ internal static class TextFileIo
                 bufferSize: 4096,
                 options: FileOptions.Asynchronous))
             {
-                CopyUnixFileMode(filePath, tempPath);
+                mode = CopyUnixFileMode(filePath, tempPath);
                 await write(stream).ConfigureAwait(false);
                 await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 stream.Flush(flushToDisk: true);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+            ReapplyUnixFileMode(tempPath, mode);
             Commit(tempPath, filePath);
         }
         catch
@@ -270,20 +274,43 @@ internal static class TextFileIo
     /// temporary file over the target on Unix, so without this the new file would receive the
     /// umask default (typically 0644) and widen a restrictive mode such as 0600. No-op on Windows,
     /// where the replace keeps the target's attributes and ACL, and when the target does not exist.
+    /// Returns the captured mode (boxed <c>UnixFileMode</c>) for <see cref="ReapplyUnixFileMode"/>,
+    /// or <see langword="null"/> when nothing was copied.
     /// </summary>
-    private static void CopyUnixFileMode(string filePath, string tempPath)
+    private static object? CopyUnixFileMode(string filePath, string tempPath)
     {
 #if NET10_0_OR_GREATER
         if (OperatingSystem.IsWindows() || !File.Exists(filePath))
-            return;
+            return null;
 
-        File.SetUnixFileMode(tempPath, File.GetUnixFileMode(filePath));
+        var mode = File.GetUnixFileMode(filePath);
+        File.SetUnixFileMode(tempPath, mode);
+        return mode;
 #else
         if (IsWindows || SetUnixFileModeMethod == null || !File.Exists(filePath))
-            return;
+            return null;
 
         var mode = InvokeStatic(GetUnixFileModeMethod!, filePath);
         InvokeStatic(SetUnixFileModeMethod, tempPath, mode);
+        return mode;
+#endif
+    }
+
+    /// <summary>
+    /// Applies the captured mode again after the content is written and flushed, immediately
+    /// before the commit: writing to a file clears set-user-ID and set-group-ID on Linux when the
+    /// process lacks <c>CAP_FSETID</c>, so the early copy alone would drop those bits.
+    /// </summary>
+    private static void ReapplyUnixFileMode(string tempPath, object? mode)
+    {
+        if (mode == null)
+            return;
+
+#if NET10_0_OR_GREATER
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(tempPath, (UnixFileMode)mode);
+#else
+        InvokeStatic(SetUnixFileModeMethod!, tempPath, mode);
 #endif
     }
 

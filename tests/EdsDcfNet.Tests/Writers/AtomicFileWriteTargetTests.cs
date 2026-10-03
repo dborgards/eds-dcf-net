@@ -179,6 +179,60 @@ public sealed class AtomicFileWriteTargetTests : IDisposable
         File.ReadAllBytes(target).Should().Equal(NewContent);
     }
 
+    private const UnixFileMode SetUser4700 = UnixFileMode.SetUser | UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+
+    private const UnixFileMode SetGroup2700 = UnixFileMode.SetGroup | UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+
+    [UnsupportedOSPlatform("windows")]
+    private string CreateTargetWithModeOrSkip(UnixFileMode mode)
+    {
+        var target = PathOf("special.eds");
+        File.WriteAllText(target, "old");
+        File.SetUnixFileMode(target, mode);
+        Assert.SkipWhen(
+            File.GetUnixFileMode(target) != mode,
+            $"This process cannot set {mode} on a file in the temp directory.");
+        return target;
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    [Theory]
+    [InlineData(SetUser4700)]
+    [InlineData(SetGroup2700)]
+    public void WriteFileAtomic_ExistingFileWithSetIdBit_KeepsSpecialBits(UnixFileMode mode)
+    {
+        SkipOnWindows();
+
+        // Arrange
+        var target = CreateTargetWithModeOrSkip(mode);
+
+        // Act: writing clears set-user-ID/set-group-ID without CAP_FSETID, so the mode must be reapplied.
+        TextFileIo.WriteFileAtomic(target, s => s.Write(NewContent, 0, NewContent.Length));
+
+        // Assert
+        File.GetUnixFileMode(target).Should().Be(mode);
+        File.ReadAllBytes(target).Should().Equal(NewContent);
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    [Theory]
+    [InlineData(SetUser4700)]
+    [InlineData(SetGroup2700)]
+    public async Task WriteFileAtomicAsync_ExistingFileWithSetIdBit_KeepsSpecialBits(UnixFileMode mode)
+    {
+        SkipOnWindows();
+
+        // Arrange
+        var target = CreateTargetWithModeOrSkip(mode);
+
+        // Act
+        await TextFileIo.WriteFileAtomicAsync(target, s => s.WriteAsync(NewContent, 0, NewContent.Length));
+
+        // Assert
+        File.GetUnixFileMode(target).Should().Be(mode);
+        File.ReadAllBytes(target).Should().Equal(NewContent);
+    }
+
     [UnsupportedOSPlatform("windows")]
     [Fact]
     public async Task WriteFileAtomicAsync_ExistingFileWithMode0600_KeepsMode()
