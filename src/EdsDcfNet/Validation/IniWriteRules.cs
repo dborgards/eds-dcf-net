@@ -16,6 +16,24 @@ using EdsDcfNet.Utilities;
 /// </remarks>
 internal static class IniWriteRules
 {
+    /// <summary>CiA 306-1 Table 8: bit 0 and bit 1 are defined, bits 2..31 are reserved.</summary>
+    private const uint DefinedObjFlagsMask = 0x3;
+
+    /// <summary>CiA 306-1 Table 9: <c>Line&lt;n&gt;</c> of <c>[Comments]</c>.</summary>
+    private const int MaxCommentLineLength = 249;
+
+    /// <summary>CiA 306-1 Table 15: <c>Line&lt;n&gt;</c> of <c>[MxComments]</c>.</summary>
+    private const int MaxModuleCommentLineLength = 248;
+
+    /// <summary>CiA 306-1 Table 11.</summary>
+    private const int MaxParamRefdLength = 249;
+
+    /// <summary>CiA 306-1 Table 10.</summary>
+    private const int MaxUploadFileLength = 244;
+
+    /// <summary>CiA 306-1 Table 10.</summary>
+    private const int MaxDownloadFileLength = 242;
+
     internal enum IniTextSlot
     {
         SectionName,
@@ -245,6 +263,7 @@ internal static class IniWriteRules
         bool appliesKeyMatrix)
     {
         Check(obj.ParameterName, IniTextSlot.Value, objectPath + ".ParameterName", issues);
+        CheckObjFlags(obj.ObjFlags, objectPath + ".ObjFlags", issues);
         if (!appliesKeyMatrix || Writers.IniWriterBase.IsObjectKeyWritten(obj, "DefaultValue"))
             CheckIfPresent(obj.DefaultValue, IniTextSlot.Value, objectPath + ".DefaultValue", issues);
         if (!appliesKeyMatrix || Writers.IniWriterBase.IsObjectKeyWritten(obj, "LowLimit"))
@@ -259,6 +278,9 @@ internal static class IniWriteRules
             CheckIfPresent(obj.ParamRefd, IniTextSlot.Value, objectPath + ".ParamRefd", issues);
             CheckIfPresent(obj.UploadFile, IniTextSlot.Value, objectPath + ".UploadFile", issues);
             CheckIfPresent(obj.DownloadFile, IniTextSlot.Value, objectPath + ".DownloadFile", issues);
+            CheckMaxLength(obj.ParamRefd, MaxParamRefdLength, objectPath + ".ParamRefd", "ParamRefd", "Table 11", issues);
+            CheckMaxLength(obj.UploadFile, MaxUploadFileLength, objectPath + ".UploadFile", "UploadFile", "Table 10", issues);
+            CheckMaxLength(obj.DownloadFile, MaxDownloadFileLength, objectPath + ".DownloadFile", "DownloadFile", "Table 10", issues);
         }
 
         ApplyRemaining(
@@ -298,6 +320,7 @@ internal static class IniWriteRules
             CheckIfPresent(subObj.ParameterValue, IniTextSlot.Value, subPath + ".ParameterValue", issues);
             CheckIfPresent(subObj.Denotation, IniTextSlot.Value, subPath + ".Denotation", issues);
             CheckIfPresent(subObj.ParamRefd, IniTextSlot.Value, subPath + ".ParamRefd", issues);
+            CheckMaxLength(subObj.ParamRefd, MaxParamRefdLength, subPath + ".ParamRefd", "ParamRefd", "Table 11", issues);
         }
 
         Func<string, bool> isDedicatedKey = includeDcfFields ? SectionEntryKeys.IsDcfSubObjectKey : SectionEntryKeys.IsEdsSubObjectKey;
@@ -327,9 +350,51 @@ internal static class IniWriteRules
     }
 
     private static void ApplyComments(Comments? comments, List<ValidationIssue> issues)
-        => ApplyCommentLines(comments, "Comments", issues);
+    {
+        ApplyCommentLines(comments, "Comments", MaxCommentLineLength, "Table 9", issues);
+        if (comments == null)
+            return;
 
-    private static void ApplyCommentLines(Comments? comments, string path, List<ValidationIssue> issues)
+        // The writer emits Lines as the highest line number, so a gap would leave a Line<n> missing
+        // inside Lines. An empty Line<n> the reader kept in RemainingEntries fills its gap.
+        foreach (var number in comments.CommentLines.Keys.Where(key => key < 1).OrderBy(key => key))
+        {
+            issues.Add(new ValidationIssue(
+                "Comments.CommentLines",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Comment line number {0} is below 1. Line numbers start at 1 (CiA 306-1 Table 9); the line would not be read back.",
+                    number)));
+        }
+
+        foreach (var number in comments.CommentLines.Keys.Where(key => key > ushort.MaxValue).OrderBy(key => key))
+        {
+            issues.Add(new ValidationIssue(
+                "Comments.CommentLines",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Comment line number {0} is above 65535, the largest value of Lines (Unsigned16). The line would not be read back.",
+                    number)));
+        }
+
+        if (comments.TryFindMissingLine(out var missing))
+        {
+            issues.Add(new ValidationIssue(
+                "Comments.CommentLines",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Comment line {0} is missing between line 1 and line {1}. The line numbers must be contiguous from 1, because Lines counts them (CiA 306-1 Table 9).",
+                    missing,
+                    comments.WrittenLineCount())));
+        }
+    }
+
+    private static void ApplyCommentLines(
+        Comments? comments,
+        string path,
+        int maxLineLength,
+        string table,
+        List<ValidationIssue> issues)
     {
         if (comments == null)
             return;
@@ -340,13 +405,28 @@ internal static class IniWriteRules
             path,
             issues);
 
+        // A preserved Line<n> is emitted unchanged (kept empty line, or a line above Lines).
+        foreach (var entry in comments.RemainingEntries)
+        {
+            if (!SectionEntryKeys.IsGeneratedCommentsKey(entry.Key, comments.CommentLines.Keys)
+                && entry.Key.StartsWith("Line", StringComparison.OrdinalIgnoreCase)
+                && SectionEntryKeys.TryParseEntryNumber(entry.Key[4..], out _))
+            {
+                CheckMaxLength(
+                    entry.Value,
+                    maxLineLength,
+                    path + ".RemainingEntries[" + entry.Key + "]",
+                    "Comment line",
+                    table,
+                    issues);
+            }
+        }
+
         foreach (var line in comments.CommentLines)
         {
-            Check(
-                line.Value,
-                IniTextSlot.Value,
-                string.Format(CultureInfo.InvariantCulture, "{0}.CommentLines[{1}]", path, line.Key),
-                issues);
+            var linePath = string.Format(CultureInfo.InvariantCulture, "{0}.CommentLines[{1}]", path, line.Key);
+            Check(line.Value, IniTextSlot.Value, linePath, issues);
+            CheckMaxLength(line.Value, maxLineLength, linePath, "Comment line", table, issues);
         }
     }
 
@@ -358,7 +438,7 @@ internal static class IniWriteRules
             var path = string.Format(CultureInfo.InvariantCulture, "SupportedModules[{0}]", i);
             Check(module.ProductName, IniTextSlot.Value, path + ".ProductName", issues);
             Check(module.OrderCode, IniTextSlot.Value, path + ".OrderCode", issues);
-            ApplyCommentLines(module.Comments, path + ".Comments", issues);
+            ApplyCommentLines(module.Comments, path + ".Comments", MaxModuleCommentLineLength, "Table 15", issues);
 
             foreach (var entry in module.FixedObjectDefinitions)
             {
@@ -381,6 +461,7 @@ internal static class IniWriteRules
                     entry.Key);
                 var extension = entry.Value;
                 Check(extension.ParameterName, IniTextSlot.Value, extensionPath + ".ParameterName", issues);
+                CheckObjFlags(extension.ObjFlags, extensionPath + ".ObjFlags", issues);
                 CheckIfPresent(extension.DefaultValue, IniTextSlot.Value, extensionPath + ".DefaultValue", issues);
                 CheckIfPresent(extension.LowLimit, IniTextSlot.Value, extensionPath + ".LowLimit", issues);
                 CheckIfPresent(extension.HighLimit, IniTextSlot.Value, extensionPath + ".HighLimit", issues);
@@ -521,6 +602,52 @@ internal static class IniWriteRules
             return;
 
         issues.Add(new ValidationIssue(path, message, ValidationIssueCodes.IniTextNotRoundTrippable));
+    }
+
+    /// <summary>
+    /// CiA 306-1 Table 8 reserves <c>ObjFlags</c> bits 2..31. CiA 311 defines bit 2, so the shared
+    /// <see cref="CanOpenModelValidator"/> must not report it; this rule applies to EDS and DCF only.
+    /// </summary>
+    private static void CheckObjFlags(uint flags, string path, List<ValidationIssue> issues)
+    {
+        if ((flags & ~DefinedObjFlagsMask) == 0)
+            return;
+
+        issues.Add(new ValidationIssue(
+            path,
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "ObjFlags 0x{0:X} sets reserved bits 2..31. CiA 306-1 Table 8 defines only bit 0 (refuse write on download) and bit 1 (refuse read on scan).",
+                flags),
+            ValidationIssueCodes.IniObjFlagsReservedBits));
+    }
+
+    /// <summary>
+    /// CiA 306-1 limits the text of a few entries (comment lines, <c>ParamRefd</c>, <c>UploadFile</c>,
+    /// <c>DownloadFile</c>). The limits describe what the INI writers emit, so they stay out of the shared
+    /// <see cref="CanOpenModelValidator"/>: an XML comment or a DCF-only field of an XDD/XDC is not bound by them.
+    /// </summary>
+    private static void CheckMaxLength(
+        string? text,
+        int maxLength,
+        string path,
+        string name,
+        string table,
+        List<ValidationIssue> issues)
+    {
+        if (text == null || text.Length <= maxLength)
+            return;
+
+        issues.Add(new ValidationIssue(
+            path,
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "{0} has {1} characters; CiA 306-1 {2} allows at most {3}.",
+                name,
+                text.Length,
+                table,
+                maxLength),
+            ValidationIssueCodes.IniValueTooLong));
     }
 
     private static void CheckIfPresent(string? text, IniTextSlot slot, string path, List<ValidationIssue> issues)

@@ -78,4 +78,36 @@ public static class ValidationIssueCodes
     /// An unvalidated write leaves the line out. Checked only on a validated XDD or XDC write.
     /// </summary>
     public const string XddCommentLineNotRepresentable = "XDD_COMMENT_LINE_NOT_REPRESENTABLE";
+
+    /// <summary>
+    /// EDS/DCF <c>ObjFlags</c> sets reserved bits 2..31. CiA 306-1 Table 8 defines only bit 0 (refuse
+    /// write on download) and bit 1 (refuse read on scan). Checked only on a validated EDS or DCF write;
+    /// a validated XDD or XDC write allows bit 2 (<see cref="XddObjFlagsReservedBits"/> reserves 3..31).
+    /// </summary>
+    public const string IniObjFlagsReservedBits = "INI_OBJ_FLAGS_RESERVED_BITS";
+
+    /// <summary>
+    /// EDS/DCF text that exceeds a CiA 306-1 length limit: a comment <c>Line&lt;n&gt;</c> (249 characters,
+    /// 248 in <c>[MxComments]</c>), <c>ParamRefd</c> (249), <c>UploadFile</c> (244) or <c>DownloadFile</c> (242).
+    /// Checked only on a validated EDS or DCF write, and only for what the format writes.
+    /// </summary>
+    public const string IniValueTooLong = "INI_VALUE_TOO_LONG";
+
+    /// <summary>
+    /// An index in <c>OptionalObjects</c> or <c>ManufacturerObjects</c> lies outside the range of that list
+    /// (CiA 306-1 Table 4). Reported only with <see cref="CanOpenValidationOptions.CheckObjectListRanges"/>.
+    /// </summary>
+    public const string ObjectListIndexOutOfRange = "OBJECT_LIST_INDEX_OUT_OF_RANGE";
+
+    /// <summary>
+    /// An EDS/DCF line holds a character outside ISO/IEC 646 (CiA 306-1 clause 6.2). Reported only with
+    /// <see cref="CanOpenValidationOptions.RequireIso646"/>.
+    /// </summary>
+    public const string Iso646CharacterNotAllowed = "ISO646_CHARACTER_NOT_ALLOWED";
+
+    /// <summary>
+    /// An EDS/DCF line is longer than 255 characters (CiA 306-1 clause 6.2). Reported only with
+    /// <see cref="CanOpenValidationOptions.CheckLineLength"/>.
+    /// </summary>
+    public const string LineTooLong = "LINE_TOO_LONG";
 }

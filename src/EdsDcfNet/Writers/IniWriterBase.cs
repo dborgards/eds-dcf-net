@@ -1001,7 +1001,7 @@ public abstract class IniWriterBase
         IniRoundTripText.WriteSectionHeader(
             sb,
             string.Format(CultureInfo.InvariantCulture, "M{0}Comments", module.ModuleNumber));
-        WriteKeyValue(sb, "Lines", comments.Lines.ToString(CultureInfo.InvariantCulture));
+        WriteKeyValue(sb, "Lines", comments.WrittenLineCount().ToString(CultureInfo.InvariantCulture));
 
         foreach (var line in comments.CommentLines.OrderBy(entry => entry.Key))
         {
@@ -1278,7 +1278,7 @@ public abstract class IniWriterBase
     protected static void WriteComments(StringBuilder sb, Comments comments)
     {
         IniRoundTripText.WriteSectionHeader(sb, "Comments");
-        WriteKeyValue(sb, "Lines", comments.Lines.ToString(CultureInfo.InvariantCulture));
+        WriteKeyValue(sb, "Lines", comments.WrittenLineCount().ToString(CultureInfo.InvariantCulture));
 
         foreach (var line in comments.CommentLines.OrderBy(l => l.Key))
         {

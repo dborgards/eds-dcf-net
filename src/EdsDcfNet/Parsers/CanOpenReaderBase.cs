@@ -439,6 +439,7 @@ public abstract class CanOpenReaderBase
             return;
 
         LenientIniNumber.AppendIndexes(sections, sectionName, "SupportedObjects", targetList);
+        LenientIniNumber.ReportCountMismatch(sections, sectionName, "SupportedObjects");
     }
 
     /// <summary>
@@ -569,15 +570,10 @@ public abstract class CanOpenReaderBase
         obj.PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping"));
         obj.SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping"));
         obj.InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD");
-        obj.ObjFlags = LenientIniNumber.ParseUInt32(
+        obj.ObjFlags = LenientIniNumber.ParseObjFlags(
             sections,
             sectionName,
-            "ObjFlags",
-            IniParser.GetValue(sections, sectionName, "ObjFlags", "0"),
-            fallback: 0,
-            code: Diagnostics.ParseDiagnosticCodes.InvalidObjFlags,
-            coercedTo: "0",
-            fallbackDescription: LenientIniNumber.TreatAsZero);
+            IniParser.GetValue(sections, sectionName, "ObjFlags", "0"));
 
         var subNumberStr = IniParser.GetValue(sections, sectionName, "SubNumber");
         if (!string.IsNullOrEmpty(subNumberStr))

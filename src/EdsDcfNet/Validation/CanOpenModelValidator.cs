@@ -209,6 +209,7 @@ public static class CanOpenModelValidator
         if (options.RequireMandatoryEntries)
             ValidateMandatoryEntries(eds.FileInfo, eds.DeviceInfo, eds.ObjectDictionary, issues, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
+        IniFileTextRules.Apply(eds, options, issues, cancellationToken);
         if (eds.ApplicationProcess != null)
             ValidateApplicationProcess(eds.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
 
@@ -240,6 +241,7 @@ public static class CanOpenModelValidator
             }
         }
         cancellationToken.ThrowIfCancellationRequested();
+        IniFileTextRules.Apply(dcf, options, issues, cancellationToken);
         if (dcf.ApplicationProcess != null)
             ValidateApplicationProcess(dcf.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
 
@@ -353,6 +355,24 @@ public static class CanOpenModelValidator
             issues,
             cancellationToken);
 
+        if (options.CheckObjectListRanges)
+        {
+            ValidateObjectListRange(
+                objectDictionary.OptionalObjects,
+                "ObjectDictionary.OptionalObjects",
+                "1000h-1FFFh or 6000h-9FFFh",
+                static index => (index >= 0x1000 && index <= 0x1FFF) || (index >= 0x6000 && index <= 0x9FFF),
+                issues,
+                cancellationToken);
+            ValidateObjectListRange(
+                objectDictionary.ManufacturerObjects,
+                "ObjectDictionary.ManufacturerObjects",
+                "2000h-5FFFh",
+                static index => index >= 0x2000 && index <= 0x5FFF,
+                issues,
+                cancellationToken);
+        }
+
         foreach (var kvp in objectDictionary.Objects)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -414,6 +434,35 @@ public static class CanOpenModelValidator
     }
 
     /// <summary>
+    /// CiA 306-1 Table 4: each object list covers an index range. An index outside the range of its
+    /// list is reported once per index.
+    /// </summary>
+    private static void ValidateObjectListRange(
+        IEnumerable<ushort> indexes,
+        string listPath,
+        string rangeDescription,
+        Func<ushort, bool> isInRange,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
+    {
+        foreach (var index in indexes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (isInRange(index))
+                continue;
+
+            issues.Add(new ValidationIssue(
+                listPath,
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Object index 0x{0:X4} is outside the range of this object list ({1}; CiA 306-1 Table 4).",
+                    index,
+                    rangeDescription),
+                ValidationIssueCodes.ObjectListIndexOutOfRange));
+        }
+    }
+
+    /// <summary>
     /// Checks module section counters against the entries actually stored
     /// (CiA 306-1 §8.3): <c>Lines</c> versus comment lines, <c>[MxSubExtends]</c>
     /// versus <c>[MxSubExtxxxx]</c> definitions, <c>[MxFixedObjects]</c> versus
@@ -445,14 +494,16 @@ public static class CanOpenModelValidator
         if (module.Comments == null)
             return;
 
+        // Lines is not written as stored; assess the count and keys the writer emits.
+        var writtenLines = module.Comments.WrittenLineCount();
         if (!ModuleCommentKeysCoverLines(module.Comments))
         {
             issues.Add(new ValidationIssue(
                 path + ".Comments.Lines",
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "Lines is {0} but comment line keys are not exactly 1..{0} (CiA 306-1 §8.3).",
-                    module.Comments.Lines)));
+                    "Comment line keys are not exactly 1..{0}, the Lines value written (CiA 306-1 §8.3).",
+                    writtenLines)));
         }
     }
 
@@ -632,24 +683,12 @@ public static class CanOpenModelValidator
     }
 
     /// <summary>
-    /// <c>Line1</c>..<c>LineN</c> must be present for <c>N = Lines</c>. A matching
-    /// count with a gap or an offset (for example <c>Lines = 1</c> and only
-    /// <c>Line2</c>) would be written and then dropped, because the parser reads
-    /// only keys <c>1..Lines</c>.
+    /// <c>Line1</c>..<c>LineN</c> must be present for <c>N</c> = the <c>Lines</c> value the writer emits.
+    /// A gap or an offset (for example only <c>Line2</c>) would leave the file incomplete, because the
+    /// parser reads only keys <c>1..Lines</c>.
     /// </summary>
     private static bool ModuleCommentKeysCoverLines(Comments comments)
-    {
-        if (comments.CommentLines.Count != comments.Lines)
-            return false;
-
-        for (var n = 1; n <= comments.Lines; n++)
-        {
-            if (!comments.CommentLines.ContainsKey(n))
-                return false;
-        }
-
-        return true;
-    }
+        => !comments.CommentLines.Keys.Any(key => key < 1 || key > ushort.MaxValue) && !comments.TryFindMissingLine(out _);
 
     /// <summary>
     /// CiA 306-1 §8.3 <c>Count</c> is <c>Unsigned8</c>, or <c>0;&lt;Unsigned8&gt;</c>
@@ -750,14 +789,22 @@ public static class CanOpenModelValidator
             (!obj.SubNumber.HasValue || obj.SubNumber.Value == 0) &&
             !hasCompactSubObjects)
         {
-            // SubNumber=0 is CiA-valid when the only present sub-index is 0.
+            // SubNumber=0 with only sub-index 00h was tolerated because older writers counted
+            // sub-index 00h as zero. SubNumber counts it (CiA 306-1 clause 6.6.3.2, see
+            // CanOpenValidationOptions.CheckSubNumberCount), so the opt-in count rule reports it.
             var onlySubIndexZero =
                 obj.SubNumber.HasValue &&
                 obj.SubNumber.Value == 0 &&
                 obj.SubObjects.Count == 1 &&
                 obj.SubObjects.ContainsKey(0);
 
-            if (!onlySubIndexZero)
+            if (onlySubIndexZero && options.CheckSubNumberCount)
+            {
+                issues.Add(new ValidationIssue(
+                    objectPath + ".SubNumber",
+                    "SubNumber is 0 but 1 sub-objects are defined; SubNumber counts every described sub-index including sub-index 00h and excluding sub-index FFh."));
+            }
+            else if (!onlySubIndexZero)
             {
                 issues.Add(new ValidationIssue(
                     objectPath + ".SubNumber",

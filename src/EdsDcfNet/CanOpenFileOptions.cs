@@ -63,6 +63,11 @@ public sealed class CanOpenFileOptions
     /// with the same <see cref="Diagnostics.ParseDiagnostic.Code"/>.
     /// </description></item>
     /// <item><description>
+    /// An EDS/DCF <c>ObjFlags</c> with reserved bits 2..31 set (CiA 306-1 Table 8), and a
+    /// <c>SupportedObjects</c> count that disagrees with the numbered entries of its list. Both are
+    /// reported in lenient and strict mode without throwing; the value and the entries are kept.
+    /// </description></item>
+    /// <item><description>
     /// Malformed numeric keys of the EDS/DCF <c>[DeviceInfo]</c> section (CiA 306-1 § 6.5):
     /// <c>VendorNumber</c>, <c>ProductNumber</c>, <c>RevisionNumber</c>, <c>Granularity</c>,
     /// <c>DynamicChannelsSupported</c>, <c>NrOfRXPDO</c>, <c>NrOfTXPDO</c> and <c>CompactPDO</c>

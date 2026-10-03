@@ -370,18 +370,24 @@ public class XddObjFlagsHexBinaryTests
     [Theory]
     [InlineData("Eds")]
     [InlineData("Dcf")]
-    public void WriteToString_ObjFlagsReservedBit_ValidatedIniWrite_IsNotRejected(string format)
+    public void WriteToString_ObjFlagsReservedBit_ValidatedIniWrite_IsRejectedAndUnvalidatedKeepsValue(string format)
     {
-        // The EDS/DCF reserved-bit limit (bits 2..31) belongs to WP-15 and is not applied here.
-        // Bit 3 is reserved for XDD/XDC only in this package.
+        // CiA 306-1 Table 8 reserves bits 2..31 (rule S13, WP-15); the XDD/XDC limit is bits 3..31.
+        // The unvalidated write is unchanged.
 
         // Act
-        string written = format == "Eds"
-            ? CanOpenFile.Eds.WriteToString(EdsWithFlags(0x8), CanOpenWriteOptions.Validated)
-            : CanOpenFile.Dcf.WriteToString(DcfWithFlags(0x8), CanOpenWriteOptions.Validated);
+        Func<string> validated = format == "Eds"
+            ? () => CanOpenFile.Eds.WriteToString(EdsWithFlags(0x8), CanOpenWriteOptions.Validated)
+            : () => CanOpenFile.Dcf.WriteToString(DcfWithFlags(0x8), CanOpenWriteOptions.Validated);
+        var unvalidated = format == "Eds"
+            ? CanOpenFile.Eds.WriteToString(EdsWithFlags(0x8))
+            : CanOpenFile.Dcf.WriteToString(DcfWithFlags(0x8));
 
         // Assert
-        written.Should().Contain("ObjFlags=0x8");
+        validated.Should().Throw<ModelValidationException>().Which.Issues.Should().ContainSingle(issue =>
+            issue.Code == ValidationIssueCodes.IniObjFlagsReservedBits &&
+            issue.Path == "ObjectDictionary.Objects[0x1000].ObjFlags");
+        unvalidated.Should().Contain("ObjFlags=0x8");
     }
 
     private static uint ReadObjFlags(

@@ -1,6 +1,14 @@
 [
   {
     "severity": "Warning",
+    "code": "INI_OBJECT_LIST_COUNT_MISMATCH",
+    "path": "ManufacturerObjects.SupportedObjects",
+    "line": 835,
+    "rawValue": "0",
+    "message": "SupportedObjects is 0 but the numbered entries do not match. Entries above the count (1) are not loaded and are kept unchanged."
+  },
+  {
+    "severity": "Warning",
     "code": "INI_UNLISTED_OBJECT_SECTION",
     "path": "1400",
     "rawValue": "1400",

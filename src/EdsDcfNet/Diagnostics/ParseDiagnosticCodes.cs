@@ -90,6 +90,21 @@ public static class ParseDiagnosticCodes
     public const string InvalidObjFlags = "INVALID_OBJ_FLAGS";
 
     /// <summary>
+    /// EDS/DCF <c>ObjFlags</c> sets reserved bits 2..31 (CiA 306-1 Table 8 defines bit 0 and bit 1). The
+    /// value is kept. Reported in lenient and strict mode. XDD/XDC use <see cref="XddObjFlagsReservedBits"/>
+    /// with a different limit, because CiA 311 also defines bit 2.
+    /// </summary>
+    public const string IniObjFlagsReservedBits = "INI_OBJ_FLAGS_RESERVED_BITS";
+
+    /// <summary>
+    /// <c>SupportedObjects</c> of an EDS/DCF object list disagrees with the numbered entries: an entry
+    /// above the count, or an empty or missing entry inside it (CiA 306-1 Table 5). The entries above the
+    /// count are not loaded as objects and stay in <c>SectionRemainingEntries</c>. Reported in lenient and
+    /// strict mode.
+    /// </summary>
+    public const string IniObjectListCountMismatch = "INI_OBJECT_LIST_COUNT_MISMATCH";
+
+    /// <summary>
     /// Malformed <c>ObjExtend</c> in a module <c>[MxSubExtxxxx]</c> section (CiA 306-1 §8.3);
     /// lenient mode leaves it unset.
     /// </summary>
