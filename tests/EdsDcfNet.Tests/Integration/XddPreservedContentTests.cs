@@ -776,6 +776,38 @@ public class XddPreservedContentTests
     }
 
     [Fact]
+    public void ConvertToDcf_HandleOnlyNetworkProfile_WritesCommissioningInGeneratedLayersWithoutHandle()
+    {
+        // Arrange — deviceCommissioning can only be written inside NetworkManagement.
+        var dcf = CanOpenFile.Eds.ConvertToDcf(
+            CanOpenFile.Xdd.ReadString(HandleOnlyXdd), nodeId: 5, timestamp: new DateTime(2026, 6, 1, 8, 0, 0));
+
+        // Act
+        var xml = CanOpenFile.Xdc.WriteToString(dcf);
+        var body = NetworkBody(XDocument.Parse(xml));
+
+        // Assert — the only schema problem is the empty CANopenObjectList: the model has no
+        // object, and an object is not invented (plan decision E10).
+        Cia311Schema.Validate(xml).Should().ContainSingle().Which.Should().Contain("CANopenObjectList");
+        body.Element("ExternalProfileHandle").Should().BeNull();
+        ((string?)body.Element("NetworkManagement")!.Element("deviceCommissioning")!.Attribute("nodeID")).Should().Be("5");
+    }
+
+    [Fact]
+    public void WriteToString_HandleOnlyNetworkProfileXdcWithOmittedCommissioning_WritesHandleOnly()
+    {
+        // Arrange
+        var dcf = CanOpenFile.Xdc.ReadString(HandleOnlyXdd);
+
+        // Act
+        var body = NetworkBody(XDocument.Parse(CanOpenFile.Xdc.WriteToString(dcf)));
+
+        // Assert
+        DeviceCommissioningSemantics.IsOmitted(dcf.DeviceCommissioning).Should().BeTrue();
+        body.Elements().Select(e => e.Name.LocalName).Should().Equal("ExternalProfileHandle");
+    }
+
+    [Fact]
     public void WriteToString_HandleOnlyNetworkProfileWithObjectAddedInCode_WritesGeneratedLayersWithoutHandle()
     {
         // Arrange — the handle cannot express the new object, so the model wins.

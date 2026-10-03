@@ -297,10 +297,12 @@ public class XddWriter
     /// The schema gives the network <c>ProfileBody</c> a choice: the layer sequence
     /// (<c>ApplicationLayers</c>, <c>TransportLayers</c>, <c>NetworkManagement</c>) or a single
     /// <c>ExternalProfileHandle</c>. A handle kept from an XDD/XDC read is written alone, instead of
-    /// the generated layers, while the object dictionary is empty (the model holds nothing the
-    /// handle cannot stand for). Once the model has objects, the generated layers are written and the
-    /// kept handle is dropped, because it cannot express them (rule 13, the model wins). This applies
-    /// to XDD and XDC alike.
+    /// the generated layers, while the model holds nothing the handle cannot stand for: the object
+    /// dictionary is empty and, in an XDC write, the commissioning is not written (the same
+    /// <see cref="DeviceCommissioningSemantics.IsOmitted"/> test that decides whether
+    /// <c>deviceCommissioning</c> is emitted; it can only be written inside <c>NetworkManagement</c>).
+    /// Otherwise the generated layers are written and the kept handle is dropped, because it cannot
+    /// express that data (rule 13, the model wins). This applies to XDD and XDC alike.
     /// </remarks>
     [SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Calls virtual members via instance dispatch.")]
@@ -315,6 +317,7 @@ public class XddWriter
 
         var keptBody = preserved.ElementsAt(XddPreservedContent.NetworkProfileBody);
         var handleOnly = eds.ObjectDictionary.Objects.Count == 0
+            && (commissioning == null || DeviceCommissioningSemantics.IsOmitted(commissioning))
             && keptBody.Any(element => element.Name.LocalName == ExternalProfileHandleName);
 
         if (!handleOnly)
