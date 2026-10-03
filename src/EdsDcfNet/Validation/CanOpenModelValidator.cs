@@ -209,6 +209,7 @@ public static class CanOpenModelValidator
         if (options.RequireMandatoryEntries)
             ValidateMandatoryEntries(eds.FileInfo, eds.DeviceInfo, eds.ObjectDictionary, issues, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
+        IniFileTextRules.Apply(eds, options, issues);
         if (eds.ApplicationProcess != null)
             ValidateApplicationProcess(eds.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
 
@@ -240,6 +241,7 @@ public static class CanOpenModelValidator
             }
         }
         cancellationToken.ThrowIfCancellationRequested();
+        IniFileTextRules.Apply(dcf, options, issues);
         if (dcf.ApplicationProcess != null)
             ValidateApplicationProcess(dcf.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
 
@@ -353,6 +355,24 @@ public static class CanOpenModelValidator
             issues,
             cancellationToken);
 
+        if (options.CheckObjectListRanges)
+        {
+            ValidateObjectListRange(
+                objectDictionary.OptionalObjects,
+                "ObjectDictionary.OptionalObjects",
+                "1000h-1FFFh or 6000h-9FFFh",
+                static index => (index >= 0x1000 && index <= 0x1FFF) || (index >= 0x6000 && index <= 0x9FFF),
+                issues,
+                cancellationToken);
+            ValidateObjectListRange(
+                objectDictionary.ManufacturerObjects,
+                "ObjectDictionary.ManufacturerObjects",
+                "2000h-5FFFh",
+                static index => index >= 0x2000 && index <= 0x5FFF,
+                issues,
+                cancellationToken);
+        }
+
         foreach (var kvp in objectDictionary.Objects)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -410,6 +430,35 @@ public static class CanOpenModelValidator
                     listPath,
                     "Object list references missing object " + hexIndex + "."));
             }
+        }
+    }
+
+    /// <summary>
+    /// CiA 306-1 Table 4: each object list covers an index range. An index outside the range of its
+    /// list is reported once per index.
+    /// </summary>
+    private static void ValidateObjectListRange(
+        IEnumerable<ushort> indexes,
+        string listPath,
+        string rangeDescription,
+        Func<ushort, bool> isInRange,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
+    {
+        foreach (var index in indexes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (isInRange(index))
+                continue;
+
+            issues.Add(new ValidationIssue(
+                listPath,
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Object index 0x{0:X4} is outside the range of this object list ({1}; CiA 306-1 Table 4).",
+                    index,
+                    rangeDescription),
+                ValidationIssueCodes.ObjectListIndexOutOfRange));
         }
     }
 
@@ -750,14 +799,22 @@ public static class CanOpenModelValidator
             (!obj.SubNumber.HasValue || obj.SubNumber.Value == 0) &&
             !hasCompactSubObjects)
         {
-            // SubNumber=0 is CiA-valid when the only present sub-index is 0.
+            // SubNumber=0 with only sub-index 00h was tolerated because older writers counted
+            // sub-index 00h as zero. SubNumber counts it (CiA 306-1 clause 6.6.3.2, see
+            // CanOpenValidationOptions.CheckSubNumberCount), so the opt-in count rule reports it.
             var onlySubIndexZero =
                 obj.SubNumber.HasValue &&
                 obj.SubNumber.Value == 0 &&
                 obj.SubObjects.Count == 1 &&
                 obj.SubObjects.ContainsKey(0);
 
-            if (!onlySubIndexZero)
+            if (onlySubIndexZero && options.CheckSubNumberCount)
+            {
+                issues.Add(new ValidationIssue(
+                    objectPath + ".SubNumber",
+                    "SubNumber is 0 but 1 sub-objects are defined; SubNumber counts every described sub-index including sub-index 00h and excluding sub-index FFh."));
+            }
+            else if (!onlySubIndexZero)
             {
                 issues.Add(new ValidationIssue(
                     objectPath + ".SubNumber",

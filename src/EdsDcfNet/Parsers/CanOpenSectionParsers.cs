@@ -606,15 +606,7 @@ internal static class CanOpenSectionParsers
         var objFlags = IniParser.GetValue(sections, sectionName, "ObjFlags");
         if (!string.IsNullOrEmpty(objFlags))
         {
-            extension.ObjFlags = LenientIniNumber.ParseUInt32(
-                sections,
-                sectionName,
-                "ObjFlags",
-                objFlags,
-                fallback: 0,
-                code: ParseDiagnosticCodes.InvalidObjFlags,
-                coercedTo: "0",
-                fallbackDescription: LenientIniNumber.TreatAsZero);
+            extension.ObjFlags = LenientIniNumber.ParseObjFlags(sections, sectionName, objFlags);
         }
 
         var compactSubObj = IniParser.GetValue(sections, sectionName, "CompactSubObj");
@@ -684,15 +676,10 @@ internal static class CanOpenSectionParsers
             PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
             SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD"),
-            ObjFlags = LenientIniNumber.ParseUInt32(
+            ObjFlags = LenientIniNumber.ParseObjFlags(
                 sections,
                 sectionName,
-                "ObjFlags",
-                IniParser.GetValue(sections, sectionName, "ObjFlags", "0"),
-                fallback: 0,
-                code: ParseDiagnosticCodes.InvalidObjFlags,
-                coercedTo: "0",
-                fallbackDescription: LenientIniNumber.TreatAsZero),
+                IniParser.GetValue(sections, sectionName, "ObjFlags", "0")),
             ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue"),
             Denotation = IniParser.GetValue(sections, sectionName, "Denotation"),
             ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd"),

@@ -24,14 +24,17 @@ public sealed class CanOpenValidationOptions
         CheckSubNumberCount = true,
         CheckValueRanges = true,
         RequireMandatoryEntries = true,
+        RequireIso646 = true,
+        CheckLineLength = true,
+        CheckObjectListRanges = true,
     };
 
     /// <summary>
     /// Gets a value indicating whether <c>SubNumber</c> must equal the number of described
     /// sub-indexes including sub-index 00h and excluding sub-index FFh (CiA 306-1 clause 6.6.3.2,
     /// <see cref="Models.CanOpenObject.SubNumber"/>). Objects with a non-zero
-    /// <c>CompactSubObj</c> and the tolerated <c>SubNumber=0</c> with only sub-index 00h are
-    /// not reported.
+    /// <c>CompactSubObj</c> are not reported. A <c>SubNumber</c> of 0 with only sub-index 00h
+    /// is reported, because that one sub-index is counted.
     /// </summary>
     public bool CheckSubNumberCount { get; init; }
 
@@ -55,4 +58,29 @@ public sealed class CanOpenValidationOptions
     /// baud rate (CiA 306-1 Table 12).
     /// </summary>
     public bool RequireMandatoryEntries { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the text of an EDS or DCF must consist of ISO/IEC 646
+    /// (7-bit) characters only (CiA 306-1 clause 6.2). The check runs on the file text the INI
+    /// writer would produce and reports each line with a character above U+007F, which includes
+    /// every non-ASCII character in names, values, and comments. This library writes UTF-8 by
+    /// default, a documented deviation from the specification, so the check is off by default.
+    /// It has no effect on the other formats.
+    /// </summary>
+    public bool RequireIso646 { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether every line of an EDS or DCF must be at most 255
+    /// characters long, including the key, the <c>=</c>, and the value (CiA 306-1 clause 6.2).
+    /// The check runs on the file text the INI writer would produce. It has no effect on the
+    /// other formats.
+    /// </summary>
+    public bool CheckLineLength { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether every index in <c>OptionalObjects</c> lies in
+    /// 1000h-1FFFh or 6000h-9FFFh and every index in <c>ManufacturerObjects</c> lies in
+    /// 2000h-5FFFh (CiA 306-1 Table 4). The ranges apply to the object lists of every format.
+    /// </summary>
+    public bool CheckObjectListRanges { get; init; }
 }

@@ -2,6 +2,7 @@ namespace EdsDcfNet.Parsers;
 
 using System.Globalization;
 using EdsDcfNet.Exceptions;
+using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
 /// <summary>
@@ -75,6 +76,120 @@ internal static class LenientIniNumber
             code,
             coercedTo,
             fallbackDescription);
+
+    /// <summary>Bits 0 and 1 are the only <c>ObjFlags</c> bits CiA 306-1 Table 8 defines.</summary>
+    private const uint DefinedIniObjFlagsMask = 0x3;
+
+    /// <summary>
+    /// Parses an EDS/DCF <c>ObjFlags</c> entry: malformed values fall back to <c>0</c> as in
+    /// <see cref="ParseUInt32"/>, and a readable value with reserved bits 2..31 set (CiA 306-1
+    /// Table 8) is kept and reported as <see cref="Diagnostics.ParseDiagnosticCodes.IniObjFlagsReservedBits"/>
+    /// in lenient and strict mode. CiA 311 also defines bit 2, which is why the XDD reader has its
+    /// own limit.
+    /// </summary>
+    internal static uint ParseObjFlags(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string rawValue)
+    {
+        var flags = ParseUInt32(
+            sections,
+            sectionName,
+            "ObjFlags",
+            rawValue,
+            fallback: 0,
+            code: Diagnostics.ParseDiagnosticCodes.InvalidObjFlags,
+            coercedTo: "0",
+            fallbackDescription: TreatAsZero);
+
+        if ((flags & ~DefinedIniObjFlagsMask) != 0)
+        {
+            Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                Diagnostics.ParseSeverity.Warning,
+                Diagnostics.ParseDiagnosticCodes.IniObjFlagsReservedBits,
+                path: sectionName + ".ObjFlags",
+                line: IniKeyLines.TryGetLine(sections, sectionName, "ObjFlags"),
+                rawValue: rawValue,
+                message: string.Format(
+                    CultureInfo.InvariantCulture,
+                    "ObjFlags '{0}' sets reserved bits 2..31. CiA 306-1 defines only bit 0 (refuse write on download) and bit 1 (refuse read on scan). The value is kept.",
+                    rawValue)));
+        }
+
+        return flags;
+    }
+
+    /// <summary>
+    /// Reports a counted object list whose count disagrees with its numbered entries: an entry above
+    /// the count (kept in the remaining entries of the section, not loaded) or an empty or missing
+    /// entry inside it (CiA 306-1 Table 5). A malformed count was already reported by
+    /// <see cref="AppendIndexes"/>. One diagnostic per list, in lenient and strict mode.
+    /// </summary>
+    internal static void ReportCountMismatch(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string countKey)
+    {
+        var rawCount = IniParser.GetValue(sections, sectionName, countKey, "0");
+        int count;
+        try
+        {
+            count = ValueConverter.ParseUInt16(rawCount);
+        }
+        catch (EdsParseException)
+        {
+            return;
+        }
+
+        var above = new List<string>();
+        foreach (var key in IniParser.GetKeys(sections, sectionName))
+        {
+            if (SectionEntryKeys.IsEntryNumberAbove(key, count))
+                above.Add(key);
+        }
+
+        var missing = new List<string>();
+        for (var i = 1; i <= count; i++)
+        {
+            var key = i.ToString(CultureInfo.InvariantCulture);
+            if (string.IsNullOrEmpty(IniParser.GetValue(sections, sectionName, key)))
+                missing.Add(key);
+        }
+
+        if (above.Count == 0 && missing.Count == 0)
+            return;
+
+        var message = string.Format(
+            CultureInfo.InvariantCulture,
+            "{0} is {1} but the numbered entries do not match.",
+            countKey,
+            count);
+        if (above.Count > 0)
+        {
+            message += " Entries above the count (" + Summarize(above)
+                + ") are not loaded and are kept unchanged.";
+        }
+
+        if (missing.Count > 0)
+            message += " Entries empty or missing inside the count (" + Summarize(missing) + ").";
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.IniObjectListCountMismatch,
+            path: sectionName + "." + countKey,
+            line: IniKeyLines.TryGetLine(sections, sectionName, countKey),
+            rawValue: rawCount,
+            message: message));
+    }
+
+    private static string Summarize(List<string> keys)
+    {
+        const int shown = 5;
+        return keys.Count <= shown
+            ? string.Join(", ", keys)
+            : string.Join(", ", keys.Take(shown)) + ", and "
+              + (keys.Count - shown).ToString(CultureInfo.InvariantCulture) + " more";
+    }
 
     /// <summary>
     /// Parses <c>ObjFlags</c>. A <c>$NODEID</c> formula has no node-id context here, so

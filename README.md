@@ -426,6 +426,9 @@ behavior:
 | `CheckSubNumberCount` | `SubNumber` equals the number of described sub-indexes including sub-index 00h (CiA 306-1 §6.6.3.2) |
 | `CheckValueRanges` | `DefaultValue`, `LowLimit`, `HighLimit`, `ParameterValue` fit the integer/BOOLEAN/REAL `DataType` (e.g. `1000` is rejected for UNSIGNED8); `LowLimit <= HighLimit`; default/parameter values within the limits. `$NODEID` formulas use the DCF node-ID, or node-IDs 1 and 127 in an EDS |
 | `RequireMandatoryEntries` | objects 1000h/1001h/1018h, non-empty `ParameterName`, `DataType` for VAR entries, `FileName`/`VendorName`/`ProductName`, configured DCF commissioning |
+| `CheckObjectListRanges` | `OptionalObjects` indexes lie in 1000h-1FFFh or 6000h-9FFFh and `ManufacturerObjects` indexes in 2000h-5FFFh (CiA 306-1 Table 4) |
+| `RequireIso646` | EDS/DCF text uses 7-bit ISO/IEC 646 characters only (CiA 306-1 clause 6.2). This library writes UTF-8, a documented deviation, so the rule is opt-in |
+| `CheckLineLength` | no EDS/DCF line is longer than 255 characters (CiA 306-1 clause 6.2) |
 
 ```csharp
 // every opt-in rule set
@@ -462,6 +465,12 @@ CanOpenFile.Dcf.WriteFile(dcf, "updated.dcf", CanOpenWriteOptions.Validated);
 
 The same option works on `CanOpenFile.Eds`, `.Cpj`, `.Xdd`, and `.Xdc` write methods.
 Legacy `CanOpenFile.WriteDcf(...)` overloads delegate to these entry points.
+
+A validated EDS or DCF write also applies rules that only the INI formats have: `ObjFlags`
+bits 2..31 are reserved (CiA 306-1 Table 8; XDD/XDC also define bit 2), comment lines are at
+most 249 characters (248 in a module's `[MxComments]`), and `ParamRefd`, `UploadFile` and
+`DownloadFile` of a DCF are at most 249, 244 and 242 characters. The EDS/DCF writers always
+write `Lines` as the number of comment lines.
 
 #### Async validation
 

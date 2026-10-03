@@ -308,6 +308,13 @@ internal static class SectionEntryKeys
            && subIndex <= MaxCompactListableSubIndex;
 
     /// <summary>
+    /// <see langword="true"/> for a numbered slot key above <paramref name="count"/> of a counted list
+    /// (<c>SupportedObjects=1</c> with an entry <c>2</c>), which the list parser does not load.
+    /// </summary>
+    internal static bool IsEntryNumberAbove(string key, int count)
+        => TryParseEntryNumber(key, out var number) && number > count;
+
+    /// <summary>
     /// <see langword="true"/> when <paramref name="text"/> is the decimal number
     /// <c>1..max</c> exactly as the invariant culture formats it.
     /// </summary>

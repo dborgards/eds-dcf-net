@@ -9,6 +9,11 @@ public class Comments
     /// <summary>
     /// Number of comment lines (Unsigned16).
     /// </summary>
+    /// <remarks>
+    /// The EDS/DCF writers do not write this value as stored: they write the number of
+    /// <see cref="CommentLines"/> (at least the highest line number), so the file stays consistent
+    /// when lines were added or removed after reading.
+    /// </remarks>
     public ushort Lines { get; set; }
 
     /// <summary>
