@@ -6,7 +6,7 @@
 #
 # Metric:
 #   Sum lines-covered and lines-valid from every coverage.cobertura.xml under
-#   the search root (sorted paths for stable logs), then:
+#   the results directory (sorted paths for stable logs), then:
 #     percent = (sum(lines-covered) / sum(lines-valid)) * 100
 #   Fail if percent < COVERAGE_MIN_PERCENT (default 95.0).
 #
@@ -15,16 +15,40 @@
 #   lines-valid. Averaging line-rate or taking only the first file can pass PR
 #   CI while failing release (or the reverse) for the same commit.
 #
+# Search root:
+#   Pass the directory given to `dotnet test --results-directory` for this
+#   run. CI creates that directory with mktemp under $RUNNER_TEMP, outside
+#   the checkout. Files in the working tree are not inputs: a force-added
+#   coverage.cobertura.xml, a leftover TestResults run, or a report written
+#   beside EdsDcfNet.Checker. The checker assembly is also marked
+#   ExcludeFromCodeCoverage, so its lines are not part of the library report.
+#
 # Environment:
 #   COVERAGE_MIN_PERCENT  Minimum allowed percent (default: 95.0)
-#   GITHUB_OUTPUT         When set, writes coverage_files and coverage_percent
+#   GITHUB_OUTPUT         When set, writes coverage_files and coverage_percent.
+#                         coverage_files is the list passed to codecov-action.
+#                         Reports are still read through the Git Bash path.
+#                         When cygpath is present (windows-latest), each entry
+#                         is the cygpath -w form (D:\a\_temp\...) so Node can
+#                         open it. Linux runners have no cygpath, so those
+#                         paths stay POSIX.
 #
 # Usage:
-#   tools/enforce-coverage-threshold.sh [search-root]
-#   search-root defaults to the current working directory.
+#   tools/enforce-coverage-threshold.sh <results-directory>
 set -euo pipefail
 
-search_root="${1:-.}"
+if [[ $# -ne 1 || -z "${1:-}" ]]; then
+  echo "Usage: tools/enforce-coverage-threshold.sh <results-directory>" >&2
+  echo "Pass the fresh directory created under RUNNER_TEMP for this test run." >&2
+  exit 1
+fi
+
+search_root="$1"
+# Git Bash on windows-latest exposes RUNNER_TEMP as a Windows path. find needs
+# a POSIX path; cygpath is absent on the Linux runners.
+if command -v cygpath >/dev/null 2>&1; then
+  search_root="$(cygpath -u "$search_root")"
+fi
 min_percent="${COVERAGE_MIN_PERCENT:-95.0}"
 
 if [[ ! -d "$search_root" ]]; then
@@ -42,13 +66,21 @@ if (( ${#coverage_files[@]} == 0 )); then
   exit 1
 fi
 
-# Portable join (Bash 3.2+): comma-separated list for Codecov upload.
+# Portable join (Bash 3.2+): comma-separated list for the Codecov upload.
+# find and the line-count loop keep the Git Bash path. codecov-action is
+# Node.js and on windows-latest cannot open an MSYS path such as
+# /d/a/_temp/... . With disable_search, that failed upload fails the job.
+# cygpath -w yields the Windows path (D:\a\_temp\...) Node can open.
 coverage_files_csv=""
 for coverage_file in "${coverage_files[@]}"; do
+  upload_path="$coverage_file"
+  if command -v cygpath >/dev/null 2>&1; then
+    upload_path="$(cygpath -w "$coverage_file")"
+  fi
   if [[ -z "$coverage_files_csv" ]]; then
-    coverage_files_csv="$coverage_file"
+    coverage_files_csv="$upload_path"
   else
-    coverage_files_csv="${coverage_files_csv},${coverage_file}"
+    coverage_files_csv="${coverage_files_csv},${upload_path}"
   fi
 done
 
@@ -56,6 +88,7 @@ echo "Found ${#coverage_files[@]} coverage report(s)."
 for coverage_file in "${coverage_files[@]}"; do
   echo "  - $coverage_file"
 done
+echo "Codecov upload paths: ${coverage_files_csv}"
 
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   echo "coverage_files=${coverage_files_csv}" >> "$GITHUB_OUTPUT"
