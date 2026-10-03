@@ -323,7 +323,7 @@ public abstract class CanOpenReaderBase
     /// </remarks>
     protected virtual EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
-        var fileInfo = new EdsFileInfo();
+        var fileInfo = new EdsFileInfo { EdsVersion = MissingEdsVersion };
 
         // [FileInfo] is optional — return defaults when the section is absent.
         if (!IniParser.HasSection(sections, "FileInfo"))
