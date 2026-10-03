@@ -27,13 +27,18 @@ public abstract class IniWriterBase
         WriteKeyValue(sb, "FileRevision", fileInfo.FileRevision.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "EDSVersion", fileInfo.EdsVersion);
         WriteKeyValue(sb, "Description", fileInfo.Description);
-        WriteKeyValue(sb, "CreationTime", fileInfo.CreationTime);
+        WriteKeyValue(sb, "CreationTime", FormatFileTime(fileInfo.CreationTime));
         WriteKeyValue(sb, "CreationDate", fileInfo.CreationDate);
         WriteKeyValue(sb, "CreatedBy", fileInfo.CreatedBy);
-        WriteKeyValue(sb, "ModificationTime", fileInfo.ModificationTime);
+        WriteKeyValue(sb, "ModificationTime", FormatFileTime(fileInfo.ModificationTime));
         WriteKeyValue(sb, "ModificationDate", fileInfo.ModificationDate);
         WriteKeyValue(sb, "ModifiedBy", fileInfo.ModifiedBy);
     }
+
+    // A time read from an XDD/XDC (xsd:time) is written as hh:mmAM/PM; a value that is neither form is
+    // written unchanged. A validated write reports it (IniWriteRules).
+    private static string FormatFileTime(string time) =>
+        XddFormatHelper.TryConvertFileTimeToEds(time, out var edsTime) ? edsTime : time;
 
     /// <summary>Writes the [DeviceInfo] section.</summary>
     protected static void WriteDeviceInfo(StringBuilder sb, DeviceInfo deviceInfo)

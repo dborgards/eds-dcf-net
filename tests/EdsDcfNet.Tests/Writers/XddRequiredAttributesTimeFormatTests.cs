@@ -666,7 +666,6 @@ public class XddRequiredAttributesTimeFormatTests
         // Arrange — the XML-only rules must not touch the INI formats.
         var eds = ValidXmlEds();
         eds.FileInfo.CreationDate = "banana";
-        eds.FileInfo.CreationTime = "banana";
         eds.FileInfo.FileName = "a.eds";
         var dcf = ValidXmlDcf();
         dcf.FileInfo.CreationDate = "banana";

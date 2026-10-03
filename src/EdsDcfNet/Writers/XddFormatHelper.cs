@@ -258,6 +258,44 @@ internal static class XddFormatHelper
         return true;
     }
 
+    /// <summary>
+    /// Converts a file time to the EDS/DCF <c>[FileInfo]</c> form <c>hh:mmAM/PM</c> (CiA 306-1 § 6.4):
+    /// a value already in that form stays as it is, a valid <c>xsd:time</c> is converted, and anything
+    /// else yields <see langword="false"/>.
+    /// </summary>
+    /// <remarks>
+    /// The conversion keeps the wall-clock time of the <c>xsd:time</c> text: a time zone is not
+    /// converted to another zone and seconds and fractions are dropped, because the target form has
+    /// neither. <c>00:00:00</c> becomes <c>12:00AM</c>, <c>12:00:00</c> becomes <c>12:00PM</c>, and
+    /// <c>24:00:00</c> becomes <c>12:00AM</c>.
+    /// </remarks>
+    internal static bool TryConvertFileTimeToEds(string? time, out string edsTime)
+    {
+        edsTime = string.Empty;
+        if (time == null)
+            return false;
+
+        var text = time.Trim();
+        if (EdsTimeRegex.IsMatch(text))
+        {
+            edsTime = time;
+            return true;
+        }
+
+        if (!IsXsdTime(text))
+            return false;
+
+        var hour = int.Parse(text[..2], CultureInfo.InvariantCulture);
+        var hour12 = hour % 12 == 0 ? 12 : hour % 12;
+        edsTime = string.Format(
+            CultureInfo.InvariantCulture,
+            "{0:D2}:{1}{2}",
+            hour12,
+            text.Substring(3, 2),
+            hour % 24 >= 12 ? "PM" : "AM");
+        return true;
+    }
+
     /// <summary>Tests whether the text is a valid <c>xsd:date</c> (optional time zone).</summary>
     internal static bool IsXsdDate(string text)
     {

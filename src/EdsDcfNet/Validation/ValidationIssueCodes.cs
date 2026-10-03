@@ -13,6 +13,20 @@ public static class ValidationIssueCodes
     public const string IniTextNotRoundTrippable = "INI_TEXT_NOT_ROUND_TRIPPABLE";
 
     /// <summary>
+    /// An EDS/DCF <c>[FileInfo]</c> time is neither <c>hh:mm(AM|PM)</c> (CiA 306-1 § 6.4) nor an
+    /// <c>xsd:time</c> the writer can convert to it, so it is written unchanged. Applies to
+    /// <c>CreationTime</c> and <c>ModificationTime</c>. Checked only on a validated EDS or DCF write.
+    /// </summary>
+    public const string IniFileTimeInvalid = "INI_FILE_TIME_INVALID";
+
+    /// <summary>
+    /// The model flags a baud rate that only XDD/XDC can carry (<c>100 Kbps</c> or
+    /// <c>auto-baudRate</c>). EDS and DCF have no key for it, so the writer omits it. Checked only
+    /// on a validated EDS or DCF write.
+    /// </summary>
+    public const string IniBaudRateNotRepresentable = "INI_BAUD_RATE_NOT_REPRESENTABLE";
+
+    /// <summary>
     /// EDS/DCF object of type VAR, DEFTYPE, or DOMAIN has sub-objects. CiA 306-1 Table 7 does
     /// not support <c>SubNumber</c> for these object types. An unvalidated write still emits it
     /// so the sub-objects are read back. Checked only on a validated EDS or DCF write.

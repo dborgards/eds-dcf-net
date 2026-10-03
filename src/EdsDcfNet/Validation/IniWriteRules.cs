@@ -3,6 +3,7 @@ namespace EdsDcfNet.Validation;
 using System.Globalization;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
+using EdsDcfNet.Writers;
 
 /// <summary>
 /// Format-family checks applied after shared model validation when an EDS, DCF, or CPJ file is
@@ -162,9 +163,11 @@ internal static class IniWriteRules
         Check(fileInfo.EdsVersion, IniTextSlot.Value, "FileInfo.EdsVersion", issues);
         Check(fileInfo.Description, IniTextSlot.Value, "FileInfo.Description", issues);
         Check(fileInfo.CreationTime, IniTextSlot.Value, "FileInfo.CreationTime", issues);
+        CheckFileTime(fileInfo.CreationTime, "FileInfo.CreationTime", issues);
         Check(fileInfo.CreationDate, IniTextSlot.Value, "FileInfo.CreationDate", issues);
         Check(fileInfo.CreatedBy, IniTextSlot.Value, "FileInfo.CreatedBy", issues);
         Check(fileInfo.ModificationTime, IniTextSlot.Value, "FileInfo.ModificationTime", issues);
+        CheckFileTime(fileInfo.ModificationTime, "FileInfo.ModificationTime", issues);
         Check(fileInfo.ModificationDate, IniTextSlot.Value, "FileInfo.ModificationDate", issues);
         Check(fileInfo.ModifiedBy, IniTextSlot.Value, "FileInfo.ModifiedBy", issues);
         if (includeLastEds)
@@ -179,11 +182,54 @@ internal static class IniWriteRules
             issues);
     }
 
+    // CiA 306-1 v1.4.0 § 6.4 Table 1: CreationTime and ModificationTime are "hh:mm(AM|PM)". An
+    // xsd:time read from an XDD/XDC is converted by the writer; anything else is written unchanged.
+    // Not in CanOpenModelValidator or the writer: XDD/XDC accept xsd:time, and the writer cannot
+    // tell a validated write from a plain one.
+    private static void CheckFileTime(string value, string path, List<ValidationIssue> issues)
+    {
+        if (string.IsNullOrWhiteSpace(value) || XddFormatHelper.TryConvertFileTimeToEds(value, out _))
+            return;
+
+        issues.Add(new ValidationIssue(
+            path,
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "{0} '{1}' is neither hh:mm(AM|PM) nor an xsd:time that converts to it (CiA 306-1 § 6.4). It is written unchanged.",
+                path,
+                value),
+            ValidationIssueCodes.IniFileTimeInvalid));
+    }
+
+    private static void CheckXddOnlyBaudRate(bool flagged, string path, string spelling, List<ValidationIssue> issues)
+    {
+        if (!flagged)
+            return;
+
+        issues.Add(new ValidationIssue(
+            path,
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "'{0}' can only be written to XDD/XDC. EDS and DCF have no key for it (CiA 306-1 § 6.5 Table 2), so it is omitted.",
+                spelling),
+            ValidationIssueCodes.IniBaudRateNotRepresentable));
+    }
+
     private static void ApplyDeviceInfo(DeviceInfo deviceInfo, List<ValidationIssue> issues)
     {
         Check(deviceInfo.VendorName, IniTextSlot.Value, "DeviceInfo.VendorName", issues);
         Check(deviceInfo.ProductName, IniTextSlot.Value, "DeviceInfo.ProductName", issues);
         Check(deviceInfo.OrderCode, IniTextSlot.Value, "DeviceInfo.OrderCode", issues);
+        CheckXddOnlyBaudRate(
+            deviceInfo.SupportedBaudRates.BaudRate100,
+            "DeviceInfo.SupportedBaudRates.BaudRate100",
+            "100 Kbps",
+            issues);
+        CheckXddOnlyBaudRate(
+            deviceInfo.SupportedBaudRates.AutoBaudRate,
+            "DeviceInfo.SupportedBaudRates.AutoBaudRate",
+            "auto-baudRate",
+            issues);
         ApplyRemaining(deviceInfo.RemainingEntries, SectionEntryKeys.IsDeviceInfoKey, "DeviceInfo", issues);
     }
 
