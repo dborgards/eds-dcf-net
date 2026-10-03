@@ -54,7 +54,8 @@ public abstract class CanOpenReaderBase
         {
             if (!IsKnownSection(sectionName) &&
                 !IsToolSectionForParsedTools(sectionName, model.Tools.Count) &&
-                !IsSectionHandledByFormat(sectionName, model))
+                !IsSectionHandledByFormat(sectionName, model) &&
+                !CanOpenSectionParsers.IsConsumedModuleFixedSection(sectionName, model.SupportedModules))
             {
                 model.AdditionalSections[sectionName] =
                     new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
@@ -721,7 +722,10 @@ public abstract class CanOpenReaderBase
         if (i == 1)
             return false;
 
-        // The suffix after "M{digits}" must be a known module suffix
+        // The suffix after "M{digits}" must be a known module suffix.
+        // [MxFixedxxxx] is intentionally not listed here: a body that was parsed
+        // onto a module is excluded separately, and a body for a module that is
+        // not in SupportedModules stays in AdditionalSections.
         var suffix = sectionName[i..];
         return suffix.Equals("ModuleInfo", StringComparison.OrdinalIgnoreCase) ||
                suffix.Equals("FixedObjects", StringComparison.OrdinalIgnoreCase) ||

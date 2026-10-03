@@ -25,6 +25,13 @@ public static class ParseDiagnosticCodes
     /// <summary>Section header that repeats an earlier section; lenient mode merges the keys into it.</summary>
     public const string IniDuplicateSection = "INI_DUPLICATE_SECTION";
 
+    /// <summary>
+    /// EDS/DCF/CPJ bytes are not valid UTF-8 and were decoded as ISO-8859-1.
+    /// Reported in both lenient and strict mode; strict mode does not throw, because the
+    /// file is legible legacy text rather than a malformed INI construct.
+    /// </summary>
+    public const string IniDecodedAsIso88591 = "INI_DECODED_AS_ISO_8859_1";
+
     /// <summary>Invalid <c>DummyUsage</c> key in an INI file; the entry is ignored.</summary>
     public const string IniInvalidDummyUsageKey = "INI_INVALID_DUMMY_USAGE_KEY";
 
@@ -64,6 +71,12 @@ public static class ParseDiagnosticCodes
     /// Malformed EDS/DCF <c>ObjFlags</c>; lenient mode treats it as <c>0</c>.
     /// </summary>
     public const string InvalidObjFlags = "INVALID_OBJ_FLAGS";
+
+    /// <summary>
+    /// Malformed <c>ObjExtend</c> in a module <c>[MxSubExtxxxx]</c> section (CiA 306-1 §8.3);
+    /// lenient mode leaves it unset.
+    /// </summary>
+    public const string InvalidModuleObjExtend = "INVALID_MODULE_OBJ_EXTEND";
 
     /// <summary>
     /// Malformed object-list count (<c>SupportedObjects</c>, <c>ObjectLinks</c>, or module <c>NrOfEntries</c>);
@@ -108,6 +121,27 @@ public static class ParseDiagnosticCodes
 
     /// <summary>Malformed XDD/XDC unsigned numeric attribute; lenient mode ignores it / leaves the value unset.</summary>
     public const string XddInvalidNumericAttribute = "XDD_INVALID_NUMERIC_ATTRIBUTE";
+
+    /// <summary>
+    /// XDD/XDC <c>objFlags</c> has an odd number of hex digits. <c>xsd:hexBinary</c> requires
+    /// an even count. Lenient mode still accepts the hexadecimal value; strict mode throws.
+    /// </summary>
+    public const string XddObjFlagsOddHexLength = "XDD_OBJ_FLAGS_ODD_HEX_LENGTH";
+
+    /// <summary>
+    /// XDD/XDC <c>objFlags</c> sets CiA 311 reserved bits 3..31 after hexadecimal
+    /// interpretation. The value is kept. Reported in lenient and strict mode, because a
+    /// multi-digit decimal spelling from a library version before the hexBinary fix can
+    /// otherwise change meaning without notice.
+    /// </summary>
+    public const string XddObjFlagsReservedBits = "XDD_OBJ_FLAGS_RESERVED_BITS";
+
+    /// <summary>
+    /// XDD/XDC <c>objFlags</c> is schema-valid <c>xsd:hexBinary</c> that does not fit in
+    /// <see cref="EdsDcfNet.Models.CanOpenObject.ObjFlags"/>. The property stays <c>0</c> and the
+    /// original text is preserved for writing. Reported in lenient and strict mode.
+    /// </summary>
+    public const string XddObjFlagsExceedsUInt32 = "XDD_OBJ_FLAGS_EXCEEDS_UINT32";
 
     /// <summary>Malformed XDD/XDC <c>dummyUsage</c> entry; lenient mode ignores or degrades it.</summary>
     public const string XddInvalidDummyUsage = "XDD_INVALID_DUMMY_USAGE";

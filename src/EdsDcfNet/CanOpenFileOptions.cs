@@ -1,5 +1,6 @@
 namespace EdsDcfNet;
 
+using System.Text;
 using EdsDcfNet.Parsers;
 
 /// <summary>
@@ -83,9 +84,18 @@ public sealed class CanOpenFileOptions
     /// lexical forms (optional leading sign, surrounding whitespace) are accepted after trim.
     /// </description></item>
     /// <item><description>
-    /// Malformed XDD/XDC unsigned numeric attributes such as <c>objFlags</c>, <c>subNumber</c>,
+    /// Malformed XDD/XDC unsigned numeric attributes such as <c>subNumber</c>,
     /// <c>pDOmappingIndex</c>, general-feature counts, and <c>networkNumber</c>
     /// (default: ignore / leave unset; surrounding whitespace and optional leading sign are accepted)
+    /// </description></item>
+    /// <item><description>
+    /// XDD/XDC <c>objFlags</c> is <c>xsd:hexBinary</c> (CiA 311 Annex A.1.4, four hex digits;
+    /// bits 0..2 defined, bits 3..31 reserved). Surrounding whitespace is trimmed. An odd
+    /// number of hex digits is accepted in lenient mode with a diagnostic and rejected in
+    /// strict mode. A schema-valid value that does not fit in 32 bits is reported and left
+    /// at <c>0</c> in both modes, and the original text is kept for writing until
+    /// <c>ObjFlags</c> changes. Reserved bits 3..31 are reported and still stored. A leading
+    /// sign or a <c>0x</c> prefix is not hexadecimal (default: ignore; strict: throw).
     /// </description></item>
     /// <item><description>
     /// Unknown CPJ <c>NodeNPresent</c> tokens in <c>ValueConverter.ParsePresentFlag</c>
@@ -95,9 +105,43 @@ public sealed class CanOpenFileOptions
     /// </remarks>
     public bool StrictParsing { get; init; }
 
+    /// <summary>
+    /// Gets the encoding used to decode EDS, DCF, CPJ, XDD, and XDC bytes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="null"/> (the default) selects automatic detection for EDS, DCF, and CPJ.
+    /// A byte-order mark selects UTF-8, UTF-16, or UTF-32 and is not returned as text.
+    /// Otherwise the buffered bytes are decoded as strict UTF-8 (<c>throwOnInvalidBytes</c>).
+    /// When that fails with <see cref="DecoderFallbackException"/>, the bytes passed to that
+    /// strict decode are decoded as ISO-8859-1. A leading UTF-8 byte-order mark is excluded
+    /// from both decodes. A diagnostic is reported
+    /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniDecodedAsIso88591"/>,
+    /// &quot;file is not valid UTF-8, decoded as ISO-8859-1&quot;). The bytes are buffered
+    /// once, including from a non-seekable stream, and decoded from that buffer.
+    /// </para>
+    /// <para>
+    /// For XDD and XDC, <see langword="null"/> follows a byte-order mark when one is present
+    /// (UTF-8, UTF-16, or UTF-32). Otherwise the encoding named by the XML declaration is
+    /// used, and UTF-8 is used when the declaration does not name one. A declared name that
+    /// this runtime cannot create fails the read with <see cref="Exceptions.EdsParseException"/>;
+    /// the message includes that name. Invalid byte sequences are not replaced with U+FFFD.
+    /// </para>
+    /// <para>
+    /// An explicit value is used as supplied and does not fall back to ISO-8859-1. On XDD and
+    /// XDC it overrides the XML declaration. A byte-order mark for that encoding is still
+    /// removed, including when the encoding instance was constructed not to emit a preamble.
+    /// String overloads are already decoded text and ignore this property.
+    /// </para>
+    /// </remarks>
+    public Encoding? Encoding { get; init; }
+
     internal static long ResolveMaxInputSize(CanOpenFileOptions? options)
         => options?.MaxInputSize ?? ReaderDefaults.DefaultMaxInputSize;
 
     internal static bool ResolveStrictParsing(CanOpenFileOptions? options)
         => options?.StrictParsing ?? false;
+
+    internal static Encoding? ResolveEncoding(CanOpenFileOptions? options)
+        => options?.Encoding;
 }

@@ -126,14 +126,8 @@ internal static class XddCommNetProfileParser
         var pdoMappingStr = elem.Attribute("PDOmapping")?.Value;
         obj.PdoMappingMode = ParseXddPdoMapping(pdoMappingStr);
 
-        var objFlagsStr = GetTrimmedAttributeValue(elem, "objFlags");
-        if (!string.IsNullOrEmpty(objFlagsStr))
-        {
-            var objFlagsParsed = uint.TryParse(objFlagsStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var flags);
-            if (objFlagsParsed)
-                obj.ObjFlags = flags;
-            RejectFailedNumericAttribute(objFlagsStr, objFlagsParsed, "objFlags");
-        }
+        if (GetTrimmedAttributeValue(elem, "objFlags") is { Length: > 0 } objFlagsStr)
+            ReadObjFlags(obj, objFlagsStr);
 
         var subNumberStr = GetTrimmedAttributeValue(elem, "subNumber");
         if (!string.IsNullOrEmpty(subNumberStr))
@@ -164,6 +158,152 @@ internal static class XddCommNetProfileParser
 
         resolver.ApplyObject(obj, ExplicitAttributes.From(elem));
         return obj;
+    }
+
+    /// <summary>
+    /// CiA 311 Annex A.1.4: <c>objFlags</c> is <c>xsd:hexBinary</c> (four hex digits in the
+    /// annotation). Bits 0, 1 and 2 are defined; bits 3..31 are reserved. There is no
+    /// decimal fallback. A single hex digit matches the old decimal spelling of values 0..7.
+    /// </summary>
+    private static void ReadObjFlags(CanOpenObject obj, string raw)
+    {
+        // Defined bits are 0..2. Bit 2 means the change takes effect after reset.
+        const uint definedMask = 0x7;
+
+        if (!IsAsciiHex(raw))
+        {
+            RejectObjFlags(obj.Index, raw, overflow: false);
+            return;
+        }
+
+        var oddLength = (raw.Length & 1) != 0;
+        var parsed = uint.TryParse(raw, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var flags);
+        if (!parsed)
+        {
+            if (oddLength)
+            {
+                // Odd length is not schema-valid hexBinary, so an overflowing token stays a parse error.
+                RejectObjFlags(obj.Index, raw, overflow: true);
+                return;
+            }
+
+            // Even length is schema-valid hexBinary that does not fit in uint. Keep the text.
+            ReportObjFlags(
+                Diagnostics.ParseDiagnosticCodes.XddObjFlagsExceedsUInt32,
+                obj.Index,
+                raw,
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "objFlags '{0}' is valid xsd:hexBinary and does not fit in 32 bits. ObjFlags was left at 0 and the original text is preserved for writing.",
+                    raw));
+            obj.ObjFlags = 0;
+            obj.ObjFlagsLexical = raw;
+            obj.ObjFlagsLexicalBaseline = 0;
+            return;
+        }
+
+        if (oddLength)
+        {
+            ReportObjFlags(
+                Diagnostics.ParseDiagnosticCodes.XddObjFlagsOddHexLength,
+                obj.Index,
+                raw,
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "objFlags '{0}' has an odd number of hexadecimal digits. xsd:hexBinary requires an even number. The value was accepted as hexadecimal in lenient mode.",
+                    raw));
+
+            if (StrictParsingScope.IsEnabled)
+            {
+                throw new EdsParseException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "objFlags '{0}' has an odd number of hexadecimal digits. xsd:hexBinary requires an even number.",
+                        raw))
+                {
+                    Code = Diagnostics.ParseDiagnosticCodes.XddObjFlagsOddHexLength
+                };
+            }
+        }
+
+        if ((flags & ~definedMask) != 0)
+        {
+            ReportObjFlags(
+                Diagnostics.ParseDiagnosticCodes.XddObjFlagsReservedBits,
+                obj.Index,
+                raw,
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "objFlags '{0}' sets reserved bits 3..31 after hexadecimal interpretation. CiA 311 defines bits 0, 1, and 2 and reserves bits 3..31. A multi-digit decimal value written by a library version before this fix can have the same spelling and a different meaning.",
+                    raw));
+        }
+
+        obj.ObjFlags = flags;
+        obj.ObjFlagsLexical = null;
+    }
+
+    private static bool IsAsciiHex(string raw)
+    {
+        for (var i = 0; i < raw.Length; i++)
+        {
+            var character = raw[i];
+            var digit = (character >= '0' && character <= '9')
+                || (character >= 'a' && character <= 'f')
+                || (character >= 'A' && character <= 'F');
+            if (!digit)
+                return false;
+        }
+
+        return raw.Length > 0;
+    }
+
+    private static void RejectObjFlags(ushort index, string raw, bool overflow)
+    {
+        var diagnosticMessage = overflow
+            ? string.Format(
+                CultureInfo.InvariantCulture,
+                "Invalid objFlags '{0}'. The hexadecimal value does not fit in 32 bits. The attribute is ignored.",
+                raw)
+            : string.Format(
+                CultureInfo.InvariantCulture,
+                "Invalid objFlags '{0}'. Value is not an xsd:hexBinary hexadecimal value. The attribute is ignored.",
+                raw);
+        var exceptionMessage = overflow
+            ? string.Format(
+                CultureInfo.InvariantCulture,
+                "Invalid objFlags '{0}'. The hexadecimal value does not fit in 32 bits.",
+                raw)
+            : string.Format(
+                CultureInfo.InvariantCulture,
+                "Invalid objFlags '{0}'. Value is not an xsd:hexBinary hexadecimal value.",
+                raw);
+
+        ReportObjFlags(
+            Diagnostics.ParseDiagnosticCodes.XddInvalidNumericAttribute,
+            index,
+            raw,
+            diagnosticMessage);
+
+        if (!StrictParsingScope.IsEnabled)
+            return;
+
+        throw new EdsParseException(exceptionMessage)
+        {
+            Code = Diagnostics.ParseDiagnosticCodes.XddInvalidNumericAttribute
+        };
+    }
+
+    private static void ReportObjFlags(string code, ushort index, string raw, string message)
+    {
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            code,
+            path: string.Format(
+                CultureInfo.InvariantCulture,
+                "CANopenObject[@index='{0:X4}']/objFlags",
+                index),
+            message: message,
+            rawValue: raw));
     }
 
     private static string? ReadUniqueIdRef(XElement elem)

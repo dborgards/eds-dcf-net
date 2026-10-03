@@ -849,7 +849,7 @@ public class XddWriterTests
         // Assert
         result.Should().Contain("lowLimit=\"0\"");
         result.Should().Contain("highLimit=\"100\"");
-        result.Should().Contain("objFlags=\"1\"");
+        result.Should().Contain("objFlags=\"0001\"");
     }
 
     [Fact]

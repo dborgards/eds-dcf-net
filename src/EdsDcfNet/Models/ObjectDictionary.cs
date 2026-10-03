@@ -202,6 +202,18 @@ public class CanOpenObject
     public uint ObjFlags { get; set; }
 
     /// <summary>
+    /// Original XDD/XDC <c>objFlags</c> text when a schema-valid <c>xsd:hexBinary</c>
+    /// value does not fit in <see cref="ObjFlags"/>. The writer emits this text only
+    /// while <see cref="ObjFlags"/> still equals <see cref="ObjFlagsLexicalBaseline"/>.
+    /// </summary>
+    internal string? ObjFlagsLexical { get; set; }
+
+    /// <summary>
+    /// <see cref="ObjFlags"/> captured when <see cref="ObjFlagsLexical"/> was stored.
+    /// </summary>
+    internal uint ObjFlagsLexicalBaseline { get; set; }
+
+    /// <summary>
     /// Number of sub-indexes available at this index (Unsigned8).
     /// Not counting sub-index FFh.
     /// </summary>

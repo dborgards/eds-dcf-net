@@ -9,9 +9,10 @@ using EdsDcfNet.Exceptions;
 /// <threadsafety>
 /// The built-in instances exposed through <see cref="CanOpenFile"/>'s format entry points are
 /// safe to call concurrently: they hold only immutable delegates and construct a fresh
-/// reader/writer per call, and strict-mode state is scoped per call via
+/// reader/writer per call, and strict-mode and encoding state are scoped per call via
 /// <see cref="AsyncLocal{T}"/>, so concurrent calls with different
-/// <see cref="CanOpenFileOptions.StrictParsing"/> values do not interfere. This guarantee does
+/// <see cref="CanOpenFileOptions.StrictParsing"/> or <see cref="CanOpenFileOptions.Encoding"/>
+/// values do not interfere. This guarantee does
 /// <b>not</b> extend automatically to subclasses or custom delegates — supplied delegates and
 /// overrides must not capture mutable shared state. The models passed to and returned from
 /// these operations are plain mutable objects and are <b>not</b> thread-safe — a model must
@@ -138,7 +139,7 @@ public class FormatCanOpenOperations<TModel>
     /// </summary>
     public TModel ReadFile(string filePath, CanOpenFileOptions? options = null)
     {
-        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (EnterRead(options))
             return _readFile(filePath, CanOpenFileOptions.ResolveMaxInputSize(options));
     }
 
@@ -150,7 +151,7 @@ public class FormatCanOpenOperations<TModel>
         CanOpenFileOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (EnterRead(options))
             return await _readFileAsync(filePath, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken)
                 .ConfigureAwait(false);
     }
@@ -169,7 +170,7 @@ public class FormatCanOpenOperations<TModel>
         string filePath,
         CanOpenFileOptions? options = null)
     {
-        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (EnterRead(options))
         using (var diagnostics = Diagnostics.ParseDiagnosticScope.Enter())
         {
             var model = _readFile(filePath, CanOpenFileOptions.ResolveMaxInputSize(options));
@@ -186,7 +187,7 @@ public class FormatCanOpenOperations<TModel>
         CanOpenFileOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (EnterRead(options))
         using (var diagnostics = Diagnostics.ParseDiagnosticScope.Enter())
         {
             var model = await _readFileAsync(filePath, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken)
@@ -200,7 +201,7 @@ public class FormatCanOpenOperations<TModel>
     /// </summary>
     public TModel ReadString(string content, CanOpenFileOptions? options = null)
     {
-        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (EnterRead(options))
             return _readString(content, CanOpenFileOptions.ResolveMaxInputSize(options));
     }
 
@@ -209,7 +210,7 @@ public class FormatCanOpenOperations<TModel>
     /// </summary>
     public TModel ReadStream(Stream stream, CanOpenFileOptions? options = null)
     {
-        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (EnterRead(options))
             return _readStream(stream, CanOpenFileOptions.ResolveMaxInputSize(options));
     }
 
@@ -221,7 +222,7 @@ public class FormatCanOpenOperations<TModel>
         CanOpenFileOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (EnterRead(options))
             return await _readStreamAsync(stream, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken)
                 .ConfigureAwait(false);
     }
@@ -235,7 +236,7 @@ public class FormatCanOpenOperations<TModel>
         string content,
         CanOpenFileOptions? options = null)
     {
-        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (EnterRead(options))
         using (var diagnostics = Diagnostics.ParseDiagnosticScope.Enter())
         {
             var model = _readString(content, CanOpenFileOptions.ResolveMaxInputSize(options));
@@ -252,7 +253,7 @@ public class FormatCanOpenOperations<TModel>
         Stream stream,
         CanOpenFileOptions? options = null)
     {
-        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (EnterRead(options))
         using (var diagnostics = Diagnostics.ParseDiagnosticScope.Enter())
         {
             var model = _readStream(stream, CanOpenFileOptions.ResolveMaxInputSize(options));
@@ -270,7 +271,7 @@ public class FormatCanOpenOperations<TModel>
         CanOpenFileOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        using (Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options)))
+        using (EnterRead(options))
         using (var diagnostics = Diagnostics.ParseDiagnosticScope.Enter())
         {
             var model = await _readStreamAsync(stream, CanOpenFileOptions.ResolveMaxInputSize(options), cancellationToken)
@@ -294,7 +295,8 @@ public class FormatCanOpenOperations<TModel>
     public virtual void WriteFile(TModel model, string filePath, CanOpenWriteOptions? options)
     {
         _ensureValidForWrite(model, options);
-        _writeFile(model, filePath);
+        using (EnterWrite(options))
+            _writeFile(model, filePath);
     }
 
     /// <summary>
@@ -312,7 +314,8 @@ public class FormatCanOpenOperations<TModel>
     public virtual void WriteStream(TModel model, Stream stream, CanOpenWriteOptions? options)
     {
         _ensureValidForWrite(model, options);
-        _writeStream(model, stream);
+        using (EnterWrite(options))
+            _writeStream(model, stream);
     }
 
     /// <summary>
@@ -338,7 +341,8 @@ public class FormatCanOpenOperations<TModel>
         CancellationToken cancellationToken = default)
     {
         await EnsureValidForWriteAsync(model, options, cancellationToken).ConfigureAwait(false);
-        await _writeFileAsync(model, filePath, cancellationToken).ConfigureAwait(false);
+        using (EnterWrite(options))
+            await _writeFileAsync(model, filePath, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -365,7 +369,8 @@ public class FormatCanOpenOperations<TModel>
         CancellationToken cancellationToken = default)
     {
         await EnsureValidForWriteAsync(model, options, cancellationToken).ConfigureAwait(false);
-        await _writeStreamAsync(model, stream, cancellationToken).ConfigureAwait(false);
+        using (EnterWrite(options))
+            await _writeStreamAsync(model, stream, cancellationToken).ConfigureAwait(false);
     }
 
     private Task EnsureValidForWriteAsync(
@@ -393,6 +398,13 @@ public class FormatCanOpenOperations<TModel>
     /// <summary>
     /// Serializes to a string.
     /// </summary>
+    /// <remarks>
+    /// <see cref="CanOpenWriteOptions.Encoding"/> applies only to byte output
+    /// (<see cref="WriteFile(TModel, string, CanOpenWriteOptions?)"/> and
+    /// <see cref="WriteStream(TModel, Stream, CanOpenWriteOptions?)"/>, including the async
+    /// overloads). This method returns a .NET string; for XDD and XDC the XML declaration
+    /// in that string stays UTF-8.
+    /// </remarks>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
     /// </exception>
@@ -400,6 +412,38 @@ public class FormatCanOpenOperations<TModel>
     {
         _ensureValidForWrite(model, options);
         return _writeToString(model);
+    }
+
+    private static ReadScopes EnterRead(CanOpenFileOptions? options) => new(options);
+
+    private static WriteScope EnterWrite(CanOpenWriteOptions? options) => new(options);
+
+    private sealed class ReadScopes : IDisposable
+    {
+        private readonly IDisposable _encoding;
+        private readonly IDisposable _strict;
+
+        internal ReadScopes(CanOpenFileOptions? options)
+        {
+            _encoding = Parsers.FileEncodingScope.EnterRead(CanOpenFileOptions.ResolveEncoding(options));
+            _strict = Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options));
+        }
+
+        public void Dispose()
+        {
+            _strict.Dispose();
+            _encoding.Dispose();
+        }
+    }
+
+    private sealed class WriteScope : IDisposable
+    {
+        private readonly IDisposable _encoding;
+
+        internal WriteScope(CanOpenWriteOptions? options)
+            => _encoding = Parsers.FileEncodingScope.EnterWrite(CanOpenWriteOptions.ResolveEncoding(options));
+
+        public void Dispose() => _encoding.Dispose();
     }
 }
 #pragma warning restore CA1822
