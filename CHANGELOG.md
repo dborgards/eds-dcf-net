@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.30](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.29...v1.15.0-beta.30) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** apply the CiA 306-1 key matrix to module objects and read compact-list counters leniently ([#641](https://github.com/dborgards/eds-dcf-net/issues/641)) ([7e55a0c](https://github.com/dborgards/eds-dcf-net/commit/7e55a0c5c2d2dc822b7197cf9ce9d0d1a374db63)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
 ## [1.15.0-beta.29](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.28...v1.15.0-beta.29) (2026-10-03)
 
 ### 🐛 Bug Fixes
