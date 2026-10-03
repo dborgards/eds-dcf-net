@@ -19,11 +19,11 @@ internal static class XddTransportLayersBuilder
             new XAttribute("defaultValue", defaultBaudRate));
 
         var hasSupported = false;
-        foreach (var kbps in XddFormatHelper.GetSupportedBaudRates(deviceInfo.SupportedBaudRates))
+        foreach (var supported in XddFormatHelper.GetSupportedBaudRates(deviceInfo.SupportedBaudRates))
         {
             hasSupported = true;
             baudRateElem.Add(XddNames.Element(baudRateElem.Name, "supportedBaudRate",
-                new XAttribute("value", XddFormatHelper.FormatBaudRate(kbps))));
+                new XAttribute("value", supported)));
         }
 
         if (!hasSupported)

@@ -155,10 +155,18 @@ public static class ParseDiagnosticCodes
     public const string XddDuplicateCommNetProfile = "XDD_DUPLICATE_COMMNET_PROFILE";
 
     /// <summary>
-    /// XDD/XDC <c>fileVersion</c> in major/minor tooling form; lenient mode uses the major
-    /// component.
+    /// XDD/XDC <c>fileVersion</c> in major/minor tooling form; the major component is used
+    /// (lenient and strict mode).
     /// </summary>
     public const string XddFileVersionMajorMinor = "XDD_FILE_VERSION_MAJOR_MINOR";
+
+    /// <summary>
+    /// XDD/XDC <c>fileVersion</c> is a free <c>xsd:string</c> that holds no number in the range of
+    /// <see cref="Models.EdsFileInfo.FileVersion"/>. The text is kept in
+    /// <see cref="Models.EdsFileInfo.FileVersionText"/> and <c>FileVersion</c> keeps its default, in
+    /// both lenient and strict mode.
+    /// </summary>
+    public const string XddFileVersionNotNumeric = "XDD_FILE_VERSION_NOT_NUMERIC";
 
     /// <summary><c>CANopenObject</c> without <c>index</c>; lenient mode treats it as <c>0x0000</c>.</summary>
     public const string XddMissingIndex = "XDD_MISSING_INDEX";

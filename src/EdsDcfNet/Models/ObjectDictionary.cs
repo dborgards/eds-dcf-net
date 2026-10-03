@@ -10,7 +10,7 @@ using System.Diagnostics.CodeAnalysis;
 public class ObjectDictionary
 {
     /// <summary>
-    /// Mandatory objects (at least 1000h and 1001h).
+    /// Mandatory objects (1000h, 1001h and 1018h; the XDD/XDC reader lists these three).
     /// </summary>
     public List<ushort> MandatoryObjects { get; } = new();
 

@@ -96,35 +96,45 @@ internal static class XddFormatHelper
     internal static string FormatBaudRate(ushort kbps) =>
         string.Format(CultureInfo.InvariantCulture, "{0} Kbps", kbps);
 
-    /// <summary>Yields the baud rates that are flagged as supported.</summary>
-    internal static IEnumerable<ushort> GetSupportedBaudRates(BaudRates baudRates)
+    /// <summary>Yields the supported baud rates in the CiA 311 spelling, ascending, <c>auto-baudRate</c> last.</summary>
+    internal static IEnumerable<string> GetSupportedBaudRates(BaudRates baudRates)
     {
-        if (baudRates.BaudRate10) yield return 10;
-        if (baudRates.BaudRate20) yield return 20;
-        if (baudRates.BaudRate50) yield return 50;
-        if (baudRates.BaudRate125) yield return 125;
-        if (baudRates.BaudRate250) yield return 250;
-        if (baudRates.BaudRate500) yield return 500;
-        if (baudRates.BaudRate800) yield return 800;
-        if (baudRates.BaudRate1000) yield return 1000;
+        if (baudRates.BaudRate10) yield return FormatBaudRate(10);
+        if (baudRates.BaudRate20) yield return FormatBaudRate(20);
+        if (baudRates.BaudRate50) yield return FormatBaudRate(50);
+        if (baudRates.BaudRate100) yield return FormatBaudRate(100);
+        if (baudRates.BaudRate125) yield return FormatBaudRate(125);
+        if (baudRates.BaudRate250) yield return FormatBaudRate(250);
+        if (baudRates.BaudRate500) yield return FormatBaudRate(500);
+        if (baudRates.BaudRate800) yield return FormatBaudRate(800);
+        if (baudRates.BaudRate1000) yield return FormatBaudRate(1000);
+        if (baudRates.AutoBaudRate) yield return AutoBaudRate;
     }
 
     /// <summary>
-    /// Returns the preferred default baud rate string from the supported set,
+    /// Returns the <c>baudRate/@defaultValue</c>: the value read from an XDD/XDC while the supported
+    /// flags are unchanged since the read, otherwise the preferred default from the supported set,
     /// falling back to "250 Kbps" when no rates are flagged.
     /// </summary>
     internal static string GetDefaultBaudRateString(BaudRates baudRates)
     {
+        if (baudRates.DefaultValueLexical != null && baudRates.DefaultValueFlagsBaseline == baudRates.FlagMask())
+            return baudRates.DefaultValueLexical;
+
         if (baudRates.BaudRate250) return "250 Kbps";
         if (baudRates.BaudRate500) return "500 Kbps";
         if (baudRates.BaudRate125) return "125 Kbps";
         if (baudRates.BaudRate1000) return "1000 Kbps";
         if (baudRates.BaudRate800) return "800 Kbps";
+        if (baudRates.BaudRate100) return "100 Kbps";
         if (baudRates.BaudRate50) return "50 Kbps";
         if (baudRates.BaudRate20) return "20 Kbps";
         if (baudRates.BaudRate10) return "10 Kbps";
+        if (baudRates.AutoBaudRate) return AutoBaudRate;
         return "250 Kbps";
     }
+
+    private const string AutoBaudRate = "auto-baudRate";
 
     private const string TimeZonePattern = "(?:Z|[+-](?:0[0-9]|1[0-3]):[0-5][0-9]|[+-]14:00)";
 

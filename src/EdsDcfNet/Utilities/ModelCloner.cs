@@ -26,11 +26,15 @@ internal static class ModelCloner
                 BaudRate10 = source.SupportedBaudRates.BaudRate10,
                 BaudRate20 = source.SupportedBaudRates.BaudRate20,
                 BaudRate50 = source.SupportedBaudRates.BaudRate50,
+                BaudRate100 = source.SupportedBaudRates.BaudRate100,
                 BaudRate125 = source.SupportedBaudRates.BaudRate125,
                 BaudRate250 = source.SupportedBaudRates.BaudRate250,
                 BaudRate500 = source.SupportedBaudRates.BaudRate500,
                 BaudRate800 = source.SupportedBaudRates.BaudRate800,
-                BaudRate1000 = source.SupportedBaudRates.BaudRate1000
+                BaudRate1000 = source.SupportedBaudRates.BaudRate1000,
+                AutoBaudRate = source.SupportedBaudRates.AutoBaudRate,
+                DefaultValueLexical = source.SupportedBaudRates.DefaultValueLexical,
+                DefaultValueFlagsBaseline = source.SupportedBaudRates.DefaultValueFlagsBaseline
             },
             SimpleBootUpMaster = source.SimpleBootUpMaster,
             SimpleBootUpSlave = source.SimpleBootUpSlave,
@@ -146,6 +150,16 @@ internal static class ModelCloner
     /// </summary>
     internal static void CopyFileInfoRemainingEntries(EdsFileInfo source, EdsFileInfo destination)
         => CopyRemainingEntries(source.RemainingEntries, destination.RemainingEntries);
+
+    /// <summary>
+    /// Copies the <c>fileVersion</c> text of an XDD/XDC read with its baseline onto a new
+    /// file-information object whose <see cref="EdsFileInfo.FileVersion"/> was copied unchanged.
+    /// </summary>
+    internal static void CopyFileVersionText(EdsFileInfo source, EdsFileInfo destination)
+    {
+        destination.FileVersionText = source.FileVersionText;
+        destination.FileVersionTextBaseline = source.FileVersionTextBaseline;
+    }
 
     /// <summary>
     /// Creates a deep copy of the per-section unmapped entries

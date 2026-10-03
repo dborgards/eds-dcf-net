@@ -128,6 +128,16 @@ public class BaudRates
     public bool BaudRate50 { get; set; }
 
     /// <summary>
+    /// Supports 100 kbit/s baud rate (XDD/XDC only).
+    /// </summary>
+    /// <remarks>
+    /// CiA 311 lists <c>100 Kbps</c> in the <c>baudRate</c> vocabulary but marks it as not officially
+    /// defined by CAN in Automation. EDS and DCF have no <c>BaudRate_100</c> key; the INI writers do not
+    /// emit this flag.
+    /// </remarks>
+    public bool BaudRate100 { get; set; }
+
+    /// <summary>
     /// Supports 125 kbit/s baud rate.
     /// </summary>
     public bool BaudRate125 { get; set; }
@@ -151,4 +161,27 @@ public class BaudRates
     /// Supports 1000 kbit/s baud rate.
     /// </summary>
     public bool BaudRate1000 { get; set; }
+
+    /// <summary>
+    /// Supports automatic baud-rate detection (XDD/XDC <c>auto-baudRate</c>, XDD/XDC only).
+    /// </summary>
+    /// <remarks>
+    /// EDS and DCF have no key for this value; the INI writers do not emit this flag.
+    /// </remarks>
+    public bool AutoBaudRate { get; set; }
+
+    /// <summary>
+    /// Original <c>baudRate/@defaultValue</c> of an XDD/XDC read, in the CiA 311 spelling.
+    /// </summary>
+    internal string? DefaultValueLexical { get; set; }
+
+    /// <summary><see cref="FlagMask"/> captured when <see cref="DefaultValueLexical"/> was stored.</summary>
+    internal int DefaultValueFlagsBaseline { get; set; }
+
+    /// <summary>Packs the supported-rate flags into one value to detect later changes.</summary>
+    internal int FlagMask() =>
+        (BaudRate10 ? 1 : 0) | (BaudRate20 ? 1 << 1 : 0) | (BaudRate50 ? 1 << 2 : 0) |
+        (BaudRate100 ? 1 << 3 : 0) | (BaudRate125 ? 1 << 4 : 0) | (BaudRate250 ? 1 << 5 : 0) |
+        (BaudRate500 ? 1 << 6 : 0) | (BaudRate800 ? 1 << 7 : 0) | (BaudRate1000 ? 1 << 8 : 0) |
+        (AutoBaudRate ? 1 << 9 : 0);
 }

@@ -298,20 +298,28 @@ internal static class XddParsingPrimitives
         return false;
     }
 
+    private const string AutoBaudRateToken = "auto-baudRate";
+
+    private const string BaudRateVocabulary =
+        "10 Kbps, 20 Kbps, 50 Kbps, 100 Kbps, 125 Kbps, 250 Kbps, 500 Kbps, 800 Kbps, 1000 Kbps, auto-baudRate";
+
     /// <summary>
-    /// Parses a CiA 311 baud-rate vocabulary string such as <c>250 Kbps</c>.
+    /// Parses a CiA 311 baud-rate vocabulary string such as <c>250 Kbps</c> (<c>supportedBaudRate/@value</c>,
+    /// <c>baudRate/@defaultValue</c>).
     /// </summary>
     /// <remarks>
     /// Supported values (case-insensitive):
-    /// <c>10 Kbps</c>, <c>20 Kbps</c>, <c>50 Kbps</c>, <c>125 Kbps</c>,
-    /// <c>250 Kbps</c>, <c>500 Kbps</c>, <c>800 Kbps</c>, <c>1000 Kbps</c>.
+    /// <c>10 Kbps</c>, <c>20 Kbps</c>, <c>50 Kbps</c>, <c>100 Kbps</c>, <c>125 Kbps</c>,
+    /// <c>250 Kbps</c>, <c>500 Kbps</c>, <c>800 Kbps</c>, <c>1000 Kbps</c> and <c>auto-baudRate</c>
+    /// (reported through <paramref name="isAuto"/>, the result is <c>0</c>).
     /// Empty input returns <c>0</c>. Unknown non-empty values return <c>0</c> when
     /// lenient, or throw <see cref="EdsParseException"/> when
     /// <see cref="StrictParsingScope"/> is enabled. The XDC <c>deviceCommissioning/@actualBaudRate</c>
     /// does not use this method: that attribute is a free string and is preserved instead.
     /// </remarks>
-    internal static ushort ParseBaudRateString(string value)
+    internal static ushort ParseBaudRateString(string value, out bool isAuto)
     {
+        isAuto = false;
         if (string.IsNullOrEmpty(value))
             return 0;
 
@@ -319,16 +327,26 @@ internal static class XddParsingPrimitives
         if (value.Length == 0)
             return 0;
 
+        if (value.Equals(AutoBaudRateToken, StringComparison.OrdinalIgnoreCase))
+        {
+            isAuto = true;
+            return 0;
+        }
+
         if (TryParseKnownBaudRate(value, out var known))
             return known;
+
+        if (value.Equals("100 Kbps", StringComparison.OrdinalIgnoreCase))
+            return 100;
 
         if (StrictParsingScope.IsEnabled)
         {
             throw new EdsParseException(
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "Unknown baud-rate string '{0}'. Expected one of: 10 Kbps, 20 Kbps, 50 Kbps, 125 Kbps, 250 Kbps, 500 Kbps, 800 Kbps, 1000 Kbps.",
-                    value))
+                    "Unknown baud-rate string '{0}'. Expected one of: {1}.",
+                    value,
+                    BaudRateVocabulary))
             {
                 Code = Diagnostics.ParseDiagnosticCodes.XddUnknownBaudRate
             };
@@ -342,8 +360,9 @@ internal static class XddParsingPrimitives
             coercedTo: "0",
             message: string.Format(
                 CultureInfo.InvariantCulture,
-                "Unknown baud-rate string '{0}'. Expected one of: 10 Kbps, 20 Kbps, 50 Kbps, 125 Kbps, 250 Kbps, 500 Kbps, 800 Kbps, 1000 Kbps. Treated as 0.",
-                value)));
+                "Unknown baud-rate string '{0}'. Expected one of: {1}. Treated as 0.",
+                value,
+                BaudRateVocabulary)));
 
         return 0;
     }
