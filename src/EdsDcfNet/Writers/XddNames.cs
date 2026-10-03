@@ -123,6 +123,23 @@ internal static class XddNames
         return localName;
     }
 
+    /// <summary>
+    /// Like <see cref="Child"/>, but a name the table does not list (an unknown element, a
+    /// <c>g_simple</c> or <c>g_labels</c> element) is unqualified instead of an error. Used only to
+    /// qualify kept fragments of a source that has no namespace at all (older outputs of this library).
+    /// </summary>
+    internal static XName ChildOrUnqualified(XName parent, string localName)
+        => Lookup(ElementKey(parent), localName);
+
+    /// <summary>Like <see cref="ChildOfType"/>, with the fallback of <see cref="ChildOrUnqualified"/>.</summary>
+    internal static XName ChildOfTypeOrUnqualified(string typeLocalName, string localName)
+        => Lookup("t:" + typeLocalName, localName);
+
+    private static XName Lookup(string parentKey, string localName)
+        => Declarations.TryGetValue(parentKey + "\n" + localName, out var qualified) && qualified
+            ? Namespace + localName
+            : localName;
+
     internal static XElement Element(XName parent, string localName, params object[] content)
         => new(Child(parent, localName), content);
 

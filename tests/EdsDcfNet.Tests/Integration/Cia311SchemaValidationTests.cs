@@ -15,6 +15,9 @@ using EdsDcfNet.Writers;
 /// with the first reported problem. A fix that removes that problem fails the
 /// test on purpose: update the entry to the next remaining problem, or move the
 /// document to <see cref="ConformantDocuments"/> once it validates.</item>
+/// <item><see cref="NamespacelessInputFixtures"/> are input fixtures in the form older
+/// versions of this library wrote (no namespace). They stay that way on purpose, so
+/// the reader keeps being tested against them; they are not a writer gap.</item>
 /// </list>
 /// </summary>
 public class Cia311SchemaValidationTests
@@ -27,6 +30,15 @@ public class Cia311SchemaValidationTests
     public static IEnumerable<object[]> ConformantDocuments()
     {
         yield return new object[] { "corpus:canopen-node/basicDevice.xdd" };
+        yield return new object[] { "fixture:preserved_content.xdd" };
+        yield return new object[] { "XddWriter:sample_device.xdd" };
+        yield return new object[] { "XddWriter:sample_device.eds" };
+        yield return new object[] { "XddWriter:corpus/basicDevice.xdd" };
+        yield return new object[] { "XddWriter:preserved_content.xdd" };
+        yield return new object[] { "XdcWriter:minimal.xdc" };
+        yield return new object[] { "XdcWriter:full_features.dcf" };
+        yield return new object[] { "XdcWriter:ConvertToDcf(sample_device.eds)" };
+        yield return new object[] { "XdcWriter:ConvertToDcf(corpus/basicDevice.xdd)" };
     }
 
     /// <summary>
@@ -35,14 +47,16 @@ public class Cia311SchemaValidationTests
     /// </summary>
     public static IEnumerable<object[]> KnownGaps()
     {
-        // Historical fixtures still have no CiA 311 namespace. Writer output no longer
-        // fails there; the next problem is content (WP-43 DeviceFunction).
+        // Empty: every writer output listed in ConformantDocuments validates. A new gap is
+        // added here as { document, token }.
+        yield break;
+    }
+
+    /// <summary>Input fixtures without a namespace, with the stable token of their first problem.</summary>
+    public static IEnumerable<object[]> NamespacelessInputFixtures()
+    {
         yield return new object[] { "fixture:sample_device.xdd", "ISO15745ProfileContainer" };
         yield return new object[] { "fixture:minimal.xdc", "ISO15745ProfileContainer" };
-        yield return new object[] { "XddWriter:sample_device.xdd", "capabilities" };
-        yield return new object[] { "XddWriter:sample_device.eds", "capabilities" };
-        yield return new object[] { "XddWriter:corpus/basicDevice.xdd", "capabilities" };
-        yield return new object[] { "XdcWriter:minimal.xdc", "capabilities" };
     }
 
     [Fact]
@@ -116,27 +130,57 @@ public class Cia311SchemaValidationTests
         problems.Should().BeEmpty();
     }
 
+    // A fact rather than a theory: xUnit fails a theory whose data source is empty.
+    [Fact]
+    public void Validate_KnownGaps_StillReportExpectedFirstProblem()
+    {
+        foreach (var gap in KnownGaps())
+        {
+            var document = (string)gap[0];
+            var expectedToken = (string)gap[1];
+
+            // Act
+            var problems = Cia311Schema.Validate(Resolve(document));
+
+            // Assert
+            problems.Should().NotBeEmpty(
+                "{0} is listed as a known schema gap; move it to ConformantDocuments now that it validates",
+                document);
+            problems[0].Should().Contain(
+                expectedToken,
+                "the first schema problem of {0} changed; update the KnownGaps entry to the next remaining problem",
+                document);
+        }
+    }
+
+    [Fact]
+    public void KnownGaps_AfterPhase3_IsEmpty()
+    {
+        // Act
+        var gaps = KnownGaps().ToList();
+
+        // Assert
+        gaps.Should().BeEmpty();
+    }
+
     [Theory]
-    [MemberData(nameof(KnownGaps))]
-    public void Validate_KnownGap_StillReportsExpectedFirstProblem(string document, string expectedToken)
+    [MemberData(nameof(NamespacelessInputFixtures))]
+    public void Validate_NamespacelessInputFixture_IsRejectedForTheMissingNamespaceOnly(string document, string expectedToken)
     {
         // Act
         var problems = Cia311Schema.Validate(Resolve(document));
 
-        // Assert
-        problems.Should().NotBeEmpty(
-            "{0} is listed as a known schema gap; move it to ConformantDocuments now that it validates",
-            document);
-        problems[0].Should().Contain(
-            expectedToken,
-            "the first schema problem of {0} changed; update the KnownGaps entry to the next remaining problem",
-            document);
+        // Assert — without the namespace no element is declared, so the validator only warns
+        // that it has no schema information; the content is not checked at all.
+        problems.Should().NotBeEmpty();
+        problems[0].Should().Contain(expectedToken);
+        problems.Should().OnlyContain(problem => problem.StartsWith("Warning", StringComparison.Ordinal));
     }
 
     [Fact]
     public void Validate_WriterOutputWithHundredKbpsAndAutoBaudRate_ReportsNoBaudRateProblem()
     {
-        // Arrange — the document as a whole is still a known gap; only the baudRate subtree is pinned here.
+        // Arrange
         var eds = new XddReader().ReadFile(CorpusXdd);
         eds.DeviceInfo.SupportedBaudRates.BaudRate100 = true;
         eds.DeviceInfo.SupportedBaudRates.AutoBaudRate = true;
@@ -148,7 +192,7 @@ public class Cia311SchemaValidationTests
 
         // Assert
         xml.Should().Contain("value=\"100 Kbps\"").And.Contain("value=\"auto-baudRate\"");
-        problems.Should().NotContain(problem => problem.Contains("Kbps", StringComparison.Ordinal) || problem.Contains("auto-baudRate", StringComparison.Ordinal));
+        problems.Should().BeEmpty();
         probe.Should().Contain(problem => problem.Contains("77 Kbps", StringComparison.Ordinal));
     }
 
@@ -228,6 +272,17 @@ public class Cia311SchemaValidationTests
         "corpus:canopen-node/basicDevice.xdd" => File.ReadAllText(CorpusXdd),
         "fixture:sample_device.xdd" => File.ReadAllText("Fixtures/sample_device.xdd"),
         "fixture:minimal.xdc" => File.ReadAllText("Fixtures/minimal.xdc"),
+        "fixture:preserved_content.xdd" => File.ReadAllText("Fixtures/preserved_content.xdd"),
+        "XddWriter:preserved_content.xdd" =>
+            new XddWriter().GenerateString(new XddReader().ReadFile("Fixtures/preserved_content.xdd")),
+        "XdcWriter:full_features.dcf" =>
+            new XdcWriter().GenerateString(new DcfReader().ReadFile("Fixtures/full_features.dcf")),
+        "XdcWriter:ConvertToDcf(sample_device.eds)" =>
+            new XdcWriter().GenerateString(CanOpenFile.Eds.ConvertToDcf(
+                new EdsReader().ReadFile("Fixtures/sample_device.eds"), 5, new DateTime(2026, 6, 1, 8, 0, 0))),
+        "XdcWriter:ConvertToDcf(corpus/basicDevice.xdd)" =>
+            new XdcWriter().GenerateString(CanOpenFile.Eds.ConvertToDcf(
+                new XddReader().ReadFile(CorpusXdd), 5, new DateTime(2026, 6, 1, 8, 0, 0))),
         "XddWriter:sample_device.xdd" =>
             new XddWriter().GenerateString(new XddReader().ReadFile("Fixtures/sample_device.xdd")),
         "XddWriter:sample_device.eds" =>

@@ -266,6 +266,14 @@ public class XdcWriter : XddWriter
             elem.Add(new XAttribute("denotation", subObject.Denotation));
     }
 
+    /// <summary>
+    /// XDC models <c>actualValue</c> and <c>denotation</c>; values kept from an XDD read are not
+    /// written, the model's <see cref="CanOpenObject.ParameterValue"/> and
+    /// <see cref="CanOpenObject.Denotation"/> are (rule 13).
+    /// </summary>
+    internal override bool KeepsPreservedObjectAttribute(XName name)
+        => name != "actualValue" && name != "denotation";
+
     /// <inheritdoc/>
     protected override XElement BuildNetworkManagement(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
@@ -337,7 +345,8 @@ public class XdcWriter : XddWriter
             ObjectDictionary = dcf.ObjectDictionary,
             Comments = dcf.Comments,
             DynamicChannels = dcf.DynamicChannels,
-            ApplicationProcess = dcf.ApplicationProcess
+            ApplicationProcess = dcf.ApplicationProcess,
+            XddPreserved = dcf.XddPreserved
         };
 
         eds.SupportedModules.AddRange(dcf.SupportedModules);

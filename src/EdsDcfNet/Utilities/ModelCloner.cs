@@ -104,6 +104,7 @@ internal static class ModelCloner
             ObjFlags = source.ObjFlags,
             ObjFlagsLexical = source.ObjFlagsLexical,
             ObjFlagsLexicalBaseline = source.ObjFlagsLexicalBaseline,
+            XddPreservedAttributes = XddPreservedContent.CloneAttributes(source.XddPreservedAttributes),
             SubNumber = source.SubNumber,
             CompactSubObj = source.CompactSubObj,
             ParameterValue = source.ParameterValue,
@@ -148,13 +149,21 @@ internal static class ModelCloner
             Denotation = source.Denotation,
             SrdoMapping = source.SrdoMapping,
             InvertedSrad = source.InvertedSrad,
-            ParamRefd = source.ParamRefd
+            ParamRefd = source.ParamRefd,
+            XddPreservedAttributes = XddPreservedContent.CloneAttributes(source.XddPreservedAttributes)
         };
 
         clone.CopyAccessTypeStateFrom(source);
         CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
         return clone;
     }
+
+    /// <summary>
+    /// Deep copy of the XDD/XDC content kept for the XDD/XDC writers (<see langword="null"/> stays
+    /// <see langword="null"/>).
+    /// </summary>
+    internal static XddPreservedContent? CloneXddPreserved(XddPreservedContent? source)
+        => source?.Clone();
 
     /// <summary>
     /// Copies the unmapped entries of a source <c>[FileInfo]</c> onto a new file-information
