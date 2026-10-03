@@ -9,9 +9,11 @@ using System.Text.Json.Serialization;
 /// </summary>
 /// <remarks>
 /// Exit codes: 0 = no errors, 1 = errors found (or warnings with --warnings-as-errors),
-/// 2 = usage or I/O problem, including when every given file is skipped.
+/// 2 = usage or I/O problem, including when every given file is skipped. An unreadable file
+/// does not stop the run: the remaining files are still checked and exit code 2 is returned
+/// at the end (it takes precedence over 1, because the result is incomplete).
 /// </remarks>
-internal static class Program
+public static class Program
 {
     private const string Usage =
         """
@@ -24,16 +26,17 @@ internal static class Program
 
         Options:
           --json                 Print findings as JSON instead of text.
-          -q, --quiet            Only print errors (hide warnings and infos).
+          -q, --quiet            Only print errors (hide warnings).
           --warnings-as-errors   Exit with code 1 when warnings are found.
           --no-library           Skip the EdsDcfNet reader/model validation pass.
           -h, --help             Show this help.
 
         Exit codes: 0 = valid, 1 = errors found, 2 = usage or I/O problem.
+        An unreadable file is reported and skipped; the other files are still checked.
         Exit code 2 is also used when every given file is skipped (not .eds/.dcf).
         """;
 
-    private static int Main(string[] args)
+    public static int Main(string[] args)
     {
         var json = false;
         var quiet = false;
@@ -72,6 +75,8 @@ internal static class Program
         }
 
         var files = new List<string>();
+        var unreadable = 0;
+        var enumeration = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true };
         foreach (var input in inputs)
         {
             if (Directory.Exists(input))
@@ -80,14 +85,14 @@ internal static class Program
                 {
                     // EnumerateFiles is lazy; AddRange is what walks the tree, so I/O failures
                     // surface here rather than inside the per-file read handler below.
-                    files.AddRange(Directory.EnumerateFiles(input, "*.*", SearchOption.AllDirectories)
+                    files.AddRange(Directory.EnumerateFiles(input, "*.*", enumeration)
                         .Where(f => IsEds(f) || IsDcf(f))
                         .OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     Console.Error.WriteLine("Cannot read '" + input + "': " + ex.Message);
-                    return 2;
+                    unreadable++;
                 }
             }
             else if (File.Exists(input))
@@ -116,27 +121,23 @@ internal static class Program
             {
                 results.Add((file, CheckFile(file, runLibrary)));
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                // Keep sweeping: one unreadable file must not hide the findings of the others.
                 Console.Error.WriteLine("Cannot read '" + file + "': " + ex.Message);
-                return 2;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                Console.Error.WriteLine("Cannot read '" + file + "': " + ex.Message);
-                return 2;
+                unreadable++;
             }
         }
 
         // A wrong-type path must not look like a clean pass to CI. Directories that
         // simply contain no EDS/DCF files are unchanged (zero files checked, exit 0).
-        if (results.Count == 0 && skipped > 0)
+        if (results.Count == 0 && skipped > 0 && unreadable == 0)
         {
             Console.Error.WriteLine("No .eds or .dcf files were checked.");
             return 2;
         }
 
-        var minimum = quiet ? Severity.Error : Severity.Info;
+        var minimum = quiet ? Severity.Error : Severity.Warning;
         if (json)
         {
             PrintJson(results, minimum);
@@ -149,6 +150,12 @@ internal static class Program
         var all = results.SelectMany(r => r.Findings).ToList();
         var failed = all.Any(f => f.Severity == Severity.Error) ||
                      (warningsAsErrors && all.Any(f => f.Severity == Severity.Warning));
+        if (unreadable > 0)
+        {
+            Console.Error.WriteLine(unreadable.ToString(CultureInfo.InvariantCulture) + " file or directory input(s) could not be read.");
+            return 2;
+        }
+
         return failed ? 1 : 0;
     }
 
