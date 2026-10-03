@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.11](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.10...v1.15.0-beta.11) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **dcf:** parse commissioning and device-info numbers leniently ([#610](https://github.com/dborgards/eds-dcf-net/issues/610)) ([7f82c48](https://github.com/dborgards/eds-dcf-net/commit/7f82c480cfe5057eac7bea2b1ad4e8b737070ae1)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
 ## [1.15.0-beta.10](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.9...v1.15.0-beta.10) (2026-10-03)
 
 ### ✨ Features
