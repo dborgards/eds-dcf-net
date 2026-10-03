@@ -543,7 +543,7 @@ public abstract class CanOpenReaderBase
         if (obj.ObjectType == CanOpenObjectType.Domain)
         {
             // CiA 306-1 Table 7: DOMAIN replacement values when the entry is missing.
-            if (!obj.DataType.HasValue)
+            if (string.IsNullOrEmpty(dataTypeStr))
                 obj.DataType = CanOpenDataType.Domain;
             if (string.IsNullOrEmpty(accessTypeStr))
                 obj.SetAccessTypeFromProfile(AccessType.ReadWrite);

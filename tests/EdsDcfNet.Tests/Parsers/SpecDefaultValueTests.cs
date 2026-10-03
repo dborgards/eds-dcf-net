@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Parsers;
 
+using EdsDcfNet.Diagnostics;
 using EdsDcfNet.Models;
 using EdsDcfNet.Tests.Utilities;
 using EdsDcfNet.Validation;
@@ -176,6 +177,19 @@ public class SpecDefaultValueTests
     }
 
     [Fact]
+    public void ReadString_MissingFileInfoSection_ReadsEdsVersionThreePointZero()
+    {
+        // Arrange: an absent section means a missing EDSVersion entry.
+        var content = string.Join("\n", "[DeviceInfo]", "VendorName=Test");
+
+        // Act
+        var eds = CanOpenFile.Eds.ReadString(content);
+
+        // Assert
+        eds.FileInfo.EdsVersion.Should().Be("3.0");
+    }
+
+    [Fact]
     public void ReadString_ExplicitEdsVersion_IsKept()
     {
         // Arrange
@@ -215,6 +229,34 @@ public class SpecDefaultValueTests
         var domain = eds.ObjectDictionary.Objects[0x2000];
         domain.AccessType.Should().Be(AccessType.ReadWrite);
         domain.DataType.Should().Be(0x000F);
+    }
+
+    [Fact]
+    public void ReadStringWithDiagnostics_DomainWithMalformedDataType_ReportsAndDoesNotApplyDefault()
+    {
+        // Arrange: the default applies to an absent entry only, not to a malformed one.
+        var content = Eds("[2000]", "ParameterName=D", "ObjectType=0x2", "DataType=nope", "AccessType=rw");
+
+        // Act
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+
+        // Assert
+        result.Diagnostics.Should().Contain(d => d.Code == ParseDiagnosticCodes.InvalidDataType);
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().BeNull();
+    }
+
+    [Fact]
+    public void ReadStringWithDiagnostics_DomainWithoutDataType_AppliesDefaultWithoutDiagnostic()
+    {
+        // Arrange
+        var content = Eds("[2000]", "ParameterName=D", "ObjectType=0x2", "AccessType=rw");
+
+        // Act
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+
+        // Assert
+        result.Diagnostics.Should().BeEmpty();
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().Be(0x000F);
     }
 
     [Fact]
