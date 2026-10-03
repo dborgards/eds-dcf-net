@@ -157,6 +157,10 @@ internal static class ModelCloner
         var clone = new Dictionary<string, OrderedStringDictionary>(source.Count, StringComparer.OrdinalIgnoreCase);
         foreach (var kvp in source)
         {
+            // A null store keeps nothing; the writer and the write rules skip it as well.
+            if (kvp.Value == null)
+                continue;
+
             var entries = new OrderedStringDictionary();
             CopyRemainingEntries(kvp.Value, entries);
             clone[kvp.Key] = entries;
