@@ -28,18 +28,28 @@ internal static class AsyncCancellationTestSupport
     /// <param name="timeout">
     /// Maximum time to spend attempting to observe mid-run cancellation. Defaults to 30 seconds.
     /// </param>
+    /// <param name="cancellationToken">
+    /// Aborts this wait when cancelled. A reached <paramref name="timeout"/> still throws
+    /// <see cref="TimeoutException"/>; this token is not linked to the validation token, so a
+    /// queued task is not reported as mid-run cancellation.
+    /// </param>
     /// <exception cref="TimeoutException">
     /// Thrown when no attempt observes mid-run cancellation within <paramref name="timeout"/>.
     /// </exception>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is cancelled before the timeout.
+    /// </exception>
     public static async Task AssertCanceledMidRunAsync(
         Func<CancellationToken, Task> validateAsync,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
     {
         var deadline = timeout ?? TimeSpan.FromSeconds(30);
         var stopwatch = Stopwatch.StartNew();
 
         while (stopwatch.Elapsed < deadline)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             using var cts = new CancellationTokenSource();
             var task = validateAsync(cts.Token);
 
@@ -50,6 +60,7 @@ internal static class AsyncCancellationTestSupport
                     task.Status == TaskStatus.WaitingForActivation) &&
                    stopwatch.Elapsed < deadline)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await Task.Yield();
             }
 
@@ -66,9 +77,9 @@ internal static class AsyncCancellationTestSupport
 
             try
             {
-                await task;
+                await WaitForCompletionAsync(task, cancellationToken);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 return;
             }
@@ -77,7 +88,43 @@ internal static class AsyncCancellationTestSupport
             // token source until we win the race or run out of time.
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         throw new TimeoutException(
             "Validation never observed mid-run cancellation within the timeout.");
+    }
+
+    /// <summary>
+    /// Waits for <paramref name="task"/> and stops waiting when <paramref name="cancellationToken"/>
+    /// is cancelled. The token is not linked into <paramref name="task"/> itself.
+    /// </summary>
+    private static async Task WaitForCompletionAsync(Task task, CancellationToken cancellationToken)
+    {
+        if (!cancellationToken.CanBeCanceled)
+        {
+            await task;
+            return;
+        }
+
+        // Delay(-1) stays pending until its token is cancelled. Cancel the linked source
+        // when the work finishes so the timer does not outlive this wait.
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var cancelWait = Task.Delay(-1, linked.Token);
+        var finished = await Task.WhenAny(task, cancelWait);
+        linked.Cancel();
+        try
+        {
+            await cancelWait;
+        }
+        catch (OperationCanceledException)
+        {
+            // The wait was released. A cancelled caller token is reported below.
+        }
+
+        if (!ReferenceEquals(finished, task))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        await task;
     }
 }

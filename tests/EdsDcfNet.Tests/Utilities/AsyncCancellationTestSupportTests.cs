@@ -1,5 +1,6 @@
 namespace EdsDcfNet.Tests.Utilities;
 
+using System.Diagnostics;
 using AwesomeAssertions;
 using Xunit;
 
@@ -26,6 +27,10 @@ public class AsyncCancellationTestSupportTests
     [Fact(Timeout = 5000)]
     public async Task AssertCanceledMidRunAsync_WhenWorkNeverStarts_ThrowsTimeout()
     {
+        // The fact timeout is a hang guard. xUnit v3 only signals this token; it does
+        // not abort the test. The helper still throws its own TimeoutException when the
+        // queued work never starts and that deadline is reached first.
+        var hangGuard = TestContext.Current.CancellationToken;
         var delegateRan = 0;
         var scheduler = new QueuedOnlyScheduler();
 
@@ -35,10 +40,52 @@ public class AsyncCancellationTestSupportTests
                 cancellationToken,
                 TaskCreationOptions.DenyChildAttach,
                 scheduler),
-            TimeSpan.FromMilliseconds(50));
+            TimeSpan.FromMilliseconds(50),
+            hangGuard);
 
-        await act.Should().ThrowAsync<TimeoutException>();
+        var assertion = act.Should().ThrowAsync<TimeoutException>();
+        // Delay(-1) stays pending until its token is cancelled. Cancel the linked source
+        // when the assertion finishes so the timer does not outlive this test.
+        using var hangGuardWait = CancellationTokenSource.CreateLinkedTokenSource(hangGuard);
+        var cancelWait = Task.Delay(-1, hangGuardWait.Token);
+        var finished = await Task.WhenAny(assertion, cancelWait);
+        hangGuardWait.Cancel();
+        try
+        {
+            await cancelWait;
+        }
+        catch (OperationCanceledException)
+        {
+            // The hang-guard wait was released. A cancelled test token is reported below.
+        }
+
+        if (!ReferenceEquals(finished, assertion))
+        {
+            hangGuard.ThrowIfCancellationRequested();
+        }
+
+        await assertion;
         delegateRan.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AssertCanceledMidRunAsync_WhenHangGuardCancelsBeforeWorkStarts_StopsWaiting()
+    {
+        var scheduler = new QueuedOnlyScheduler();
+        using var hangGuard = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        var started = Stopwatch.StartNew();
+
+        var act = () => AsyncCancellationTestSupport.AssertCanceledMidRunAsync(
+            cancellationToken => Task.Factory.StartNew(
+                () => { },
+                cancellationToken,
+                TaskCreationOptions.DenyChildAttach,
+                scheduler),
+            TimeSpan.FromSeconds(30),
+            hangGuard.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        started.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(5));
     }
 
     [Fact]
