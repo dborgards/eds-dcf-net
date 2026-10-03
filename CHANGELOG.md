@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.28](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.27...v1.15.0-beta.28) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** preserve module, companion and sub-object sections the reader does not load ([#639](https://github.com/dborgards/eds-dcf-net/issues/639)) ([6dfafde](https://github.com/dborgards/eds-dcf-net/commit/6dfafde2db5e53ab2f59a54159d7c48456016789)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
 ## [1.15.0-beta.27](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.26...v1.15.0-beta.27) (2026-10-03)
 
 ### 🐛 Bug Fixes
