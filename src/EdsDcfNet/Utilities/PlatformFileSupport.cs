@@ -199,6 +199,12 @@ internal static class PlatformFileSupport
         ReapplyUnixFileMode(filePath, mode);
     }
 
+    /// <summary>
+    /// Cancellation is honored until the target is opened. Opening with <see cref="FileMode.Create"/>
+    /// truncates it, so from then on the already serialized buffer is copied and flushed with
+    /// <see cref="CancellationToken.None"/>: a cancellation can no longer leave the target empty
+    /// or partially written.
+    /// </summary>
     private static async Task WriteInPlaceAsync(string filePath, Func<Stream, Task> write, CancellationToken cancellationToken)
     {
         using var buffer = new MemoryStream();
@@ -206,6 +212,7 @@ internal static class PlatformFileSupport
         cancellationToken.ThrowIfCancellationRequested();
 
         var mode = CaptureUnixFileMode(filePath);
+        cancellationToken.ThrowIfCancellationRequested();
         using var stream = new FileStream(
             filePath,
             FileMode.Create,
@@ -214,8 +221,8 @@ internal static class PlatformFileSupport
             bufferSize: 4096,
             options: FileOptions.Asynchronous);
         buffer.Position = 0;
-        await buffer.CopyToAsync(stream, 4096, cancellationToken).ConfigureAwait(false);
-        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        await buffer.CopyToAsync(stream, 4096, CancellationToken.None).ConfigureAwait(false);
+        await stream.FlushAsync(CancellationToken.None).ConfigureAwait(false);
         stream.Flush(flushToDisk: true);
         ReapplyUnixFileMode(filePath, mode);
     }
