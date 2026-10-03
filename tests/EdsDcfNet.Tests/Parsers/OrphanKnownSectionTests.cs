@@ -792,6 +792,38 @@ public class OrphanKnownSectionTests
             .Should().Be("Generated");
     }
 
+    [Fact]
+    public void WriteToString_ManyObjectsWithCollidingAndKeptSections_GeneratedSectionWins()
+    {
+        // Arrange — far more output than one scan block, so headers cross block boundaries.
+        var eds = CanOpenFile.Eds.ReadString(Eds(string.Empty));
+        for (ushort index = 0x2000; index < 0x2800; index++)
+        {
+            eds.ObjectDictionary.OptionalObjects.Add(index);
+            eds.ObjectDictionary.Objects[index] = new CanOpenObject
+            {
+                Index = index,
+                ParameterName = "Var",
+                ObjectType = CanOpenObjectType.Var,
+                DataType = 0x0005
+            };
+        }
+
+        eds.AdditionalSections["27FF"] = new Dictionary<string, string> { ["ParameterName"] = "Stale" };
+        eds.AdditionalSections["2400"] = new Dictionary<string, string> { ["ParameterName"] = "Stale" };
+        eds.AdditionalSections["Vendor"] = new Dictionary<string, string> { ["Key"] = "kept" };
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(eds);
+
+        // Assert
+        CountOccurrences(written, "[27FF]").Should().Be(1);
+        CountOccurrences(written, "[2400]").Should().Be(1);
+        written.Should().NotContain("ParameterName=Stale");
+        CountOccurrences(written, "[Vendor]").Should().Be(1);
+        written.Should().Contain("Key=kept");
+    }
+
     // ---------------------------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------------------------

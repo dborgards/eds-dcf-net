@@ -1386,14 +1386,52 @@ public abstract class IniWriterBase
     /// generated section wins, as a generated key wins over a kept key with the same name.
     /// </summary>
     /// <remarks>
-    /// A written line is never a header unless the writer emitted it as one: keys and values
-    /// cannot contain line breaks (<c>IniWriteRules.TryReject</c>) and every key line
-    /// contains <c>=</c>.
+    /// The builder is read in fixed-size blocks and only lines that start with <c>[</c> are kept,
+    /// so the output is not copied as a whole. A written line is a header only if the writer
+    /// emitted it as one: keys and values cannot contain line breaks (<c>IniWriteRules.TryReject</c>)
+    /// and every key line contains <c>=</c>.
     /// </remarks>
     private protected static HashSet<string> GetGeneratedSectionHeaders(StringBuilder sb)
-        => new(
-            sb.ToString().Split('\n').Select(line => line.TrimEnd('\r')),
-            StringComparer.OrdinalIgnoreCase);
+    {
+        var headers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var buffer = new char[Math.Min(sb.Length, HeaderScanBlockSize)];
+        var line = new StringBuilder();
+        var atLineStart = true;
+        var inHeader = false;
+        for (var offset = 0; offset < sb.Length; offset += buffer.Length)
+        {
+            var count = Math.Min(buffer.Length, sb.Length - offset);
+            sb.CopyTo(offset, buffer, 0, count);
+            for (var i = 0; i < count; i++)
+            {
+                var c = buffer[i];
+                if (c == '\n')
+                {
+                    if (inHeader)
+                        headers.Add(line.ToString().TrimEnd('\r'));
+
+                    atLineStart = true;
+                    inHeader = false;
+                    continue;
+                }
+
+                if (atLineStart)
+                {
+                    atLineStart = false;
+                    inHeader = c == '[';
+                    line.Clear();
+                }
+
+                if (inHeader)
+                    line.Append(c);
+            }
+        }
+
+        return headers;
+    }
+
+    /// <summary>Block size, in characters, in which <see cref="GetGeneratedSectionHeaders"/> reads the output.</summary>
+    private const int HeaderScanBlockSize = 4096;
 
     /// <summary>
     /// <see langword="true"/> when <paramref name="generatedHeaders"/> (from
