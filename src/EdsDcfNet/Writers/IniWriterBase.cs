@@ -181,8 +181,12 @@ public abstract class IniWriterBase
         // expanded sub-objects exist above the compact range so the reader can reach them
         // (S18, Table 7 "nc"). Also emit when expanded SubObjects exist even if the highest
         // sub-index is 0 (SubNumber=0), so the key is not silently dropped for that boundary case.
+        // Table 7 marks SubNumber "n" for VAR/DEFTYPE/DOMAIN, but it is still written while such
+        // an object has sub-objects, so an unvalidated write loses nothing on re-read (decision
+        // E10: reject only on validated writes, see IniWriteRules).
         var subNumberToWrite = ResolveSubNumberForWrite(obj, compactMax, useCompact);
-        if ((subNumberToWrite > 0 || (!useCompact && obj.SubObjects.Count > 0)) && IsWritten("SubNumber"))
+        if ((subNumberToWrite > 0 || (!useCompact && obj.SubObjects.Count > 0)) &&
+            (IsWritten("SubNumber") || obj.SubObjects.Count > 0))
         {
             WriteKeyValue(sb, "SubNumber", subNumberToWrite.ToString(CultureInfo.InvariantCulture));
         }

@@ -12,7 +12,10 @@ namespace EdsDcfNet.Utilities;
 /// keys. Only <see cref="KeyRule.NotSupported"/> drives behavior. "nc" (footnote c: not
 /// supported, the value may be 0) is not reported on read; the writer emits <c>SubNumber</c>
 /// under <c>CompactSubObj</c> only for expanded sub-objects above the compact range (review
-/// finding S18) and never writes a zero <c>CompactSubObj</c>.
+/// finding S18) and never writes a zero <c>CompactSubObj</c>. One "n" key is still written:
+/// <c>SubNumber</c> of a VAR, DEFTYPE, or DOMAIN object that has sub-objects, so an
+/// unvalidated write does not lose them on re-read. A validated EDS/DCF write rejects such an
+/// object instead (decision E10, <c>IniWriteRules</c>).
 /// </remarks>
 internal static class ObjectTypeKeyMatrix
 {

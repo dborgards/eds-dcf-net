@@ -14,8 +14,8 @@ public static class ValidationIssueCodes
 
     /// <summary>
     /// EDS/DCF object of type VAR, DEFTYPE, or DOMAIN has sub-objects. CiA 306-1 Table 7 does
-    /// not support <c>SubNumber</c> for these object types, so the INI writers omit it and the
-    /// sub-objects would not be read back. Checked only on a validated EDS or DCF write.
+    /// not support <c>SubNumber</c> for these object types. An unvalidated write still emits it
+    /// so the sub-objects are read back. Checked only on a validated EDS or DCF write.
     /// </summary>
     public const string IniSubObjectsNotSupported = "INI_SUB_OBJECTS_NOT_SUPPORTED";
 

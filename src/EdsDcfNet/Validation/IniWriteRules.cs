@@ -212,9 +212,10 @@ internal static class IniWriteRules
 
     /// <summary>
     /// CiA 306-1 Table 7 does not support <c>SubNumber</c> (or <c>CompactSubObj</c>) for VAR,
-    /// DEFTYPE, and DOMAIN, so the INI writers omit it and the reader would not load the
-    /// sub-objects of such an object. CiA 311 does not tie sub-objects to the object type, so
-    /// this is an INI rule, not a <see cref="CanOpenModelValidator"/> rule.
+    /// DEFTYPE, and DOMAIN. An unvalidated write still emits <c>SubNumber</c> for such an object
+    /// with sub-objects so nothing is lost; a validated write rejects it (decision E10). CiA 311
+    /// does not tie sub-objects to the object type, so this is an INI rule, not a
+    /// <see cref="CanOpenModelValidator"/> rule.
     /// </summary>
     private static void ApplyObjectTypeSubObjects(CanOpenObject obj, string objectPath, List<ValidationIssue> issues)
     {
@@ -225,7 +226,7 @@ internal static class IniWriteRules
             objectPath + ".SubObjects",
             string.Format(
                 CultureInfo.InvariantCulture,
-                "ObjectType 0x{0:X} has no sub-indexes in EDS/DCF (CiA 306-1 Table 7: SubNumber not supported). The sub-objects would not be read back.",
+                "ObjectType 0x{0:X} has no sub-indexes in EDS/DCF (CiA 306-1 Table 7: SubNumber not supported). The written SubNumber violates the specification.",
                 obj.ObjectType),
             ValidationIssueCodes.IniSubObjectsNotSupported));
     }

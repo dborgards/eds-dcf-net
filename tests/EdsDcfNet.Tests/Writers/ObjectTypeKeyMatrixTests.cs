@@ -125,7 +125,7 @@ public class ObjectTypeKeyMatrixTests
 
     [Theory]
     [MemberData(nameof(ObjectTypesWithoutSubIndexes))]
-    public void WriteToString_ObjectTypeWithoutSubIndexes_OmitsSubNumber(byte objectType)
+    public void WriteToString_ObjectTypeWithoutSubIndexesAndSubObjects_OmitsSubNumber(byte objectType)
     {
         // Arrange
         var obj = new CanOpenObject
@@ -137,8 +137,6 @@ public class ObjectTypeKeyMatrixTests
             AccessType = AccessType.ReadWrite,
             SubNumber = 2
         };
-        obj.SubObjects[0] = Var(0, "Count", 0x0005);
-        obj.SubObjects[1] = Var(1, "Value", 0x0007);
         var eds = EdsWith(obj);
 
         // Act
@@ -743,18 +741,27 @@ public class ObjectTypeKeyMatrixTests
     }
 
     [Fact]
-    public void WriteToString_VarWithSubObjects_UnvalidatedWriteStillSucceeds()
+    public void WriteToString_VarWithSubObjects_UnvalidatedRoundTripKeepsSubNumberAndValidatedWriteRejects()
     {
-        // Arrange
+        // Arrange: decision E10 — the unvalidated write stays lossless (SubNumber is kept,
+        // although Table 7 marks it "n" for VAR); only the validated write rejects the model.
         var eds = ValidCanOpenModelBuilder.CreateValidEds();
         eds.ObjectDictionary.Objects[0x1000].SubObjects[0] = Var(0, "Count", 0x0005);
+        eds.ObjectDictionary.Objects[0x1000].SubObjects[1] = Var(1, "Value", 0x0007);
 
         // Act
         var written = CanOpenFile.Eds.WriteToString(eds);
+        var reread = CanOpenFile.Eds.ReadString(written);
+        var validated = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
 
         // Assert
         written.Should().Contain("[1000sub0]");
-        SectionKeys(written, "1000").Should().NotContain("SubNumber");
+        SectionKeys(written, "1000").Should().Contain("SubNumber");
+        reread.ObjectDictionary.Objects[0x1000].SubObjects.Keys.Should().Equal((byte)0, (byte)1);
+        reread.ObjectDictionary.Objects[0x1000].SubObjects[1].ParameterName.Should().Be("Value");
+        validated.Should().Throw<ModelValidationException>().Which.Issues.Should().Contain(issue =>
+            issue.Path == "ObjectDictionary.Objects[0x1000].SubObjects" &&
+            issue.Code == ValidationIssueCodes.IniSubObjectsNotSupported);
     }
 
     [Fact]
