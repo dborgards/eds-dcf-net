@@ -240,6 +240,13 @@ public class CpjReader : IFileReader<NodelistProject>
             return null;
         }
 
+        if (declared != null && !raw.TrimStart().StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            LenientIniNumber.ReportInvalid(
+                sections, sectionName, "Nodes", raw, Diagnostics.ParseDiagnosticCodes.CpjNodesNotHex, null,
+                "CiA 306-3 Table 3 codes Nodes hexadecimal with a 0x prefix; the value is read as a plain number.");
+        }
+
         return declared;
     }
 

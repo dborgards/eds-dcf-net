@@ -300,6 +300,13 @@ public static class ParseDiagnosticCodes
     public const string CpjInvalidNodes = "CPJ_INVALID_NODES";
 
     /// <summary>
+    /// CPJ <c>Nodes</c> is a valid number without the <c>0x</c> prefix; CiA 306-3 Table 3 codes it
+    /// hexadecimal. Lenient mode reads it with the library number convention (decimal, or octal
+    /// with a leading <c>0</c>) and reports this code; strict mode throws.
+    /// </summary>
+    public const string CpjNodesNotHex = "CPJ_NODES_NOT_HEX";
+
+    /// <summary>
     /// A CPJ <c>[Topology]</c> section lacks the mandatory <c>Nodes</c> entry (CiA 306-3 Table 3).
     /// Reported in lenient and strict mode; the writer always emits <c>Nodes</c>.
     /// </summary>

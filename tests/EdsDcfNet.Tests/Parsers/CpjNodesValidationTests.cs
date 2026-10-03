@@ -168,6 +168,56 @@ public class CpjNodesValidationTests
         result.Diagnostics.Should().ContainSingle().Which.Code.Should().Be(ParseDiagnosticCodes.CpjInvalidNodes);
     }
 
+    [Theory]
+    [InlineData("0x0A")]
+    [InlineData("0X0a")]
+    public void ReadStringWithDiagnostics_NodesHexPrefix_ReportsNothingInBothModes(string token)
+    {
+        var content = CpjWithNodes(token, 10);
+
+        foreach (var options in new CanOpenFileOptions?[] { null, Strict })
+        {
+            var result = CanOpenFile.Cpj.ReadStringWithDiagnostics(content, options);
+
+            result.Diagnostics.Should().BeEmpty();
+            result.Model.Networks[0].Nodes.Should().HaveCount(10);
+        }
+    }
+
+    [Theory]
+    [InlineData("10")]
+    [InlineData("010")]
+    public void ReadStringWithDiagnostics_NodesWithoutHexPrefix_Lenient_ReadsValueAndReportsNotHex(string token)
+    {
+        // CiA 306-3 Table 3: Nodes is coded hexadecimal (0x..). "10" reads as decimal 10 and
+        // "010" as octal 8 (library convention), so only the former matches ten nodes.
+        var content = CpjWithNodes(token, 10);
+
+        var result = CanOpenFile.Cpj.ReadStringWithDiagnostics(content);
+
+        var diagnostic = result.Diagnostics.First();
+        diagnostic.Code.Should().Be(ParseDiagnosticCodes.CpjNodesNotHex);
+        diagnostic.Path.Should().Be("Topology.Nodes");
+        diagnostic.Line.Should().Be(2);
+        diagnostic.RawValue.Should().Be(token);
+        result.Diagnostics.Should().OnlyContain(d =>
+            d.Code == ParseDiagnosticCodes.CpjNodesNotHex || d.Code == ParseDiagnosticCodes.CpjNodeCountMismatch);
+        result.Model.Networks[0].Nodes.Should().HaveCount(10);
+    }
+
+    [Theory]
+    [InlineData("10")]
+    [InlineData("010")]
+    public void ReadString_NodesWithoutHexPrefix_Strict_ThrowsWithCodeSectionAndLine(string token)
+    {
+        var act = () => CanOpenFile.Cpj.ReadString(CpjWithNodes(token, 10), Strict);
+
+        var ex = act.Should().Throw<EdsParseException>().Which;
+        ex.Code.Should().Be(ParseDiagnosticCodes.CpjNodesNotHex);
+        ex.SectionName.Should().Be("Topology");
+        ex.LineNumber.Should().Be(2);
+    }
+
     [Fact]
     public void ReadStringWithDiagnostics_NodesMissing_ReportsInLenientAndStrictMode()
     {
