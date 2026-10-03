@@ -135,9 +135,14 @@ jobs:
           if command -v cygpath >/dev/null 2>&1; then
             dotnet_results="$(cygpath -w "$results")"
           fi
+          # xUnit.AppDomain=denied matches tests/EdsDcfNet.Tests/xunit.runner.json.
+          # coverlet.collector 10.1.0 rewrites the strong-named netstandard2.0
+          # asset; the net48 AppDomain then rejects the signature and reports
+          # that no tests were discovered. net10.0 does not use AppDomains.
           MSYS_NO_PATHCONV=1 dotnet test --configuration Release --no-build --verbosity normal \
             --collect:"XPlat Code Coverage" \
-            --results-directory "$dotnet_results"
+            --results-directory "$dotnet_results" \
+            -- xUnit.AppDomain=denied
           echo "results_directory=${results}" >> "$GITHUB_OUTPUT"
 
       # Shared gate with build.yml — see tools/enforce-coverage-threshold.sh.

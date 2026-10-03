@@ -53,6 +53,17 @@
     <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>
 
+  <!--
+    coverlet.collector 10.1.0 instruments the strong-named netstandard2.0 asset.
+    net48 discovery loads that rewrite inside an xUnit AppDomain, which verifies
+    the strong name and fails with FileLoadException 0x80131045 ("No test is
+    available"). App domains exist only on .NET Framework; net10.0 ignores this.
+    https://github.com/coverlet-coverage/coverlet/blob/master/Documentation/KnownIssues.md
+  -->
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Update="Fixtures\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
