@@ -111,6 +111,14 @@ public sealed class CanOpenFileOptions
     /// (default: ignore / leave unset; surrounding whitespace and optional leading sign are accepted)
     /// </description></item>
     /// <item><description>
+    /// XDC <c>deviceCommissioning</c>. <c>actualBaudRate</c> is a free <c>xsd:string</c>, and
+    /// <c>networkNumber</c> an <c>xsd:unsignedLong</c>. A schema-valid value the model cannot hold
+    /// (<c>auto-baudRate</c>, <c>4294967296</c>) is reported as a diagnostic and left at <c>0</c> in
+    /// both modes (strict does not throw); the original text is kept for writing until
+    /// <c>Baudrate</c> or <c>NetNumber</c> changes. A <c>networkNumber</c> that is not an unsigned
+    /// integer at all is malformed (default: ignore; strict: throw).
+    /// </description></item>
+    /// <item><description>
     /// XDD/XDC <c>dynamicChannel</c>. Schema <c>accessType</c> values are
     /// <c>readOnly</c>, <c>writeOnly</c>, and <c>readWriteOutput</c>. Lenient mode also
     /// accepts the EDS short forms <c>ro</c>, <c>wo</c>, <c>rw</c>, <c>rwr</c>, <c>rww</c>,

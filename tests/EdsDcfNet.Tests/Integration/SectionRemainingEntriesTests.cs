@@ -3,6 +3,7 @@ namespace EdsDcfNet.Tests.Integration;
 using EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
+using EdsDcfNet.Tests.Utilities;
 
 /// <summary>
 /// Unknown and reserved keys of the standard EDS/DCF sections survive read and write.
@@ -478,6 +479,7 @@ public class SectionRemainingEntriesTests
     {
         // Arrange — the INI text rules belong to the EDS/DCF/CPJ guard only.
         var eds = CanOpenFile.Eds.ReadString(Base);
+        ValidCanOpenModelBuilder.FillXmlFileInfo(eds.FileInfo);
         eds.DeviceInfo.RemainingEntries["Bad=Key"] = "x";
         eds.SectionRemainingEntries["Tools"] = new OrderedStringDictionary { ["Vendor"] = "line\nbreak" };
 

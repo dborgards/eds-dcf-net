@@ -166,7 +166,11 @@ public static class ParseDiagnosticCodes
     /// <summary>Unknown XDD/XDC XML boolean token; lenient mode treats it as <see langword="false"/>.</summary>
     public const string XddUnknownXmlBool = "XDD_UNKNOWN_XML_BOOL";
 
-    /// <summary>Unknown XDD/XDC baud-rate string; lenient mode treats it as <c>0</c> / ignores it.</summary>
+    /// <summary>
+    /// Unknown XDD/XDC baud-rate string; lenient mode treats it as <c>0</c> / ignores it. For
+    /// <c>deviceCommissioning/@actualBaudRate</c> (a free string) it is reported in both modes
+    /// without throwing and the original text is preserved for writing.
+    /// </summary>
     public const string XddUnknownBaudRate = "XDD_UNKNOWN_BAUD_RATE";
 
     /// <summary>Malformed XDD/XDC unsigned numeric attribute; lenient mode ignores it / leaves the value unset.</summary>
@@ -192,6 +196,13 @@ public static class ParseDiagnosticCodes
     /// original text is preserved for writing. Reported in lenient and strict mode.
     /// </summary>
     public const string XddObjFlagsExceedsUInt32 = "XDD_OBJ_FLAGS_EXCEEDS_UINT32";
+
+    /// <summary>
+    /// XDC <c>deviceCommissioning/@networkNumber</c> is a valid <c>xsd:unsignedLong</c> that does not
+    /// fit in <see cref="EdsDcfNet.Models.DeviceCommissioning.NetNumber"/>. The property stays <c>0</c>
+    /// and the original text is preserved for writing. Reported in lenient and strict mode.
+    /// </summary>
+    public const string XddNetworkNumberExceedsUInt32 = "XDD_NETWORK_NUMBER_EXCEEDS_UINT32";
 
     /// <summary>Malformed XDD/XDC <c>dummyUsage</c> entry; lenient mode ignores or degrades it.</summary>
     public const string XddInvalidDummyUsage = "XDD_INVALID_DUMMY_USAGE";

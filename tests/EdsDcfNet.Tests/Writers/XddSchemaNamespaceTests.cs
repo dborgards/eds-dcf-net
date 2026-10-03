@@ -188,7 +188,7 @@ public class XddSchemaNamespaceTests
 
     [Theory]
     [InlineData("Fixtures/sample_device.xdd", "xdd", 3)]
-    [InlineData("Fixtures/sample_device.eds", "eds", 3)]
+    [InlineData("Fixtures/sample_device.eds", "eds", 1)]
     [InlineData(CorpusXdd, "xdd", 1)]
     [InlineData("Fixtures/minimal.xdc", "xdc", 1)]
     public void WriterOutput_SchemaProblems_AreTheKnownNonNamespaceRemainder(string path, string kind, int count)
@@ -283,7 +283,6 @@ public class XddSchemaNamespaceTests
         },
         "Fixtures/sample_device.eds" => new[]
         {
-            "The 'fileCreationTime' attribute is invalid - The value '10:00AM' is invalid according to its datatype 'http://www.w3.org/2001/XMLSchema:time' - The string '10:00AM' is not a valid Time value.",
             "The element 'DeviceFunction' in namespace 'http://www.canopen.org/xml/1.1' has incomplete content. List of possible elements expected: 'capabilities' in namespace 'http://www.canopen.org/xml/1.1'.",
         },
         CorpusXdd => new[]

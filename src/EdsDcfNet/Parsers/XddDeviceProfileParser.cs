@@ -85,20 +85,29 @@ internal static class XddDeviceProfileParser
             }
         }
 
-        // fileCreationDate is xsd:date "YYYY-MM-DD" → convert to EDS "MM-DD-YYYY"
+        // fileCreationDate is xsd:date "YYYY-MM-DD" → convert to EDS "MM-DD-YYYY". The original
+        // spelling (it may carry a time zone) is kept so the writer can emit it unchanged.
         var creationDate = profileBody.Attribute("fileCreationDate")?.Value ?? string.Empty;
         fileInfo.CreationDate = ConvertXsdDateToEds(creationDate);
+        fileInfo.CreationDateLexical = PreservedDateSpelling(creationDate);
 
         var creationTime = profileBody.Attribute("fileCreationTime")?.Value ?? string.Empty;
         fileInfo.CreationTime = creationTime;
 
         var modDate = profileBody.Attribute("fileModificationDate")?.Value ?? string.Empty;
         fileInfo.ModificationDate = ConvertXsdDateToEds(modDate);
+        fileInfo.ModificationDateLexical = PreservedDateSpelling(modDate);
 
         var modTime = profileBody.Attribute("fileModificationTime")?.Value ?? string.Empty;
         fileInfo.ModificationTime = modTime;
 
         return fileInfo;
+    }
+
+    private static string? PreservedDateSpelling(string raw)
+    {
+        var trimmed = raw.Trim();
+        return Writers.XddFormatHelper.IsXsdDate(trimmed) ? trimmed : null;
     }
 
     internal static DeviceInfo ParseDeviceIdentity(XElement profileBody)

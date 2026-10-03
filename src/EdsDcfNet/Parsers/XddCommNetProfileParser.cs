@@ -878,15 +878,43 @@ internal static class XddCommNetProfileParser
 
         dc.NodeName = dcElem.Attribute("nodeName")?.Value ?? string.Empty;
 
-        var baudrateStr = dcElem.Attribute("actualBaudRate")?.Value ?? string.Empty;
-        dc.Baudrate = ParseBaudRateString(baudrateStr);
+        // actualBaudRate is a free xsd:string (CiA 311 Annex A.1.4): a text such as
+        // "auto-baudRate" is valid but not a rate in kbps. Keep the spelling, report it, and never
+        // throw for it (valid input the model only partly represents).
+        if (dcElem.Attribute("actualBaudRate")?.Value is string baudrateStr)
+        {
+            dc.Baudrate = ParseActualBaudRate(baudrateStr);
+            dc.ActualBaudRateLexical = baudrateStr;
+            dc.ActualBaudRateLexicalBaseline = dc.Baudrate;
+        }
 
         var netNumberStr = GetTrimmedAttributeValue(dcElem, "networkNumber") ?? string.Empty;
         if (!string.IsNullOrEmpty(netNumberStr))
         {
-            var netNumberParsed = uint.TryParse(netNumberStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var netNum);
-            if (netNumberParsed)
-                dc.NetNumber = netNum;
+            // xsd:unsignedLong: a value above uint.MaxValue is valid, the model property is a uint.
+            var netNumberParsed = ulong.TryParse(netNumberStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var netNum);
+            if (netNumberParsed && netNum <= uint.MaxValue)
+            {
+                dc.NetNumber = (uint)netNum;
+                dc.NetworkNumberLexical = netNumberStr;
+                dc.NetworkNumberLexicalBaseline = dc.NetNumber;
+            }
+            else if (netNumberParsed)
+            {
+                Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                    Diagnostics.ParseSeverity.Warning,
+                    Diagnostics.ParseDiagnosticCodes.XddNetworkNumberExceedsUInt32,
+                    path: "networkNumber",
+                    message: string.Format(
+                        CultureInfo.InvariantCulture,
+                        "networkNumber '{0}' is a valid xsd:unsignedLong and does not fit in 32 bits. NetNumber was left at 0 and the original text is preserved for writing.",
+                        netNumberStr),
+                    rawValue: netNumberStr));
+                dc.NetNumber = 0;
+                dc.NetworkNumberLexical = netNumberStr;
+                dc.NetworkNumberLexicalBaseline = 0;
+            }
+
             RejectFailedNumericAttribute(netNumberStr, netNumberParsed, "networkNumber");
         }
 
@@ -896,6 +924,28 @@ internal static class XddCommNetProfileParser
             dc.CANopenManager = ParseXmlBool(managerStr);
 
         return dc;
+    }
+
+    private static ushort ParseActualBaudRate(string value)
+    {
+        if (TryParseKnownBaudRate(value, out var kbps))
+            return kbps;
+
+        if (value.Trim().Length > 0)
+        {
+            Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                Diagnostics.ParseSeverity.Warning,
+                Diagnostics.ParseDiagnosticCodes.XddUnknownBaudRate,
+                path: "actualBaudRate",
+                rawValue: value,
+                coercedTo: "0",
+                message: string.Format(
+                    CultureInfo.InvariantCulture,
+                    "actualBaudRate '{0}' is not a rate in kbps. Baudrate was left at 0 and the original text is preserved for writing.",
+                    value)));
+        }
+
+        return 0;
     }
 
     private static void SetBaudRate(BaudRates baudRates, ushort kbps)

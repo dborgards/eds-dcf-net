@@ -707,7 +707,7 @@ public class XddWriterTests
         // Arrange — set all optional FileInfo fields
         var eds = CreateSampleEds();
         eds.FileInfo.ModificationDate = "04-20-2025";
-        eds.FileInfo.ModificationTime = "14:00";
+        eds.FileInfo.ModificationTime = "02:00PM";
         eds.FileInfo.ModifiedBy = "Engineer";
 
         // Act
@@ -715,12 +715,12 @@ public class XddWriterTests
 
         // Assert
         result.Should().Contain("fileModificationDate=\"2025-04-20\"");
-        result.Should().Contain("fileModificationTime=\"14:00\"");
+        result.Should().Contain("fileModificationTime=\"14:00:00\"");
         result.Should().Contain("fileModifiedBy=\"Engineer\"");
     }
 
     [Fact]
-    public void GenerateString_NonStandardDateFormat_PassedThrough()
+    public void GenerateString_NonStandardDateFormat_AttributeOmitted()
     {
         // Arrange — date that doesn't match MM-DD-YYYY format
         var eds = CreateSampleEds();
@@ -729,8 +729,8 @@ public class XddWriterTests
         // Act
         var result = _writer.GenerateString(eds);
 
-        // Assert — non-standard date is written as-is (fallback)
-        result.Should().Contain("fileCreationDate=\"2025/01/15\"");
+        // Assert — a date that is not a valid date is never written as a mistyped attribute
+        result.Should().NotContain("fileCreationDate");
     }
 
     [Fact]
