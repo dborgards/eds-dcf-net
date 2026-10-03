@@ -317,7 +317,8 @@ internal sealed class XddUniqueIdResolver
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var current = parameter.TypeRef;
-        while (current != null)
+        // Every path through the body returns or continues with a non-null type.
+        while (true)
         {
             var simpleTypeName = current.SimpleTypeName;
             if (!string.IsNullOrEmpty(simpleTypeName))
