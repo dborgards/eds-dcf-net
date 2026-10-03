@@ -131,7 +131,11 @@ internal static class IniWriteRules
         ApplyModules(model.SupportedModules, issues);
         ApplyDynamicChannels(model.DynamicChannels, issues);
         ApplyTools(model.Tools, issues);
-        ApplyAdditionalSections(model.AdditionalSections, issues, model.ObjectDictionary);
+        ApplyAdditionalSections(
+            model.AdditionalSections,
+            issues,
+            model.ObjectDictionary,
+            (model as DeviceConfigurationFile)?.DeviceCommissioning);
     }
 
     private static void ApplyFileInfo(EdsFileInfo fileInfo, bool includeLastEds, List<ValidationIssue> issues)
@@ -412,10 +416,18 @@ internal static class IniWriteRules
     private static void ApplyAdditionalSections(
         Dictionary<string, Dictionary<string, string>> sections,
         List<ValidationIssue> issues,
-        ObjectDictionary? objectDictionary = null)
+        ObjectDictionary? objectDictionary = null,
+        DeviceCommissioning? commissioning = null)
     {
         foreach (var section in sections)
         {
+            // The DCF writer drops this entry in favour of the generated section.
+            if (commissioning != null
+                && DeviceCommissioningSemantics.IsDiscardedAdditionalSection(section.Key, commissioning))
+            {
+                continue;
+            }
+
             // EdsWriter and DcfWriter drop a stale [xxxxObjectLinks] section when that
             // object already exists and emit ObjectLinks from the object instead.
             if (objectDictionary != null

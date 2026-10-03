@@ -8,23 +8,23 @@ using EdsDcfNet.Models;
 
 /// <summary>
 /// Edge-case matrix for issue #122:
-/// - malformed numeric literals -> ReadDcfFromString_MalformedHexLiteral_ThrowsActionableParseException
+/// - malformed numeric literals -> ReadDcfFromString_MalformedHexLiteralStrict_ThrowsActionableParseException
 /// - UTF-8 BOM and mixed line endings -> ReadDcf_FileWithUtf8Bom_ParsesSuccessfully, ReadDcfFromString_MixedLineEndings_ParsesSuccessfully
 /// - large object dictionary round-trip -> RoundTrip_LargeObjectDictionary_PreservesObjectAndListCounts
 /// - Unicode/non-ASCII round-trip -> RoundTrip_UnicodeAndNonAsciiValues_PreservesContent
-/// - unsigned boundary handling -> ReadDcfFromString_UnsignedBoundaries_ParsesCorrectly, ReadDcfFromString_NegativeUnsignedValue_ThrowsParseException
+/// - unsigned boundary handling -> ReadDcfFromString_UnsignedBoundaries_ParsesCorrectly, ReadDcfFromString_NegativeUnsignedValueStrict_ThrowsParseException
 /// </summary>
 public class ParserWriterEdgeCaseTests
 {
     [Fact]
-    public void ReadDcfFromString_MalformedHexLiteral_ThrowsActionableParseException()
+    public void ReadDcfFromString_MalformedHexLiteralStrict_ThrowsActionableParseException()
     {
         // Arrange
         var content = BuildMinimalDcf(
             ("VendorNumber", "0xGGG"));
 
         // Act
-        var act = () => CanOpenFile.Dcf.ReadString(content);
+        var act = () => CanOpenFile.Dcf.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
 
         // Assert
         act.Should().Throw<EdsParseException>()
@@ -175,14 +175,14 @@ public class ParserWriterEdgeCaseTests
     }
 
     [Fact]
-    public void ReadDcfFromString_NegativeUnsignedValue_ThrowsParseException()
+    public void ReadDcfFromString_NegativeUnsignedValueStrict_ThrowsParseException()
     {
         // Arrange
         var content = BuildMinimalDcf(
             ("NodeID", "-1"));
 
         // Act
-        var act = () => CanOpenFile.Dcf.ReadString(content);
+        var act = () => CanOpenFile.Dcf.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
 
         // Assert
         act.Should().Throw<EdsParseException>()

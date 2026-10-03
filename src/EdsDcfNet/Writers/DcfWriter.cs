@@ -447,6 +447,13 @@ public class DcfWriter : IniWriterBase
                 continue;
             }
 
+            // The reader keeps the second of two commissioning spellings here. A stale copy of the
+            // generated name would duplicate the section: the generated one wins.
+            if (DeviceCommissioningSemantics.IsDiscardedAdditionalSection(section.Key, dcf.DeviceCommissioning))
+            {
+                continue;
+            }
+
             WriteSection(section.Key, () => WriteAdditionalSection(sb, section.Key, section.Value));
         }
 

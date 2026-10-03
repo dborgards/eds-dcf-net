@@ -491,7 +491,7 @@ Baudrate=500");
     [Theory]
     [InlineData(0)]
     [InlineData(128)]
-    public void ReadString_DeviceCommissioning_InvalidNodeId_ThrowsEdsParseException(int nodeId)
+    public void ReadString_DeviceCommissioning_InvalidNodeIdStrict_ThrowsEdsParseException(int nodeId)
     {
         // Arrange
         var content = BuildMinimalDcf($@"
@@ -504,7 +504,7 @@ NetworkName=TestNetwork
 CANopenManager=0");
 
         // Act
-        var act = () => _reader.ReadString(content);
+        var act = () => CanOpenFile.Dcf.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
 
         // Assert
         act.Should().Throw<EdsParseException>()

@@ -63,6 +63,27 @@ public sealed class CanOpenFileOptions
     /// with the same <see cref="Diagnostics.ParseDiagnostic.Code"/>.
     /// </description></item>
     /// <item><description>
+    /// Malformed numeric keys of the EDS/DCF <c>[DeviceInfo]</c> section (CiA 306-1 § 6.5):
+    /// <c>VendorNumber</c>, <c>ProductNumber</c>, <c>RevisionNumber</c>, <c>Granularity</c>,
+    /// <c>DynamicChannelsSupported</c>, <c>NrOfRXPDO</c>, <c>NrOfTXPDO</c> and <c>CompactPDO</c>
+    /// (default: the value of an absent key, <c>0</c>, or <c>8</c> for <c>Granularity</c>).
+    /// </description></item>
+    /// <item><description>
+    /// Malformed numeric keys of the DCF <c>[DeviceComissioning]</c> section (CiA 306-1 § 7.3.5):
+    /// <c>NodeID</c> (default: <c>1</c>), <c>Baudrate</c> (default: <c>250</c>),
+    /// <c>NetNumber</c> (default: <c>0</c>) and <c>LSS_SerialNumber</c> (default: left unset).
+    /// A readable <c>NodeID</c> outside <c>1..127</c> is kept in default mode and reported as a
+    /// diagnostic and by validation; strict mode throws. When a DCF has both
+    /// <c>[DeviceComissioning]</c> and <c>[DeviceCommissioning]</c>, the normative first spelling is read
+    /// and the second section is kept unchanged in <c>AdditionalSections</c> with a diagnostic
+    /// (strict: throw).
+    /// </description></item>
+    /// <item><description>
+    /// Malformed <c>[DynamicChannels]</c> keys <c>NrOfSeg</c> (default: <c>0</c>), <c>Type&lt;n&gt;</c>
+    /// (default: <c>0</c>) and <c>PPOffset&lt;n&gt;</c> (default: offset <c>0</c> without an address
+    /// difference)
+    /// </description></item>
+    /// <item><description>
     /// Unknown XDD/XDC access-type tokens in <c>ParseXddAccessType</c> (default: <c>ro</c>)
     /// and unknown XML boolean tokens in <c>ParseXmlBool</c> (default: <see langword="false"/>)
     /// </description></item>
@@ -118,6 +139,13 @@ public sealed class CanOpenFileOptions
     /// (default: treat as not present / <see langword="false"/>)
     /// </description></item>
     /// </list>
+    /// <para>
+    /// Not covered: a malformed numeric count or version key of the <c>[Comments]</c>
+    /// (<c>Lines</c>), <c>[Tools]</c> (<c>Items</c>), <c>[SupportedModules]</c> /
+    /// <c>[ConnectedModules]</c> (<c>NrOfEntries</c>) and module (<c>ProductVersion</c>,
+    /// <c>ProductRevision</c>, <c>Lines</c>) sections throws <see cref="Exceptions.EdsParseException"/>
+    /// in both modes.
+    /// </para>
     /// </remarks>
     public bool StrictParsing { get; init; }
 

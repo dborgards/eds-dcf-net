@@ -37,4 +37,13 @@ internal static class DeviceCommissioningSemantics
     public static bool IsWrittenToDcf(DeviceCommissioning commissioning)
         => !IsOmitted(commissioning)
            || commissioning.RemainingEntries.Keys.Any(key => !SectionEntryKeys.IsDeviceCommissioningKey(key));
+
+    /// <summary>
+    /// <see langword="true"/> when the DCF writer drops the <c>AdditionalSections</c> entry
+    /// <paramref name="sectionName"/>: it is named like the generated <c>[DeviceComissioning]</c>
+    /// and the writer emits that section itself. Write validation skips the same entry.
+    /// </summary>
+    public static bool IsDiscardedAdditionalSection(string sectionName, DeviceCommissioning commissioning)
+        => string.Equals(sectionName, "DeviceComissioning", StringComparison.OrdinalIgnoreCase)
+           && IsWrittenToDcf(commissioning);
 }

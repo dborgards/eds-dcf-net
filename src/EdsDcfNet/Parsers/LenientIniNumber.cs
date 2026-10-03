@@ -95,6 +95,31 @@ internal static class LenientIniNumber
     }
 
     /// <summary>
+    /// Reports a readable value that is outside its allowed range. Lenient mode adds a
+    /// diagnostic and the caller keeps the value (validation reports it); strict mode throws.
+    /// </summary>
+    internal static void ReportOutOfRange(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string keyName,
+        string rawValue,
+        string code,
+        string message)
+    {
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(message)
+            {
+                Code = code,
+                SectionName = sectionName,
+                LineNumber = IniKeyLines.TryGetLine(sections, sectionName, keyName)
+            };
+        }
+
+        Report(sections, sectionName, keyName, rawValue, code, coercedTo: null, message + " The value is kept.");
+    }
+
+    /// <summary>
     /// Parses a <c>[DynamicChannels]</c> <c>PPOffset&lt;n&gt;</c> value: <c>offset</c> or
     /// <c>offset, addressDifference</c> (CiA 306-3 § 5.2.2). An empty value is offset <c>0</c>.
     /// A malformed value is offset <c>0</c> without an address difference in lenient mode.
@@ -176,6 +201,23 @@ internal static class LenientIniNumber
             keyName,
             rawValue,
             ValueConverter.ParseUInt16,
+            code,
+            fallbackDescription);
+
+    /// <inheritdoc cref="ParseOptionalByte"/>
+    internal static uint? ParseOptionalUInt32(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string keyName,
+        string rawValue,
+        string code,
+        string fallbackDescription)
+        => ParseOptional(
+            sections,
+            sectionName,
+            keyName,
+            rawValue,
+            ParseObjFlagsInteger,
             code,
             fallbackDescription);
 
