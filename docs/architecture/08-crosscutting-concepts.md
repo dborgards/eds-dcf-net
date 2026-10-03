@@ -54,7 +54,7 @@ flowchart TD
 ### Input Size Limits
 
 To mitigate memory-pressure and oversized-input scenarios, all read APIs enforce a default
-maximum input size of `IniParser.DefaultMaxInputSize` (10 MB).
+maximum input size of `IniParser.DefaultMaxInputSize` (10 MiB).
 
 The limit is configurable per read operation on each format entry point
 (`ReadFile`, `ReadFileAsync`, `ReadString`, `ReadStream`, `ReadStreamAsync`)

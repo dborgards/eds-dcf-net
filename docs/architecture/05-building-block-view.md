@@ -14,7 +14,7 @@ graph LR
         Validation["Validation<br/><i>CanOpenModelValidator, ValidationIssue</i>"]
         Metadata["Metadata<br/><i>CanOpenDataType, CanOpenObjectType<br/>(constants, bit lengths)</i>"]
         Extensions["Extensions<br/><i>ObjectDictionaryExtensions</i>"]
-        Exceptions["Exceptions<br/><i>EdsParseException, EdsWriteException,<br/>DcfWriteException</i>"]
+        Exceptions["Exceptions<br/><i>EdsParseException, WriteException (abstract base)<br/>+ Eds/Dcf/Cpj/Xdd/XdcWriteException,<br/>ModelValidationException</i>"]
     end
 
     EDS["EDS File"] --> API
@@ -73,6 +73,8 @@ classDiagram
     class IniParser {
         +ParseFile(string filePath) Dictionary~string, Dictionary~string, string~~$
         +ParseFileAsync(string filePath, CancellationToken ct) Task$
+        +ParseStream(Stream stream) Dictionary~string, Dictionary~string, string~~$
+        +ParseStreamAsync(Stream stream, CancellationToken ct) Task$
         +ParseString(string content) Dictionary~string, Dictionary~string, string~~$
         +GetValue(sections, sectionName, key, defaultValue) string$
         +HasSection(sections, sectionName) bool$
@@ -81,11 +83,11 @@ classDiagram
 
     class IFileReader~T~ {
         <<interface>>
-        +ReadFile(string filePath) T
+        +ReadFile(string filePath, long maxInputSize) T
         +ReadFileAsync(string filePath, long maxInputSize, CancellationToken ct) Task~T~
-        +ReadStream(Stream stream) T
+        +ReadStream(Stream stream, long maxInputSize) T
         +ReadStreamAsync(Stream stream, long maxInputSize, CancellationToken ct) Task~T~
-        +ReadString(string content) T
+        +ReadString(string content, long maxInputSize) T
     }
 
     class CanOpenReaderBase {
@@ -155,34 +157,50 @@ classDiagram
 classDiagram
     class DcfWriter {
         +WriteFile(DeviceConfigurationFile dcf, string filePath) void
+        +WriteStream(DeviceConfigurationFile dcf, Stream stream) void
         +WriteFileAsync(DeviceConfigurationFile dcf, string filePath, CancellationToken ct) Task
+        +WriteStreamAsync(DeviceConfigurationFile dcf, Stream stream, CancellationToken ct) Task
         +GenerateString(DeviceConfigurationFile dcf) string
     }
 
     class EdsWriter {
         +WriteFile(ElectronicDataSheet eds, string filePath) void
+        +WriteStream(ElectronicDataSheet eds, Stream stream) void
         +WriteFileAsync(ElectronicDataSheet eds, string filePath, CancellationToken ct) Task
+        +WriteStreamAsync(ElectronicDataSheet eds, Stream stream, CancellationToken ct) Task
         +GenerateString(ElectronicDataSheet eds) string
     }
 
     class CpjWriter {
         +WriteFile(NodelistProject cpj, string filePath) void
+        +WriteStream(NodelistProject cpj, Stream stream) void
         +WriteFileAsync(NodelistProject cpj, string filePath, CancellationToken ct) Task
+        +WriteStreamAsync(NodelistProject cpj, Stream stream, CancellationToken ct) Task
         +GenerateString(NodelistProject cpj) string
     }
 
     class XddWriter {
         +WriteFile(ElectronicDataSheet eds, string filePath) void
+        +WriteStream(ElectronicDataSheet eds, Stream stream) void
         +WriteFileAsync(ElectronicDataSheet eds, string filePath, CancellationToken ct) Task
+        +WriteStreamAsync(ElectronicDataSheet eds, Stream stream, CancellationToken ct) Task
         +GenerateString(ElectronicDataSheet eds) string
     }
 
     class XdcWriter {
         +WriteFile(DeviceConfigurationFile dcf, string filePath) void
+        +WriteStream(DeviceConfigurationFile dcf, Stream stream) void
         +WriteFileAsync(DeviceConfigurationFile dcf, string filePath, CancellationToken ct) Task
+        +WriteStreamAsync(DeviceConfigurationFile dcf, Stream stream, CancellationToken ct) Task
         +GenerateString(DeviceConfigurationFile dcf) string
     }
 
+    class IniWriterBase {
+        <<abstract>>
+    }
+
+    IniWriterBase <|-- EdsWriter
+    IniWriterBase <|-- DcfWriter
     XddWriter <|-- XdcWriter
 ```
 
@@ -289,11 +307,13 @@ classDiagram
 ```mermaid
 classDiagram
     Exception <|-- EdsParseException
-    Exception <|-- EdsWriteException
-    Exception <|-- DcfWriteException
-    Exception <|-- CpjWriteException
-    Exception <|-- XddWriteException
-    Exception <|-- XdcWriteException
+    Exception <|-- WriteException
+    Exception <|-- ModelValidationException
+    WriteException <|-- EdsWriteException
+    WriteException <|-- DcfWriteException
+    WriteException <|-- CpjWriteException
+    WriteException <|-- XddWriteException
+    WriteException <|-- XdcWriteException
 
     class EdsParseException {
         +int? LineNumber
@@ -301,30 +321,22 @@ classDiagram
         +string? Code
     }
 
-    class EdsWriteException {
+    class WriteException {
+        <<abstract>>
         +string? SectionName
     }
 
-    class DcfWriteException {
-        +string? SectionName
-    }
-
-    class CpjWriteException {
-        +string? SectionName
-    }
-
-    class XddWriteException {
-        +string? SectionName
-    }
-
-    class XdcWriteException {
-        +string? SectionName
+    class ModelValidationException {
+        <<sealed>>
+        +IReadOnlyList~ValidationIssue~ Issues
     }
 ```
 
 `EdsParseException` is used for EDS/DCF/CPJ/XDD/XDC parsing errors; its `Code` carries the stable
 diagnostic identifier (see §8.1 parse diagnostics) when the error corresponds to an instrumented
 lenient-mode repair.  
+`WriteException` is the abstract base of the format-specific write exceptions (`EdsWriteException`, `DcfWriteException`, `CpjWriteException`, `XddWriteException`, `XdcWriteException`; it carries `SectionName`), so callers can catch any format's write error through one type.  
+`ModelValidationException` derives directly from `Exception`, independent of `WriteException`; it is thrown by `CanOpenFile.EnsureValid*` and by writes with `CanOpenWriteOptions.Validated` when validation issues are found.  
 `EdsWriteException` is used for EDS write/generation failures.  
 `DcfWriteException` is used for DCF write/generation failures.  
 `CpjWriteException` is used for CPJ write/generation failures.  

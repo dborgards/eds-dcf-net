@@ -543,6 +543,7 @@ CanOpenFile.Cpj.WriteFile(project, "network.cpj");
 ### Working with Object Dictionary
 
 ```csharp
+using EdsDcfNet;
 using EdsDcfNet.Extensions;
 
 var dcf = CanOpenFile.Dcf.ReadFile("device.dcf");
@@ -617,7 +618,7 @@ as a thin shim (prefer `Eds.ConvertToDcf`). `Validate*` is unchanged.
 
 ### Input Size Limits and Tuning
 
-All read APIs apply a safe default input-size limit of **10 MB**
+All read APIs apply a safe default input-size limit of **10 MiB**
 (`IniParser.DefaultMaxInputSize`) to reduce denial-of-service risk from
 unexpectedly large payloads.
 
@@ -892,7 +893,7 @@ Framework consumers that referenced the previously unsigned assembly must
 **For building this repository (library, tests, examples):**
 
 - .NET SDK 10.0 or higher
-- C# 13.0 (as provided by the .NET 10 SDK)
+- C# 14 (`LangVersion latest`, as provided by the .NET 10 SDK)
 
 ## License
 

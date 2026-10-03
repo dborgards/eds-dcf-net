@@ -135,6 +135,8 @@ Integration tests for XML and cross-format flows:
 - EDS → XDD → model verification
 - XDD/XDC → DCF conversion paths
 
+The test project multi-targets `net10.0` and `net48`; the `net48` host runs the library's `netstandard2.0` asset and needs Windows (on macOS/Linux use `dotnet test -f net10.0`).
+
 ## Running Tests
 
 ### Using .NET CLI
@@ -189,9 +191,10 @@ The `Fixtures/` directory contains:
 ## Dependencies
 
 - **xunit** (v2.9.3) - Test framework
+- **xunit.runner.visualstudio** (v4.0.0) - Test runner adapter
 - **AwesomeAssertions** (v9.6.0) - Fluent assertion library (Apache-2.0 fork of FluentAssertions)
-- **Microsoft.NET.Test.Sdk** (v18.0.1) - Test platform
-- **coverlet.collector** (v8.0.0) - Code coverage collector
+- **Microsoft.NET.Test.Sdk** (v18.10.1) - Test platform
+- **coverlet.collector** (v10.0.1) - Code coverage collector
 
 ## Conventions
 

@@ -35,7 +35,7 @@
 - **Compatibility** — Must work on all .NET platforms via netstandard2.0; all string/number parsing uses `CultureInfo.InvariantCulture`
 - **Correctness** — Correct parsing/writing of implemented CiA DS 306 and CiA 311 feature sets
 - **Round-trip fidelity** — Unknown sections preserved in `AdditionalSections` dictionary
-- **Simplicity** — Zero external dependencies, single static facade API (`CanOpenFile`)
+- **Simplicity** — Zero runtime dependencies, one static entry class (`CanOpenFile`) with per-format entry points (`CanOpenFile.Eds` / `Dcf` / `Cpj` / `Xdd` / `Xdc`)
 - **Maintainability** — Comprehensive test suite, architecture documentation (ARC42), XML doc comments on all public members
 
 ---
@@ -52,11 +52,11 @@ An **example console application** (`examples/EdsDcfNet.Examples/`) demonstrates
 
 | Category | Technology |
 |---|---|
-| **Language** | C# 12/13 (`LangVersion latest`) |
+| **Language** | C# 14 (`LangVersion latest` in `Directory.Build.props`, SDK pinned to 10.0.x by `global.json`) |
 | **Frameworks** | .NET Standard 2.0, .NET 10.0 |
 | **Build system** | MSBuild via .NET SDK |
-| **Architecture** | Facade → Parsers → Models → Writers |
-| **Key patterns** | Facade (`CanOpenFile`), Strategy (`ValueConverter`), DTOs (domain models), Round-trip fidelity |
+| **Architecture** | Facade (format entry points) → Parsers → Models → Writers |
+| **Key patterns** | Facade (`CanOpenFile` + format entry points), static value conversion (`ValueConverter`), DTOs (domain models), Round-trip fidelity |
 | **Nullable refs** | Enabled (`<Nullable>enable</Nullable>`) |
 | **Implicit usings** | Enabled |
 | **File-scoped namespaces** | Yes |
@@ -73,31 +73,23 @@ An **example console application** (`examples/EdsDcfNet.Examples/`) demonstrates
 
 ### API & Integrations
 
-**Public API** (static facade `CanOpenFile`):
+**Canonical API** (format entry points on the static class `CanOpenFile`; `TModel` is `ElectronicDataSheet` for `Eds`/`Xdd`, `DeviceConfigurationFile` for `Dcf`/`Xdc`, `NodelistProject` for `Cpj`):
 
 ```
-ReadEds(filePath) / ReadEdsFromString(content) → ElectronicDataSheet
-ReadEdsAsync(filePath, cancellationToken) → Task<ElectronicDataSheet>
-WriteEds(eds, filePath) / WriteEdsToString(eds) → EDS output
-WriteEdsAsync(eds, filePath, cancellationToken) → Task
-ReadDcf(filePath) / ReadDcfFromString(content) → DeviceConfigurationFile
-ReadDcfAsync(filePath, cancellationToken) → Task<DeviceConfigurationFile>
-WriteDcf(dcf, filePath) / WriteDcfToString(dcf) → DCF output
-WriteDcfAsync(dcf, filePath, cancellationToken) → Task
-ReadCpj(filePath) / ReadCpjFromString(content) → NodelistProject
-ReadCpjAsync(filePath, cancellationToken) → Task<NodelistProject>
-WriteCpj(cpj, filePath) / WriteCpjToString(cpj) → CPJ output
-WriteCpjAsync(cpj, filePath, cancellationToken) → Task
-ReadXdd(filePath) / ReadXddFromString(content) → ElectronicDataSheet
-ReadXddAsync(filePath, cancellationToken) → Task<ElectronicDataSheet>
-WriteXdd(xdd, filePath) / WriteXddToString(xdd) → XDD output
-WriteXddAsync(xdd, filePath, cancellationToken) → Task
-ReadXdc(filePath) / ReadXdcFromString(content) → DeviceConfigurationFile
-ReadXdcAsync(filePath, cancellationToken) → Task<DeviceConfigurationFile>
-WriteXdc(xdc, filePath) / WriteXdcToString(xdc) → XDC output
-WriteXdcAsync(xdc, filePath, cancellationToken) → Task
-EdsToDcf(eds, nodeId, baudrate, nodeName) → DeviceConfigurationFile
+CanOpenFile.Eds | .Dcf | .Cpj | .Xdd | .Xdc
+  ReadFile(filePath, CanOpenFileOptions? = null) / ReadString(content, options) / ReadStream(stream, options) → TModel
+  ReadFileAsync(...) / ReadStreamAsync(...) → Task<TModel>
+  Read*WithDiagnostics(...) / Read*WithDiagnosticsAsync(...) → CanOpenReadResult<TModel>
+  WriteFile(model, filePath[, CanOpenWriteOptions?]) / WriteStream(model, stream[, options])
+  WriteFileAsync(...) / WriteStreamAsync(...) → Task
+  WriteToString(model[, options]) → string
+CanOpenFile.Eds.ConvertToDcf(eds, nodeId, baudrate, nodeName) → DeviceConfigurationFile
+CanOpenFile.Validate(...) / ValidateAsync(...) / EnsureValid(...) / EnsureValidAsync(...)
 ```
+
+The legacy static `Read*` / `Write*` / `EdsToDcf` methods directly on `CanOpenFile` (`ReadEds`, `WriteDcfToString`, ...) are marked
+`[Obsolete]` and delegate to these entry points; see the README "Migration Guide". `EdsToDcf(..., DateTime timestamp, ...)` is a
+retained non-obsolete shim, and `Validate*` / `EnsureValid*` live directly on `CanOpenFile`.
 
 **CANopen protocol elements:** Object Dictionary, PDO/SRDO mapping, `$NODEID` formulas, modular devices, compact storage modes, network topologies (CiA 306-3).
 
@@ -121,7 +113,7 @@ EdsToDcf(eds, nodeId, baudrate, nodeName) → DeviceConfigurationFile
 |---|---|
 | **Test framework** | XUnit 2.9.3 |
 | **Assertions** | AwesomeAssertions 9.6.0 |
-| **Code coverage** | coverlet.collector 8.0.0 (XPlat Code Coverage, cobertura format) |
+| **Code coverage** | coverlet.collector 10.0.1 (XPlat Code Coverage, cobertura format) |
 | **Coverage reporting** | Codecov |
 | **Naming convention** | `MethodName_Scenario_ExpectedBehavior` |
 | **Test pattern** | Arrange-Act-Assert (AAA) |
@@ -134,8 +126,8 @@ EdsToDcf(eds, nodeId, baudrate, nodeName) → DeviceConfigurationFile
 | **Hosting** | NuGet.org (package distribution) |
 | **Source code** | GitHub ([dborgards/eds-dcf-net](https://github.com/dborgards/eds-dcf-net)) |
 | **CI/CD** | GitHub Actions |
-| **Build workflow** | Build + test on ubuntu-latest with .NET 8.0 and 10.0 |
-| **Release workflow** | semantic-release v25 (Node.js 22) → NuGet publish |
+| **Build workflow** | Build + test on `windows-latest` (SDK from `global.json`; tests run on `net10.0` and `net48`, the latter binds the `netstandard2.0` asset); coverage gate `coverage/threshold` (95 % lines); ApiCompat, breaking-change-intent and npm-lockfile jobs on `ubuntu-latest` |
+| **Release workflow** | semantic-release v25 (Node.js 24, `windows-latest`) → NuGet publish |
 | **Versioning** | Semantic Versioning (automated via conventional commits) |
 | **Dependency updates** | Renovate (NuGet / npm / GitHub Actions → `develop`) |
 
@@ -154,6 +146,6 @@ EdsToDcf(eds, nodeId, baudrate, nodeName) → DeviceConfigurationFile
 | **Commit convention** | Conventional Commits |
 | **Branching strategy** | `main` (stable) · `develop` (beta) · feature branches |
 | **Release automation** | semantic-release with commit-analyzer, changelog, exec, git, github plugins |
-| **Documentation** | ARC42 architecture docs (12 chapters), CiA DS 306 specification PDF, CiA format notes in README |
+| **Documentation** | ARC42 architecture docs (12 chapters), CiA format notes in README |
 | **IDE support** | Visual Studio 2017+ (.sln), VS Code |
 | **AI assistants** | CLAUDE.md, `.github/copilot-instructions.md` |
