@@ -59,6 +59,36 @@ public class CommissioningRemainingEntriesTests
     }
 
     [Fact]
+    public void WriteString_OmittedCommissioningWithOnlyDedicatedKeptKey_OmitsSection()
+    {
+        // Arrange — the writer never outputs a kept NodeID (it writes the property instead),
+        // so this entry alone does not require the section.
+        var dcf = CanOpenFile.Dcf.ReadString(Base);
+        dcf.DeviceCommissioning.RemainingEntries["NodeID"] = "5";
+
+        // Act
+        var written = CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Validated);
+
+        // Assert
+        written.Should().NotContain("[DeviceComissioning]");
+    }
+
+    [Fact]
+    public void IniWriteRules_OmittedCommissioningWithOnlyDedicatedKeptKey_IsNotChecked()
+    {
+        // Arrange
+        var dcf = CanOpenFile.Dcf.ReadString(Base);
+        dcf.DeviceCommissioning.RemainingEntries["NodeID"] = "bad\nvalue";
+        var issues = new List<ValidationIssue>();
+
+        // Act
+        IniWriteRules.Apply(dcf, issues);
+
+        // Assert
+        issues.Should().NotContain(issue => issue.Path.StartsWith("DeviceCommissioning", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void IniWriteRules_OmittedCommissioningWithKeptEntry_ChecksKeptEntry()
     {
         // Arrange

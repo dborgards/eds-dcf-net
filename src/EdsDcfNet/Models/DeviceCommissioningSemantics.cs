@@ -29,6 +29,12 @@ internal static class DeviceCommissioningSemantics
     /// commissioning data is set, or the section keeps entries of its own
     /// (<see cref="DeviceCommissioning.RemainingEntries"/>) that would otherwise be lost.
     /// </summary>
+    /// <remarks>
+    /// Only kept entries the writer outputs count. A kept key such as <c>NodeID</c> is written
+    /// from its property and suppressed (<see cref="SectionEntryKeys.IsDeviceCommissioningKey"/>,
+    /// the same predicate the writer and the write rules use), so it does not require the section.
+    /// </remarks>
     public static bool IsWrittenToDcf(DeviceCommissioning commissioning)
-        => !IsOmitted(commissioning) || commissioning.RemainingEntries.Count > 0;
+        => !IsOmitted(commissioning)
+           || commissioning.RemainingEntries.Keys.Any(key => !SectionEntryKeys.IsDeviceCommissioningKey(key));
 }
