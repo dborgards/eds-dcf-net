@@ -120,6 +120,42 @@ public class SpecDefaultValueTests
     }
 
     [Fact]
+    public void WriteToString_NullObjectWhoseOnlySubObjectIsSubIndexFf_WritesSubNumberOneAndKeepsSubObject()
+    {
+        // Arrange: ObjectType NULL is not composite, so the reader needs SubNumber > 0 to load sub-objects.
+        var obj = new CanOpenObject
+        {
+            Index = 0x2000,
+            ParameterName = "Null",
+            ObjectType = CanOpenObjectType.Null
+        };
+        obj.SubObjects[0xFF] = SubVar(0xFF);
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(EdsWith(obj));
+        var reread = CanOpenFile.Eds.ReadString(written);
+
+        // Assert
+        SectionValue(written, "2000", "SubNumber").Should().Be("1");
+        reread.ObjectDictionary.Objects[0x2000].SubObjects.Should().ContainKey(0xFF);
+    }
+
+    [Fact]
+    public void WriteToString_RecordWhoseOnlySubObjectIsSubIndexFf_KeepsSubNumberZeroAndSubObject()
+    {
+        // Arrange: composite objects are scanned regardless of SubNumber, so no floor applies.
+        var record = Record(0xFF);
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(EdsWith(record));
+        var reread = CanOpenFile.Eds.ReadString(written);
+
+        // Assert
+        SectionValue(written, "2000", "SubNumber").Should().Be("0");
+        reread.ObjectDictionary.Objects[0x2000].SubObjects.Should().ContainKey(0xFF);
+    }
+
+    [Fact]
     public void WriteToString_ExplicitSubNumber_IsWrittenAsStored()
     {
         // Arrange
