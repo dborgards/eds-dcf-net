@@ -284,4 +284,30 @@ public static class ParseDiagnosticCodes
     /// <c>SW</c>, <c>FW</c> and <c>HW</c>). Lenient mode ignores the element; strict mode throws.
     /// </summary>
     public const string XddUnknownVersionType = "XDD_UNKNOWN_VERSION_TYPE";
+
+    /// <summary>
+    /// CPJ <c>NodeXPresent</c> is neither <c>0x00</c> nor <c>0x01</c> (or a recognised alias such as
+    /// <c>0</c>, <c>1</c>, <c>true</c>, <c>no</c>) and so is a reserved value (CiA 306-3 Table 3), or is
+    /// empty. Lenient mode treats a reserved value as not present and does not load a node whose
+    /// entry is empty; strict mode throws.
+    /// </summary>
+    public const string CpjReservedNodePresent = "CPJ_RESERVED_NODE_PRESENT";
+
+    /// <summary>
+    /// CPJ <c>Nodes</c> is not a number in the range 0..127 (CiA 306-3 Table 3). Lenient mode ignores
+    /// the declared count; strict mode throws.
+    /// </summary>
+    public const string CpjInvalidNodes = "CPJ_INVALID_NODES";
+
+    /// <summary>
+    /// A CPJ <c>[Topology]</c> section lacks the mandatory <c>Nodes</c> entry (CiA 306-3 Table 3).
+    /// Reported in lenient and strict mode; the writer always emits <c>Nodes</c>.
+    /// </summary>
+    public const string CpjMissingNodes = "CPJ_MISSING_NODES";
+
+    /// <summary>
+    /// The CPJ <c>Nodes</c> count differs from the number of <c>NodeXPresent</c> entries. The
+    /// writer emits the number of nodes in the model. Reported in lenient and strict mode.
+    /// </summary>
+    public const string CpjNodeCountMismatch = "CPJ_NODE_COUNT_MISMATCH";
 }

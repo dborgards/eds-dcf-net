@@ -458,6 +458,40 @@ internal static class LenientIniNumber
         }
     }
 
+    /// <summary>
+    /// Reports a present key whose value is not acceptable. Lenient mode adds a diagnostic
+    /// describing the fallback; strict mode throws <see cref="EdsParseException"/> with the same code.
+    /// </summary>
+    internal static void ReportInvalid(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string keyName,
+        string rawValue,
+        string code,
+        string? coercedTo,
+        string fallbackDescription)
+    {
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(InvalidValueMessage(sectionName, keyName, rawValue))
+            {
+                Code = code,
+                SectionName = sectionName,
+                LineNumber = IniKeyLines.TryGetLine(sections, sectionName, keyName)
+            };
+        }
+
+        Report(sections, sectionName, keyName, rawValue, code, coercedTo, fallbackDescription);
+    }
+
+    private static string InvalidValueMessage(string sectionName, string keyName, string rawValue)
+        => string.Format(
+            CultureInfo.InvariantCulture,
+            "Invalid value '{0}' for key '{1}' in section '{2}'.",
+            rawValue,
+            keyName,
+            sectionName);
+
     private static void Report(
         Dictionary<string, Dictionary<string, string>> sections,
         string sectionName,
@@ -474,13 +508,7 @@ internal static class LenientIniNumber
             line: IniKeyLines.TryGetLine(sections, sectionName, keyName),
             rawValue: rawValue,
             coercedTo: coercedTo,
-            message: string.Format(
-                CultureInfo.InvariantCulture,
-                "Invalid value '{0}' for key '{1}' in section '{2}'. {3}",
-                rawValue,
-                keyName,
-                sectionName,
-                fallbackDescription)));
+            message: InvalidValueMessage(sectionName, keyName, rawValue) + " " + fallbackDescription));
     }
 
     private static EdsParseException Fail(
