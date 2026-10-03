@@ -153,6 +153,12 @@ public sealed class CanOpenFileOptions
     /// Unknown CPJ <c>NodeNPresent</c> tokens in <c>ValueConverter.ParsePresentFlag</c>
     /// (default: treat as not present / <see langword="false"/>)
     /// </description></item>
+    /// <item><description>
+    /// CPJ <c>Nodes</c> without the <c>0x</c> prefix (CiA 306-3 Table 3 codes it hexadecimal), for
+    /// example <c>Nodes=10</c> (default: read with the decimal/octal convention and report
+    /// <c>CPJ_NODES_NOT_HEX</c>; strict: throw). A reserved CPJ <c>NodeNPresent</c> value or an
+    /// invalid <c>Nodes</c> value is reported in default mode and throws in strict mode.
+    /// </description></item>
     /// </list>
     /// <para>
     /// Not covered: a malformed numeric count or version key of the <c>[Comments]</c>

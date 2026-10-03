@@ -770,7 +770,7 @@ public class FileEncodingOptionTests
            + "[DeviceCommissioning]\nNodeID=1\n";
 
     private static string CpjWithNet(string netName)
-        => "[Topology]\nNetName=" + netName + "\nNodes=0\n";
+        => "[Topology]\nNetName=" + netName + "\nNodes=0x00\n";
 
     private static byte[] WithPreamble(Encoding encoding, byte[] payload)
     {
