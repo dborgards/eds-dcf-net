@@ -37,7 +37,7 @@ sub-objects, object lists, data types, access rights, defaults, and configured v
 
 ✅ **Documented CiA 306 / CiA 311 Subset** - EDS, DCF and CPJ follow CiA 306-1 v1.4.0 and CiA 306-3
 (lenient or strict reader, writer, validator). XDD and XDC follow CiA 311 v1.1.0: output is checked in the
-test suite against the CiA 311 XML schema, and XML content the model does not cover is preserved.
+test suite against the CiA 311 XML schema, and XML elements and attributes the model does not cover are preserved on round-trip (comments and processing instructions between modelled elements are not).
 This is not a full-conformance claim. The supported scope and the known limitations are listed in
 [arc42 section 8.4](docs/architecture/08-crosscutting-concepts.md#84-round-trip-fidelity).
 
