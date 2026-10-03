@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.13](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.12...v1.15.0-beta.13) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **xdd:** emit required attributes and write file times as xsd:time ([#612](https://github.com/dborgards/eds-dcf-net/issues/612)) ([c9a6429](https://github.com/dborgards/eds-dcf-net/commit/c9a642996c1cbf31c875601cb14c66ddbfb2e517))
+
 ## [1.15.0-beta.12](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.11...v1.15.0-beta.12) (2026-10-03)
 
 ### 🐛 Bug Fixes
