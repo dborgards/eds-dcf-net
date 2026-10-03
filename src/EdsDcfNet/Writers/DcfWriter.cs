@@ -312,7 +312,7 @@ public class DcfWriter : IniWriterBase
                     WriteKeyValue(sb, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
                 }
 
-                WriteRemainingEntries(sb, kept, key => SectionEntryKeys.IsAppliedCompactListKey(key, entries.Keys));
+                WriteCompactListRemainingEntries(sb, kept, entries.Keys);
                 sb.AppendLine();
             });
     }
@@ -375,10 +375,11 @@ public class DcfWriter : IniWriterBase
             WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), connectedModules[i].ToString(CultureInfo.InvariantCulture));
         }
 
-        WriteRemainingEntries(
+        WriteCountedListRemainingEntries(
             sb,
             GetSectionEntries(sectionEntries, "ConnectedModules"),
-            key => SectionEntryKeys.IsCountedListKey(key, SectionEntryKeys.NrOfEntriesKey, connectedModules.Count));
+            SectionEntryKeys.NrOfEntriesKey,
+            connectedModules.Count);
         sb.AppendLine();
     }
 

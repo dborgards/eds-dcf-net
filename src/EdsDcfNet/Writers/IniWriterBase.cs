@@ -296,10 +296,11 @@ public abstract class IniWriterBase
                         WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(obj.ObjectLinks[i]));
                     }
 
-                    WriteRemainingEntries(
+                    WriteCountedListRemainingEntries(
                         sb,
                         keptLinkEntries,
-                        key => SectionEntryKeys.IsCountedListKey(key, SectionEntryKeys.ObjectLinksCountKey, obj.ObjectLinks.Count));
+                        SectionEntryKeys.ObjectLinksCountKey,
+                        obj.ObjectLinks.Count);
 
                     sb.AppendLine();
                 });
@@ -492,7 +493,7 @@ public abstract class IniWriterBase
                     WriteKeyValue(sb, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
                 }
 
-                WriteRemainingEntries(sb, keptEntries, key => SectionEntryKeys.IsAppliedCompactListKey(key, names.Keys));
+                WriteCompactListRemainingEntries(sb, keptEntries, names.Keys);
 
                 sb.AppendLine();
             });
@@ -606,6 +607,27 @@ public abstract class IniWriterBase
     }
 
     /// <summary>
+    /// Kept entries of a counted list section. The count key and the slots
+    /// <c>1..<paramref name="generatedCount"/></c> the writer emitted are skipped.
+    /// </summary>
+    private protected static void WriteCountedListRemainingEntries(
+        StringBuilder sb,
+        OrderedStringDictionary? entries,
+        string countKey,
+        int generatedCount)
+        => WriteRemainingEntries(sb, entries, key => SectionEntryKeys.IsCountedListKey(key, countKey, generatedCount));
+
+    /// <summary>
+    /// Kept entries of a compact sub-object list. <c>NrOfEntries</c> and the sub-indexes in
+    /// <paramref name="generatedSubIndexes"/> the writer emitted are skipped.
+    /// </summary>
+    private protected static void WriteCompactListRemainingEntries(
+        StringBuilder sb,
+        OrderedStringDictionary? entries,
+        ICollection<byte> generatedSubIndexes)
+        => WriteRemainingEntries(sb, entries, key => SectionEntryKeys.IsAppliedCompactListKey(key, generatedSubIndexes));
+
+    /// <summary>
     /// Extension point for format-specific sub-object fields.
     /// EDS: no-op. DCF: writes ParameterValue, Denotation, ParamRefd.
     /// </summary>
@@ -680,10 +702,7 @@ public abstract class IniWriterBase
                 WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(module.FixedObjects[i]));
             }
 
-            WriteRemainingEntries(
-                sb,
-                keptFixedObjects,
-                key => SectionEntryKeys.IsCountedListKey(key, SectionEntryKeys.NrOfEntriesKey, module.FixedObjects.Count));
+            WriteCountedListRemainingEntries(sb, keptFixedObjects, SectionEntryKeys.NrOfEntriesKey, module.FixedObjects.Count);
             sb.AppendLine();
         }
 
@@ -722,10 +741,7 @@ public abstract class IniWriterBase
                     ValueConverter.FormatInteger(module.SubExtends[i]));
             }
 
-            WriteRemainingEntries(
-                sb,
-                keptSubExtends,
-                key => SectionEntryKeys.IsCountedListKey(key, SectionEntryKeys.NrOfEntriesKey, module.SubExtends.Count));
+            WriteCountedListRemainingEntries(sb, keptSubExtends, SectionEntryKeys.NrOfEntriesKey, module.SubExtends.Count);
             sb.AppendLine();
         }
 
