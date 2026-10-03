@@ -401,7 +401,7 @@ public class DcfWriter : IniWriterBase
 
         WriteSection("DeviceInfo", () => WriteDeviceInfo(sb, dcf.DeviceInfo));
 
-        if (!DeviceCommissioningSemantics.IsOmitted(dcf.DeviceCommissioning))
+        if (DeviceCommissioningSemantics.IsWrittenToDcf(dcf.DeviceCommissioning))
         {
             WriteSection("DeviceCommissioning", () => WriteDeviceCommissioning(sb, dcf.DeviceCommissioning));
         }

@@ -23,4 +23,12 @@ internal static class DeviceCommissioningSemantics
                string.IsNullOrEmpty(commissioning.NodeRefd) &&
                string.IsNullOrEmpty(commissioning.NetRefd);
     }
+
+    /// <summary>
+    /// <see langword="true"/> when the DCF writer emits <c>[DeviceComissioning]</c>: the
+    /// commissioning data is set, or the section keeps entries of its own
+    /// (<see cref="DeviceCommissioning.RemainingEntries"/>) that would otherwise be lost.
+    /// </summary>
+    public static bool IsWrittenToDcf(DeviceCommissioning commissioning)
+        => !IsOmitted(commissioning) || commissioning.RemainingEntries.Count > 0;
 }

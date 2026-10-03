@@ -165,7 +165,7 @@ internal static class IniWriteRules
 
     private static void ApplyCommissioning(DeviceCommissioning commissioning, List<ValidationIssue> issues)
     {
-        if (DeviceCommissioningSemantics.IsOmitted(commissioning))
+        if (!DeviceCommissioningSemantics.IsWrittenToDcf(commissioning))
             return;
 
         Check(commissioning.NodeName, IniTextSlot.Value, "DeviceCommissioning.NodeName", issues);
