@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.6](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.5...v1.15.0-beta.6) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **xdd:** honor BOM and declared encoding when reading XDD/XDC ([07fa5c4](https://github.com/dborgards/eds-dcf-net/commit/07fa5c41064f8c6f6d175942f5c556b1d52c5d80))
+
 ## [1.15.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.4...v1.15.0-beta.5) (2026-10-02)
 
 ### 🐛 Bug Fixes
