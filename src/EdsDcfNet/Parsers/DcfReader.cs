@@ -141,7 +141,8 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         ICanOpenFileModel model,
         Dictionary<string, Dictionary<string, string>> sections)
     {
-        ((DeviceConfigurationFile)model).ConnectedModules.AddRange(ParseConnectedModules(sections));
+        ((DeviceConfigurationFile)model).ConnectedModules.AddRange(
+            ParseConnectedModules(sections, model.SectionRemainingEntries));
     }
 
     /// <inheritdoc/>
@@ -154,6 +155,25 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         => base.TryParseObjectCompanionSectionName(sectionName, out index)
            || TryParseCompanionSuffixSection(sectionName, "Value", out index)
            || TryParseCompanionSuffixSection(sectionName, "Denotation", out index);
+
+    /// <inheritdoc/>
+    private protected override bool IsKnownFileInfoEntryKey(string key) => SectionEntryKeys.IsDcfFileInfoKey(key);
+
+    /// <inheritdoc/>
+    private protected override void CaptureObjectCompanionEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        CanOpenObject obj,
+        Dictionary<string, OrderedStringDictionary> store)
+    {
+        // ParseSubObjects applies [xxxxValue] / [xxxxDenotation] to every parsed object.
+        foreach (var suffix in CompactValueSectionSuffixes)
+        {
+            var sectionName = string.Concat(ToHexInvariant(obj.Index), suffix);
+            CanOpenSectionParsers.CaptureCompactListEntries(sections, sectionName, obj, store);
+        }
+    }
+
+    private static readonly string[] CompactValueSectionSuffixes = { "Value", "Denotation" };
 
     /// <inheritdoc/>
     protected override EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
@@ -290,24 +310,44 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
             dc.LssSerialNumber = ValueConverter.ParseInteger(lssSerialStr);
         }
 
+        CanOpenSectionParsers.CaptureUnmappedEntries(
+            sections, sectionName, SectionEntryKeys.IsDeviceCommissioningKey, dc.RemainingEntries);
+
         return dc;
     }
 
-    private static List<int> ParseConnectedModules(Dictionary<string, Dictionary<string, string>> sections)
+    private static List<int> ParseConnectedModules(
+        Dictionary<string, Dictionary<string, string>> sections,
+        Dictionary<string, OrderedStringDictionary> store)
     {
+        CanOpenSectionParsers.CaptureCountedListEntries(
+            sections,
+            "ConnectedModules",
+            SectionEntryKeys.NrOfEntriesKey,
+            store,
+            static value => TryParseConnectedModule(value, out _));
+
         var modules = new List<int>();
         var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "ConnectedModules", "NrOfEntries", "0"));
 
         for (int i = 1; i <= count; i++)
         {
             var moduleStr = IniParser.GetValue(sections, "ConnectedModules", i.ToString(CultureInfo.InvariantCulture));
-            if (!string.IsNullOrEmpty(moduleStr) && int.TryParse(moduleStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var moduleNumber))
+            if (TryParseConnectedModule(moduleStr, out var moduleNumber))
             {
                 modules.Add(moduleNumber);
             }
         }
 
         return modules;
+    }
+
+    /// <summary>A <c>[ConnectedModules]</c> slot is loaded only when it holds a decimal module number.</summary>
+    private static bool TryParseConnectedModule(string value, out int moduleNumber)
+    {
+        moduleNumber = 0;
+        return !string.IsNullOrEmpty(value)
+               && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out moduleNumber);
     }
 
     #endregion

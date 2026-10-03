@@ -13,7 +13,7 @@ internal static class ModelCloner
     /// </summary>
     internal static DeviceInfo CloneDeviceInfo(DeviceInfo source)
     {
-        return new DeviceInfo
+        var clone = new DeviceInfo
         {
             VendorName = source.VendorName,
             VendorNumber = source.VendorNumber,
@@ -43,6 +43,9 @@ internal static class ModelCloner
             CompactPdo = source.CompactPdo,
             CANopenSafetySupported = source.CANopenSafetySupported
         };
+
+        CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
+        return clone;
     }
 
     /// <summary>
@@ -137,6 +140,35 @@ internal static class ModelCloner
         return clone;
     }
 
+    /// <summary>
+    /// Copies the unmapped entries of a source <c>[FileInfo]</c> onto a new file-information
+    /// object (conversion flows build <see cref="EdsFileInfo"/> from scratch).
+    /// </summary>
+    internal static void CopyFileInfoRemainingEntries(EdsFileInfo source, EdsFileInfo destination)
+        => CopyRemainingEntries(source.RemainingEntries, destination.RemainingEntries);
+
+    /// <summary>
+    /// Creates a deep copy of the per-section unmapped entries
+    /// (<c>SectionRemainingEntries</c>), keeping case-insensitive section names and file order.
+    /// </summary>
+    internal static Dictionary<string, OrderedStringDictionary> CloneSectionRemainingEntries(
+        Dictionary<string, OrderedStringDictionary> source)
+    {
+        var clone = new Dictionary<string, OrderedStringDictionary>(source.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in source)
+        {
+            // A null store keeps nothing; the writer and the write rules skip it as well.
+            if (kvp.Value == null)
+                continue;
+
+            var entries = new OrderedStringDictionary();
+            CopyRemainingEntries(kvp.Value, entries);
+            clone[kvp.Key] = entries;
+        }
+
+        return clone;
+    }
+
     private static void CopyRemainingEntries(OrderedStringDictionary source, OrderedStringDictionary destination)
     {
         foreach (var entry in source)
@@ -193,6 +225,7 @@ internal static class ModelCloner
         var clone = new Comments { Lines = source.Lines };
         foreach (var kvp in source.CommentLines)
             clone.CommentLines[kvp.Key] = kvp.Value;
+        CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
         return clone;
     }
 
@@ -273,6 +306,7 @@ internal static class ModelCloner
             });
         }
 
+        CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
         return clone;
     }
 
@@ -284,11 +318,13 @@ internal static class ModelCloner
         var clone = new List<ToolInfo>(source.Count);
         foreach (var tool in source)
         {
-            clone.Add(new ToolInfo
+            var clonedTool = new ToolInfo
             {
                 Name = tool.Name,
                 Command = tool.Command
-            });
+            };
+            CopyRemainingEntries(tool.RemainingEntries, clonedTool.RemainingEntries);
+            clone.Add(clonedTool);
         }
 
         return clone;

@@ -16,6 +16,99 @@ using EdsDcfNet.Utilities;
 internal static class CanOpenSectionParsers
 {
     /// <summary>
+    /// Copies the entries of <paramref name="sectionName"/> that <paramref name="isKnownKey"/>
+    /// rejects into <paramref name="destination"/>, in file order. Does nothing when the section
+    /// is absent. A key already present in <paramref name="destination"/> is left unchanged.
+    /// </summary>
+    /// <remarks>
+    /// CiA 306-1 § 6.2 allows additional entries inside the standard sections; a section the
+    /// reader processes must keep them so the writer can emit them again.
+    /// </remarks>
+    internal static void CaptureUnmappedEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        Func<string, bool> isKnownKey,
+        OrderedStringDictionary destination)
+    {
+        if (!sections.TryGetValue(sectionName, out var section))
+            return;
+
+        foreach (var entry in EntriesInFileOrder(section))
+        {
+            if (isKnownKey(entry.Key) || destination.ContainsKey(entry.Key))
+                continue;
+
+            destination.Add(entry.Key, entry.Value);
+        }
+    }
+
+    /// <summary>
+    /// Like <see cref="CaptureUnmappedEntries(Dictionary{string, Dictionary{string, string}}, string, Func{string, bool}, OrderedStringDictionary)"/>,
+    /// for sections without a model object of their own: the entries go to
+    /// <paramref name="store"/> under <paramref name="canonicalName"/>, the section name the
+    /// writer emits. No store entry is created when every key is known.
+    /// </summary>
+    internal static void CaptureUnmappedEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string canonicalName,
+        Func<string, bool> isKnownKey,
+        Dictionary<string, OrderedStringDictionary> store)
+        => CaptureUnmappedEntries(sections, sectionName, canonicalName, (key, _) => isKnownKey(key), store);
+
+    /// <summary>
+    /// Like the overload with a key predicate, for list sections where a slot counts as
+    /// processed only with a usable value: <paramref name="isProcessedEntry"/> gets key and value.
+    /// </summary>
+    internal static void CaptureUnmappedEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string canonicalName,
+        Func<string, string, bool> isProcessedEntry,
+        Dictionary<string, OrderedStringDictionary> store)
+    {
+        if (!sections.TryGetValue(sectionName, out var section))
+            return;
+
+        foreach (var entry in EntriesInFileOrder(section))
+        {
+            if (isProcessedEntry(entry.Key, entry.Value))
+                continue;
+
+            if (!store.TryGetValue(canonicalName, out var destination))
+            {
+                destination = new OrderedStringDictionary();
+                store[canonicalName] = destination;
+            }
+
+            if (!destination.ContainsKey(entry.Key))
+                destination.Add(entry.Key, entry.Value);
+        }
+    }
+
+    /// <summary>
+    /// The entry count of a counted list as the list parsers use it: a malformed or absent
+    /// count is <c>0</c> (lenient default; strict mode has already thrown while parsing the list).
+    /// </summary>
+    internal static int ListCountOrZero(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string countKey)
+    {
+        try
+        {
+            return ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, countKey, "0"));
+        }
+        catch (EdsParseException)
+        {
+            return 0;
+        }
+    }
+
+    private static IEnumerable<KeyValuePair<string, string>> EntriesInFileOrder(Dictionary<string, string> section)
+        => section is IniSectionDictionary ordered ? ordered.EntriesInOrder() : section;
+
+    /// <summary>
     /// Parses the <c>[DeviceInfo]</c> section into a <see cref="DeviceInfo"/> object.
     /// </summary>
     /// <remarks>
@@ -61,6 +154,9 @@ internal static class CanOpenSectionParsers
         deviceInfo.CompactPdo = ValueConverter.ParseByte(IniParser.GetValue(sections, "DeviceInfo", "CompactPDO", "0"));
         deviceInfo.CANopenSafetySupported = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "CANopenSafetySupported"));
 
+        // Includes the entries § 6.5 reserves for compatibility (ProductVersion, LMT_*, ExtendedBootUp*).
+        CaptureUnmappedEntries(sections, "DeviceInfo", SectionEntryKeys.IsDeviceInfoKey, deviceInfo.RemainingEntries);
+
         return deviceInfo;
     }
 
@@ -87,6 +183,14 @@ internal static class CanOpenSectionParsers
             }
         }
 
+        // Only stored lines count as processed: an empty Line<n> is not added to CommentLines
+        // and is kept verbatim instead.
+        CaptureUnmappedEntries(
+            sections,
+            "Comments",
+            key => SectionEntryKeys.IsGeneratedCommentsKey(key, comments.CommentLines.Keys),
+            comments.RemainingEntries);
+
         return comments;
     }
 
@@ -95,18 +199,30 @@ internal static class CanOpenSectionParsers
     /// section into a list of <see cref="ModuleInfo"/> objects.
     /// </summary>
     internal static List<ModuleInfo> ParseSupportedModules(Dictionary<string, Dictionary<string, string>> sections)
+        => ParseSupportedModules(sections, new Dictionary<string, OrderedStringDictionary>(StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Parses <c>[SupportedModules]</c> and the module sections, keeping unmapped entries of
+    /// <c>[SupportedModules]</c>, <c>[MxModuleInfo]</c>, <c>[MxFixedObjects]</c>,
+    /// <c>[MxSubExtends]</c> and <c>[MxSubExtxxxx]</c> in <paramref name="store"/>.
+    /// </summary>
+    internal static List<ModuleInfo> ParseSupportedModules(
+        Dictionary<string, Dictionary<string, string>> sections,
+        Dictionary<string, OrderedStringDictionary> store)
     {
         var modules = new List<ModuleInfo>();
         var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "SupportedModules", "NrOfEntries", "0"));
 
         for (int i = 1; i <= count; i++)
         {
-            var moduleInfo = ParseModuleInfo(sections, i);
+            var moduleInfo = ParseModuleInfo(sections, i, store);
             if (moduleInfo != null)
             {
                 modules.Add(moduleInfo);
             }
         }
+
+        CaptureUnmappedEntries(sections, "SupportedModules", "SupportedModules", SectionEntryKeys.IsSupportedModulesKey, store);
 
         return modules;
     }
@@ -116,6 +232,12 @@ internal static class CanOpenSectionParsers
     /// Returns <see langword="null"/> if the section does not exist.
     /// </summary>
     internal static ModuleInfo? ParseModuleInfo(Dictionary<string, Dictionary<string, string>> sections, int moduleNumber)
+        => ParseModuleInfo(sections, moduleNumber, new Dictionary<string, OrderedStringDictionary>(StringComparer.OrdinalIgnoreCase));
+
+    private static ModuleInfo? ParseModuleInfo(
+        Dictionary<string, Dictionary<string, string>> sections,
+        int moduleNumber,
+        Dictionary<string, OrderedStringDictionary> store)
     {
         var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}ModuleInfo", moduleNumber);
         if (!IniParser.HasSection(sections, sectionName))
@@ -140,9 +262,97 @@ internal static class CanOpenSectionParsers
         ParseModuleComments(sections, moduleNumber, moduleInfo);
         ParseModuleFixedObjectDefinitions(sections, moduleNumber, moduleInfo);
         ParseModuleSubExtends(sections, moduleNumber, moduleInfo);
-        ParseModuleSubExtensionDefinitions(sections, moduleNumber, moduleInfo);
+        ParseModuleSubExtensionDefinitions(sections, moduleNumber, moduleInfo, store);
+
+        // One store entry per module section: the same vendor key may appear in several of
+        // them with different values (CiA 306-1 § 8.3).
+        CaptureUnmappedEntries(sections, sectionName, sectionName, SectionEntryKeys.IsModuleInfoKey, store);
+        CaptureCountedListEntries(sections, fixedObjSection, "NrOfEntries", store);
+        CaptureCountedListEntries(
+            sections,
+            string.Format(CultureInfo.InvariantCulture, "M{0}SubExtends", moduleNumber),
+            "NrOfEntries",
+            store);
 
         return moduleInfo;
+    }
+
+    /// <summary>
+    /// Keeps the entries of a counted list section that the list parser does not load: every
+    /// key except the count key and the numbered slots <c>1..count</c> whose value was loaded.
+    /// This includes numbered entries above the count and slots inside the count that lenient
+    /// parsing skips because the value is empty or invalid.
+    /// </summary>
+    /// <param name="sections">Parsed INI sections.</param>
+    /// <param name="sectionName">The list section.</param>
+    /// <param name="countKey">The count key of the list.</param>
+    /// <param name="store">Destination, keyed by <paramref name="sectionName"/>.</param>
+    /// <param name="isLoadedValue">
+    /// <see langword="true"/> when the list parser loads a slot with this value. The default
+    /// mirrors <see cref="LenientIniNumber.AppendIndexes"/>: a non-empty object index.
+    /// </param>
+    internal static void CaptureCountedListEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string countKey,
+        Dictionary<string, OrderedStringDictionary> store,
+        Func<string, bool>? isLoadedValue = null)
+    {
+        if (!sections.ContainsKey(sectionName))
+            return;
+
+        var isLoaded = isLoadedValue ?? IsLoadableIndexValue;
+        var count = ListCountOrZero(sections, sectionName, countKey);
+        CaptureUnmappedEntries(
+            sections,
+            sectionName,
+            sectionName,
+            (key, value) => string.Equals(key, countKey, StringComparison.OrdinalIgnoreCase)
+                            || (SectionEntryKeys.IsCountedListKey(key, countKey, count) && isLoaded(value)),
+            store);
+    }
+
+    /// <summary>
+    /// Keeps the entries of a compact sub-object list (<c>[xxxxName]</c>, DCF
+    /// <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c>) that the reader does not apply: every key
+    /// except <c>NrOfEntries</c> and sub-index keys with a non-empty value for an existing
+    /// sub-object of <paramref name="obj"/>. This mirrors <c>ApplyCompactListSection</c>, which
+    /// skips empty values and sub-indexes without a sub-object.
+    /// </summary>
+    internal static void CaptureCompactListEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        CanOpenObject obj,
+        Dictionary<string, OrderedStringDictionary> store)
+    {
+        CaptureUnmappedEntries(
+            sections,
+            sectionName,
+            sectionName,
+            (key, value) => string.Equals(key, SectionEntryKeys.NrOfEntriesKey, StringComparison.OrdinalIgnoreCase)
+                            || (!string.IsNullOrEmpty(value)
+                                && SectionEntryKeys.IsAppliedCompactListKey(key, obj.SubObjects.Keys)),
+            store);
+    }
+
+    /// <summary>
+    /// <see langword="true"/> when <see cref="LenientIniNumber.AppendIndexes"/> loads a slot with
+    /// <paramref name="value"/>: not empty and a valid UNSIGNED16 index.
+    /// </summary>
+    private static bool IsLoadableIndexValue(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return false;
+
+        try
+        {
+            _ = ValueConverter.ParseUInt16(value);
+            return true;
+        }
+        catch (EdsParseException)
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -170,6 +380,12 @@ internal static class CanOpenSectionParsers
                 comments.CommentLines[i] = line;
         }
 
+        CaptureUnmappedEntries(
+            sections,
+            sectionName,
+            key => SectionEntryKeys.IsCommentsKey(key, comments.Lines),
+            comments.RemainingEntries);
+
         moduleInfo.Comments = comments;
     }
 
@@ -196,7 +412,8 @@ internal static class CanOpenSectionParsers
     private static void ParseModuleSubExtensionDefinitions(
         Dictionary<string, Dictionary<string, string>> sections,
         int moduleNumber,
-        ModuleInfo moduleInfo)
+        ModuleInfo moduleInfo,
+        Dictionary<string, OrderedStringDictionary> store)
     {
         foreach (var sectionName in sections.Keys)
         {
@@ -204,6 +421,14 @@ internal static class CanOpenSectionParsers
                 continue;
 
             moduleInfo.SubExtensionDefinitions[index] = ReadSubExtension(sections, sectionName, index);
+
+            // Keyed by the name the writer emits ([MxSubExt] + index without leading zeros).
+            CaptureUnmappedEntries(
+                sections,
+                sectionName,
+                string.Format(CultureInfo.InvariantCulture, "M{0}SubExt{1:X}", moduleNumber, index),
+                SectionEntryKeys.IsModuleSubExtensionKey,
+                store);
         }
     }
 
@@ -636,10 +861,16 @@ internal static class CanOpenSectionParsers
     internal static DynamicChannels? ParseDynamicChannels(Dictionary<string, Dictionary<string, string>> sections)
     {
         var nrOfSeg = ValueConverter.ParseByte(IniParser.GetValue(sections, "DynamicChannels", "NrOfSeg", "0"));
-        if (nrOfSeg == 0)
-            return null;
-
         var dynamicChannels = new DynamicChannels();
+        CaptureUnmappedEntries(
+            sections,
+            "DynamicChannels",
+            key => SectionEntryKeys.IsDynamicChannelsKey(key, nrOfSeg),
+            dynamicChannels.RemainingEntries);
+
+        // Without segments the section is only kept when it carries unmapped entries.
+        if (nrOfSeg == 0)
+            return dynamicChannels.RemainingEntries.Count > 0 ? dynamicChannels : null;
 
         for (int i = 1; i <= nrOfSeg; i++)
         {
@@ -660,8 +891,40 @@ internal static class CanOpenSectionParsers
     /// Parses the <c>[Tools]</c> section and each individual <c>[Tool{n}]</c> section
     /// into a list of <see cref="ToolInfo"/> objects.
     /// </summary>
-    internal static List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
+    /// <summary>
+    /// <see langword="true"/> when <see cref="ParseTools(Dictionary{string, Dictionary{string, string}}, Dictionary{string, OrderedStringDictionary})"/>
+    /// reads <paramref name="sectionName"/> if the section is present: the canonical name
+    /// <c>Tool&lt;n&gt;</c> with <c>1 &lt;= n &lt;= Items</c>. The reader uses this to keep a
+    /// parsed tool section out of <c>AdditionalSections</c>.
+    /// </summary>
+    internal static bool IsParsedToolSection(Dictionary<string, Dictionary<string, string>> sections, string sectionName)
     {
+        if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase)
+            || !int.TryParse(sectionName[4..], NumberStyles.None, CultureInfo.InvariantCulture, out var number)
+            || number < 1)
+        {
+            return false;
+        }
+
+        // ParseTools has already parsed Items successfully, so this cannot throw here.
+        var items = ValueConverter.ParseByte(IniParser.GetValue(sections, "Tools", "Items", "0"));
+        return number <= items
+               && string.Equals(sectionName, "Tool" + number.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
+        =>ParseTools(sections, new Dictionary<string, OrderedStringDictionary>(StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Parses <c>[Tools]</c> and <c>[Tool{n}]</c>. Unmapped <c>[Tools]</c> entries go to
+    /// <paramref name="store"/>; unmapped <c>[Tool{n}]</c> entries go to the tool.
+    /// </summary>
+    internal static List<ToolInfo> ParseTools(
+        Dictionary<string, Dictionary<string, string>> sections,
+        Dictionary<string, OrderedStringDictionary> store)
+    {
+        CaptureUnmappedEntries(sections, "Tools", "Tools", SectionEntryKeys.IsToolsKey, store);
+
         var tools = new List<ToolInfo>();
 
         var items = ValueConverter.ParseByte(IniParser.GetValue(sections, "Tools", "Items", "0"));
@@ -677,6 +940,7 @@ internal static class CanOpenSectionParsers
                 Name = IniParser.GetValue(sections, toolSection, "Name"),
                 Command = IniParser.GetValue(sections, toolSection, "Command")
             };
+            CaptureUnmappedEntries(sections, toolSection, SectionEntryKeys.IsToolKey, tool.RemainingEntries);
             tools.Add(tool);
         }
 

@@ -10,6 +10,18 @@ public class DynamicChannels
     /// List of dynamic channel segments.
     /// </summary>
     public List<DynamicChannelSegment> Segments { get; } = new();
+
+    /// <summary>
+    /// Entries of the <c>[DynamicChannels]</c> section that the reader does not map onto a
+    /// property, in file order. Keys compare case-insensitively.
+    /// </summary>
+    /// <remarks>
+    /// CiA 306-1 allows additional entries inside the standard sections "in order to support
+    /// future extensions" (§ 6.2). The EDS/DCF writers emit these entries after the keys they
+    /// generate for the section. A key the writer already generates for this section is not
+    /// written a second time. A section with <c>NrOfSeg=0</c> and unknown entries is read as an instance without segments so these entries are kept.
+    /// </remarks>
+    public OrderedStringDictionary RemainingEntries { get; } = new();
 }
 
 /// <summary>

@@ -74,11 +74,23 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, "CANopenSafetySupported", ValueConverter.FormatBoolean(deviceInfo.CANopenSafetySupported));
         }
 
+        WriteRemainingEntries(sb, deviceInfo.RemainingEntries, SectionEntryKeys.IsDeviceInfoKey);
+
         sb.AppendLine();
     }
 
     /// <summary>Writes the [DummyUsage] section.</summary>
     protected static void WriteDummyUsage(StringBuilder sb, ObjectDictionary objDict)
+        => WriteDummyUsage(sb, objDict, sectionEntries: null);
+
+    /// <summary>
+    /// Writes <c>[DummyUsage]</c>, then the kept entries of that section from
+    /// <paramref name="sectionEntries"/> (see <c>SectionRemainingEntries</c>).
+    /// </summary>
+    private protected static void WriteDummyUsage(
+        StringBuilder sb,
+        ObjectDictionary objDict,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
         IniRoundTripText.WriteSectionHeader(sb, "DummyUsage");
 
@@ -87,14 +99,51 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, string.Format(CultureInfo.InvariantCulture, "Dummy{0:X4}", dummy.Key), ValueConverter.FormatBoolean(dummy.Value));
         }
 
+        WriteRemainingEntries(sb, GetSectionEntries(sectionEntries, "DummyUsage"), SectionEntryKeys.IsDummyUsageKey);
+
         sb.AppendLine();
     }
 
     /// <summary>Writes MandatoryObjects, OptionalObjects, and ManufacturerObjects list sections.</summary>
     protected static void WriteObjectLists(StringBuilder sb, ObjectDictionary objDict)
     {
-        ObjectListSectionWriter.WriteObjectLists(sb, objDict, WriteKeyValue);
+        ObjectListSectionWriter.WriteObjectLists(sb, objDict, WriteKeyValue, sectionEntries: null);
     }
+
+    /// <summary>
+    /// Writes the three object list sections with their kept entries. A list without objects is
+    /// written when <paramref name="sectionEntries"/> keeps entries for it.
+    /// </summary>
+    private protected static void WriteObjectLists(
+        StringBuilder sb,
+        ObjectDictionary objDict,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
+    {
+        ObjectListSectionWriter.WriteObjectLists(sb, objDict, WriteKeyValue, sectionEntries);
+    }
+
+    /// <summary>
+    /// Returns the kept entries of <paramref name="sectionName"/>, or <see langword="null"/>
+    /// when there are none.
+    /// </summary>
+    private protected static OrderedStringDictionary? GetSectionEntries(
+        Dictionary<string, OrderedStringDictionary>? sectionEntries,
+        string sectionName)
+        => sectionEntries != null
+           && sectionEntries.TryGetValue(sectionName, out var entries)
+           && entries != null
+           && entries.Count > 0
+            ? entries
+            : null;
+
+    /// <summary>
+    /// <see langword="true"/> when <paramref name="sectionEntries"/> keeps at least one entry
+    /// for <paramref name="sectionName"/>.
+    /// </summary>
+    private protected static bool HasSectionEntries(
+        Dictionary<string, OrderedStringDictionary>? sectionEntries,
+        string sectionName)
+        => GetSectionEntries(sectionEntries, sectionName) != null;
 
     /// <summary>
     /// Writes the shared (EDS) fields of a <see cref="CanOpenObject"/>.
@@ -104,6 +153,19 @@ public abstract class IniWriterBase
     /// <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c> lists are emitted (CiA 306).
     /// </summary>
     protected void WriteObject(StringBuilder sb, CanOpenObject obj, Action<string, Action> writeSection)
+        => WriteObject(sb, obj, writeSection, sectionEntries: null);
+
+    /// <summary>
+    /// Writes an object like <see cref="WriteObject(StringBuilder, CanOpenObject, Action{string, Action})"/>
+    /// and appends the kept entries of its companion sections (<c>[xxxxName]</c>,
+    /// <c>[xxxxObjectLinks]</c>, DCF <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c>) from
+    /// <paramref name="sectionEntries"/>.
+    /// </summary>
+    private protected void WriteObject(
+        StringBuilder sb,
+        CanOpenObject obj,
+        Action<string, Action> writeSection,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
         var compactMax = GetCompactMaxSubIndex(obj);
         var useCompact = compactMax > 0;
@@ -174,30 +236,48 @@ public abstract class IniWriterBase
 
         sb.AppendLine();
 
-        var expandedSubIndexes = new HashSet<byte>();
-        if (obj.SubObjects.Count > 0)
+        var expandedSubIndexes = GetExpandedSubIndexes(obj, compactMax);
+        foreach (var subObjEntry in obj.SubObjects.OrderBy(s => s.Key))
         {
-            foreach (var subObjEntry in obj.SubObjects.OrderBy(s => s.Key))
-            {
-                var subObj = subObjEntry.Value;
-                if (useCompact && !MustExpandCompactSubObject(obj, subObj, compactMax))
-                    continue;
+            if (!expandedSubIndexes.Contains(subObjEntry.Key))
+                continue;
 
-                expandedSubIndexes.Add(subObjEntry.Key);
-                var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", obj.Index, subObjEntry.Key);
-                writeSection(sectionName, () => WriteSubObject(sb, obj.Index, subObj));
-            }
+            var subObj = subObjEntry.Value;
+            var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", obj.Index, subObjEntry.Key);
+            writeSection(sectionName, () => WriteSubObject(sb, obj.Index, subObj));
         }
 
         if (useCompact)
         {
-            WriteCompactNameSection(sb, obj, compactMax, expandedSubIndexes, writeSection);
-            WriteCompactValueAndDenotationSections(sb, obj, compactMax, expandedSubIndexes, writeSection);
+            WriteCompactNameSection(sb, obj, compactMax, expandedSubIndexes, writeSection, sectionEntries);
         }
 
-        if (obj.ObjectLinks.Count > 0)
+        if (useCompact)
         {
-            var linkSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}ObjectLinks", obj.Index);
+            // Keep dispatching through the protected virtual hook so subclass overrides still
+            // run. The kept section entries reach the built-in DCF override through an
+            // AsyncLocal scope, because the hook has no parameter for them and EdsWriter /
+            // DcfWriter share one writer instance across concurrent calls.
+            var previous = CurrentSectionEntries.Value;
+            CurrentSectionEntries.Value = sectionEntries;
+            try
+            {
+                WriteCompactValueAndDenotationSections(sb, obj, compactMax, expandedSubIndexes, writeSection);
+            }
+            finally
+            {
+                CurrentSectionEntries.Value = previous;
+            }
+        }
+        else
+        {
+            WriteCompactValueAndDenotationSections(sb, obj, 0, expandedSubIndexes, writeSection, sectionEntries);
+        }
+
+        var linkSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}ObjectLinks", obj.Index);
+        var keptLinkEntries = GetSectionEntries(sectionEntries, linkSectionName);
+        if (obj.ObjectLinks.Count > 0 || keptLinkEntries != null)
+        {
             writeSection(
                 linkSectionName,
                 () =>
@@ -212,16 +292,52 @@ public abstract class IniWriterBase
                         WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(obj.ObjectLinks[i]));
                     }
 
+                    WriteCountedListRemainingEntries(
+                        sb,
+                        keptLinkEntries,
+                        SectionEntryKeys.ObjectLinksCountKey,
+                        obj.ObjectLinks.Count);
+
                     sb.AppendLine();
                 });
         }
     }
 
     /// <summary>
+    /// Kept section entries of the object currently written through
+    /// <see cref="WriteCompactValueAndDenotationSections(StringBuilder, CanOpenObject, int, HashSet{byte}, Action{string, Action})"/>,
+    /// scoped to the current call.
+    /// </summary>
+    private static readonly AsyncLocal<Dictionary<string, OrderedStringDictionary>?> CurrentSectionEntries = new();
+
+    /// <summary>
+    /// The kept section entries (<c>SectionRemainingEntries</c>) of the model being written,
+    /// available inside the compact-list hook; <see langword="null"/> outside a model write.
+    /// </summary>
+    private protected static Dictionary<string, OrderedStringDictionary>? CurrentObjectSectionEntries
+        => CurrentSectionEntries.Value;
+
+    /// <summary>
+    /// Writes compact value lists from kept entries. For a compact object the writer calls
+    /// <see cref="WriteCompactValueAndDenotationSections(StringBuilder, CanOpenObject, int, HashSet{byte}, Action{string, Action})"/>
+    /// instead; this overload is used for an object without CompactSubObj storage
+    /// (<paramref name="compactMax"/> <c>0</c>). EDS: no-op.
+    /// </summary>
+    private protected virtual void WriteCompactValueAndDenotationSections(
+        StringBuilder sb,
+        CanOpenObject obj,
+        int compactMax,
+        HashSet<byte> expandedSubIndexes,
+        Action<string, Action> writeSection,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
+    {
+    }
+
+    /// <summary>
     /// Highest compact-listable sub-index for <paramref name="obj"/>, or 0 when
     /// CompactSubObj is absent/zero. Caps at 254 per CiA 306.
     /// </summary>
-    private static int GetCompactMaxSubIndex(CanOpenObject obj)
+    internal static int GetCompactMaxSubIndex(CanOpenObject obj)
     {
         if (!obj.CompactSubObj.HasValue || obj.CompactSubObj.Value == 0)
             return 0;
@@ -333,31 +449,16 @@ public abstract class IniWriterBase
         CanOpenObject obj,
         int compactMax,
         HashSet<byte> expandedSubIndexes,
-        Action<string, Action> writeSection)
+        Action<string, Action> writeSection,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
-        var names = new SortedDictionary<byte, string>();
-        for (var i = 1; i <= compactMax; i++)
-        {
-            var subIndex = (byte)i;
-            if (expandedSubIndexes.Contains(subIndex))
-                continue;
-            if (!obj.SubObjects.TryGetValue(subIndex, out var subObj))
-                continue;
-
-            var defaultName = string.Concat(
-                obj.ParameterName,
-                subIndex.ToString(CultureInfo.InvariantCulture));
-            if (!string.IsNullOrEmpty(subObj.ParameterName)
-                && !subObj.ParameterName.Equals(defaultName, StringComparison.Ordinal))
-            {
-                names[subIndex] = subObj.ParameterName;
-            }
-        }
-
-        if (names.Count == 0)
-            return;
+        var names = GetCompactNameEntries(obj, compactMax, expandedSubIndexes);
 
         var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Name", obj.Index);
+        var keptEntries = GetSectionEntries(sectionEntries, sectionName);
+        if (names.Count == 0 && keptEntries == null)
+            return;
+
         writeSection(
             sectionName,
             () =>
@@ -370,6 +471,8 @@ public abstract class IniWriterBase
                 {
                     WriteKeyValue(sb, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
                 }
+
+                WriteCompactListRemainingEntries(sb, keptEntries, names.Keys);
 
                 sb.AppendLine();
             });
@@ -461,13 +564,18 @@ public abstract class IniWriterBase
     /// <summary>
     /// Writes unknown section keys in insertion order, after the known keywords.
     /// Keys that this format already writes from dedicated properties are skipped so they
-    /// cannot be emitted twice or replace a commissioned property value.
+    /// cannot be emitted twice or replace a commissioned property value. For list sections
+    /// <paramref name="isDedicatedKey"/> also covers the entries the writer generated, so a
+    /// generated entry wins over a kept entry with the same key.
     /// </summary>
-    private static void WriteRemainingEntries(
+    private protected static void WriteRemainingEntries(
         StringBuilder sb,
-        OrderedStringDictionary entries,
+        OrderedStringDictionary? entries,
         Func<string, bool> isDedicatedKey)
     {
+        if (entries == null)
+            return;
+
         foreach (var entry in entries)
         {
             if (isDedicatedKey(entry.Key))
@@ -476,6 +584,216 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, entry.Key, entry.Value);
         }
     }
+
+    /// <summary>
+    /// Decides for one <c>SectionRemainingEntries</c> section whether the EDS/DCF writer emits
+    /// it for <paramref name="model"/> and, if so, which kept keys it suppresses because it
+    /// generates them itself. The validated-write rules use this so they check exactly the kept
+    /// entries the writer outputs.
+    /// </summary>
+    /// <param name="model">An <see cref="ElectronicDataSheet"/> or <see cref="DeviceConfigurationFile"/>.</param>
+    /// <param name="sectionName">A store key; the writer looks sections up by its canonical name.</param>
+    /// <param name="isSuppressedKey">Kept keys the writer does not output.</param>
+    /// <returns><see langword="false"/> when the writer does not emit the section.</returns>
+    internal static bool TryGetWrittenSectionFilter(
+        ICanOpenFileModel model,
+        string sectionName,
+        out Func<string, bool> isSuppressedKey)
+    {
+        isSuppressedKey = static _ => true;
+        var od = model.ObjectDictionary;
+        switch (sectionName.ToUpperInvariant())
+        {
+            case "DUMMYUSAGE":
+                isSuppressedKey = SectionEntryKeys.IsDummyUsageKey;
+                return true;
+            case "MANDATORYOBJECTS":
+                return CountedList(SectionEntryKeys.SupportedObjectsKey, od.MandatoryObjects.Count, out isSuppressedKey);
+            case "OPTIONALOBJECTS":
+                return CountedList(SectionEntryKeys.SupportedObjectsKey, od.OptionalObjects.Count, out isSuppressedKey);
+            case "MANUFACTUREROBJECTS":
+                return CountedList(SectionEntryKeys.SupportedObjectsKey, od.ManufacturerObjects.Count, out isSuppressedKey);
+            case "SUPPORTEDMODULES":
+                isSuppressedKey = SectionEntryKeys.IsSupportedModulesKey;
+                return true;
+            case "TOOLS":
+                isSuppressedKey = SectionEntryKeys.IsToolsKey;
+                return true;
+            case "CONNECTEDMODULES":
+                return model is DeviceConfigurationFile dcf
+                       && CountedList(SectionEntryKeys.NrOfEntriesKey, dcf.ConnectedModules.Count, out isSuppressedKey);
+        }
+
+        foreach (var module in model.SupportedModules)
+        {
+            if (TryGetWrittenModuleSectionFilter(module, sectionName, out isSuppressedKey))
+                return true;
+        }
+
+        foreach (var obj in od.Objects.Values)
+        {
+            if (TryGetWrittenObjectSectionFilter(obj, model is DeviceConfigurationFile, sectionName, out isSuppressedKey))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetWrittenModuleSectionFilter(
+        ModuleInfo module,
+        string sectionName,
+        out Func<string, bool> isSuppressedKey)
+    {
+        isSuppressedKey = static _ => true;
+        if (IsSectionNamed(sectionName, "M{0}ModuleInfo", module.ModuleNumber))
+        {
+            isSuppressedKey = SectionEntryKeys.IsModuleInfoKey;
+            return true;
+        }
+
+        if (IsSectionNamed(sectionName, "M{0}FixedObjects", module.ModuleNumber))
+            return CountedList(SectionEntryKeys.NrOfEntriesKey, module.FixedObjects.Count, out isSuppressedKey);
+
+        if (IsSectionNamed(sectionName, "M{0}SubExtends", module.ModuleNumber))
+            return CountedList(SectionEntryKeys.NrOfEntriesKey, module.SubExtends.Count, out isSuppressedKey);
+
+        foreach (var index in module.SubExtensionDefinitions.Keys)
+        {
+            if (IsSectionNamed(sectionName, "M{0}SubExt{1:X}", module.ModuleNumber, index))
+            {
+                isSuppressedKey = SectionEntryKeys.IsModuleSubExtensionKey;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryGetWrittenObjectSectionFilter(
+        CanOpenObject obj,
+        bool isDcf,
+        string sectionName,
+        out Func<string, bool> isSuppressedKey)
+    {
+        isSuppressedKey = static _ => true;
+        if (IsSectionNamed(sectionName, "{0:X}ObjectLinks", obj.Index))
+            return CountedList(SectionEntryKeys.ObjectLinksCountKey, obj.ObjectLinks.Count, out isSuppressedKey);
+
+        var compactMax = GetCompactMaxSubIndex(obj);
+        var expanded = GetExpandedSubIndexes(obj, compactMax);
+        if (compactMax > 0 && IsSectionNamed(sectionName, "{0:X}Name", obj.Index))
+            return CompactList(GetCompactNameEntries(obj, compactMax, expanded).Keys, out isSuppressedKey);
+
+        // DCF writes [xxxxValue] / [xxxxDenotation] for every object (compact lists only with compact storage).
+        if (isDcf && IsSectionNamed(sectionName, "{0:X}Value", obj.Index))
+            return CompactList(GetCompactListEntries(obj, compactMax, expanded, (_, sub) => DcfWriter.SelectParameterValue(sub)).Keys, out isSuppressedKey);
+
+        if (isDcf && IsSectionNamed(sectionName, "{0:X}Denotation", obj.Index))
+            return CompactList(GetCompactListEntries(obj, compactMax, expanded, (_, sub) => DcfWriter.SelectDenotation(sub)).Keys, out isSuppressedKey);
+
+        return false;
+    }
+
+    private static bool IsSectionNamed(string sectionName, string format, params object[] args)
+        => string.Equals(
+            sectionName,
+            string.Format(CultureInfo.InvariantCulture, format, args),
+            StringComparison.OrdinalIgnoreCase);
+
+    private static bool CountedList(string countKey, int generatedCount, out Func<string, bool> isSuppressedKey)
+    {
+        isSuppressedKey = key => SectionEntryKeys.IsCountedListKey(key, countKey, generatedCount);
+        return true;
+    }
+
+    private static bool CompactList(ICollection<byte> generatedSubIndexes, out Func<string, bool> isSuppressedKey)
+    {
+        isSuppressedKey = key => SectionEntryKeys.IsAppliedCompactListKey(key, generatedSubIndexes);
+        return true;
+    }
+
+    /// <summary>
+    /// Sub-indexes the writer emits as expanded <c>[xxxxsubN]</c> sections: all of them without
+    /// compact storage (<paramref name="compactMax"/> <c>0</c>), otherwise only those that the
+    /// compact lists cannot represent.
+    /// </summary>
+    internal static HashSet<byte> GetExpandedSubIndexes(CanOpenObject obj, int compactMax)
+    {
+        var expanded = new HashSet<byte>();
+        foreach (var entry in obj.SubObjects)
+        {
+            if (compactMax == 0 || MustExpandCompactSubObject(obj, entry.Value, compactMax))
+                expanded.Add(entry.Key);
+        }
+
+        return expanded;
+    }
+
+    /// <summary>
+    /// The entries of a compact list the writer generates: for every sub-index
+    /// <c>1..compactMax</c> that is not expanded, the non-empty value from
+    /// <paramref name="selectValue"/>.
+    /// </summary>
+    internal static SortedDictionary<byte, string> GetCompactListEntries(
+        CanOpenObject obj,
+        int compactMax,
+        HashSet<byte> expandedSubIndexes,
+        Func<byte, CanOpenSubObject, string?> selectValue)
+    {
+        var entries = new SortedDictionary<byte, string>();
+        for (var i = 1; i <= compactMax; i++)
+        {
+            var subIndex = (byte)i;
+            if (expandedSubIndexes.Contains(subIndex) || !obj.SubObjects.TryGetValue(subIndex, out var subObj))
+                continue;
+
+            var value = selectValue(subIndex, subObj);
+            if (!string.IsNullOrEmpty(value))
+                entries[subIndex] = value!;
+        }
+
+        return entries;
+    }
+
+    /// <summary>
+    /// The <c>[xxxxName]</c> entries the writer generates: parameter names that differ from the
+    /// compact default <c>ParameterName + sub-index</c> (CiA 306 § 6.6.3.4).
+    /// </summary>
+    internal static SortedDictionary<byte, string> GetCompactNameEntries(
+        CanOpenObject obj,
+        int compactMax,
+        HashSet<byte> expandedSubIndexes)
+        => GetCompactListEntries(
+            obj,
+            compactMax,
+            expandedSubIndexes,
+            (subIndex, subObj) => string.Equals(
+                subObj.ParameterName,
+                string.Concat(obj.ParameterName, subIndex.ToString(CultureInfo.InvariantCulture)),
+                StringComparison.Ordinal)
+                ? null
+                : subObj.ParameterName);
+
+    /// <summary>
+    /// Kept entries of a counted list section. The count key and the slots
+    /// <c>1..<paramref name="generatedCount"/></c> the writer emitted are skipped.
+    /// </summary>
+    private protected static void WriteCountedListRemainingEntries(
+        StringBuilder sb,
+        OrderedStringDictionary? entries,
+        string countKey,
+        int generatedCount)
+        => WriteRemainingEntries(sb, entries, key => SectionEntryKeys.IsCountedListKey(key, countKey, generatedCount));
+
+    /// <summary>
+    /// Kept entries of a compact sub-object list. <c>NrOfEntries</c> and the sub-indexes in
+    /// <paramref name="generatedSubIndexes"/> the writer emitted are skipped.
+    /// </summary>
+    private protected static void WriteCompactListRemainingEntries(
+        StringBuilder sb,
+        OrderedStringDictionary? entries,
+        ICollection<byte> generatedSubIndexes)
+        => WriteRemainingEntries(sb, entries, key => SectionEntryKeys.IsAppliedCompactListKey(key, generatedSubIndexes));
 
     /// <summary>
     /// Extension point for format-specific sub-object fields.
@@ -487,14 +805,28 @@ public abstract class IniWriterBase
 
     /// <summary>Writes the [SupportedModules] list and each [M{n}ModuleInfo] section.</summary>
     protected static void WriteSupportedModules(StringBuilder sb, List<ModuleInfo> modules)
+        => WriteSupportedModules(sb, modules, sectionEntries: null);
+
+    /// <summary>
+    /// Writes <c>[SupportedModules]</c> and every module with the kept entries of each module
+    /// section from <paramref name="sectionEntries"/>.
+    /// </summary>
+    private protected static void WriteSupportedModules(
+        StringBuilder sb,
+        List<ModuleInfo> modules,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
         IniRoundTripText.WriteSectionHeader(sb, "SupportedModules");
         WriteKeyValue(sb, "NrOfEntries", modules.Count.ToString(CultureInfo.InvariantCulture));
+        WriteRemainingEntries(
+            sb,
+            GetSectionEntries(sectionEntries, "SupportedModules"),
+            SectionEntryKeys.IsSupportedModulesKey);
         sb.AppendLine();
 
         foreach (var module in modules)
         {
-            WriteModuleInfo(sb, module);
+            WriteModuleInfo(sb, module, sectionEntries);
         }
     }
 
@@ -505,14 +837,20 @@ public abstract class IniWriterBase
     /// <c>[MxSubExtxxxx]</c>.
     /// </summary>
     protected static void WriteModuleInfo(StringBuilder sb, ModuleInfo module)
+        => WriteModuleInfo(sb, module, sectionEntries: null);
+
+    private static void WriteModuleInfo(
+        StringBuilder sb,
+        ModuleInfo module,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
-        IniRoundTripText.WriteSectionHeader(
-            sb,
-            string.Format(CultureInfo.InvariantCulture, "M{0}ModuleInfo", module.ModuleNumber));
+        var moduleInfoSection = string.Format(CultureInfo.InvariantCulture, "M{0}ModuleInfo", module.ModuleNumber);
+        IniRoundTripText.WriteSectionHeader(sb, moduleInfoSection);
         WriteKeyValue(sb, "ProductName", module.ProductName);
         WriteKeyValue(sb, "ProductVersion", module.ProductVersion.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "ProductRevision", module.ProductRevision.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "OrderCode", module.OrderCode);
+        WriteRemainingEntries(sb, GetSectionEntries(sectionEntries, moduleInfoSection), SectionEntryKeys.IsModuleInfoKey);
         sb.AppendLine();
 
         if (module.Comments != null)
@@ -520,11 +858,11 @@ public abstract class IniWriterBase
             WriteModuleComments(sb, module);
         }
 
-        if (module.FixedObjects.Count > 0)
+        var fixedObjectsSection = string.Format(CultureInfo.InvariantCulture, "M{0}FixedObjects", module.ModuleNumber);
+        var keptFixedObjects = GetSectionEntries(sectionEntries, fixedObjectsSection);
+        if (module.FixedObjects.Count > 0 || keptFixedObjects != null)
         {
-            IniRoundTripText.WriteSectionHeader(
-                sb,
-                string.Format(CultureInfo.InvariantCulture, "M{0}FixedObjects", module.ModuleNumber));
+            IniRoundTripText.WriteSectionHeader(sb, fixedObjectsSection);
             WriteKeyValue(sb, "NrOfEntries", module.FixedObjects.Count.ToString(CultureInfo.InvariantCulture));
 
             for (int i = 0; i < module.FixedObjects.Count; i++)
@@ -532,6 +870,7 @@ public abstract class IniWriterBase
                 WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(module.FixedObjects[i]));
             }
 
+            WriteCountedListRemainingEntries(sb, keptFixedObjects, SectionEntryKeys.NrOfEntriesKey, module.FixedObjects.Count);
             sb.AppendLine();
         }
 
@@ -555,11 +894,11 @@ public abstract class IniWriterBase
             WriteModuleFixedObject(sb, module.ModuleNumber, index, module.FixedObjectDefinitions[index]);
         }
 
-        if (module.SubExtends.Count > 0)
+        var subExtendsSection = string.Format(CultureInfo.InvariantCulture, "M{0}SubExtends", module.ModuleNumber);
+        var keptSubExtends = GetSectionEntries(sectionEntries, subExtendsSection);
+        if (module.SubExtends.Count > 0 || keptSubExtends != null)
         {
-            IniRoundTripText.WriteSectionHeader(
-                sb,
-                string.Format(CultureInfo.InvariantCulture, "M{0}SubExtends", module.ModuleNumber));
+            IniRoundTripText.WriteSectionHeader(sb, subExtendsSection);
             WriteKeyValue(sb, "NrOfEntries", module.SubExtends.Count.ToString(CultureInfo.InvariantCulture));
 
             for (var i = 0; i < module.SubExtends.Count; i++)
@@ -570,6 +909,7 @@ public abstract class IniWriterBase
                     ValueConverter.FormatInteger(module.SubExtends[i]));
             }
 
+            WriteCountedListRemainingEntries(sb, keptSubExtends, SectionEntryKeys.NrOfEntriesKey, module.SubExtends.Count);
             sb.AppendLine();
         }
 
@@ -581,7 +921,7 @@ public abstract class IniWriterBase
 
             if (module.SubExtensionDefinitions.TryGetValue(index, out var listed))
             {
-                WriteModuleSubExtension(sb, module.ModuleNumber, index, listed);
+                WriteModuleSubExtension(sb, module.ModuleNumber, index, listed, sectionEntries);
             }
         }
 
@@ -590,7 +930,7 @@ public abstract class IniWriterBase
             if (writtenExtensions.Contains(index))
                 continue;
 
-            WriteModuleSubExtension(sb, module.ModuleNumber, index, module.SubExtensionDefinitions[index]);
+            WriteModuleSubExtension(sb, module.ModuleNumber, index, module.SubExtensionDefinitions[index], sectionEntries);
         }
     }
 
@@ -608,12 +948,23 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, string.Format(CultureInfo.InvariantCulture, "Line{0}", line.Key), line.Value);
         }
 
+        WriteCommentsRemainingEntries(sb, comments);
         sb.AppendLine();
     }
 
     /// <summary>
+    /// Kept entries of <c>[Comments]</c> / <c>[MxComments]</c>. A <c>Line&lt;n&gt;</c> generated
+    /// from <see cref="Comments.CommentLines"/> wins over a kept entry with the same key.
+    /// </summary>
+    private static void WriteCommentsRemainingEntries(StringBuilder sb, Comments comments)
+        => WriteRemainingEntries(
+            sb,
+            comments.RemainingEntries,
+            key => SectionEntryKeys.IsGeneratedCommentsKey(key, comments.CommentLines.Keys));
+
+    /// <summary>
     /// Writes <c>[MxFixedxxxx]</c> and its <c>[MxFixedxxxxsubx]</c> sections.
-    /// Field order matches <see cref="WriteObject"/> so a module object body is
+    /// Field order matches <see cref="WriteObject(StringBuilder, CanOpenObject, Action{string, Action})"/> so a module object body is
     /// the same canonical INI as a dictionary object, with the module prefix.
     /// An explicit <see cref="CanOpenObject.SubNumber"/> is written as stored.
     /// When it is absent and sub-objects exist, the emitted value is the described-entry
@@ -804,11 +1155,11 @@ public abstract class IniWriterBase
         StringBuilder sb,
         int moduleNumber,
         ushort index,
-        ModuleSubExtension extension)
+        ModuleSubExtension extension,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
-        IniRoundTripText.WriteSectionHeader(
-            sb,
-            string.Format(CultureInfo.InvariantCulture, "M{0}SubExt{1:X}", moduleNumber, index));
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}SubExt{1:X}", moduleNumber, index);
+        IniRoundTripText.WriteSectionHeader(sb, sectionName);
 
         if (extension.SubNumber.HasValue)
         {
@@ -859,6 +1210,7 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, "ObjExtend", extension.ObjExtend.Value.ToString(CultureInfo.InvariantCulture));
         }
 
+        WriteRemainingEntries(sb, GetSectionEntries(sectionEntries, sectionName), SectionEntryKeys.IsModuleSubExtensionKey);
         sb.AppendLine();
     }
 
@@ -873,6 +1225,7 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, string.Format(CultureInfo.InvariantCulture, "Line{0}", line.Key), line.Value);
         }
 
+        WriteCommentsRemainingEntries(sb, comments);
         sb.AppendLine();
     }
 
@@ -892,14 +1245,29 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, $"PPOffset{idx}", seg.PPOffset.ToString(CultureInfo.InvariantCulture));
         }
 
+        WriteRemainingEntries(
+            sb,
+            dynamicChannels.RemainingEntries,
+            key => SectionEntryKeys.IsDynamicChannelsKey(key, dynamicChannels.Segments.Count));
         sb.AppendLine();
     }
 
     /// <summary>Writes the [Tools] list and each [Tool{n}] section.</summary>
     protected static void WriteTools(StringBuilder sb, List<ToolInfo> tools)
+        => WriteTools(sb, tools, sectionEntries: null);
+
+    /// <summary>
+    /// Writes <c>[Tools]</c> with its kept entries from <paramref name="sectionEntries"/>, then
+    /// each <c>[Tool{n}]</c> with <see cref="ToolInfo.RemainingEntries"/>.
+    /// </summary>
+    private protected static void WriteTools(
+        StringBuilder sb,
+        List<ToolInfo> tools,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
         IniRoundTripText.WriteSectionHeader(sb, "Tools");
         WriteKeyValue(sb, "Items", tools.Count.ToString(CultureInfo.InvariantCulture));
+        WriteRemainingEntries(sb, GetSectionEntries(sectionEntries, "Tools"), SectionEntryKeys.IsToolsKey);
         sb.AppendLine();
 
         for (int i = 0; i < tools.Count; i++)
@@ -910,9 +1278,32 @@ public abstract class IniWriterBase
                 string.Format(CultureInfo.InvariantCulture, "Tool{0}", idx));
             WriteKeyValue(sb, "Name", tools[i].Name);
             WriteKeyValue(sb, "Command", tools[i].Command);
+            WriteRemainingEntries(sb, tools[i].RemainingEntries, SectionEntryKeys.IsToolKey);
             sb.AppendLine();
         }
     }
+
+    /// <summary>
+    /// <see langword="true"/> when <paramref name="sectionEntries"/> or the model keeps entries
+    /// that require the <c>[Tools]</c> section although there is no tool.
+    /// </summary>
+    private protected static bool MustWriteTools(
+        List<ToolInfo> tools,
+        Dictionary<string, OrderedStringDictionary> sectionEntries)
+        => tools.Count > 0 || HasSectionEntries(sectionEntries, "Tools");
+
+    /// <summary>
+    /// <see langword="true"/> when <c>[Comments]</c> has lines or kept entries to write.
+    /// </summary>
+    private protected static bool MustWriteComments(Comments? comments)
+        => comments != null && (comments.CommentLines.Count > 0 || comments.RemainingEntries.Count > 0);
+
+    /// <summary>
+    /// <see langword="true"/> when <c>[DynamicChannels]</c> has segments or kept entries to write.
+    /// </summary>
+    private protected static bool MustWriteDynamicChannels(DynamicChannels? dynamicChannels)
+        => dynamicChannels != null
+           && (dynamicChannels.Segments.Count > 0 || dynamicChannels.RemainingEntries.Count > 0);
 
     /// <summary>Writes a non-standard additional section.</summary>
     protected static void WriteAdditionalSection(StringBuilder sb, string sectionName, Dictionary<string, string> entries)
