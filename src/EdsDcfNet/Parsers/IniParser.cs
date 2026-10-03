@@ -2,7 +2,6 @@ namespace EdsDcfNet.Parsers;
 
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
 using EdsDcfNet.Exceptions;
 
 /// <summary>
@@ -16,10 +15,24 @@ using EdsDcfNet.Exceptions;
 /// Pass <c>strictParsing: true</c> or set <see cref="CanOpenFileOptions.StrictParsing"/>
 /// on facade reads to throw <see cref="EdsParseException"/> on duplicates.
 /// </para>
+/// <para>
+/// File and stream bytes are decoded automatically unless
+/// <see cref="CanOpenFileOptions.Encoding"/> is set on a facade read: a byte-order mark
+/// wins, otherwise strict UTF-8 is tried and, on <see cref="System.Text.DecoderFallbackException"/>,
+/// those same bytes are decoded as ISO-8859-1. A leading UTF-8 byte-order mark is excluded
+/// from both decodes. Stream reads still limit the
+/// decoded character count; the raw buffer is capped by <see cref="InputBufferLimit"/>.
+/// </para>
 /// </remarks>
 public static class IniParser
 {
-    private static readonly char[] LineEndChars = { '\r', '\n' };
+
+    /// <summary>
+    /// Sentinel <c>currentSection</c> after a malformed header in lenient mode: the keys that follow
+    /// are dropped (not attributed to the previous section) until the next valid header. Compared by
+    /// reference; it is never added to the parsed sections.
+    /// </summary>
+    private static readonly string DiscardedSection = new string('\0', 1);
     /// <summary>
     /// Default maximum input size (10 MB) used by parsing methods such as
     /// <see cref="ParseFile(string, long)"/>, <see cref="ParseFileAsync"/>,
@@ -58,8 +71,10 @@ public static class IniParser
     /// Maximum file size in bytes before an <see cref="EdsParseException"/> is thrown.
     /// </param>
     /// <param name="strictParsing">
-    /// When <see langword="true"/>, duplicate keys in a section throw
-    /// <see cref="EdsParseException"/> instead of last-write-wins.
+    /// When <see langword="true"/>, duplicate keys in a section, malformed section headers,
+    /// lines without <c>=</c> (or with an empty key) and duplicate section headers throw
+    /// <see cref="EdsParseException"/> instead of being repaired (last-write-wins, ignored, merged).
+    /// A line starting with <c>#</c> without <c>=</c> is ignored in both modes.
     /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
@@ -81,12 +96,12 @@ public static class IniParser
                         "File '{0}' is too large ({1:N0} bytes). Maximum supported size is {2:N0} bytes.",
                         filePath, fileInfo.Length, maxInputSize));
 
-            // Stream through ParseReader so MaxInputSize is enforced while reading
-            // (guards TOCTOU if the file grows after the FileInfo.Length check).
+            // Buffer through the byte-limited stream so MaxInputSize stays a byte cap
+            // (guards TOCTOU if the file grows after the FileInfo.Length check) and the
+            // same bytes can be decoded twice when UTF-8 fails.
             using var stream = OpenFileWithByteLimit(filePath, maxInputSize, useAsync: false);
-            using var reader = new StreamReader(stream);
-
-            return ParseReader(reader, maxInputSize);
+            var bytes = ReadToEnd(stream);
+            return ParseDecodedBytes(bytes, maxInputSize);
         }
     }
 
@@ -119,9 +134,8 @@ public static class IniParser
                     filePath, fileInfo.Length, maxInputSize));
 
         using var stream = OpenFileWithByteLimit(filePath, maxInputSize, useAsync: true);
-        using var reader = new StreamReader(stream);
-
-        return await ParseReaderAsync(reader, maxInputSize, cancellationToken).ConfigureAwait(false);
+        var bytes = await ReadToEndAsync(stream, cancellationToken).ConfigureAwait(false);
+        return ParseDecodedBytes(bytes, maxInputSize);
     }
 
     private static ByteLimitingStream OpenFileWithByteLimit(
@@ -162,8 +176,10 @@ public static class IniParser
     /// This limit applies to parsed text content, not raw byte length.
     /// </param>
     /// <param name="strictParsing">
-    /// When <see langword="true"/>, duplicate keys in a section throw
-    /// <see cref="EdsParseException"/> instead of last-write-wins.
+    /// When <see langword="true"/>, duplicate keys in a section, malformed section headers,
+    /// lines without <c>=</c> (or with an empty key) and duplicate section headers throw
+    /// <see cref="EdsParseException"/> instead of being repaired (last-write-wins, ignored, merged).
+    /// A line starting with <c>#</c> without <c>=</c> is ignored in both modes.
     /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     public static Dictionary<string, Dictionary<string, string>> ParseStream(
@@ -176,8 +192,8 @@ public static class IniParser
             ThrowIfNull(stream, nameof(stream));
             if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
 
-            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
-            return ParseReader(reader, maxInputSize);
+            var bytes = ReadBounded(stream, StreamByteCap(maxInputSize), StreamByteCapMessage(maxInputSize));
+            return ParseDecodedBytes(bytes, maxInputSize);
         }
     }
 
@@ -201,8 +217,8 @@ public static class IniParser
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
 
-        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
-        return await ParseReaderAsync(reader, maxInputSize, cancellationToken).ConfigureAwait(false);
+        var bytes = await ReadBoundedAsync(stream, StreamByteCap(maxInputSize), StreamByteCapMessage(maxInputSize), cancellationToken).ConfigureAwait(false);
+        return ParseDecodedBytes(bytes, maxInputSize);
     }
 
     /// <summary>
@@ -228,8 +244,10 @@ public static class IniParser
     /// Maximum content length in characters before an <see cref="EdsParseException"/> is thrown.
     /// </param>
     /// <param name="strictParsing">
-    /// When <see langword="true"/>, duplicate keys in a section throw
-    /// <see cref="EdsParseException"/> instead of last-write-wins.
+    /// When <see langword="true"/>, duplicate keys in a section, malformed section headers,
+    /// lines without <c>=</c> (or with an empty key) and duplicate section headers throw
+    /// <see cref="EdsParseException"/> instead of being repaired (last-write-wins, ignored, merged).
+    /// A line starting with <c>#</c> without <c>=</c> is ignored in both modes.
     /// </param>
     /// <returns>Dictionary where key is section name and value is key-value pairs</returns>
     /// <exception cref="EdsParseException">Thrown when the content length exceeds the configured size limit.</exception>
@@ -246,13 +264,32 @@ public static class IniParser
                         "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
                         content.Length, maxInputSize));
 
-            // Split on CR/LF as independent line terminators. RemoveEmptyEntries drops empty
-            // segments produced by splitting on both '\r' and '\n' (e.g., within CRLF); blank/
-            // whitespace-only lines are already ignored by ParseLine. This also means line
-            // numbers in exceptions from ParseString can differ from those produced by ParseReader.
-            var lines = content.Split(LineEndChars, StringSplitOptions.RemoveEmptyEntries);
-            return ParseLines(lines);
+            return ParseLines(SplitLines(content));
         }
+    }
+
+    /// <summary>
+    /// Splits content into physical lines exactly like the stream path: CR, LF and CRLF each end
+    /// one line, blank lines are kept (so line numbers match the file), and a trailing segment
+    /// without terminator counts only when it is non-empty.
+    /// </summary>
+    private static IEnumerable<string> SplitLines(string content)
+    {
+        var start = 0;
+        for (var i = 0; i < content.Length; i++)
+        {
+            var c = content[i];
+            if (c != '\r' && c != '\n')
+                continue;
+
+            yield return content.Substring(start, i - start);
+            if (c == '\r' && i + 1 < content.Length && content[i + 1] == '\n')
+                i++;
+            start = i + 1;
+        }
+
+        if (start < content.Length)
+            yield return content.Substring(start);
     }
 
     /// <summary>
@@ -311,7 +348,7 @@ public static class IniParser
 
     private static Dictionary<string, Dictionary<string, string>> ParseLines(IEnumerable<string> lines)
     {
-        var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        var sections = new IniSectionsDictionary();
         string? currentSection = null;
         var lineNumber = 0;
 
@@ -322,135 +359,6 @@ public static class IniParser
         }
 
         return sections;
-    }
-
-    private static Dictionary<string, Dictionary<string, string>> ParseReader(
-        StreamReader reader,
-        long maxInputSize)
-    {
-        var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
-        string? currentSection = null;
-        var lineNumber = 0;
-        long totalChars = 0;
-        var currentLine = new StringBuilder();
-        var skipNextLineFeed = false;
-        var buffer = new char[4096];
-
-        while (true)
-        {
-            var charsRead = reader.Read(buffer, 0, buffer.Length);
-            if (charsRead == 0)
-                break;
-
-            for (var i = 0; i < charsRead; i++)
-            {
-                EnsureContentWithinSizeLimit(ref totalChars, maxInputSize);
-                ProcessReaderCharacter(buffer[i], ref skipNextLineFeed, currentLine, ref lineNumber, ref currentSection, sections);
-            }
-        }
-
-        FlushPendingLine(currentLine, ref lineNumber, ref currentSection, sections);
-        return sections;
-    }
-
-    private static async Task<Dictionary<string, Dictionary<string, string>>> ParseReaderAsync(
-        StreamReader reader,
-        long maxInputSize,
-        CancellationToken cancellationToken)
-    {
-        var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
-        string? currentSection = null;
-        var lineNumber = 0;
-        long totalChars = 0;
-        var currentLine = new StringBuilder();
-        var skipNextLineFeed = false;
-        var buffer = new char[4096];
-
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-#if NET10_0_OR_GREATER
-            var charsRead = await reader.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
-#else
-            var charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
-#endif
-            if (charsRead == 0)
-                break;
-
-            for (var i = 0; i < charsRead; i++)
-            {
-                EnsureContentWithinSizeLimit(ref totalChars, maxInputSize);
-                ProcessReaderCharacter(buffer[i], ref skipNextLineFeed, currentLine, ref lineNumber, ref currentSection, sections);
-            }
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        FlushPendingLine(currentLine, ref lineNumber, ref currentSection, sections);
-        return sections;
-    }
-
-    private static void EnsureContentWithinSizeLimit(ref long totalChars, long maxInputSize)
-    {
-        totalChars++;
-        if (totalChars > maxInputSize)
-        {
-            throw new EdsParseException(
-                string.Format(
-                    CultureInfo.InvariantCulture,
-                    "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
-                    totalChars,
-                    maxInputSize));
-        }
-    }
-
-    private static void ProcessReaderCharacter(
-        char character,
-        ref bool skipNextLineFeed,
-        StringBuilder currentLine,
-        ref int lineNumber,
-        ref string? currentSection,
-        Dictionary<string, Dictionary<string, string>> sections)
-    {
-        if (skipNextLineFeed)
-        {
-            skipNextLineFeed = false;
-            if (character == '\n')
-            {
-                return;
-            }
-        }
-
-        if (character == '\r')
-        {
-            lineNumber++;
-            ParseLine(currentLine.ToString(), lineNumber, ref currentSection, sections);
-            currentLine.Clear();
-            skipNextLineFeed = true;
-            return;
-        }
-
-        if (character == '\n')
-        {
-            lineNumber++;
-            ParseLine(currentLine.ToString(), lineNumber, ref currentSection, sections);
-            currentLine.Clear();
-            return;
-        }
-
-        currentLine.Append(character);
-    }
-
-    private static void FlushPendingLine(
-        StringBuilder currentLine,
-        ref int lineNumber,
-        ref string? currentSection,
-        Dictionary<string, Dictionary<string, string>> sections)
-    {
-        if (currentLine.Length == 0)
-            return;
-
-        lineNumber++;
-        ParseLine(currentLine.ToString(), lineNumber, ref currentSection, sections);
     }
 
     private static void ParseLine(
@@ -466,27 +374,33 @@ public static class IniParser
             return;
 
         // Check for section header
-        if (line.StartsWith('[') && line.EndsWith(']'))
+        if (line.StartsWith('['))
         {
-            currentSection = line[1..^1].Trim();
-
-            if (!sections.ContainsKey(currentSection))
-            {
-                sections[currentSection] = new IniSectionDictionary();
-            }
-
+            ParseSectionHeader(line, lineNumber, ref currentSection, sections);
             return;
         }
 
         // Parse key-value pair
         var equalIndex = line.IndexOf('=');
         if (equalIndex <= 0)
+        {
+            // Real-world files comment lines out with '#'; such a line without '=' was always
+            // ignored silently. ('#' is not a general comment character: "#Key=Value" stays a key.)
+            if (equalIndex < 0 && line.StartsWith('#'))
+                return;
+
+            ReportMissingEquals(line, lineNumber, currentSection);
             return;
+        }
 
         if (currentSection == null)
         {
-            throw new EdsParseException($"Key-value pair found outside of any section at line {lineNumber}", lineNumber);
+            throw new EdsParseException("Key-value pair found outside of any section at line " + lineNumber.ToString(CultureInfo.InvariantCulture), lineNumber);
         }
+
+        // Keys below a malformed header (lenient mode) are dropped; the header was already reported.
+        if (ReferenceEquals(currentSection, DiscardedSection))
+            return;
 
         var key = line[..equalIndex].Trim();
         var value = equalIndex < line.Length - 1
@@ -530,6 +444,234 @@ public static class IniParser
 
         section.Set(key, value);
         IniKeyLines.Record(sections, currentSection, key, lineNumber);
+    }
+
+    private static void ParseSectionHeader(
+        string line,
+        int lineNumber,
+        ref string? currentSection,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+        // A header is "[name]" optionally followed by a ';' comment. The name ends at the first ']'.
+        var closeIndex = line.IndexOf(']');
+        var trailing = closeIndex < 0 ? string.Empty : line[(closeIndex + 1)..].Trim();
+        if (closeIndex < 0 || (trailing.Length > 0 && !trailing.StartsWith(';')))
+        {
+            ReportMalformedHeader(line, lineNumber);
+            currentSection = DiscardedSection;
+            return;
+        }
+
+        var name = line[1..closeIndex].Trim();
+        if (sections.ContainsKey(name))
+        {
+            ReportDuplicateSection(name, lineNumber);
+        }
+        else
+        {
+            ((IniSectionsDictionary)sections).Set(name, new IniSectionDictionary());
+        }
+
+        currentSection = name;
+    }
+
+    private static void ReportMalformedHeader(string line, int lineNumber)
+    {
+        var message = string.Format(
+            CultureInfo.InvariantCulture,
+            "Malformed section header '{0}' at line {1}; the header and the keys that follow it are ignored.",
+            line,
+            lineNumber);
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.IniMalformedSectionHeader,
+            path: "line " + lineNumber.ToString(CultureInfo.InvariantCulture),
+            message: message,
+            line: lineNumber,
+            rawValue: line));
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Malformed section header '{0}' at line {1}.",
+                    line,
+                    lineNumber),
+                lineNumber)
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.IniMalformedSectionHeader
+            };
+        }
+    }
+
+    private static void ReportMissingEquals(string line, int lineNumber, string? currentSection)
+    {
+        // Inside a discarded (malformed) section the header was already reported.
+        if (ReferenceEquals(currentSection, DiscardedSection))
+            return;
+
+        var section = currentSection;
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.IniMissingEquals,
+            path: section ?? "line " + lineNumber.ToString(CultureInfo.InvariantCulture),
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Line {0} '{1}' is not a 'key=value' pair (missing '=' or empty key); the line is ignored.",
+                lineNumber,
+                line),
+            line: lineNumber,
+            rawValue: line));
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            var message = string.Format(
+                CultureInfo.InvariantCulture,
+                "Line {0} '{1}' is not a 'key=value' pair (missing '=' or empty key).",
+                lineNumber,
+                line);
+            var exception = section == null
+                ? new EdsParseException(message, lineNumber)
+                : new EdsParseException(message, section, lineNumber);
+            exception.Code = Diagnostics.ParseDiagnosticCodes.IniMissingEquals;
+            throw exception;
+        }
+    }
+
+    private static void ReportDuplicateSection(string name, int lineNumber)
+    {
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.IniDuplicateSection,
+            path: name,
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Duplicate section '{0}' at line {1}; its keys are merged into the earlier section.",
+                name,
+                lineNumber),
+            line: lineNumber));
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Duplicate section '{0}' at line {1}.",
+                    name,
+                    lineNumber),
+                name,
+                lineNumber)
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.IniDuplicateSection
+            };
+        }
+    }
+
+    private const int ReadChunkSize = 8192;
+
+    private static Dictionary<string, Dictionary<string, string>> ParseDecodedBytes(byte[] bytes, long maxInputSize)
+    {
+        var content = IniTextDecoder.Decode(bytes);
+        if ((long)content.Length > maxInputSize)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
+                    content.Length,
+                    maxInputSize));
+        }
+
+        return ParseLines(SplitLines(content));
+    }
+
+    private static long StreamByteCap(long maxInputSize)
+        => InputBufferLimit.GetMaxBufferedByteCount(maxInputSize, FileEncodingScope.CurrentRead);
+
+    private static string StreamByteCapMessage(long maxInputSize)
+        => string.Format(
+            CultureInfo.InvariantCulture,
+            "Content is too large. Maximum supported size is {0:N0} characters.",
+            maxInputSize);
+
+    private static byte[] ReadToEnd(Stream stream)
+        => ReadBounded(stream, long.MaxValue, exceededMessage: string.Empty);
+
+    private static Task<byte[]> ReadToEndAsync(Stream stream, CancellationToken cancellationToken)
+        => ReadBoundedAsync(stream, long.MaxValue, exceededMessage: string.Empty, cancellationToken);
+
+    /// <summary>
+    /// Reads at most <paramref name="maxBytes"/>, plus one probe byte when the stream
+    /// continues, then throws. The remainder of an overlong stream is not consumed.
+    /// </summary>
+    private static byte[] ReadBounded(Stream stream, long maxBytes, string exceededMessage)
+    {
+        using var buffer = new MemoryStream();
+        var chunk = new byte[ReadChunkSize];
+        long total = 0;
+        while (true)
+        {
+            var want = NextReadSize(maxBytes, total);
+            var read = stream.Read(chunk, 0, want);
+            if (read == 0)
+                break;
+
+            total += read;
+            if (total > maxBytes)
+                throw new EdsParseException(exceededMessage);
+
+            buffer.Write(chunk, 0, read);
+        }
+
+        return buffer.ToArray();
+    }
+
+    private static async Task<byte[]> ReadBoundedAsync(
+        Stream stream,
+        long maxBytes,
+        string exceededMessage,
+        CancellationToken cancellationToken)
+    {
+        using var buffer = new MemoryStream();
+        var chunk = new byte[ReadChunkSize];
+        long total = 0;
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var want = NextReadSize(maxBytes, total);
+#if NET10_0_OR_GREATER
+            var read = await stream.ReadAsync(chunk.AsMemory(0, want), cancellationToken).ConfigureAwait(false);
+#else
+            var read = await stream.ReadAsync(chunk, 0, want, cancellationToken).ConfigureAwait(false);
+#endif
+            if (read == 0)
+                break;
+
+            total += read;
+            if (total > maxBytes)
+                throw new EdsParseException(exceededMessage);
+
+            buffer.Write(chunk, 0, read);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return buffer.ToArray();
+    }
+
+    internal static int NextReadSize(long maxBytes, long total)
+    {
+        if (maxBytes == long.MaxValue)
+            return ReadChunkSize;
+
+        var remaining = maxBytes - total;
+        if (remaining < 0)
+            return 0;
+
+        var probe = remaining >= int.MaxValue ? int.MaxValue : (int)remaining + 1;
+        return probe < ReadChunkSize ? probe : ReadChunkSize;
     }
 
     private static void ThrowIfNull(object? value, string parameterName)

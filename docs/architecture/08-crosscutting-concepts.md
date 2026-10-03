@@ -9,12 +9,15 @@ The library uses **exceptions** as its primary error mechanism:
 | Exception               | Use Case                                                    | Additional Information       |
 |-------------------------|-------------------------------------------------------------|------------------------------|
 | `EdsParseException`     | Errors during EDS/DCF/CPJ/XDD/XDC parsing                   | `LineNumber`, `SectionName`  |
+| `WriteException` (abstract base) | Common base of the format-specific write exceptions below; allows catching any format's write error | `SectionName` |
 | `EdsWriteException`     | Errors during EDS writing                                   | `SectionName`                |
 | `DcfWriteException`     | Errors during DCF writing                                   | `SectionName`                |
 | `CpjWriteException`     | Errors during CPJ writing                                   | `SectionName`                |
 | `XddWriteException`     | Errors during XDD writing                                   | `SectionName`                |
 | `XdcWriteException`     | Errors during XDC writing (including commissioning validation) | `SectionName`             |
 | `ArgumentException`     | Invalid input parameters where validation is performed by the API | Standard .NET          |
+
+> **Note:** `ModelValidationException` derives directly from `Exception` and is independent of `WriteException`; it is thrown by `CanOpenFile.EnsureValid*` and by writes with `CanOpenWriteOptions.Validated` when validation issues are found.
 
 > **Note:** `CanOpenFile.Eds.ConvertToDcf` (and the obsolete `CanOpenFile.EdsToDcf` facade that delegates to it), DCF parsing, and XDC writing enforce CANopen Node-ID constraints for explicit commissioning data. EDS-to-DCF conversion and DCF parsing require `1..127`; XDC writing emits commissioning only when a configured NodeId is present and valid and throws `XdcWriteException` for out-of-range values.
 
@@ -46,14 +49,15 @@ flowchart TD
 - **Boolean / AccessType / present-flag tokens**: Lenient defaults unless `StrictParsing = true` on facade reads (`ParseBoolean` / `ParseAccessType` / `ParsePresentFlag`, plus XDD `ParseXddAccessType` / `ParseXmlBool`).
 - **FileVersion / FileRevision**: Major/minor tooling forms are accepted unless `StrictParsing = true`. Zero-padded values such as `010` parse as decimal `10` (aligned with XDD `fileVersion`).
 - **XDD/XDC OD `index` / `objectType`**: Missing `CANopenObject` `index` defaults to `0x0000` and missing/invalid `objectType` (on objects or sub-objects) defaults to `0x7` (VAR). With `StrictParsing = true`, both throw `EdsParseException`. Present `objectType` values are trimmed and accept schema-valid `xsd:unsignedByte` lexical forms (optional leading sign). Missing `CANopenSubObject` `subIndex` remains lenient (`00`) in both modes.
-- **XDD/XDC unsigned numeric attributes**: Malformed `objFlags`, `subNumber`, `pDOmappingIndex`, general-feature counts, and `networkNumber` are ignored by default. With `StrictParsing = true`, they throw `EdsParseException` (whitespace and optional leading sign accepted after trim).
+- **XDD/XDC unsigned numeric attributes**: Malformed `subNumber`, `pDOmappingIndex`, general-feature counts, and `networkNumber` are ignored by default. With `StrictParsing = true`, they throw `EdsParseException` (whitespace and optional leading sign accepted after trim).
+- **XDD/XDC `objFlags`**: CiA 311 Annex A.1.4 types this attribute as `xsd:hexBinary` (hexadecimal digits only). A leading sign or `0x` prefix is not accepted. Surrounding whitespace is trimmed. Malformed text is ignored by default and throws `EdsParseException` when `StrictParsing = true`. An odd number of hex digits is accepted in lenient mode with a diagnostic and rejected in strict mode.
 - **CiA 311 XML**: Parsed against supported profile structures; unsupported XML nodes are not represented as generic passthrough data.
 - **Direct readers**: `EdsReader` / `DcfReader` / `XddReader` / etc. called without facade options remain lenient (no public StrictParsing switch on those types).
 
 ### Input Size Limits
 
 To mitigate memory-pressure and oversized-input scenarios, all read APIs enforce a default
-maximum input size of `IniParser.DefaultMaxInputSize` (10 MB).
+maximum input size of `IniParser.DefaultMaxInputSize` (10 MiB).
 
 The limit is configurable per read operation on each format entry point
 (`ReadFile`, `ReadFileAsync`, `ReadString`, `ReadStream`, `ReadStreamAsync`)
@@ -173,9 +177,16 @@ Mechanisms (INI formats):
 - **`AdditionalSections`**: All sections not mapped by the model are stored as raw key-value pairs and written back during output.
 - **`LastEds`**: DCF files store the filename of the source EDS.
 
-For CiA 311 XML, round-trip behavior is guaranteed for the currently mapped schema subset used by `XddReader`/`XdcReader` and `XddWriter`/`XdcWriter`.
+Mechanisms (CiA 311 XML, XDD/XDC):
+- **Modelled content** is read into the typed model and rebuilt from it by `XddWriter`/`XdcWriter`.
+- **Unmodelled content** is kept internally on the model as unchanged XML fragments with their parent position, and written back at the position the schema gives: both `ProfileHeader` elements; the attributes of both `ProfileBody` elements that are not file attributes (`formatName`, `formatVersion`, `supportedLanguages`, `deviceClass`, …); `DeviceManager`, `DeviceFunction` and `ExternalProfileHandle`; the `DeviceIdentity` elements without a model property (`vendorText`, `deviceFamily`, `productFamily`, `productText`, `buildDate`, `specificationRevision`, `instanceName`) and the `readOnly` attribute of `vendorName`, `vendorID`, `productName` and `productID`; `ApplicationLayers/identity`, `moduleManagement` in both contexts, `conformanceClass` and `communicationEntityType`; `CANopenObject`/`CANopenSubObject` attributes without a model property (`rangeSelector`, the sub-object `objFlags`; in an XDD read also `actualValue` and `denotation`); `deviceCommissioning` in an XDD read; unknown elements of these containers; and the comments before the root element that do not carry `Comments` (generator and copyright lines). A fragment keeps the `XName` it was read with; only a source without any namespace (older outputs of this library) is qualified from the parent-based name table (`XddNames`). The fragments are copied by `ModelCloner` (`ConvertToDcf`).
+- **Model wins**: where a fragment has a counterpart in the target model, the model value is written (XDC `deviceCommissioning`, `actualValue` and `denotation` after `ConvertToDcf` of an XDD; a generated attribute of the same name).
+- **File attributes per profile**: both `ProfileBody` elements carry `ag_formatAndFile`, `EdsFileInfo` holds one set (from the device profile). The network profile's own values and the value of each `EdsFileInfo` field right after the read are kept; a field that is unchanged is written with each profile's own value, a changed field with the new value in both profiles.
+- **`DeviceFunction` without a source** (EDS→XDD, DCF→XDC, a model built in code): the writer emits the smallest schema-valid content, one characteristic "Product name" whose content is `DeviceInfo.ProductName`. A `DeviceFunction` with exactly this content, or an empty one written by older versions, is not kept on read, so it follows the model.
 
-`AdditionalSections` remains an **INI-shaped** `Dictionary<string, Dictionary<string, string>>`. Unknown children of the **CommunicationNetwork** `ProfileBody` are captured as attribute-only key/value maps for in-memory inspection and XDC→EDS bridging; nested XML content is discarded. Unknown children of the Device `ProfileBody` are not captured. `XddWriter`/`XdcWriter` rebuild a fixed CommunicationNetwork ProfileBody (`ApplicationLayers` / `TransportLayers` / `NetworkManagement`) without re-emitting those entries. Do not treat `AdditionalSections` as an XDD/XDC vendor-extension round-trip store.
+**Known limitation:** Only the two `ISO15745Profile` elements the library reads (device profile and communication network profile) are kept; additional `ISO15745Profile` elements in the container (the schema allows any number) are not preserved. XML comments and processing instructions **between modelled elements** (for example between two `CANopenObject` elements or inside `DeviceIdentity`) are not kept; the writer rebuilds those parts from the model. Comments inside a kept fragment and comments before the root element are kept. Those loose comments carry no schema data.
+
+`AdditionalSections` remains an **INI-shaped** `Dictionary<string, Dictionary<string, string>>`. Unknown children of the **CommunicationNetwork** `ProfileBody` are additionally mirrored there as attribute-only key/value maps for in-memory inspection and XDC→EDS bridging. `XddWriter`/`XdcWriter` do not write these entries; they write the kept element itself, so it appears once. Do not treat `AdditionalSections` as an XDD/XDC vendor-extension round-trip store.
 
 ## 8.5 CiA 311 XML Mapping
 

@@ -2,6 +2,7 @@ namespace EdsDcfNet.Parsers;
 
 using System.Globalization;
 
+using EdsDcfNet.Diagnostics;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
@@ -14,6 +15,99 @@ using EdsDcfNet.Utilities;
 /// </summary>
 internal static class CanOpenSectionParsers
 {
+    /// <summary>
+    /// Copies the entries of <paramref name="sectionName"/> that <paramref name="isKnownKey"/>
+    /// rejects into <paramref name="destination"/>, in file order. Does nothing when the section
+    /// is absent. A key already present in <paramref name="destination"/> is left unchanged.
+    /// </summary>
+    /// <remarks>
+    /// CiA 306-1 § 6.2 allows additional entries inside the standard sections; a section the
+    /// reader processes must keep them so the writer can emit them again.
+    /// </remarks>
+    internal static void CaptureUnmappedEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        Func<string, bool> isKnownKey,
+        OrderedStringDictionary destination)
+    {
+        if (!sections.TryGetValue(sectionName, out var section))
+            return;
+
+        foreach (var entry in EntriesInFileOrder(section))
+        {
+            if (isKnownKey(entry.Key) || destination.ContainsKey(entry.Key))
+                continue;
+
+            destination.Add(entry.Key, entry.Value);
+        }
+    }
+
+    /// <summary>
+    /// Like <see cref="CaptureUnmappedEntries(Dictionary{string, Dictionary{string, string}}, string, Func{string, bool}, OrderedStringDictionary)"/>,
+    /// for sections without a model object of their own: the entries go to
+    /// <paramref name="store"/> under <paramref name="canonicalName"/>, the section name the
+    /// writer emits. No store entry is created when every key is known.
+    /// </summary>
+    internal static void CaptureUnmappedEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string canonicalName,
+        Func<string, bool> isKnownKey,
+        Dictionary<string, OrderedStringDictionary> store)
+        => CaptureUnmappedEntries(sections, sectionName, canonicalName, (key, _) => isKnownKey(key), store);
+
+    /// <summary>
+    /// Like the overload with a key predicate, for list sections where a slot counts as
+    /// processed only with a usable value: <paramref name="isProcessedEntry"/> gets key and value.
+    /// </summary>
+    internal static void CaptureUnmappedEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string canonicalName,
+        Func<string, string, bool> isProcessedEntry,
+        Dictionary<string, OrderedStringDictionary> store)
+    {
+        if (!sections.TryGetValue(sectionName, out var section))
+            return;
+
+        foreach (var entry in EntriesInFileOrder(section))
+        {
+            if (isProcessedEntry(entry.Key, entry.Value))
+                continue;
+
+            if (!store.TryGetValue(canonicalName, out var destination))
+            {
+                destination = new OrderedStringDictionary();
+                store[canonicalName] = destination;
+            }
+
+            if (!destination.ContainsKey(entry.Key))
+                destination.Add(entry.Key, entry.Value);
+        }
+    }
+
+    /// <summary>
+    /// The entry count of a counted list as the list parsers use it: a malformed or absent
+    /// count is <c>0</c> (lenient default; strict mode has already thrown while parsing the list).
+    /// </summary>
+    internal static int ListCountOrZero(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string countKey)
+    {
+        try
+        {
+            return ValueConverter.ParseUInt16(IniParser.GetValue(sections, sectionName, countKey, "0"));
+        }
+        catch (EdsParseException)
+        {
+            return 0;
+        }
+    }
+
+    private static IEnumerable<KeyValuePair<string, string>> EntriesInFileOrder(Dictionary<string, string> section)
+        => section is IniSectionDictionary ordered ? ordered.EntriesInOrder() : section;
+
     /// <summary>
     /// Parses the <c>[DeviceInfo]</c> section into a <see cref="DeviceInfo"/> object.
     /// </summary>
@@ -33,35 +127,92 @@ internal static class CanOpenSectionParsers
             throw new EdsParseException("Required section [DeviceInfo] not found");
 
         deviceInfo.VendorName = IniParser.GetValue(sections, "DeviceInfo", "VendorName");
-        deviceInfo.VendorNumber = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DeviceInfo", "VendorNumber", "0"));
+        deviceInfo.VendorNumber = DeviceInfoUInt32(sections, "VendorNumber");
         deviceInfo.ProductName = IniParser.GetValue(sections, "DeviceInfo", "ProductName");
-        deviceInfo.ProductNumber = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DeviceInfo", "ProductNumber", "0"));
-        deviceInfo.RevisionNumber = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DeviceInfo", "RevisionNumber", "0"));
+        deviceInfo.ProductNumber = DeviceInfoUInt32(sections, "ProductNumber");
+        deviceInfo.RevisionNumber = DeviceInfoUInt32(sections, "RevisionNumber");
         deviceInfo.OrderCode = IniParser.GetValue(sections, "DeviceInfo", "OrderCode");
 
         // Parse baud rates
-        deviceInfo.SupportedBaudRates.BaudRate10 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_10"));
-        deviceInfo.SupportedBaudRates.BaudRate20 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_20"));
-        deviceInfo.SupportedBaudRates.BaudRate50 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_50"));
-        deviceInfo.SupportedBaudRates.BaudRate125 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_125"));
-        deviceInfo.SupportedBaudRates.BaudRate250 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_250"));
-        deviceInfo.SupportedBaudRates.BaudRate500 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_500"));
-        deviceInfo.SupportedBaudRates.BaudRate800 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_800"));
-        deviceInfo.SupportedBaudRates.BaudRate1000 = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "BaudRate_1000"));
+        deviceInfo.SupportedBaudRates.BaudRate10 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_10");
+        deviceInfo.SupportedBaudRates.BaudRate20 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_20");
+        deviceInfo.SupportedBaudRates.BaudRate50 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_50");
+        deviceInfo.SupportedBaudRates.BaudRate125 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_125");
+        deviceInfo.SupportedBaudRates.BaudRate250 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_250");
+        deviceInfo.SupportedBaudRates.BaudRate500 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_500");
+        deviceInfo.SupportedBaudRates.BaudRate800 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_800");
+        deviceInfo.SupportedBaudRates.BaudRate1000 = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "BaudRate_1000");
 
-        deviceInfo.SimpleBootUpMaster = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "SimpleBootUpMaster"));
-        deviceInfo.SimpleBootUpSlave = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "SimpleBootUpSlave"));
-        deviceInfo.Granularity = ValueConverter.ParseByte(IniParser.GetValue(sections, "DeviceInfo", "Granularity", "8"));
-        deviceInfo.DynamicChannelsSupported = ValueConverter.ParseByte(IniParser.GetValue(sections, "DeviceInfo", "DynamicChannelsSupported", "0"));
-        deviceInfo.GroupMessaging = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "GroupMessaging"));
-        deviceInfo.NrOfRxPdo = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DeviceInfo", "NrOfRXPDO", "0"));
-        deviceInfo.NrOfTxPdo = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DeviceInfo", "NrOfTXPDO", "0"));
-        deviceInfo.LssSupported = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "LSS_Supported"));
-        deviceInfo.CompactPdo = ValueConverter.ParseByte(IniParser.GetValue(sections, "DeviceInfo", "CompactPDO", "0"));
-        deviceInfo.CANopenSafetySupported = ValueConverter.ParseBoolean(IniParser.GetValue(sections, "DeviceInfo", "CANopenSafetySupported"));
+        deviceInfo.SimpleBootUpMaster = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "SimpleBootUpMaster");
+        deviceInfo.SimpleBootUpSlave = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "SimpleBootUpSlave");
+        deviceInfo.Granularity = DeviceInfoByte(sections, "Granularity", 8);
+        deviceInfo.DynamicChannelsSupported = DeviceInfoByte(sections, "DynamicChannelsSupported", 0);
+        deviceInfo.GroupMessaging = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "GroupMessaging");
+        deviceInfo.NrOfRxPdo = DeviceInfoUInt16(sections, "NrOfRXPDO");
+        deviceInfo.NrOfTxPdo = DeviceInfoUInt16(sections, "NrOfTXPDO");
+        deviceInfo.LssSupported = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "LSS_Supported");
+        deviceInfo.CompactPdo = DeviceInfoByte(sections, "CompactPDO", 0);
+        deviceInfo.CANopenSafetySupported = IniKeyTokens.ParseBoolean(sections, "DeviceInfo", "CANopenSafetySupported");
+
+        // Includes the entries § 6.5 reserves for compatibility (ProductVersion, LMT_*, ExtendedBootUp*).
+        CaptureUnmappedEntries(sections, "DeviceInfo", SectionEntryKeys.IsDeviceInfoKey, deviceInfo.RemainingEntries);
 
         return deviceInfo;
     }
+
+    private static uint DeviceInfoUInt32(Dictionary<string, Dictionary<string, string>> sections, string key)
+        => LenientIniNumber.ParseUInt32(
+            sections,
+            "DeviceInfo",
+            key,
+            IniParser.GetValue(sections, "DeviceInfo", key, "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidDeviceInfoNumber,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
+
+    private static ushort DeviceInfoUInt16(Dictionary<string, Dictionary<string, string>> sections, string key)
+        => LenientIniNumber.ParseUInt16(
+            sections,
+            "DeviceInfo",
+            key,
+            IniParser.GetValue(sections, "DeviceInfo", key, "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidDeviceInfoNumber,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
+
+    private static byte DeviceInfoByte(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string key,
+        byte defaultValue)
+    {
+        var defaultText = defaultValue.ToString(CultureInfo.InvariantCulture);
+        return LenientIniNumber.ParseByte(
+            sections,
+            "DeviceInfo",
+            key,
+            IniParser.GetValue(sections, "DeviceInfo", key, defaultText),
+            defaultValue,
+            ParseDiagnosticCodes.InvalidDeviceInfoNumber,
+            coercedTo: defaultText,
+            fallbackDescription: "Treated as " + defaultText + ".");
+    }
+
+    /// <summary>
+    /// <c>Lines</c> of <c>[Comments]</c> or <c>[MxComments]</c> (UNSIGNED16, CiA 306-1 Tables 9 and 15).
+    /// A malformed value is <c>0</c>, so every <c>Line&lt;n&gt;</c> stays a remaining entry.
+    /// </summary>
+    private static ushort ParseCommentLineCount(Dictionary<string, Dictionary<string, string>> sections, string sectionName)
+        => LenientIniNumber.ParseUInt16(
+            sections,
+            sectionName,
+            "Lines",
+            IniParser.GetValue(sections, sectionName, "Lines", "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidCommentLineCount,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
 
     /// <summary>
     /// Parses the <c>[Comments]</c> section into a <see cref="Comments"/> object,
@@ -74,7 +225,7 @@ internal static class CanOpenSectionParsers
 
         var comments = new Comments
         {
-            Lines = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "Comments", "Lines", "0"))
+            Lines = ParseCommentLineCount(sections, "Comments")
         };
 
         for (int i = 1; i <= comments.Lines; i++)
@@ -86,6 +237,14 @@ internal static class CanOpenSectionParsers
             }
         }
 
+        // Only stored lines count as processed: an empty Line<n> is not added to CommentLines
+        // and is kept verbatim instead.
+        CaptureUnmappedEntries(
+            sections,
+            "Comments",
+            key => SectionEntryKeys.IsGeneratedCommentsKey(key, comments.CommentLines.Keys),
+            comments.RemainingEntries);
+
         return comments;
     }
 
@@ -94,27 +253,61 @@ internal static class CanOpenSectionParsers
     /// section into a list of <see cref="ModuleInfo"/> objects.
     /// </summary>
     internal static List<ModuleInfo> ParseSupportedModules(Dictionary<string, Dictionary<string, string>> sections)
+        => ParseSupportedModules(sections, new Dictionary<string, OrderedStringDictionary>(StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Parses <c>[SupportedModules]</c> and the module sections, keeping unmapped entries of
+    /// <c>[SupportedModules]</c>, <c>[MxModuleInfo]</c>, <c>[MxFixedObjects]</c>,
+    /// <c>[MxSubExtends]</c> and <c>[MxSubExtxxxx]</c> in <paramref name="store"/>.
+    /// </summary>
+    internal static List<ModuleInfo> ParseSupportedModules(
+        Dictionary<string, Dictionary<string, string>> sections,
+        Dictionary<string, OrderedStringDictionary> store)
     {
         var modules = new List<ModuleInfo>();
-        var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "SupportedModules", "NrOfEntries", "0"));
+        var count = ParseModuleCount(sections, "SupportedModules");
 
         for (int i = 1; i <= count; i++)
         {
-            var moduleInfo = ParseModuleInfo(sections, i);
+            var moduleInfo = ParseModuleInfo(sections, i, store);
             if (moduleInfo != null)
             {
                 modules.Add(moduleInfo);
             }
         }
 
+        CaptureUnmappedEntries(sections, "SupportedModules", "SupportedModules", SectionEntryKeys.IsSupportedModulesKey, store);
+
         return modules;
     }
+
+    /// <summary>
+    /// <c>NrOfEntries</c> of <c>[SupportedModules]</c> or <c>[ConnectedModules]</c> (UNSIGNED16,
+    /// CiA 306-1 Tables 13 and 18). A malformed value is <c>0</c>; the numbered entries are then
+    /// kept as remaining entries.
+    /// </summary>
+    internal static ushort ParseModuleCount(Dictionary<string, Dictionary<string, string>> sections, string sectionName)
+        => LenientIniNumber.ParseUInt16(
+            sections,
+            sectionName,
+            SectionEntryKeys.NrOfEntriesKey,
+            IniParser.GetValue(sections, sectionName, SectionEntryKeys.NrOfEntriesKey, "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidModuleCount,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
 
     /// <summary>
     /// Parses the <c>[M{moduleNumber}ModuleInfo]</c> section for the given module number.
     /// Returns <see langword="null"/> if the section does not exist.
     /// </summary>
     internal static ModuleInfo? ParseModuleInfo(Dictionary<string, Dictionary<string, string>> sections, int moduleNumber)
+        => ParseModuleInfo(sections, moduleNumber, new Dictionary<string, OrderedStringDictionary>(StringComparer.OrdinalIgnoreCase));
+
+    private static ModuleInfo? ParseModuleInfo(
+        Dictionary<string, Dictionary<string, string>> sections,
+        int moduleNumber,
+        Dictionary<string, OrderedStringDictionary> store)
     {
         var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}ModuleInfo", moduleNumber);
         if (!IniParser.HasSection(sections, sectionName))
@@ -124,19 +317,724 @@ internal static class CanOpenSectionParsers
         {
             ModuleNumber = moduleNumber,
             ProductName = IniParser.GetValue(sections, sectionName, "ProductName"),
-            ProductVersion = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ProductVersion", "1")),
-            ProductRevision = ValueConverter.ParseByte(IniParser.GetValue(sections, sectionName, "ProductRevision", "0")),
+            ProductVersion = ParseModuleVersion(sections, sectionName, "ProductVersion", 1),
+            ProductRevision = ParseModuleVersion(sections, sectionName, "ProductRevision", 0),
             OrderCode = IniParser.GetValue(sections, sectionName, "OrderCode")
         };
 
-        // Parse fixed objects
+        // Parse fixed objects (index list, then [MxFixedxxxx] / [MxFixedxxxxsubx] bodies).
         var fixedObjSection = string.Format(CultureInfo.InvariantCulture, "M{0}FixedObjects", moduleNumber);
         if (IniParser.HasSection(sections, fixedObjSection))
         {
             LenientIniNumber.AppendIndexes(sections, fixedObjSection, "NrOfEntries", moduleInfo.FixedObjects);
         }
 
+        ParseModuleComments(sections, moduleNumber, moduleInfo);
+        ParseModuleFixedObjectDefinitions(sections, moduleNumber, moduleInfo);
+        ParseModuleSubExtends(sections, moduleNumber, moduleInfo);
+        ParseModuleSubExtensionDefinitions(sections, moduleNumber, moduleInfo, store);
+
+        // One store entry per module section: the same vendor key may appear in several of
+        // them with different values (CiA 306-1 § 8.3).
+        CaptureUnmappedEntries(sections, sectionName, sectionName, SectionEntryKeys.IsModuleInfoKey, store);
+        CaptureCountedListEntries(sections, fixedObjSection, "NrOfEntries", store);
+        CaptureCountedListEntries(
+            sections,
+            string.Format(CultureInfo.InvariantCulture, "M{0}SubExtends", moduleNumber),
+            "NrOfEntries",
+            store);
+
         return moduleInfo;
+    }
+
+    /// <summary>
+    /// <c>ProductVersion</c> / <c>ProductRevision</c> of <c>[MxModuleInfo]</c> (UNSIGNED8, CiA 306-1
+    /// Table 14). A malformed value is the absent-key default <paramref name="defaultValue"/>.
+    /// </summary>
+    private static byte ParseModuleVersion(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string key,
+        byte defaultValue)
+    {
+        var defaultText = defaultValue.ToString(CultureInfo.InvariantCulture);
+        return LenientIniNumber.ParseByte(
+            sections,
+            sectionName,
+            key,
+            IniParser.GetValue(sections, sectionName, key, defaultText),
+            defaultValue,
+            ParseDiagnosticCodes.InvalidModuleVersion,
+            coercedTo: defaultText,
+            fallbackDescription: "Treated as " + defaultText + ".");
+    }
+
+    /// <summary>
+    /// Keeps the entries of a counted list section that the list parser does not load: every
+    /// key except the count key and the numbered slots <c>1..count</c> whose value was loaded.
+    /// This includes numbered entries above the count and slots inside the count that lenient
+    /// parsing skips because the value is empty or invalid.
+    /// </summary>
+    /// <param name="sections">Parsed INI sections.</param>
+    /// <param name="sectionName">The list section.</param>
+    /// <param name="countKey">The count key of the list.</param>
+    /// <param name="store">Destination, keyed by <paramref name="sectionName"/>.</param>
+    /// <param name="isLoadedValue">
+    /// <see langword="true"/> when the list parser loads a slot with this value. The default
+    /// mirrors <see cref="LenientIniNumber.AppendIndexes"/>: a non-empty object index.
+    /// </param>
+    internal static void CaptureCountedListEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string countKey,
+        Dictionary<string, OrderedStringDictionary> store,
+        Func<string, bool>? isLoadedValue = null)
+    {
+        if (!sections.ContainsKey(sectionName))
+            return;
+
+        var isLoaded = isLoadedValue ?? IsLoadableIndexValue;
+        var count = ListCountOrZero(sections, sectionName, countKey);
+        CaptureUnmappedEntries(
+            sections,
+            sectionName,
+            sectionName,
+            (key, value) => string.Equals(key, countKey, StringComparison.OrdinalIgnoreCase)
+                            || (SectionEntryKeys.IsCountedListKey(key, countKey, count) && isLoaded(value)),
+            store);
+    }
+
+    /// <summary>
+    /// Keeps the entries of a compact sub-object list (<c>[xxxxName]</c>, DCF
+    /// <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c>) that the reader does not apply: every key
+    /// except <c>NrOfEntries</c> and sub-index keys with a non-empty value for an existing
+    /// sub-object of <paramref name="obj"/>. This mirrors <c>ApplyCompactListSection</c>, which
+    /// skips empty values and sub-indexes without a sub-object.
+    /// </summary>
+    internal static void CaptureCompactListEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        CanOpenObject obj,
+        Dictionary<string, OrderedStringDictionary> store)
+    {
+        CaptureUnmappedEntries(
+            sections,
+            sectionName,
+            sectionName,
+            (key, value) => string.Equals(key, SectionEntryKeys.NrOfEntriesKey, StringComparison.OrdinalIgnoreCase)
+                            || (!string.IsNullOrEmpty(value)
+                                && SectionEntryKeys.IsAppliedCompactListKey(key, obj.SubObjects.Keys)),
+            store);
+    }
+
+    /// <summary>
+    /// <see langword="true"/> when <see cref="LenientIniNumber.AppendIndexes"/> loads a slot with
+    /// <paramref name="value"/>: not empty and a valid UNSIGNED16 index.
+    /// </summary>
+    private static bool IsLoadableIndexValue(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return false;
+
+        try
+        {
+            _ = ValueConverter.ParseUInt16(value);
+            return true;
+        }
+        catch (EdsParseException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Parses optional <c>[MxComments]</c> (CiA 306-1 §8.3): <c>Lines</c> and <c>Line&lt;n&gt;</c>.
+    /// A present key with an empty value is a blank line and is stored. A missing key is not.
+    /// </summary>
+    private static void ParseModuleComments(
+        Dictionary<string, Dictionary<string, string>> sections,
+        int moduleNumber,
+        ModuleInfo moduleInfo)
+    {
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}Comments", moduleNumber);
+        if (!sections.TryGetValue(sectionName, out var section))
+            return;
+
+        var comments = new Comments
+        {
+            Lines = ParseCommentLineCount(sections, sectionName)
+        };
+
+        for (var i = 1; i <= comments.Lines; i++)
+        {
+            var key = string.Format(CultureInfo.InvariantCulture, "Line{0}", i);
+            if (section.TryGetValue(key, out var line))
+                comments.CommentLines[i] = line;
+        }
+
+        CaptureUnmappedEntries(
+            sections,
+            sectionName,
+            key => SectionEntryKeys.IsCommentsKey(key, comments.Lines),
+            comments.RemainingEntries);
+
+        moduleInfo.Comments = comments;
+    }
+
+    /// <summary>
+    /// Parses <c>[MxSubExtends]</c> (CiA 306-1 §8.3): <c>NrOfEntries</c> and the numbered index list.
+    /// </summary>
+    private static void ParseModuleSubExtends(
+        Dictionary<string, Dictionary<string, string>> sections,
+        int moduleNumber,
+        ModuleInfo moduleInfo)
+    {
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}SubExtends", moduleNumber);
+        if (!IniParser.HasSection(sections, sectionName))
+            return;
+
+        LenientIniNumber.AppendIndexes(sections, sectionName, "NrOfEntries", moduleInfo.SubExtends);
+    }
+
+    /// <summary>
+    /// Parses every <c>[MxSubExtxxxx]</c> section for this module into
+    /// <see cref="ModuleInfo.SubExtensionDefinitions"/>, including sections whose
+    /// index is not listed in <c>[MxSubExtends]</c>.
+    /// </summary>
+    private static void ParseModuleSubExtensionDefinitions(
+        Dictionary<string, Dictionary<string, string>> sections,
+        int moduleNumber,
+        ModuleInfo moduleInfo,
+        Dictionary<string, OrderedStringDictionary> store)
+    {
+        foreach (var sectionName in sections.Keys)
+        {
+            if (!TryParseSubExtSection(sectionName, moduleNumber, out var index))
+                continue;
+
+            moduleInfo.SubExtensionDefinitions[index] = ReadSubExtension(sections, sectionName, index);
+
+            // Keyed by the name the writer emits ([MxSubExt] + index without leading zeros).
+            CaptureUnmappedEntries(
+                sections,
+                sectionName,
+                string.Format(CultureInfo.InvariantCulture, "M{0}SubExt{1:X}", moduleNumber, index),
+                SectionEntryKeys.IsModuleSubExtensionKey,
+                store);
+        }
+    }
+
+    /// <summary>
+    /// Parses <c>[MxFixedxxxx]</c> bodies and <c>[MxFixedxxxxsubx]</c> sub-objects
+    /// (CiA 306-1 §8.3) into <see cref="ModuleInfo.FixedObjectDefinitions"/>.
+    /// </summary>
+    private static void ParseModuleFixedObjectDefinitions(
+        Dictionary<string, Dictionary<string, string>> sections,
+        int moduleNumber,
+        ModuleInfo moduleInfo)
+    {
+        var objects = new Dictionary<ushort, CanOpenObject>();
+        var subSections = new List<(ushort Index, byte SubIndex, string SectionName)>();
+
+        foreach (var sectionName in sections.Keys)
+        {
+            if (!TryParseFixedObjectSection(sectionName, moduleNumber, out var index, out var subIndex, out var isSubObject))
+                continue;
+
+            if (isSubObject)
+            {
+                subSections.Add((index, subIndex, sectionName));
+                continue;
+            }
+
+            if (!objects.ContainsKey(index))
+            {
+                objects[index] = ReadFixedObject(sections, sectionName, index);
+            }
+        }
+
+        foreach (var subSection in subSections)
+        {
+            if (!objects.TryGetValue(subSection.Index, out var parent))
+            {
+                parent = new CanOpenObject { Index = subSection.Index };
+                objects[subSection.Index] = parent;
+            }
+
+            parent.SubObjects[subSection.SubIndex] = ReadFixedSubObject(
+                sections,
+                subSection.SectionName,
+                subSection.SubIndex);
+        }
+
+        foreach (var entry in objects)
+        {
+            moduleInfo.FixedObjectDefinitions[entry.Key] = entry.Value;
+        }
+    }
+
+    /// <summary>
+    /// True when <paramref name="sectionName"/> was stored on a parsed module as
+    /// <c>[MxFixedxxxx]</c> or <c>[MxFixedxxxxsubx]</c> (CiA 306-1 §8.3).
+    /// A body whose module is not in <paramref name="modules"/> is left for
+    /// <c>AdditionalSections</c>.
+    /// </summary>
+    internal static bool IsConsumedModuleFixedSection(string sectionName, IReadOnlyList<ModuleInfo> modules)
+    {
+        foreach (var module in modules)
+        {
+            if (!TryParseFixedObjectSection(
+                    sectionName,
+                    module.ModuleNumber,
+                    out var index,
+                    out var subIndex,
+                    out var isSubObject))
+            {
+                continue;
+            }
+
+            if (!module.FixedObjectDefinitions.TryGetValue(index, out var obj))
+                return false;
+
+            return !isSubObject || obj.SubObjects.ContainsKey(subIndex);
+        }
+
+        return false;
+    }
+
+    private static ModuleSubExtension ReadSubExtension(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        ushort index)
+    {
+        var extension = new ModuleSubExtension
+        {
+            Index = index,
+            ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
+            DataType = LenientIniNumber.ParseUInt16(
+                sections,
+                sectionName,
+                "DataType",
+                IniParser.GetValue(sections, sectionName, "DataType", "0"),
+                fallback: 0,
+                code: ParseDiagnosticCodes.InvalidDataType,
+                coercedTo: "0",
+                fallbackDescription: LenientIniNumber.TreatAsZero),
+            AccessType = IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"),
+            DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
+            LowLimit = EmptyToNull(IniParser.GetValue(sections, sectionName, "LowLimit")),
+            HighLimit = EmptyToNull(IniParser.GetValue(sections, sectionName, "HighLimit")),
+            PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping"),
+            Count = IniParser.GetValue(sections, sectionName, "Count")
+        };
+
+        // CiA 306: a missing ObjectType is VAR. Store the entry only when the section has it,
+        // so a later write does not invent ObjectType=0x7.
+        var objectType = IniParser.GetValue(sections, sectionName, "ObjectType");
+        if (!string.IsNullOrEmpty(objectType))
+        {
+            extension.ObjectType = LenientIniNumber.ParseByte(
+                sections,
+                sectionName,
+                "ObjectType",
+                objectType,
+                fallback: CanOpenObjectType.Var,
+                code: ParseDiagnosticCodes.InvalidObjectType,
+                coercedTo: CanOpenObjectType.VarLiteral,
+                fallbackDescription: LenientIniNumber.TreatAsVar);
+        }
+
+        var subNumber = IniParser.GetValue(sections, sectionName, "SubNumber");
+        if (!string.IsNullOrEmpty(subNumber))
+        {
+            extension.SubNumber = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "SubNumber",
+                subNumber,
+                ParseDiagnosticCodes.InvalidSubNumber,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        var objFlags = IniParser.GetValue(sections, sectionName, "ObjFlags");
+        if (!string.IsNullOrEmpty(objFlags))
+        {
+            extension.ObjFlags = LenientIniNumber.ParseObjFlags(sections, sectionName, objFlags);
+        }
+
+        var compactSubObj = IniParser.GetValue(sections, sectionName, "CompactSubObj");
+        if (!string.IsNullOrEmpty(compactSubObj))
+        {
+            extension.CompactSubObj = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "CompactSubObj",
+                compactSubObj,
+                ParseDiagnosticCodes.InvalidCompactSubObj,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        var objExtend = IniParser.GetValue(sections, sectionName, "ObjExtend");
+        if (!string.IsNullOrEmpty(objExtend))
+        {
+            extension.ObjExtend = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "ObjExtend",
+                objExtend,
+                ParseDiagnosticCodes.InvalidModuleObjExtend,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        // CiA 306-1 § 8.3: the same entries as a standard object description, so Table 7 applies;
+        // a missing ObjectType is VAR.
+        CanOpenReaderBase.ReportNotSupportedObjectKeys(
+            sections,
+            sectionName,
+            extension.ObjectType ?? CanOpenObjectType.Var,
+            extension.CompactSubObj.GetValueOrDefault() > 0);
+
+        return extension;
+    }
+
+    private static string? EmptyToNull(string value) => string.IsNullOrEmpty(value) ? null : value;
+
+    /// <summary>
+    /// CiA 306 treats a missing <c>ObjectType</c> as VAR (<c>0x7</c>). A present empty
+    /// value is that same omission. <see cref="ValueConverter.ParseByte"/> would
+    /// otherwise map <c>ObjectType=</c> to <c>0</c> (NULL).
+    /// </summary>
+    private static string FixedObjectTypeOrVar(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName)
+    {
+        var raw = IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral);
+        return string.IsNullOrWhiteSpace(raw) ? CanOpenObjectType.VarLiteral : raw;
+    }
+
+    private static CanOpenObject ReadFixedObject(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        ushort index)
+    {
+        var obj = new CanOpenObject
+        {
+            Index = index,
+            ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
+            ObjectType = LenientIniNumber.ParseByte(
+                sections,
+                sectionName,
+                "ObjectType",
+                FixedObjectTypeOrVar(sections, sectionName),
+                fallback: CanOpenObjectType.Var,
+                code: ParseDiagnosticCodes.InvalidObjectType,
+                coercedTo: CanOpenObjectType.VarLiteral,
+                fallbackDescription: LenientIniNumber.TreatAsVar),
+            AccessType = IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"),
+            DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
+            LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
+            HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
+            PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping"),
+            SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping"),
+            InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD"),
+            ObjFlags = LenientIniNumber.ParseObjFlags(
+                sections,
+                sectionName,
+                IniParser.GetValue(sections, sectionName, "ObjFlags", "0")),
+            ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue"),
+            Denotation = IniParser.GetValue(sections, sectionName, "Denotation"),
+            ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd"),
+            UploadFile = IniParser.GetValue(sections, sectionName, "UploadFile"),
+            DownloadFile = IniParser.GetValue(sections, sectionName, "DownloadFile")
+        };
+
+        var dataType = IniParser.GetValue(sections, sectionName, "DataType");
+        if (!string.IsNullOrEmpty(dataType))
+        {
+            obj.DataType = LenientIniNumber.ParseOptionalUInt16(
+                sections,
+                sectionName,
+                "DataType",
+                dataType,
+                ParseDiagnosticCodes.InvalidDataType,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        CanOpenReaderBase.ApplyDomainDefaults(
+            obj,
+            dataType,
+            IniParser.GetValue(sections, sectionName, "AccessType"));
+
+        var subNumber = IniParser.GetValue(sections, sectionName, "SubNumber");
+        if (!string.IsNullOrEmpty(subNumber))
+        {
+            obj.SubNumber = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "SubNumber",
+                subNumber,
+                ParseDiagnosticCodes.InvalidSubNumber,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        var compactSubObj = IniParser.GetValue(sections, sectionName, "CompactSubObj");
+        if (!string.IsNullOrEmpty(compactSubObj))
+        {
+            obj.CompactSubObj = LenientIniNumber.ParseOptionalByte(
+                sections,
+                sectionName,
+                "CompactSubObj",
+                compactSubObj,
+                ParseDiagnosticCodes.InvalidCompactSubObj,
+                LenientIniNumber.LeaveUnset);
+        }
+
+        // CiA 306-1 § 8.3: [MxFixedxxxx] has the contents of an object description, Table 7 included.
+        CanOpenReaderBase.ReportNotSupportedObjectKeys(
+            sections, sectionName, obj.ObjectType, obj.CompactSubObj.GetValueOrDefault() > 0);
+
+        CanOpenReaderBase.CaptureRemainingEntries(
+            sections,
+            sectionName,
+            SectionEntryKeys.IsDcfObjectKey,
+            obj.RemainingEntries);
+
+        return obj;
+    }
+
+    private static CanOpenSubObject ReadFixedSubObject(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        byte subIndex)
+    {
+        var subObj = new CanOpenSubObject
+        {
+            SubIndex = subIndex,
+            ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
+            ObjectType = LenientIniNumber.ParseByte(
+                sections,
+                sectionName,
+                "ObjectType",
+                FixedObjectTypeOrVar(sections, sectionName),
+                fallback: CanOpenObjectType.Var,
+                code: ParseDiagnosticCodes.InvalidObjectType,
+                coercedTo: CanOpenObjectType.VarLiteral,
+                fallbackDescription: LenientIniNumber.TreatAsVar),
+            DataType = LenientIniNumber.ParseUInt16(
+                sections,
+                sectionName,
+                "DataType",
+                IniParser.GetValue(sections, sectionName, "DataType", "0"),
+                fallback: 0,
+                code: ParseDiagnosticCodes.InvalidDataType,
+                coercedTo: "0",
+                fallbackDescription: LenientIniNumber.TreatAsZero),
+            AccessType = IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"),
+            DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
+            LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
+            HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
+            PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping"),
+            SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping"),
+            InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD"),
+            ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue"),
+            Denotation = IniParser.GetValue(sections, sectionName, "Denotation"),
+            ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd")
+        };
+
+        // As for [xxxxsubx]: a reported "n" key is not kept, so it is not written back.
+        CanOpenReaderBase.ReportNotSupportedSubObjectKeys(sections, sectionName, subObj.ObjectType);
+        CanOpenReaderBase.CaptureRemainingEntries(
+            sections,
+            sectionName,
+            key => SectionEntryKeys.IsDcfSubObjectKey(key)
+                   || ObjectTypeKeyMatrix.IsNotSupportedInSubObject(subObj.ObjectType, key),
+            subObj.RemainingEntries);
+
+        return subObj;
+    }
+
+    private static bool TryParseSubExtSection(string sectionName, int moduleNumber, out ushort index)
+    {
+        index = 0;
+        return TryParseModuleSuffix(sectionName, moduleNumber, out var suffix)
+               && TryParseSubExtSuffix(suffix, out index);
+    }
+
+    /// <summary>Parses <c>SubExtxxxx</c> (hexadecimal index), the <c>[MxSubExtxxxx]</c> suffix the module parser loads.</summary>
+    private static bool TryParseSubExtSuffix(string suffix, out ushort index)
+    {
+        index = 0;
+        if (!suffix.StartsWith("SubExt", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var rest = suffix[6..];
+        return rest.Length > 0 &&
+               IsHexDigitsOnly(rest) &&
+               ushort.TryParse(rest, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index);
+    }
+
+    /// <summary>
+    /// Classifies <paramref name="sectionName"/> by exactly the module section syntax this parser
+    /// loads (CiA 306-1 § 8.3): <c>[M{n}ModuleInfo]</c>, <c>[M{n}FixedObjects]</c>,
+    /// <c>[M{n}SubExtends]</c> and <c>[M{n}Comments]</c> with the module number written without
+    /// leading zeros (they are looked up by that name), and <c>[M{n}SubExtxxxx]</c>,
+    /// <c>[M{n}Fixedxxxx]</c>, <c>[M{n}Fixedxxxxsubx]</c> with hexadecimal index and sub-index
+    /// (matched by module number, so leading zeros are accepted). Any other <c>M{digits}</c>
+    /// name is not a module section.
+    /// </summary>
+    internal static bool TryClassifyModuleSection(string sectionName, out int moduleNumber, out ModuleSectionKind kind)
+    {
+        kind = ModuleSectionKind.ModuleInfo;
+        if (!TrySplitModuleSectionName(sectionName, out moduleNumber, out var digits, out var suffix))
+            return false;
+
+        var isCanonicalNumber = string.Equals(
+            digits, moduleNumber.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        if (isCanonicalNumber && TryGetNamedModuleSectionKind(suffix, out kind))
+            return true;
+
+        if (TryParseSubExtSuffix(suffix, out _))
+        {
+            kind = ModuleSectionKind.SubExtension;
+            return true;
+        }
+
+        kind = ModuleSectionKind.FixedObject;
+        return TryParseFixedObjectSuffix(suffix, out _, out _, out _);
+    }
+
+    private static bool TryGetNamedModuleSectionKind(string suffix, out ModuleSectionKind kind)
+    {
+        foreach (var named in NamedModuleSections)
+        {
+            if (suffix.Equals(named.Suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                kind = named.Kind;
+                return true;
+            }
+        }
+
+        kind = ModuleSectionKind.ModuleInfo;
+        return false;
+    }
+
+    private static readonly (string Suffix, ModuleSectionKind Kind)[] NamedModuleSections =
+    {
+        ("ModuleInfo", ModuleSectionKind.ModuleInfo),
+        ("FixedObjects", ModuleSectionKind.FixedObjects),
+        ("SubExtends", ModuleSectionKind.SubExtends),
+        ("Comments", ModuleSectionKind.Comments)
+    };
+
+    private static bool TryParseFixedObjectSection(
+        string sectionName,
+        int moduleNumber,
+        out ushort index,
+        out byte subIndex,
+        out bool isSubObject)
+    {
+        index = 0;
+        subIndex = 0;
+        isSubObject = false;
+
+        return TryParseModuleSuffix(sectionName, moduleNumber, out var suffix)
+               && TryParseFixedObjectSuffix(suffix, out index, out subIndex, out isSubObject);
+    }
+
+    /// <summary>
+    /// Parses the part of a module section name after <c>M{n}</c> as <c>Fixedxxxx</c> or
+    /// <c>Fixedxxxxsubx</c> (hexadecimal index and sub-index), the names the module parser loads.
+    /// </summary>
+    private static bool TryParseFixedObjectSuffix(
+        string suffix,
+        out ushort index,
+        out byte subIndex,
+        out bool isSubObject)
+    {
+        index = 0;
+        subIndex = 0;
+        isSubObject = false;
+
+        if (!suffix.StartsWith("Fixed", StringComparison.OrdinalIgnoreCase) ||
+            suffix.Equals("FixedObjects", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var rest = suffix[5..];
+        var subPos = rest.IndexOf("sub", StringComparison.OrdinalIgnoreCase);
+        if (subPos < 0)
+        {
+            return rest.Length > 0 &&
+                   IsHexDigitsOnly(rest) &&
+                   ushort.TryParse(rest, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index);
+        }
+
+        if (subPos == 0)
+            return false;
+
+        var indexPart = rest[..subPos];
+        var subPart = rest[(subPos + 3)..];
+        if (!IsHexDigitsOnly(indexPart) ||
+            !IsHexDigitsOnly(subPart) ||
+            !ushort.TryParse(indexPart, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index) ||
+            !byte.TryParse(subPart, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out subIndex))
+        {
+            return false;
+        }
+
+        isSubObject = true;
+        return true;
+    }
+
+    private static bool TryParseModuleSuffix(string sectionName, int moduleNumber, out string suffix)
+        => TrySplitModuleSectionName(sectionName, out var parsed, out _, out suffix) && parsed == moduleNumber;
+
+    /// <summary>
+    /// Splits <c>M{digits}{suffix}</c> into the module number, its digits as written, and the
+    /// suffix. Fails when there are no digits or they do not form an <see cref="int"/>.
+    /// </summary>
+    private static bool TrySplitModuleSectionName(string sectionName, out int moduleNumber, out string digits, out string suffix)
+    {
+        moduleNumber = 0;
+        digits = string.Empty;
+        suffix = string.Empty;
+        if (sectionName.Length < 2 ||
+            !sectionName.StartsWith("M", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var i = 1;
+        while (i < sectionName.Length && char.IsDigit(sectionName[i]))
+            i++;
+
+        digits = sectionName[1..i];
+        if (i == 1 ||
+            !int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out moduleNumber))
+        {
+            return false;
+        }
+
+        suffix = sectionName[i..];
+        return true;
+    }
+
+    private static bool IsHexDigitsOnly(string value)
+    {
+        if (value.Length == 0)
+            return false;
+
+        foreach (var c in value)
+        {
+            var isHexDigit = (c >= '0' && c <= '9') ||
+                             (c >= 'a' && c <= 'f') ||
+                             (c >= 'A' && c <= 'F');
+            if (!isHexDigit)
+                return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -145,20 +1043,51 @@ internal static class CanOpenSectionParsers
     /// </summary>
     internal static DynamicChannels? ParseDynamicChannels(Dictionary<string, Dictionary<string, string>> sections)
     {
-        var nrOfSeg = ValueConverter.ParseByte(IniParser.GetValue(sections, "DynamicChannels", "NrOfSeg", "0"));
-        if (nrOfSeg == 0)
-            return null;
-
+        var nrOfSeg = LenientIniNumber.ParseByte(
+            sections,
+            "DynamicChannels",
+            "NrOfSeg",
+            IniParser.GetValue(sections, "DynamicChannels", "NrOfSeg", "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidDynamicChannelCount,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
         var dynamicChannels = new DynamicChannels();
+        CaptureUnmappedEntries(
+            sections,
+            "DynamicChannels",
+            key => SectionEntryKeys.IsDynamicChannelsKey(key, nrOfSeg),
+            dynamicChannels.RemainingEntries);
+
+        // Without segments the section is only kept when it carries unmapped entries.
+        if (nrOfSeg == 0)
+            return dynamicChannels.RemainingEntries.Count > 0 ? dynamicChannels : null;
 
         for (int i = 1; i <= nrOfSeg; i++)
         {
+            var typeKey = string.Format(CultureInfo.InvariantCulture, "Type{0}", i);
+            var type = LenientIniNumber.ParseUInt16(
+                sections,
+                "DynamicChannels",
+                typeKey,
+                IniParser.GetValue(sections, "DynamicChannels", typeKey, "0"),
+                fallback: 0,
+                code: ParseDiagnosticCodes.InvalidDynamicChannelType,
+                coercedTo: "0",
+                fallbackDescription: LenientIniNumber.TreatAsZero);
+            var ppOffsetKey = string.Format(CultureInfo.InvariantCulture, "PPOffset{0}", i);
+            var ppOffset = LenientIniNumber.ParsePpOffset(
+                sections,
+                "DynamicChannels",
+                ppOffsetKey,
+                IniParser.GetValue(sections, "DynamicChannels", ppOffsetKey, "0"));
             var segment = new DynamicChannelSegment
             {
-                Type = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Type{0}", i), "0")),
-                Dir = ValueConverter.ParseAccessType(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Dir{0}", i))),
+                Type = type,
+                Dir = IniKeyTokens.ParseAccessType(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Dir{0}", i)),
                 Range = IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "Range{0}", i)),
-                PPOffset = ValueConverter.ParseInteger(IniParser.GetValue(sections, "DynamicChannels", string.Format(CultureInfo.InvariantCulture, "PPOffset{0}", i), "0"))
+                PPOffset = ppOffset.Offset,
+                PPOffsetAddressDifference = ppOffset.AddressDifference
             };
             dynamicChannels.Segments.Add(segment);
         }
@@ -170,11 +1099,63 @@ internal static class CanOpenSectionParsers
     /// Parses the <c>[Tools]</c> section and each individual <c>[Tool{n}]</c> section
     /// into a list of <see cref="ToolInfo"/> objects.
     /// </summary>
-    internal static List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
+    /// <summary>
+    /// <see langword="true"/> when <see cref="ParseTools(Dictionary{string, Dictionary{string, string}}, Dictionary{string, OrderedStringDictionary})"/>
+    /// reads <paramref name="sectionName"/> if the section is present: the canonical name
+    /// <c>Tool&lt;n&gt;</c> with <c>1 &lt;= n &lt;= Items</c>. The reader uses this to keep a
+    /// parsed tool section out of <c>AdditionalSections</c>.
+    /// </summary>
+    internal static bool IsParsedToolSection(Dictionary<string, Dictionary<string, string>> sections, string sectionName)
     {
+        if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase)
+            || !int.TryParse(sectionName[4..], NumberStyles.None, CultureInfo.InvariantCulture, out var number)
+            || number < 1)
+        {
+            return false;
+        }
+
+        // ParseTools has already read Items (and reported a malformed value, read as 0).
+        return number <= ToolCountOrZero(sections)
+               && string.Equals(sectionName, "Tool" + number.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary><c>[Tools] Items</c> as <see cref="ParseTools(Dictionary{string, Dictionary{string, string}}, Dictionary{string, OrderedStringDictionary})"/> uses it, without reporting: a malformed value is <c>0</c>.</summary>
+    private static byte ToolCountOrZero(Dictionary<string, Dictionary<string, string>> sections)
+    {
+        try
+        {
+            return ValueConverter.ParseByte(IniParser.GetValue(sections, "Tools", "Items", "0"));
+        }
+        catch (EdsParseException)
+        {
+            return 0;
+        }
+    }
+
+    internal static List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
+        =>ParseTools(sections, new Dictionary<string, OrderedStringDictionary>(StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Parses <c>[Tools]</c> and <c>[Tool{n}]</c>. Unmapped <c>[Tools]</c> entries go to
+    /// <paramref name="store"/>; unmapped <c>[Tool{n}]</c> entries go to the tool.
+    /// </summary>
+    internal static List<ToolInfo> ParseTools(
+        Dictionary<string, Dictionary<string, string>> sections,
+        Dictionary<string, OrderedStringDictionary> store)
+    {
+        CaptureUnmappedEntries(sections, "Tools", "Tools", SectionEntryKeys.IsToolsKey, store);
+
         var tools = new List<ToolInfo>();
 
-        var items = ValueConverter.ParseByte(IniParser.GetValue(sections, "Tools", "Items", "0"));
+        var items = LenientIniNumber.ParseByte(
+            sections,
+            "Tools",
+            "Items",
+            IniParser.GetValue(sections, "Tools", "Items", "0"),
+            fallback: 0,
+            code: ParseDiagnosticCodes.InvalidToolCount,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
 
         for (int i = 1; i <= items; i++)
         {
@@ -187,9 +1168,32 @@ internal static class CanOpenSectionParsers
                 Name = IniParser.GetValue(sections, toolSection, "Name"),
                 Command = IniParser.GetValue(sections, toolSection, "Command")
             };
+            CaptureUnmappedEntries(sections, toolSection, SectionEntryKeys.IsToolKey, tool.RemainingEntries);
             tools.Add(tool);
         }
 
         return tools;
     }
+}
+
+/// <summary>The module section kinds <see cref="CanOpenSectionParsers.TryClassifyModuleSection"/> recognises.</summary>
+internal enum ModuleSectionKind
+{
+    /// <summary><c>[MxModuleInfo]</c>.</summary>
+    ModuleInfo,
+
+    /// <summary><c>[MxFixedObjects]</c>.</summary>
+    FixedObjects,
+
+    /// <summary><c>[MxSubExtends]</c>.</summary>
+    SubExtends,
+
+    /// <summary><c>[MxComments]</c>.</summary>
+    Comments,
+
+    /// <summary><c>[MxSubExtxxxx]</c>.</summary>
+    SubExtension,
+
+    /// <summary><c>[MxFixedxxxx]</c> or <c>[MxFixedxxxxsubx]</c>.</summary>
+    FixedObject
 }

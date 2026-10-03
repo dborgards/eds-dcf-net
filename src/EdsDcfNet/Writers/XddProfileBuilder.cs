@@ -13,6 +13,12 @@ using EdsDcfNet.Models;
 /// </summary>
 internal static class XddProfileBuilder
 {
+    private static readonly XName ApplicationLayersName =
+        XddNames.ChildOfType(XddNames.NetworkProfileBodyType, "ApplicationLayers");
+
+    private static readonly XName NetworkManagementName =
+        XddNames.ChildOfType(XddNames.NetworkProfileBodyType, "NetworkManagement");
+
     // ── ISO 15745 profile wrapper ─────────────────────────────────────────────
 
     /// <summary>
@@ -21,77 +27,192 @@ internal static class XddProfileBuilder
     /// </summary>
     internal static XElement BuildProfile(string classId, XElement profileBody)
     {
-        return new XElement("ISO15745Profile",
-            new XElement("ProfileHeader",
-                new XElement("ProfileIdentification", string.Empty),
-                new XElement("ProfileRevision", "1"),
-                new XElement("ProfileName", string.Empty),
-                new XElement("ProfileSource", string.Empty),
-                new XElement("ProfileClassID", classId),
-                new XElement("ISO15745Reference",
-                    new XElement("ISO15745Part", "1"),
-                    new XElement("ISO15745Edition", "1"),
-                    new XElement("ProfileTechnology", "CANopen"))),
+        var profileName = XddNames.Child(XddNames.ProfileContainer, "ISO15745Profile");
+        var headerName = XddNames.Child(profileName, "ProfileHeader");
+        var referenceName = XddNames.Child(headerName, "ISO15745Reference");
+        return new XElement(profileName,
+            new XElement(headerName,
+                XddNames.Element(headerName, "ProfileIdentification", string.Empty),
+                XddNames.Element(headerName, "ProfileRevision", "1"),
+                XddNames.Element(headerName, "ProfileName", string.Empty),
+                XddNames.Element(headerName, "ProfileSource", string.Empty),
+                XddNames.Element(headerName, "ProfileClassID", classId),
+                new XElement(referenceName,
+                    XddNames.Element(referenceName, "ISO15745Part", "1"),
+                    XddNames.Element(referenceName, "ISO15745Edition", "1"),
+                    XddNames.Element(referenceName, "ProfileTechnology", "CANopen"))),
             profileBody);
     }
 
     // ── ProfileBody file info ─────────────────────────────────────────────────
 
     /// <summary>Adds file metadata attributes to a <c>ProfileBody</c> element.</summary>
+    /// <remarks>
+    /// <c>fileName</c>, <c>fileCreator</c> and <c>fileVersion</c> are required and always written
+    /// (an empty string is schema-valid). A date or time is written only when it is valid; an
+    /// omitted optional attribute is schema-valid, a mistyped one is not. A missing or invalid
+    /// <c>fileCreationDate</c> (required) is not invented; see <c>XmlWriteRules</c>.
+    /// </remarks>
     internal static void AddFileInfoAttributes(XElement profileBody, EdsFileInfo fileInfo)
     {
-        if (!string.IsNullOrEmpty(fileInfo.FileName))
-            profileBody.Add(new XAttribute("fileName", fileInfo.FileName));
+        profileBody.Add(new XAttribute("fileName", fileInfo.FileName ?? string.Empty));
+        profileBody.Add(new XAttribute("fileCreator", fileInfo.CreatedBy ?? string.Empty));
 
-        if (!string.IsNullOrEmpty(fileInfo.CreatedBy))
-            profileBody.Add(new XAttribute("fileCreator", fileInfo.CreatedBy));
+        if (XddFormatHelper.TryFormatFileDate(fileInfo.CreationDate, fileInfo.CreationDateLexical, out var creationDate))
+            profileBody.Add(new XAttribute("fileCreationDate", creationDate));
 
-        // Convert EDS date "MM-DD-YYYY" to XSD date "YYYY-MM-DD"
-        var xsdCreationDate = XddFormatHelper.ConvertEdsDateToXsd(fileInfo.CreationDate);
-        if (!string.IsNullOrEmpty(xsdCreationDate))
-            profileBody.Add(new XAttribute("fileCreationDate", xsdCreationDate));
+        if (XddFormatHelper.TryConvertFileTimeToXsd(fileInfo.CreationTime, out var creationTime))
+            profileBody.Add(new XAttribute("fileCreationTime", creationTime));
 
-        if (!string.IsNullOrEmpty(fileInfo.CreationTime))
-            profileBody.Add(new XAttribute("fileCreationTime", fileInfo.CreationTime));
+        profileBody.Add(new XAttribute("fileVersion", FileVersionAttribute(fileInfo)));
 
-        profileBody.Add(new XAttribute("fileVersion",
-            fileInfo.FileVersion.ToString(CultureInfo.InvariantCulture)));
+        if (XddFormatHelper.TryFormatFileDate(fileInfo.ModificationDate, fileInfo.ModificationDateLexical, out var modificationDate))
+            profileBody.Add(new XAttribute("fileModificationDate", modificationDate));
 
-        var xsdModDate = XddFormatHelper.ConvertEdsDateToXsd(fileInfo.ModificationDate);
-        if (!string.IsNullOrEmpty(xsdModDate))
-            profileBody.Add(new XAttribute("fileModificationDate", xsdModDate));
-
-        if (!string.IsNullOrEmpty(fileInfo.ModificationTime))
-            profileBody.Add(new XAttribute("fileModificationTime", fileInfo.ModificationTime));
+        if (XddFormatHelper.TryConvertFileTimeToXsd(fileInfo.ModificationTime, out var modificationTime))
+            profileBody.Add(new XAttribute("fileModificationTime", modificationTime));
 
         if (!string.IsNullOrEmpty(fileInfo.ModifiedBy))
             profileBody.Add(new XAttribute("fileModifiedBy", fileInfo.ModifiedBy));
     }
 
+    // The read text stays while the number is unchanged since the read; a text without a baseline was
+    // assigned by the caller. fileVersion is a free xsd:string.
+    private static string FileVersionAttribute(EdsFileInfo fileInfo)
+    {
+        var number = fileInfo.FileVersion.ToString(CultureInfo.InvariantCulture);
+        if (fileInfo.FileVersionText == null)
+            return number;
+
+        var baseline = fileInfo.FileVersionTextBaseline;
+        return baseline.HasValue && baseline.Value != fileInfo.FileVersion ? number : fileInfo.FileVersionText;
+    }
+
     // ── DeviceIdentity ────────────────────────────────────────────────────────
 
     /// <summary>Builds the <c>DeviceIdentity</c> element from <see cref="DeviceInfo"/>.</summary>
+    /// <remarks>
+    /// <see cref="DeviceInfo.OrderNumbers"/> and <see cref="DeviceInfo.Versions"/> are authoritative: a
+    /// non-empty list is written as it is. Only an empty list falls back to
+    /// <see cref="DeviceInfo.OrderCode"/> (when not empty) and <see cref="DeviceInfo.RevisionNumber"/>
+    /// (as a firmware version, unless it is 0). The schema order is <c>orderNumber</c> before <c>version</c>.
+    /// </remarks>
     internal static XElement BuildDeviceIdentity(DeviceInfo deviceInfo)
     {
-        return new XElement("DeviceIdentity",
-            new XElement("vendorName", deviceInfo.VendorName),
-            new XElement("vendorID",
+        var name = XddNames.ChildOfType(XddNames.DeviceProfileBodyType, "DeviceIdentity");
+        var identity = new XElement(name,
+            XddNames.Element(name, "vendorName", deviceInfo.VendorName),
+            XddNames.Element(name, "vendorID",
                 string.Format(CultureInfo.InvariantCulture, "0x{0:X8}", deviceInfo.VendorNumber)),
-            new XElement("productName", deviceInfo.ProductName),
-            new XElement("productID",
+            XddNames.Element(name, "productName", deviceInfo.ProductName),
+            XddNames.Element(name, "productID",
                 string.Format(CultureInfo.InvariantCulture, "0x{0:X8}", deviceInfo.ProductNumber)));
+
+        var orderNumbers = deviceInfo.OrderNumbers.Count > 0
+            ? deviceInfo.OrderNumbers
+            : OrderCodeAsList(deviceInfo.OrderCode);
+        foreach (var orderNumber in orderNumbers)
+            identity.Add(BuildReadOnlyText(name, "orderNumber", orderNumber.Value, orderNumber.ReadOnly));
+
+        // A revision of 0 carries no information, so it is not written as a version.
+        var versions = deviceInfo.Versions.Count > 0 || deviceInfo.RevisionNumber == 0
+            ? deviceInfo.Versions
+            : new List<DeviceVersion>
+            {
+                new()
+                {
+                    Type = DeviceVersionType.Firmware,
+                    Value = deviceInfo.RevisionNumber.ToString(CultureInfo.InvariantCulture)
+                }
+            };
+        foreach (var version in versions)
+        {
+            var element = BuildReadOnlyText(name, "version", version.Value, version.ReadOnly);
+            element.Add(new XAttribute("versionType", FormatVersionType(version.Type)));
+            identity.Add(element);
+        }
+
+        return identity;
     }
+
+    // ── DeviceFunction ────────────────────────────────────────────────────────
+
+    /// <summary>Language of the fixed English characteristic name below.</summary>
+    private const string DefaultCharacteristicLanguage = "en";
+
+    /// <summary>Name of the one characteristic written when the model has no <c>DeviceFunction</c>.</summary>
+    internal const string DefaultCharacteristicName = "Product name";
+
+    /// <summary>
+    /// Builds the smallest schema-valid <c>DeviceFunction</c>: <c>capabilities</c> with one
+    /// <c>characteristicsList</c> holding one <c>characteristic</c>, "Product name", whose content
+    /// is <see cref="DeviceInfo.ProductName"/>.
+    /// </summary>
+    /// <remarks>
+    /// The schema requires at least one characteristic and gives no neutral one. The product name
+    /// is a value the model has for every device and that <c>DeviceIdentity</c> already states, so
+    /// the characteristic claims no capability the source did not describe. <c>lang</c> is required
+    /// on every label; <c>en</c> is the language of the characteristic name written here. The
+    /// reader recognizes exactly this content and does not keep it, so it follows a later change of
+    /// <see cref="DeviceInfo.ProductName"/>.
+    /// </remarks>
+    internal static XElement BuildDefaultDeviceFunction(DeviceInfo deviceInfo)
+    {
+        var function = XddNames.ElementOfType(XddNames.DeviceProfileBodyType, "DeviceFunction");
+        var capabilities = XddNames.Element(function.Name, "capabilities");
+        var list = XddNames.Element(capabilities.Name, "characteristicsList");
+        var characteristic = XddNames.Element(list.Name, "characteristic");
+        var name = XddNames.Element(characteristic.Name, "characteristicName");
+        name.Add(BuildLabel(name.Name, DefaultCharacteristicName));
+        var content = XddNames.Element(characteristic.Name, "characteristicContent");
+        content.Add(BuildLabel(content.Name, deviceInfo.ProductName));
+
+        characteristic.Add(name, content);
+        list.Add(characteristic);
+        capabilities.Add(list);
+        function.Add(capabilities);
+        return function;
+    }
+
+    private static XElement BuildLabel(XName parent, string text)
+        => new(XddNames.Label(parent, "label"), new XAttribute("lang", DefaultCharacteristicLanguage), text);
+
+    private static List<DeviceOrderNumber> OrderCodeAsList(string orderCode)
+        => string.IsNullOrEmpty(orderCode)
+            ? new List<DeviceOrderNumber>()
+            : new List<DeviceOrderNumber> { new() { Value = orderCode } };
+
+    // readOnly defaults to true in the schema, so only false is written.
+    private static XElement BuildReadOnlyText(XName parent, string localName, string value, bool readOnly)
+    {
+        var element = XddNames.Element(parent, localName, value);
+        if (!readOnly)
+            element.Add(new XAttribute("readOnly", "false"));
+
+        return element;
+    }
+
+    private static string FormatVersionType(DeviceVersionType type) => type switch
+    {
+        DeviceVersionType.Software => "SW",
+        DeviceVersionType.Firmware => "FW",
+        DeviceVersionType.Hardware => "HW",
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(type),
+            type,
+            "DeviceVersion.Type is not a CiA 311 versionType (SW, FW or HW).")
+    };
 
     // ── ApplicationLayers static children ────────────────────────────────────
 
     /// <summary>Builds the <c>dummyUsage</c> element from the object dictionary.</summary>
     internal static XElement BuildDummyUsage(ObjectDictionary dict)
     {
-        var dummyElem = new XElement("dummyUsage");
+        var dummyElem = XddNames.Element(ApplicationLayersName, "dummyUsage");
 
         foreach (var kvp in dict.DummyUsage.OrderBy(d => d.Key))
         {
-            dummyElem.Add(new XElement("dummy",
+            dummyElem.Add(XddNames.Element(dummyElem.Name, "dummy",
                 new XAttribute("entry",
                     string.Format(CultureInfo.InvariantCulture,
                         "Dummy{0:X4}={1}", kvp.Key, kvp.Value ? "1" : "0"))));
@@ -100,27 +221,38 @@ internal static class XddProfileBuilder
         return dummyElem;
     }
 
-    /// <summary>Builds the <c>dynamicChannels</c> element.</summary>
+    /// <summary>
+    /// Builds the <c>dynamicChannels</c> element.
+    /// </summary>
+    /// <remarks>
+    /// Every <c>dynamicChannel</c> carries the schema-required attributes
+    /// <c>dataType</c>, <c>accessType</c>, <c>startIndex</c>, <c>endIndex</c>,
+    /// <c>maxNumber</c>, and <c>addressOffset</c>. <c>bitAlignment</c> is written
+    /// only when <see cref="DynamicChannelSegment.BitAlignment"/> is set.
+    /// <c>pDOmappingIndex</c> is not part of the schema and is not written.
+    /// </remarks>
     internal static XElement BuildDynamicChannels(DynamicChannels channels)
     {
-        var dynElem = new XElement("dynamicChannels");
+        var dynElem = XddNames.Element(ApplicationLayersName, "dynamicChannels");
 
         foreach (var seg in channels.Segments)
         {
-            var chanElem = new XElement("dynamicChannel",
-                new XAttribute("dataType", XddFormatHelper.FormatDataType(seg.Type)),
-                new XAttribute("accessType", XddFormatHelper.AccessTypeToString(seg.Dir)));
+            var chanElem = XddNames.Element(dynElem.Name, "dynamicChannel",
+                new XAttribute("dataType", XddFormatHelper.FormatDynamicChannelDataType(seg.Type)),
+                new XAttribute("accessType", XddFormatHelper.DynamicChannelAccessTypeToString(seg.Dir)));
 
-            // Parse Range back to startIndex/endIndex
-            var rangeParts = seg.Range.Split('-');
-            if (rangeParts.Length >= 1)
-                chanElem.Add(new XAttribute("startIndex", rangeParts[0].Trim()));
-            if (rangeParts.Length >= 2)
-                chanElem.Add(new XAttribute("endIndex", rangeParts[1].Trim()));
+            AddDynamicChannelIndexes(chanElem, seg.Range);
+            chanElem.Add(new XAttribute(
+                "maxNumber",
+                (seg.MaxNumber ?? DeriveMaxNumber(seg.Range)).ToString(CultureInfo.InvariantCulture)));
+            chanElem.Add(new XAttribute("addressOffset", FormatAddressOffset(seg)));
 
-            if (seg.PPOffset > 0)
-                chanElem.Add(new XAttribute("pDOmappingIndex",
-                    seg.PPOffset.ToString(CultureInfo.InvariantCulture)));
+            if (seg.BitAlignment.HasValue)
+            {
+                chanElem.Add(new XAttribute(
+                    "bitAlignment",
+                    seg.BitAlignment.Value.ToString(CultureInfo.InvariantCulture)));
+            }
 
             dynElem.Add(chanElem);
         }
@@ -128,12 +260,100 @@ internal static class XddProfileBuilder
         return dynElem;
     }
 
+    /// <summary>
+    /// Writes <c>startIndex</c> and <c>endIndex</c>. A single index is repeated
+    /// because <c>endIndex</c> is required. An unparsable range is written as <c>0000</c>.
+    /// </summary>
+    private static void AddDynamicChannelIndexes(XElement channel, string range)
+    {
+        SplitRange(range, out var startText, out var endText);
+        var hasStart = TryParseHexIndex(startText, out var start);
+        var hasEnd = TryParseHexIndex(endText, out var end);
+
+        if (!hasStart)
+        {
+            channel.Add(new XAttribute("startIndex", XddFormatHelper.FormatHexBinary(0)));
+            channel.Add(new XAttribute("endIndex", XddFormatHelper.FormatHexBinary(0)));
+            return;
+        }
+
+        channel.Add(new XAttribute("startIndex", XddFormatHelper.FormatHexBinary(start)));
+        channel.Add(new XAttribute("endIndex", XddFormatHelper.FormatHexBinary(hasEnd ? end : start)));
+    }
+
+    /// <summary>
+    /// Inclusive index span of <paramref name="range"/>, <c>1</c> for a single index,
+    /// or <c>0</c> when the range cannot be parsed or the end index is below the start.
+    /// </summary>
+    private static uint DeriveMaxNumber(string range)
+    {
+        SplitRange(range, out var startText, out var endText);
+        if (!TryParseHexIndex(startText, out var start))
+            return 0;
+        if (!TryParseHexIndex(endText, out var end))
+            return 1;
+        if (end < start)
+            return 0;
+
+        var span = end - start;
+        if (span == uint.MaxValue)
+            return uint.MaxValue;
+
+        return span + 1;
+    }
+
+    private static string FormatAddressOffset(DynamicChannelSegment segment)
+    {
+        if (segment.AddressOffsetLexical != null &&
+            segment.PPOffset == segment.AddressOffsetLexicalBaseline)
+        {
+            return segment.AddressOffsetLexical;
+        }
+
+        return XddFormatHelper.FormatHexBinary(segment.PPOffset);
+    }
+
+    private static void SplitRange(string range, out string start, out string end)
+    {
+        var hyphen = range.IndexOf('-');
+        if (hyphen < 0)
+        {
+            start = range.Trim();
+            end = string.Empty;
+            return;
+        }
+
+        start = range.Substring(0, hyphen).Trim();
+        end = range.Substring(hyphen + 1).Trim();
+    }
+
+    /// <summary>
+    /// Parses one side of a <see cref="DynamicChannelSegment.Range"/> as hexadecimal
+    /// with an optional <c>0x</c> prefix. <see cref="SplitRange"/> has already removed
+    /// surrounding whitespace; interior whitespace is not a valid index.
+    /// </summary>
+    private static bool TryParseHexIndex(string text, out uint value)
+    {
+        value = 0;
+        if (string.IsNullOrEmpty(text))
+            return false;
+
+        var hex = text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? text.Substring(2)
+            : text;
+
+        if (hex.Length == 0)
+            return false;
+
+        return uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value);
+    }
+
     // ── NetworkManagement static children ─────────────────────────────────────
 
     /// <summary>Builds the <c>CANopenGeneralFeatures</c> element.</summary>
     internal static XElement BuildGeneralFeatures(DeviceInfo deviceInfo)
     {
-        return new XElement("CANopenGeneralFeatures",
+        var features = XddNames.Element(NetworkManagementName, "CANopenGeneralFeatures",
             new XAttribute("granularity",
                 deviceInfo.Granularity.ToString(CultureInfo.InvariantCulture)),
             new XAttribute("nrOfRxPDO",
@@ -148,13 +368,28 @@ internal static class XddProfileBuilder
                 deviceInfo.GroupMessaging ? "true" : "false"),
             new XAttribute("dynamicChannels",
                 deviceInfo.DynamicChannelsSupported.ToString(CultureInfo.InvariantCulture)));
+        AddTrueFlag(features, "selfStartingDevice", deviceInfo.SelfStartingDevice);
+        AddTrueFlag(features, "SDORequestingDevice", deviceInfo.SdoRequestingDevice);
+        return features;
+    }
+
+    // These attributes default to false in the schema, so only true is written.
+    private static void AddTrueFlag(XElement element, string attribute, bool value)
+    {
+        if (value)
+            element.Add(new XAttribute(attribute, "true"));
     }
 
     /// <summary>Builds the <c>CANopenMasterFeatures</c> element.</summary>
     internal static XElement BuildMasterFeatures(DeviceInfo deviceInfo)
     {
-        return new XElement("CANopenMasterFeatures",
+        var features = XddNames.Element(NetworkManagementName, "CANopenMasterFeatures",
             new XAttribute("bootUpMaster",
                 deviceInfo.SimpleBootUpMaster ? "true" : "false"));
+        AddTrueFlag(features, "flyingMaster", deviceInfo.FlyingMaster);
+        AddTrueFlag(features, "SDOManager", deviceInfo.SdoManager);
+        AddTrueFlag(features, "configurationManager", deviceInfo.ConfigurationManager);
+        AddTrueFlag(features, "layerSettingServiceMaster", deviceInfo.LayerSettingServiceMaster);
+        return features;
     }
 }

@@ -13,7 +13,7 @@ internal static class ModelCloner
     /// </summary>
     internal static DeviceInfo CloneDeviceInfo(DeviceInfo source)
     {
-        return new DeviceInfo
+        var clone = new DeviceInfo
         {
             VendorName = source.VendorName,
             VendorNumber = source.VendorNumber,
@@ -26,11 +26,15 @@ internal static class ModelCloner
                 BaudRate10 = source.SupportedBaudRates.BaudRate10,
                 BaudRate20 = source.SupportedBaudRates.BaudRate20,
                 BaudRate50 = source.SupportedBaudRates.BaudRate50,
+                BaudRate100 = source.SupportedBaudRates.BaudRate100,
                 BaudRate125 = source.SupportedBaudRates.BaudRate125,
                 BaudRate250 = source.SupportedBaudRates.BaudRate250,
                 BaudRate500 = source.SupportedBaudRates.BaudRate500,
                 BaudRate800 = source.SupportedBaudRates.BaudRate800,
-                BaudRate1000 = source.SupportedBaudRates.BaudRate1000
+                BaudRate1000 = source.SupportedBaudRates.BaudRate1000,
+                AutoBaudRate = source.SupportedBaudRates.AutoBaudRate,
+                DefaultValueLexical = source.SupportedBaudRates.DefaultValueLexical,
+                DefaultValueFlagsBaseline = source.SupportedBaudRates.DefaultValueFlagsBaseline
             },
             SimpleBootUpMaster = source.SimpleBootUpMaster,
             SimpleBootUpSlave = source.SimpleBootUpSlave,
@@ -41,8 +45,23 @@ internal static class ModelCloner
             NrOfTxPdo = source.NrOfTxPdo,
             LssSupported = source.LssSupported,
             CompactPdo = source.CompactPdo,
-            CANopenSafetySupported = source.CANopenSafetySupported
+            CANopenSafetySupported = source.CANopenSafetySupported,
+            SelfStartingDevice = source.SelfStartingDevice,
+            SdoRequestingDevice = source.SdoRequestingDevice,
+            FlyingMaster = source.FlyingMaster,
+            SdoManager = source.SdoManager,
+            ConfigurationManager = source.ConfigurationManager,
+            LayerSettingServiceMaster = source.LayerSettingServiceMaster
         };
+
+        foreach (var version in source.Versions)
+            clone.Versions.Add(new DeviceVersion { Type = version.Type, Value = version.Value, ReadOnly = version.ReadOnly });
+
+        foreach (var orderNumber in source.OrderNumbers)
+            clone.OrderNumbers.Add(new DeviceOrderNumber { Value = orderNumber.Value, ReadOnly = orderNumber.ReadOnly });
+
+        CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
+        return clone;
     }
 
     /// <summary>
@@ -80,8 +99,12 @@ internal static class ModelCloner
             DefaultValue = source.DefaultValue,
             LowLimit = source.LowLimit,
             HighLimit = source.HighLimit,
+            UniqueIdRef = source.UniqueIdRef,
             PdoMappingMode = source.PdoMappingMode,
             ObjFlags = source.ObjFlags,
+            ObjFlagsLexical = source.ObjFlagsLexical,
+            ObjFlagsLexicalBaseline = source.ObjFlagsLexicalBaseline,
+            XddPreservedAttributes = XddPreservedContent.CloneAttributes(source.XddPreservedAttributes),
             SubNumber = source.SubNumber,
             CompactSubObj = source.CompactSubObj,
             ParameterValue = source.ParameterValue,
@@ -93,6 +116,7 @@ internal static class ModelCloner
             ParamRefd = source.ParamRefd
         };
 
+        clone.CopyAccessTypeStateFrom(source);
         clone.ObjectLinks.AddRange(source.ObjectLinks);
         CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
 
@@ -119,15 +143,64 @@ internal static class ModelCloner
             DefaultValue = source.DefaultValue,
             LowLimit = source.LowLimit,
             HighLimit = source.HighLimit,
+            UniqueIdRef = source.UniqueIdRef,
             PdoMappingMode = source.PdoMappingMode,
             ParameterValue = source.ParameterValue,
             Denotation = source.Denotation,
             SrdoMapping = source.SrdoMapping,
             InvertedSrad = source.InvertedSrad,
-            ParamRefd = source.ParamRefd
+            ParamRefd = source.ParamRefd,
+            XddPreservedAttributes = XddPreservedContent.CloneAttributes(source.XddPreservedAttributes)
         };
 
+        clone.CopyAccessTypeStateFrom(source);
         CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
+        return clone;
+    }
+
+    /// <summary>
+    /// Deep copy of the XDD/XDC content kept for the XDD/XDC writers (<see langword="null"/> stays
+    /// <see langword="null"/>).
+    /// </summary>
+    internal static XddPreservedContent? CloneXddPreserved(XddPreservedContent? source)
+        => source?.Clone();
+
+    /// <summary>
+    /// Copies the unmapped entries of a source <c>[FileInfo]</c> onto a new file-information
+    /// object (conversion flows build <see cref="EdsFileInfo"/> from scratch).
+    /// </summary>
+    internal static void CopyFileInfoRemainingEntries(EdsFileInfo source, EdsFileInfo destination)
+        => CopyRemainingEntries(source.RemainingEntries, destination.RemainingEntries);
+
+    /// <summary>
+    /// Copies the <c>fileVersion</c> text of an XDD/XDC read with its baseline onto a new
+    /// file-information object whose <see cref="EdsFileInfo.FileVersion"/> was copied unchanged.
+    /// </summary>
+    internal static void CopyFileVersionText(EdsFileInfo source, EdsFileInfo destination)
+    {
+        destination.FileVersionText = source.FileVersionText;
+        destination.FileVersionTextBaseline = source.FileVersionTextBaseline;
+    }
+
+    /// <summary>
+    /// Creates a deep copy of the per-section unmapped entries
+    /// (<c>SectionRemainingEntries</c>), keeping case-insensitive section names and file order.
+    /// </summary>
+    internal static Dictionary<string, OrderedStringDictionary> CloneSectionRemainingEntries(
+        Dictionary<string, OrderedStringDictionary> source)
+    {
+        var clone = new Dictionary<string, OrderedStringDictionary>(source.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in source)
+        {
+            // A null store keeps nothing; the writer and the write rules skip it as well.
+            if (kvp.Value == null)
+                continue;
+
+            var entries = new OrderedStringDictionary();
+            CopyRemainingEntries(kvp.Value, entries);
+            clone[kvp.Key] = entries;
+        }
+
         return clone;
     }
 
@@ -187,6 +260,7 @@ internal static class ModelCloner
         var clone = new Comments { Lines = source.Lines };
         foreach (var kvp in source.CommentLines)
             clone.CommentLines[kvp.Key] = kvp.Value;
+        CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
         return clone;
     }
 
@@ -222,10 +296,16 @@ internal static class ModelCloner
                 {
                     Index = kvp.Value.Index,
                     ParameterName = kvp.Value.ParameterName,
+                    SubNumber = kvp.Value.SubNumber,
+                    ObjectType = kvp.Value.ObjectType,
                     DataType = kvp.Value.DataType,
                     AccessType = kvp.Value.AccessType,
                     DefaultValue = kvp.Value.DefaultValue,
+                    LowLimit = kvp.Value.LowLimit,
+                    HighLimit = kvp.Value.HighLimit,
                     PdoMapping = kvp.Value.PdoMapping,
+                    ObjFlags = kvp.Value.ObjFlags,
+                    CompactSubObj = kvp.Value.CompactSubObj,
                     Count = kvp.Value.Count,
                     ObjExtend = kvp.Value.ObjExtend
                 };
@@ -253,10 +333,16 @@ internal static class ModelCloner
                 Type = segment.Type,
                 Dir = segment.Dir,
                 Range = segment.Range,
-                PPOffset = segment.PPOffset
+                PPOffset = segment.PPOffset,
+                PPOffsetAddressDifference = segment.PPOffsetAddressDifference,
+                MaxNumber = segment.MaxNumber,
+                BitAlignment = segment.BitAlignment,
+                AddressOffsetLexical = segment.AddressOffsetLexical,
+                AddressOffsetLexicalBaseline = segment.AddressOffsetLexicalBaseline
             });
         }
 
+        CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
         return clone;
     }
 
@@ -268,11 +354,13 @@ internal static class ModelCloner
         var clone = new List<ToolInfo>(source.Count);
         foreach (var tool in source)
         {
-            clone.Add(new ToolInfo
+            var clonedTool = new ToolInfo
             {
                 Name = tool.Name,
                 Command = tool.Command
-            });
+            };
+            CopyRemainingEntries(tool.RemainingEntries, clonedTool.RemainingEntries);
+            clone.Add(clonedTool);
         }
 
         return clone;
@@ -738,6 +826,13 @@ internal static class ModelCloner
             });
         }
     }
+
+    /// <summary>
+    /// Copies the reader order of the additional sections and their keys, so that a converted
+    /// model writes them in the same order.
+    /// </summary>
+    internal static void CopyAdditionalSectionOrder(ICanOpenFileModel source, ICanOpenFileModel destination)
+        => destination.AdditionalSectionOrder.CopyFrom(source.AdditionalSectionOrder);
 
     /// <summary>
     /// Creates a deep copy of additional sections (string-keyed dictionaries)

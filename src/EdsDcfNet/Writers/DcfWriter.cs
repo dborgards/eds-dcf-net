@@ -19,22 +19,32 @@ public class DcfWriter : IniWriterBase
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="filePath">Path where the DCF file should be written</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure the target is left untouched and the temporary file
+    /// is removed. Whether the final replace is atomic depends on the file system (for example,
+    /// network shares may not guarantee it).
+    /// A symbolic link is followed: its final target is replaced and the link is kept. The
+    /// netstandard2.0 build cannot resolve links; it serializes the content completely and then
+    /// overwrites the link target in place, which is not atomic.
+    /// On Unix the new file keeps the permission bits of the file it replaces; the netstandard2.0
+    /// build on a runtime older than .NET 7 overwrites an existing file in place instead.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="dcf"/> is <see langword="null"/>.</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteFile(DeviceConfigurationFile dcf, string filePath)
     {
-        try
-        {
-            var content = GenerateDcfContent(dcf);
-            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
-        }
-        catch (DcfWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new DcfWriteException($"Failed to write DCF file to {filePath}", ex);
-        }
+        ThrowIfNull(dcf, nameof(dcf));
+
+        WriteEntryPoints.ToFile(
+            filePath,
+            "DCF",
+            () =>
+            {
+                var content = GenerateDcfContent(dcf);
+                TextFileIo.WriteOutputTextToFile(filePath, content);
+            },
+            (message, inner) => new DcfWriteException(message, inner));
     }
 
     /// <summary>
@@ -45,23 +55,19 @@ public class DcfWriter : IniWriterBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteStream(DeviceConfigurationFile dcf, Stream stream)
     {
+        ThrowIfNull(dcf, nameof(dcf));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            var content = GenerateDcfContent(dcf);
-            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
-        }
-        catch (DcfWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new DcfWriteException("Failed to write DCF content to stream.", ex);
-        }
+        WriteEntryPoints.ToStream(
+            "DCF",
+            () =>
+            {
+                var content = GenerateDcfContent(dcf);
+                TextFileIo.WriteOutputText(stream, content);
+            },
+            (message, inner) => new DcfWriteException(message, inner));
     }
 
     /// <summary>
@@ -70,30 +76,36 @@ public class DcfWriter : IniWriterBase
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="filePath">Path where the DCF file should be written</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure or cancellation the target is left untouched and the temporary file
+    /// is removed. Whether the final replace is atomic depends on the file system (for example,
+    /// network shares may not guarantee it).
+    /// A symbolic link is followed: its final target is replaced and the link is kept. The
+    /// netstandard2.0 build cannot resolve links; it serializes the content completely and then
+    /// overwrites the link target in place, which is not atomic.
+    /// On Unix the new file keeps the permission bits of the file it replaces; the netstandard2.0
+    /// build on a runtime older than .NET 7 overwrites an existing file in place instead.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="dcf"/> is <see langword="null"/>.</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public async Task WriteFileAsync(
         DeviceConfigurationFile dcf,
         string filePath,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateDcfContent(dcf);
-            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (DcfWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new DcfWriteException($"Failed to write DCF file to {filePath}", ex);
-        }
+        ThrowIfNull(dcf, nameof(dcf));
+
+        await WriteEntryPoints.ToFileAsync(
+            filePath,
+            "DCF",
+            async () =>
+            {
+                var content = GenerateDcfContent(dcf);
+                await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new DcfWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -108,28 +120,20 @@ public class DcfWriter : IniWriterBase
         Stream stream,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfNull(dcf, nameof(dcf));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateDcfContent(dcf);
-            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (DcfWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new DcfWriteException("Failed to write DCF content to stream.", ex);
-        }
+        await WriteEntryPoints.ToStreamAsync(
+            "DCF",
+            async () =>
+            {
+                var content = GenerateDcfContent(dcf);
+                await TextFileIo.WriteOutputTextAsync(stream, content, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new DcfWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -140,6 +144,7 @@ public class DcfWriter : IniWriterBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public string GenerateString(DeviceConfigurationFile dcf)
     {
+        ThrowIfNull(dcf, nameof(dcf));
         return GenerateDcfContent(dcf);
     }
 
@@ -206,6 +211,27 @@ public class DcfWriter : IniWriterBase
         int compactMax,
         HashSet<byte> expandedSubIndexes,
         Action<string, Action> writeSection)
+        => WriteCompactValueAndDenotationSections(
+            sb,
+            obj,
+            compactMax,
+            expandedSubIndexes,
+            writeSection,
+            CurrentObjectSectionEntries);
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Also called with <paramref name="compactMax"/> <c>0</c> for an object without compact
+    /// storage: the reader applies <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c> to every object,
+    /// so a list section that only carries kept entries is written again.
+    /// </remarks>
+    private protected override void WriteCompactValueAndDenotationSections(
+        StringBuilder sb,
+        CanOpenObject obj,
+        int compactMax,
+        HashSet<byte> expandedSubIndexes,
+        Action<string, Action> writeSection,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
         WriteCompactListSection(
             sb,
@@ -214,7 +240,8 @@ public class DcfWriter : IniWriterBase
             expandedSubIndexes,
             writeSection,
             "Value",
-            static sub => sub.ParameterValue);
+            SelectParameterValue,
+            sectionEntries);
 
         WriteCompactListSection(
             sb,
@@ -223,8 +250,15 @@ public class DcfWriter : IniWriterBase
             expandedSubIndexes,
             writeSection,
             "Denotation",
-            static sub => sub.Denotation);
+            SelectDenotation,
+            sectionEntries);
     }
+
+    /// <summary>Value of a sub-object in the DCF <c>[xxxxValue]</c> list.</summary>
+    internal static string? SelectParameterValue(CanOpenSubObject subObj) => subObj.ParameterValue;
+
+    /// <summary>Value of a sub-object in the DCF <c>[xxxxDenotation]</c> list.</summary>
+    internal static string? SelectDenotation(CanOpenSubObject subObj) => subObj.Denotation;
 
     private static void WriteCompactListSection(
         StringBuilder sb,
@@ -233,37 +267,30 @@ public class DcfWriter : IniWriterBase
         HashSet<byte> expandedSubIndexes,
         Action<string, Action> writeSection,
         string suffix,
-        Func<CanOpenSubObject, string?> selectValue)
+        Func<CanOpenSubObject, string?> selectValue,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
-        var entries = new SortedDictionary<byte, string>();
-        for (var i = 1; i <= compactMax; i++)
-        {
-            var subIndex = (byte)i;
-            if (expandedSubIndexes.Contains(subIndex))
-                continue;
-            if (!obj.SubObjects.TryGetValue(subIndex, out var subObj))
-                continue;
-
-            var value = selectValue(subObj);
-            if (!string.IsNullOrEmpty(value))
-                entries[subIndex] = value!;
-        }
-
-        if (entries.Count == 0)
-            return;
+        var entries = GetCompactListEntries(obj, compactMax, expandedSubIndexes, (_, sub) => selectValue(sub));
 
         var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}{1}", obj.Index, suffix);
+        var kept = GetSectionEntries(sectionEntries, sectionName);
+        if (entries.Count == 0 && kept == null)
+            return;
+
         writeSection(
             sectionName,
             () =>
             {
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0:X}{1}]", obj.Index, suffix));
+                IniRoundTripText.WriteSectionHeader(
+                    sb,
+                    string.Format(CultureInfo.InvariantCulture, "{0:X}{1}", obj.Index, suffix));
                 WriteKeyValue(sb, "NrOfEntries", entries.Count.ToString(CultureInfo.InvariantCulture));
                 foreach (var entry in entries)
                 {
                     WriteKeyValue(sb, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
                 }
 
+                WriteCompactListRemainingEntries(sb, kept, entries.Keys);
                 sb.AppendLine();
             });
     }
@@ -284,7 +311,7 @@ public class DcfWriter : IniWriterBase
         }
 
         // CiA 306-1 Table 12 spells the section with a single "m"; the reader accepts both spellings.
-        sb.AppendLine("[DeviceComissioning]");
+        IniRoundTripText.WriteSectionHeader(sb, "DeviceComissioning");
         WriteKeyValue(sb, "NodeID", dc.NodeId.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "NodeName", dc.NodeName);
 
@@ -309,12 +336,16 @@ public class DcfWriter : IniWriterBase
             WriteKeyValue(sb, "LSS_SerialNumber", dc.LssSerialNumber.Value.ToString(CultureInfo.InvariantCulture));
         }
 
+        WriteRemainingEntries(sb, dc.RemainingEntries, SectionEntryKeys.IsDeviceCommissioningKey);
         sb.AppendLine();
     }
 
-    private static void WriteConnectedModules(StringBuilder sb, List<int> connectedModules)
+    private static void WriteConnectedModules(
+        StringBuilder sb,
+        List<int> connectedModules,
+        Dictionary<string, OrderedStringDictionary> sectionEntries)
     {
-        sb.AppendLine("[ConnectedModules]");
+        IniRoundTripText.WriteSectionHeader(sb, "ConnectedModules");
         WriteKeyValue(sb, "NrOfEntries", connectedModules.Count.ToString(CultureInfo.InvariantCulture));
 
         for (int i = 0; i < connectedModules.Count; i++)
@@ -322,6 +353,11 @@ public class DcfWriter : IniWriterBase
             WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), connectedModules[i].ToString(CultureInfo.InvariantCulture));
         }
 
+        WriteCountedListRemainingEntries(
+            sb,
+            GetSectionEntries(sectionEntries, "ConnectedModules"),
+            SectionEntryKeys.NrOfEntriesKey,
+            connectedModules.Count);
         sb.AppendLine();
     }
 
@@ -334,6 +370,7 @@ public class DcfWriter : IniWriterBase
             WriteKeyValue(sb, "LastEDS", fileInfo.LastEds);
         }
 
+        WriteRemainingEntries(sb, fileInfo.RemainingEntries, key => SectionEntryKeys.IsWrittenDcfFileInfoKey(key, fileInfo.LastEds));
         sb.AppendLine();
     }
 
@@ -342,71 +379,107 @@ public class DcfWriter : IniWriterBase
     private static string GenerateDcfContent(DeviceConfigurationFile dcf)
     {
         var sb = new StringBuilder();
+        WriteGeneratedSections(sb, dcf);
+
+        // Collected before the first additional section is written, and only when there is one.
+        HashSet<string>? generatedHeaders = null;
+        foreach (var section in dcf.AdditionalSectionOrder.Sections(dcf.AdditionalSections))
+        {
+            generatedHeaders ??= GetGeneratedSectionHeaders(sb);
+            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary) ||
+                IsGeneratedSection(generatedHeaders, section.Key))
+            {
+                continue;
+            }
+
+            // The reader keeps the second of two commissioning spellings here. A stale copy of the
+            // generated name would duplicate the section: the generated one wins.
+            if (DeviceCommissioningSemantics.IsDiscardedAdditionalSection(section.Key, dcf.DeviceCommissioning))
+            {
+                continue;
+            }
+
+            WriteSection(
+                section.Key,
+                () => WriteAdditionalSection(
+                    sb, section.Key, dcf.AdditionalSectionOrder.Entries(section.Key, section.Value)));
+        }
+
+        return TextFileIo.ApplyOutputNewLine(sb.ToString());
+    }
+
+    /// <summary>
+    /// The section headers this writer generates from the model, before the additional
+    /// sections. Validated writes use it to check only the additional sections that are
+    /// written (<see cref="IniWriterBase.GetGeneratedSectionHeaders(StringBuilder)"/>).
+    /// </summary>
+    internal static HashSet<string> CollectGeneratedSectionHeaders(DeviceConfigurationFile dcf)
+    {
+        var sb = new StringBuilder();
+        WriteGeneratedSections(sb, dcf);
+        return GetGeneratedSectionHeaders(sb);
+    }
+
+    /// <summary>Writes every section generated from the model; additional sections follow.</summary>
+    private static void WriteGeneratedSections(StringBuilder sb, DeviceConfigurationFile dcf)
+    {
+        var sectionEntries = dcf.SectionRemainingEntries;
 
         WriteSection("FileInfo", () => WriteDcfFileInfo(sb, dcf.FileInfo));
 
         WriteSection("DeviceInfo", () => WriteDeviceInfo(sb, dcf.DeviceInfo));
 
-        if (!DeviceCommissioningSemantics.IsOmitted(dcf.DeviceCommissioning))
+        if (DeviceCommissioningSemantics.IsWrittenToDcf(dcf.DeviceCommissioning))
         {
             WriteSection("DeviceCommissioning", () => WriteDeviceCommissioning(sb, dcf.DeviceCommissioning));
         }
 
-        if (dcf.ObjectDictionary.DummyUsage.Count > 0)
+        if (dcf.ObjectDictionary.DummyUsage.Count > 0 || HasSectionEntries(sectionEntries, "DummyUsage"))
         {
-            WriteSection("DummyUsage", () => WriteDummyUsage(sb, dcf.ObjectDictionary));
+            WriteSection("DummyUsage", () => WriteDummyUsage(sb, dcf.ObjectDictionary, sectionEntries));
         }
 
-        WriteSection("ObjectLists", () => WriteObjectLists(sb, dcf.ObjectDictionary));
+        WriteSection("ObjectLists", () => WriteObjectLists(sb, dcf.ObjectDictionary, sectionEntries));
 
-        WriteSection("Objects", () => WriteObjects(sb, dcf.ObjectDictionary));
+        WriteSection("Objects", () => WriteObjects(sb, dcf.ObjectDictionary, sectionEntries));
 
-        if (dcf.SupportedModules.Count > 0)
+        if (dcf.SupportedModules.Count > 0 || HasSectionEntries(sectionEntries, "SupportedModules"))
         {
-            WriteSection("SupportedModules", () => WriteSupportedModules(sb, dcf.SupportedModules));
+            WriteSection("SupportedModules", () => WriteSupportedModules(sb, dcf.SupportedModules, sectionEntries));
         }
 
-        if (dcf.ConnectedModules.Count > 0)
+        if (dcf.ConnectedModules.Count > 0 || HasSectionEntries(sectionEntries, "ConnectedModules"))
         {
-            WriteSection("ConnectedModules", () => WriteConnectedModules(sb, dcf.ConnectedModules));
+            WriteSection("ConnectedModules", () => WriteConnectedModules(sb, dcf.ConnectedModules, sectionEntries));
         }
 
-        if (dcf.DynamicChannels != null && dcf.DynamicChannels.Segments.Count > 0)
+        if (MustWriteDynamicChannels(dcf.DynamicChannels))
         {
-            WriteSection("DynamicChannels", () => WriteDynamicChannels(sb, dcf.DynamicChannels));
+            WriteSection("DynamicChannels", () => WriteDynamicChannels(sb, dcf.DynamicChannels!));
         }
 
-        if (dcf.Tools.Count > 0)
+        if (MustWriteTools(dcf.Tools, sectionEntries))
         {
-            WriteSection("Tools", () => WriteTools(sb, dcf.Tools));
+            WriteSection("Tools", () => WriteTools(sb, dcf.Tools, sectionEntries));
         }
 
-        if (dcf.Comments != null && dcf.Comments.CommentLines.Count > 0)
+        if (MustWriteComments(dcf.Comments))
         {
-            WriteSection("Comments", () => WriteComments(sb, dcf.Comments));
+            WriteSection("Comments", () => WriteComments(sb, dcf.Comments!));
         }
-
-        foreach (var section in dcf.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
-        {
-            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary))
-            {
-                continue;
-            }
-
-            WriteSection(section.Key, () => WriteAdditionalSection(sb, section.Key, section.Value));
-        }
-
-        return sb.ToString();
     }
 
-    private static void WriteObjects(StringBuilder sb, ObjectDictionary objDict)
+    private static void WriteObjects(
+        StringBuilder sb,
+        ObjectDictionary objDict,
+        Dictionary<string, OrderedStringDictionary> sectionEntries)
     {
         var allObjects = objDict.Objects.OrderBy(o => o.Key);
 
         foreach (var objEntry in allObjects)
         {
             var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", objEntry.Key);
-            WriteSection(sectionName, () => Instance.WriteObject(sb, objEntry.Value, WriteSection));
+            WriteSection(sectionName, () => Instance.WriteObject(sb, objEntry.Value, WriteSection, sectionEntries));
         }
     }
 
@@ -415,6 +488,13 @@ public class DcfWriter : IniWriterBase
         try
         {
             writeAction();
+        }
+        catch (IniTextRejectedException ex)
+        {
+            throw new DcfWriteException(ex.Message)
+            {
+                SectionName = sectionName
+            };
         }
         catch (DcfWriteException)
         {

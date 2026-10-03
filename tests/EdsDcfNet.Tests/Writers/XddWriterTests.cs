@@ -707,7 +707,7 @@ public class XddWriterTests
         // Arrange — set all optional FileInfo fields
         var eds = CreateSampleEds();
         eds.FileInfo.ModificationDate = "04-20-2025";
-        eds.FileInfo.ModificationTime = "14:00";
+        eds.FileInfo.ModificationTime = "02:00PM";
         eds.FileInfo.ModifiedBy = "Engineer";
 
         // Act
@@ -715,12 +715,12 @@ public class XddWriterTests
 
         // Assert
         result.Should().Contain("fileModificationDate=\"2025-04-20\"");
-        result.Should().Contain("fileModificationTime=\"14:00\"");
+        result.Should().Contain("fileModificationTime=\"14:00:00\"");
         result.Should().Contain("fileModifiedBy=\"Engineer\"");
     }
 
     [Fact]
-    public void GenerateString_NonStandardDateFormat_PassedThrough()
+    public void GenerateString_NonStandardDateFormat_AttributeOmitted()
     {
         // Arrange — date that doesn't match MM-DD-YYYY format
         var eds = CreateSampleEds();
@@ -729,8 +729,8 @@ public class XddWriterTests
         // Act
         var result = _writer.GenerateString(eds);
 
-        // Assert — non-standard date is written as-is (fallback)
-        result.Should().Contain("fileCreationDate=\"2025/01/15\"");
+        // Assert — a date that is not a valid date is never written as a mistyped attribute
+        result.Should().NotContain("fileCreationDate");
     }
 
     [Fact]
@@ -753,17 +753,19 @@ public class XddWriterTests
         // Assert
         result.Should().Contain("dynamicChannels");
         result.Should().Contain("dynamicChannel");
-        result.Should().Contain("dataType=\"0007\"");
-        result.Should().Contain("accessType=\"ro\"");
+        result.Should().Contain("dataType=\"07\"");
+        result.Should().Contain("accessType=\"readOnly\"");
         result.Should().Contain("startIndex=\"1600\"");
         result.Should().Contain("endIndex=\"17FF\"");
-        result.Should().Contain("pDOmappingIndex=\"5\"");
+        result.Should().Contain("maxNumber=\"512\"");
+        result.Should().Contain("addressOffset=\"0005\"");
+        result.Should().NotContain("pDOmappingIndex");
     }
 
     [Fact]
-    public void GenerateString_DynamicChannel_NoEndIndex_WhenSingleRangePart()
+    public void GenerateString_DynamicChannel_SingleIndex_RepeatsEndIndex()
     {
-        // Arrange — Range with no '-' separator → only startIndex written
+        // Arrange — CiA 311 requires endIndex. A range with one index uses that index for both ends.
         var eds = CreateSampleEds();
         eds.DynamicChannels = new DynamicChannels();
         eds.DynamicChannels.Segments.Add(new DynamicChannelSegment
@@ -777,8 +779,13 @@ public class XddWriterTests
         var result = _writer.GenerateString(eds);
 
         // Assert
+        result.Should().Contain("dataType=\"04\"");
+        result.Should().Contain("accessType=\"readWriteOutput\"");
         result.Should().Contain("startIndex=\"2000\"");
-        result.Should().NotContain("endIndex");
+        result.Should().Contain("endIndex=\"2000\"");
+        result.Should().Contain("maxNumber=\"1\"");
+        result.Should().Contain("addressOffset=\"0000\"");
+        result.Should().NotContain("pDOmappingIndex");
     }
 
     [Fact]
@@ -849,7 +856,7 @@ public class XddWriterTests
         // Assert
         result.Should().Contain("lowLimit=\"0\"");
         result.Should().Contain("highLimit=\"100\"");
-        result.Should().Contain("objFlags=\"1\"");
+        result.Should().Contain("objFlags=\"0001\"");
     }
 
     [Fact]

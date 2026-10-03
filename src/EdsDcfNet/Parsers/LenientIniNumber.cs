@@ -2,6 +2,7 @@ namespace EdsDcfNet.Parsers;
 
 using System.Globalization;
 using EdsDcfNet.Exceptions;
+using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 
 /// <summary>
@@ -76,10 +77,126 @@ internal static class LenientIniNumber
             coercedTo,
             fallbackDescription);
 
+    /// <summary>Bits 0 and 1 are the only <c>ObjFlags</c> bits CiA 306-1 Table 8 defines.</summary>
+    private const uint DefinedIniObjFlagsMask = 0x3;
+
     /// <summary>
-    /// Parses <c>ObjFlags</c>. A <c>$NODEID</c> formula has no node-id context here, so
-    /// <see cref="ValueConverter.ParseInteger(string, byte?)"/> throws
-    /// <see cref="NotSupportedException"/>. That failure is an invalid numeric key:
+    /// Parses an EDS/DCF <c>ObjFlags</c> entry: malformed values fall back to <c>0</c> as in
+    /// <see cref="ParseUInt32"/>, and a readable value with reserved bits 2..31 set (CiA 306-1
+    /// Table 8) is kept and reported as <see cref="Diagnostics.ParseDiagnosticCodes.IniObjFlagsReservedBits"/>
+    /// in lenient and strict mode. CiA 311 also defines bit 2, which is why the XDD reader has its
+    /// own limit.
+    /// </summary>
+    internal static uint ParseObjFlags(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string rawValue)
+    {
+        var flags = ParseUInt32(
+            sections,
+            sectionName,
+            "ObjFlags",
+            rawValue,
+            fallback: 0,
+            code: Diagnostics.ParseDiagnosticCodes.InvalidObjFlags,
+            coercedTo: "0",
+            fallbackDescription: TreatAsZero);
+
+        if ((flags & ~DefinedIniObjFlagsMask) != 0)
+        {
+            Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                Diagnostics.ParseSeverity.Warning,
+                Diagnostics.ParseDiagnosticCodes.IniObjFlagsReservedBits,
+                path: sectionName + ".ObjFlags",
+                line: IniKeyLines.TryGetLine(sections, sectionName, "ObjFlags"),
+                rawValue: rawValue,
+                message: string.Format(
+                    CultureInfo.InvariantCulture,
+                    "ObjFlags '{0}' sets reserved bits 2..31. CiA 306-1 defines only bit 0 (refuse write on download) and bit 1 (refuse read on scan). The value is kept.",
+                    rawValue)));
+        }
+
+        return flags;
+    }
+
+    /// <summary>
+    /// Reports a counted object list whose count disagrees with its numbered entries: an entry above
+    /// the count (kept in the remaining entries of the section, not loaded) or an empty or missing
+    /// entry inside it (CiA 306-1 Table 5). A malformed count was already reported by
+    /// <see cref="AppendIndexes"/>. One diagnostic per list, in lenient and strict mode.
+    /// </summary>
+    internal static void ReportCountMismatch(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string countKey)
+    {
+        var rawCount = IniParser.GetValue(sections, sectionName, countKey, "0");
+        int count;
+        try
+        {
+            count = ValueConverter.ParseUInt16(rawCount);
+        }
+        catch (EdsParseException)
+        {
+            return;
+        }
+
+        var above = new List<string>();
+        foreach (var key in IniParser.GetKeys(sections, sectionName))
+        {
+            if (SectionEntryKeys.IsEntryNumberAbove(key, count))
+                above.Add(key);
+        }
+
+        var missing = new List<string>();
+        for (var i = 1; i <= count; i++)
+        {
+            var key = i.ToString(CultureInfo.InvariantCulture);
+            if (string.IsNullOrEmpty(IniParser.GetValue(sections, sectionName, key)))
+                missing.Add(key);
+        }
+
+        if (above.Count == 0 && missing.Count == 0)
+            return;
+
+        var message = string.Format(
+            CultureInfo.InvariantCulture,
+            "{0} is {1} but the numbered entries do not match.",
+            countKey,
+            count);
+        if (above.Count > 0)
+        {
+            message += " Entries above the count (" + Summarize(above)
+                + ") are not loaded and are kept unchanged.";
+        }
+
+        if (missing.Count > 0)
+            message += " Entries empty or missing inside the count (" + Summarize(missing) + ").";
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.IniObjectListCountMismatch,
+            path: sectionName + "." + countKey,
+            line: IniKeyLines.TryGetLine(sections, sectionName, countKey),
+            rawValue: rawCount,
+            message: message));
+    }
+
+    private static string Summarize(List<string> keys)
+    {
+        const int shown = 5;
+        return keys.Count <= shown
+            ? string.Join(", ", keys)
+            : string.Join(", ", keys.Take(shown)) + ", and "
+              + (keys.Count - shown).ToString(CultureInfo.InvariantCulture) + " more";
+    }
+
+    /// <summary>
+    /// Parses an unsigned 32-bit INI number (<c>ObjFlags</c>, <c>[DeviceInfo]</c>
+    /// <c>VendorNumber</c>, <c>ProductNumber</c>, <c>RevisionNumber</c>, and the other
+    /// <see cref="ParseUInt32"/> keys). A <c>$NODEID</c> formula has no node-id context
+    /// here, so <see cref="ValueConverter.ParseInteger(string, byte?)"/> throws
+    /// <see cref="NotSupportedException"/>. The integer cannot store the formula (#577):
     /// lenient mode falls back, strict mode throws <see cref="EdsParseException"/>.
     /// </summary>
     private static uint ParseObjFlagsInteger(string value)
@@ -92,6 +209,78 @@ internal static class LenientIniNumber
         {
             throw new EdsParseException(ex.Message, ex);
         }
+    }
+
+    /// <summary>
+    /// Reports a readable value that is outside its allowed range. Lenient mode adds a
+    /// diagnostic and the caller keeps the value (validation reports it); strict mode throws.
+    /// </summary>
+    internal static void ReportOutOfRange(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string keyName,
+        string rawValue,
+        string code,
+        string message)
+    {
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(message)
+            {
+                Code = code,
+                SectionName = sectionName,
+                LineNumber = IniKeyLines.TryGetLine(sections, sectionName, keyName)
+            };
+        }
+
+        Report(sections, sectionName, keyName, rawValue, code, coercedTo: null, message + " The value is kept.");
+    }
+
+    /// <summary>
+    /// Parses a <c>[DynamicChannels]</c> <c>PPOffset&lt;n&gt;</c> value: <c>offset</c> or
+    /// <c>offset, addressDifference</c> (CiA 306-3 § 5.2.2). An empty value is offset <c>0</c>.
+    /// A malformed value is offset <c>0</c> without an address difference in lenient mode.
+    /// </summary>
+    internal static (uint Offset, uint? AddressDifference) ParsePpOffset(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string keyName,
+        string rawValue)
+        => Parse<(uint Offset, uint? AddressDifference)>(
+            sections,
+            sectionName,
+            keyName,
+            rawValue,
+            ParsePpOffsetTuple,
+            (0u, null),
+            Diagnostics.ParseDiagnosticCodes.InvalidDynamicChannelPpOffset,
+            coercedTo: "0",
+            TreatAsZero);
+
+    private static (uint Offset, uint? AddressDifference) ParsePpOffsetTuple(string value)
+    {
+        if (value.Trim().Length == 0)
+            return (0u, null);
+
+        var parts = value.Split(',');
+        if (parts.Length > 2)
+        {
+            throw new EdsParseException(
+                "Invalid PPOffset value: '" + value + "'. Expected 'offset' or 'offset, addressDifference'.");
+        }
+
+        var offset = ParseUInt32Part(parts[0]);
+        return parts.Length == 2 ? (offset, ParseUInt32Part(parts[1])) : (offset, null);
+    }
+
+    private static uint ParseUInt32Part(string part)
+    {
+        // An empty part ("0," or ",1") is malformed here, unlike an empty whole value.
+        if (part.Trim().Length == 0)
+            throw new EdsParseException("Invalid PPOffset value: an empty offset or address difference.");
+
+        // ParseObjFlagsInteger turns the $NODEID NotSupportedException into EdsParseException.
+        return ParseObjFlagsInteger(part);
     }
 
     /// <summary>
@@ -129,6 +318,23 @@ internal static class LenientIniNumber
             keyName,
             rawValue,
             ValueConverter.ParseUInt16,
+            code,
+            fallbackDescription);
+
+    /// <inheritdoc cref="ParseOptionalByte"/>
+    internal static uint? ParseOptionalUInt32(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string keyName,
+        string rawValue,
+        string code,
+        string fallbackDescription)
+        => ParseOptional(
+            sections,
+            sectionName,
+            keyName,
+            rawValue,
+            ParseObjFlagsInteger,
             code,
             fallbackDescription);
 
@@ -254,6 +460,40 @@ internal static class LenientIniNumber
         }
     }
 
+    /// <summary>
+    /// Reports a present key whose value is not acceptable. Lenient mode adds a diagnostic
+    /// describing the fallback; strict mode throws <see cref="EdsParseException"/> with the same code.
+    /// </summary>
+    internal static void ReportInvalid(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        string keyName,
+        string rawValue,
+        string code,
+        string? coercedTo,
+        string fallbackDescription)
+    {
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(InvalidValueMessage(sectionName, keyName, rawValue))
+            {
+                Code = code,
+                SectionName = sectionName,
+                LineNumber = IniKeyLines.TryGetLine(sections, sectionName, keyName)
+            };
+        }
+
+        Report(sections, sectionName, keyName, rawValue, code, coercedTo, fallbackDescription);
+    }
+
+    private static string InvalidValueMessage(string sectionName, string keyName, string rawValue)
+        => string.Format(
+            CultureInfo.InvariantCulture,
+            "Invalid value '{0}' for key '{1}' in section '{2}'.",
+            rawValue,
+            keyName,
+            sectionName);
+
     private static void Report(
         Dictionary<string, Dictionary<string, string>> sections,
         string sectionName,
@@ -270,13 +510,7 @@ internal static class LenientIniNumber
             line: IniKeyLines.TryGetLine(sections, sectionName, keyName),
             rawValue: rawValue,
             coercedTo: coercedTo,
-            message: string.Format(
-                CultureInfo.InvariantCulture,
-                "Invalid value '{0}' for key '{1}' in section '{2}'. {3}",
-                rawValue,
-                keyName,
-                sectionName,
-                fallbackDescription)));
+            message: InvalidValueMessage(sectionName, keyName, rawValue) + " " + fallbackDescription));
     }
 
     private static EdsParseException Fail(

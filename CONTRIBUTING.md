@@ -19,6 +19,21 @@ refactor/xyz    ──┘      │           │
 | `develop` | Integration branch. Every merge here triggers a beta pre-release (e.g., `1.5.0-beta.1`) on NuGet. |
 | `feat/*`, `fix/*`, `refactor/*`, etc. | Short-lived work branches, always branched from `develop`. |
 
+### Merge strategy
+
+The merge method is enforced by the repository rulesets (see
+[Branch protection](#branch-protection-repository-rulesets)):
+
+- **Feature, fix and chore PRs into `develop`** are merged with **squash** (or
+  rebase); a merge commit is not allowed there. The squash commit message must
+  be a valid Conventional Commit: it is the commit semantic-release analyzes for
+  the beta release.
+- **The release PR `develop` → `main`** is merged with a **regular merge
+  commit, never squash or rebase** (the only method the `main` ruleset allows).
+  Squashing would collapse the individual `feat:`/`fix:` commits into one commit
+  that semantic-release does not recognize, and the stable release would be
+  skipped silently.
+
 ## How to contribute
 
 1. **Fork / clone the repository.**
@@ -48,6 +63,24 @@ refactor/xyz    ──┘      │           │
    below and confirm it in the PR template.
 
 7. Wait for CI (build + tests) to pass and for review.
+
+### CI behaviour
+
+- `build.yml` runs on **pull requests** into `develop` or `main`, on **pushes
+  to `develop`**, and on manual `workflow_dispatch`. A push to a PR branch is
+  built once, by the `pull_request` trigger; a newer push to the same PR
+  cancels the run still in progress.
+- A branch **without an open PR** is not built on push. Open a (draft) PR or
+  start `build.yml` manually (Actions tab, "Run workflow") to get a run.
+- **Documentation-only changes** (every changed file is a root `*.md`,
+  under `docs/`, a `.github/*.md`, or `LICENSE*`) in a PR into `develop` or in
+  a push to `develop` skip restore, build, tests, coverage and the ApiCompat
+  steps. The `changes` job decides this with plain `git diff`; any other
+  file, a PR into `main`, a manual run, or an unusable diff means a full run.
+  The `build` job still starts and ends with success, and it posts
+  `coverage/threshold` as success, so the required checks are reported and
+  the PR is not blocked. There is deliberately no workflow-level
+  `paths-ignore`: it would leave the required checks unreported.
 
 ## Coding conventions
 
@@ -172,13 +205,38 @@ Contributing a corpus file:
    snapshots with:
 
    ```
-   UPDATE_CORPUS_SNAPSHOTS=1 dotnet test --filter CorpusDiagnosticsSnapshotTests
+   UPDATE_CORPUS_SNAPSHOTS=1 dotnet test -f net10.0 --filter CorpusDiagnosticsSnapshotTests
    ```
 
    Commit the snapshot diff together with the parser or corpus change that
    caused it, and review it like any other source change — the diff is the
    visible record of a lenient-behaviour change. Snapshots whose corpus file
    was removed are flagged as orphans; delete them with the file.
+
+   Every corpus file also carries a `<file>.model.json` snapshot of the parsed
+   object model (`CorpusModelSnapshotTests`): per object and sub-object index,
+   object type, data type, access type, default value and PDO mapping, plus
+   `uniqueIDRef` counts for XDD/XDC. Refresh it with
+   `UPDATE_CORPUS_SNAPSHOTS=1 dotnet test -f net10.0 --filter CorpusModelSnapshotTests`
+   and explain every diff in the PR description. Both update commands name
+   one target framework so that only one test process writes the files.
+
+### CiA 311 schema fixtures
+
+`tests/EdsDcfNet.Tests/Fixtures/Schemas/cia-311/` holds the normative CiA 311
+v1.1.0 XML schema (Annex A) as **test fixtures**; see the `NOTICE.md` there
+for origin, rights holder and the two documented changes against the delivered
+files. `Cia311Schema` (test infrastructure) compiles the schema set and
+validates XDD/XDC documents; `Cia311SchemaValidationTests` runs it.
+
+- For every question about XDD/XDC structure the schema is authoritative. It
+  declares `elementFormDefault="unqualified"`: globally declared elements
+  belong to the CiA namespace, locally declared ones to no namespace.
+- `KnownGaps` in `Cia311SchemaValidationTests` lists documents that do not
+  validate yet, each with the first reported problem. A change that fixes that
+  problem fails the test on purpose: update the entry to the next remaining
+  problem, or move the document to `ConformantDocuments` once it validates.
+- Do not edit the schema files. The specification PDFs must not be committed.
 
 ## Commit convention
 
@@ -227,6 +285,23 @@ BREAKING CHANGE: CanOpenFile.Eds.ReadFile now returns a Result type
 > removals allowed by the obsoleting policy at the next Major) are suppressed in
 > `src/EdsDcfNet/ApiCompatSuppressions.xml` with a comment referencing the
 > approving issue/PR.
+>
+> `apicompat`, `npm-lockfile`, and `breaking-intent` run on every pull request
+> into `develop` or `main`, including a release PR from `develop` → `main`.
+> The release commit (`chore(release): <version>` in `.releaserc.json`,
+> committer `semantic-release-bot`) must not contain a skip directive
+> (`[skip ci]`, `[ci skip]`, `[no ci]`, `[skip actions]`, `[actions skip]`,
+> or a `skip-checks` trailer). The git message is that subject only. It must
+> not include generated notes (`${nextRelease.notes}`): notes can copy a skip
+> directive out of a release-visible commit, and GitHub honors those strings
+> anywhere in the commit message. GitHub applies those directives to the HEAD
+> commit of a pull request and skips the workflow before any job `if:` runs;
+> that release commit is usually the HEAD. The release push does not repeat
+> the build or start a second semantic-release run: `build.yml` and
+> `semantic-release.yml` skip those jobs when the pushed HEAD is that commit.
+> A job skipped by `if:` reports success, so required checks still clear.
+> Omitting the `message` setting restores `@semantic-release/git`'s default,
+> which appends `[skip ci]`.
 >
 > The checklist below covers what the tool **cannot** see: behavioural
 > changes, exception-contract changes, and source-level (not binary) breaks.
@@ -372,6 +447,16 @@ Releases are fully automated via semantic-release:
 
 Maintainers decide when to promote `develop` → `main`.
 
+The release commit message is exactly `chore(release): <version>`
+(`.releaserc.json`). Generated notes go to `CHANGELOG.md` and the GitHub
+release; they must not appear in the git commit message. Do not interpolate
+`${nextRelease.notes}` there, and do not add `[skip ci]` or any other skip
+directive. A notes body can copy a directive from a release-visible commit,
+and GitHub honors those strings anywhere in the message. The public API
+checklist above explains why: that commit is usually the HEAD of the next
+`develop` → `main` pull request, and a directive would skip `apicompat`,
+`npm-lockfile`, and `breaking-intent` on it.
+
 ### Communicating changes through semantic-release
 
 Release notes and `CHANGELOG.md` are **generated** — commits are the only
@@ -419,9 +504,31 @@ Quick check before merging: *"Will this note reach consumers?"* — it will only
 if it is the **subject** of a commit whose type is release-visible, or the text
 of a `BREAKING CHANGE:` footer.
 
-## Recommended branch protection settings
+## Branch protection (repository rulesets)
+
+Both branches are protected by repository rulesets (verify with
+`gh api repos/dborgards/eds-dcf-net/rules/branches/develop`, likewise `main`):
 
 | Branch | Require PR | Require status checks | Restrict direct push |
 |---|---|---|---|
-| `main` | Yes | `build` | Yes |
-| `develop` | Yes | `build` | Yes |
+| `main` | Yes | `build`; `codecov/patch` (Codecov app) | Yes |
+| `develop` | Yes | `build`; `coverage/threshold` (GitHub Actions) | Yes |
+
+Allowed merge methods per ruleset:
+
+| Branch | Allowed merge methods |
+|---|---|
+| `main` | merge commit only |
+| `develop` | squash, rebase |
+
+Both rulesets also block deletion and non-fast-forward pushes, require
+the branch to be up to date before merging (strict status checks), require all
+review threads to be resolved (no approving review is required), and gate on
+CodeQL results and code quality. Changes reach both branches only through PRs.
+
+`coverage/threshold` is the commit status from the line-coverage gate in
+`build.yml` (relayed onto release commits by `relay-release-status`). It is
+the 95% line total from `tools/enforce-coverage-threshold.sh`, not Codecov's
+patch check. On `develop`, the ruleset must require `coverage/threshold` from
+GitHub Actions. On `main`, `codecov/patch` is Codecov's own check; leave that
+requirement in place.

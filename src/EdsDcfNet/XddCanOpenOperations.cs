@@ -3,19 +3,29 @@ namespace EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
+using EdsDcfNet.Validation;
 using EdsDcfNet.Writers;
 
 /// <summary>
 /// XDD-focused read/write operations for CiA 311 XML Device Descriptions.
 /// Access via <see cref="CanOpenFile.Xdd"/>.
 /// </summary>
+/// <remarks>
+/// The default write is tolerant. <c>fileCreationDate</c> (required by the schema) is written only
+/// for a valid <see cref="EdsFileInfo.CreationDate"/>, so a model without one produces a document that
+/// is not schema-valid, as does an empty object dictionary. A date or time that is not valid is omitted.
+/// With <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> these cases throw
+/// <see cref="ModelValidationException"/>. <see cref="EdsFileInfo.CreationTime"/> and
+/// <see cref="EdsFileInfo.ModificationTime"/> are written as <c>xsd:time</c>: an <c>xsd:time</c> value
+/// unchanged, the EDS form <c>hh:mmAM/PM</c> converted to <c>HH:mm:ss</c>.
+/// </remarks>
 public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDataSheet>
 {
     internal static XddCanOpenOperations Instance { get; } = new();
 
     private XddCanOpenOperations()
         : base(
-            CanOpenWriteGuard.EnsureValidForWrite,
+            (model, options) => CanOpenWriteGuard.EnsureValidForWrite(model, options, XmlWriteRules.Apply),
             (filePath, maxInputSize) => new XddReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new XddReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),
@@ -30,7 +40,11 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
             (xdd, stream, cancellationToken) =>
                 new XddWriter().WriteStreamAsync(xdd, stream, cancellationToken),
             xdd => new XddWriter().GenerateString(xdd),
-            CanOpenWriteGuard.EnsureValidForWriteAsync)
+            (model, options, cancellationToken) => CanOpenWriteGuard.EnsureValidForWriteAsync(
+                model,
+                options,
+                XmlWriteRules.Apply,
+                cancellationToken))
     {
     }
 

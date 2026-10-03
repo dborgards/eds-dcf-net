@@ -63,6 +63,76 @@ tag_commit() {
   git rev-parse "$1^{}"
 }
 
+# Prints the note semantic-release itself would have written for VERSION:
+# `{"channels":[<channel>]}`, byte for byte as JSON.stringify produces it.
+#
+# The channel is not the prerelease id. semantic-release 25 (lib/branches/
+# normalize.js) gives a prerelease branch `channel: isNil(channel) ? name :
+# channel` and the first release branch its configured channel as-is; index.js
+# then records `context.branch.channel || null`. With .releaserc.json's
+# `{"name": "develop", "prerelease": "beta"}` that is "develop", and for main
+# it is null (the default channel). get-last-release.js only accepts a
+# prerelease tag whose note carries the branch's channel, so a "beta" note
+# hides the tag from every later develop run.
+#
+# The channel is derived from the version, not from the branch this run is on:
+# verify_last_release on develop can repair a stable tag merged back from
+# main, and that tag was published on main's default channel.
+release_channel_note() {
+  local version="$1"
+  local config="${2:-.releaserc.json}"
+  local note
+
+  note="$(node - "$config" "$version" <<'NODE'
+const fs = require("fs");
+const [config, version] = process.argv.slice(2);
+const fail = (message) => {
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
+};
+
+let branches;
+try {
+  branches = JSON.parse(fs.readFileSync(config, "utf8")).branches;
+} catch (error) {
+  fail(`Could not read branches from ${config}: ${error.message}`);
+}
+if (!Array.isArray(branches)) {
+  fail(`${config} has no branches array.`);
+}
+
+const entries = branches.map((b) => (typeof b === "string" ? { name: b } : b));
+const isNil = (value) => value === undefined || value === null;
+const dash = version.indexOf("-");
+let channel;
+
+if (dash === -1) {
+  // A stable version comes from a release branch. Only the first one keeps
+  // its configured channel unchanged (normalize.js release(), idx === 0);
+  // with more than one the publishing branch cannot be told from the version.
+  const releases = entries.filter((b) => !b.prerelease);
+  if (releases.length !== 1) {
+    fail(`Expected exactly one release branch in ${config}, found ${releases.length}.`);
+  }
+  channel = releases[0].channel;
+} else {
+  const preid = version.slice(dash + 1).split(".")[0];
+  const matches = entries.filter(
+    (b) => b.prerelease && (b.prerelease === true ? b.name : b.prerelease) === preid
+  );
+  if (matches.length !== 1) {
+    fail(`Expected exactly one prerelease branch for '${preid}' in ${config}, found ${matches.length}.`);
+  }
+  channel = isNil(matches[0].channel) ? matches[0].name : matches[0].channel;
+}
+
+process.stdout.write(JSON.stringify({ channels: [channel || null] }));
+NODE
+)" || return 1
+
+  printf '%s\n' "${note//$'\r'/}"
+}
+
 ensure_git_notes() {
   local version="$1"
   local tag="v${version}"
@@ -79,11 +149,12 @@ ensure_git_notes() {
     return 0
   fi
 
-  if [[ "$version" == *-* ]]; then
-    channel_json='{"channels":["beta"]}'
-  else
-    channel_json='{"channels":[null]}'
-  fi
+  # Refuse rather than guess: a wrong channel hides the tag as surely as a
+  # missing note, and a missing one is at least retried by the next run.
+  channel_json="$(release_channel_note "$version")" || {
+    echo "Could not derive the release channel for ${tag}." >&2
+    return 1
+  }
 
   # Attach notes to the peeled commit. semantic-release reads them via
   # `git log`, which does not see notes stored on an annotated tag object.
@@ -244,6 +315,63 @@ resume_release_publish() {
   fi
 }
 
+# Notes for a GitHub release created while repairing VERSION.
+#
+# Historical release commits embedded ${nextRelease.notes} in the commit body,
+# and that body is what this repair used to publish. The git message is now
+# the subject only, so a new release commit has an empty body — on purpose,
+# because notes can carry a skip directive into the develop→main PR head.
+# The changelog plugin still writes the same notes into CHANGELOG.md before
+# that commit, and the tag points at it. Prefer a non-empty body so an older
+# tag repairs exactly as it used to; otherwise take that changelog section.
+release_notes_for_version() {
+  local version="$1"
+  local tag="v${version}"
+  local body
+
+  body="$(git log -1 --format=%b "$tag")"
+  if [[ -n "${body//[[:space:]]/}" ]]; then
+    printf '%s\n' "$body"
+    return 0
+  fi
+
+  release_notes_from_changelog "$version"
+}
+
+release_notes_from_changelog() {
+  local version="$1"
+  local tag="v${version}"
+  local changelog_file line found=0 section=""
+  local heading="## [${version}]"
+
+  changelog_file="$(mktemp)"
+  if ! git show "${tag}:CHANGELOG.md" >"$changelog_file" 2>/dev/null; then
+    rm -f "$changelog_file"
+    echo "No CHANGELOG.md at ${tag}; cannot recover release notes for ${version}." >&2
+    return 1
+  fi
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    if [[ "$found" -eq 1 && "${line:0:3}" == "## " && "${line:0:${#heading}}" != "$heading" ]]; then
+      break
+    fi
+    if [[ "${line:0:${#heading}}" == "$heading" ]]; then
+      found=1
+    fi
+    if [[ "$found" -eq 1 ]]; then
+      section+="${line}"$'\n'
+    fi
+  done <"$changelog_file"
+  rm -f "$changelog_file"
+
+  if [[ "$found" -ne 1 || -z "${section//[[:space:]]/}" ]]; then
+    echo "CHANGELOG.md at ${tag} has no notes section for ${version}." >&2
+    return 1
+  fi
+  printf '%s' "$section"
+}
+
 complete_release_publish() {
   local version="$1"
   local tag="v${version}"
@@ -291,7 +419,9 @@ complete_release_publish() {
 
   if ! gh release view "$tag" >/dev/null 2>&1; then
     notes_file="$(mktemp)"
-    git log -1 --format=%b "$tag" >"$notes_file"
+    # Body when the release commit still has one; otherwise the CHANGELOG
+    # section at this tag. An empty file would publish a release with no notes.
+    release_notes_for_version "$version" >"$notes_file"
 
     while IFS= read -r name; do
       if [[ -f "${packages_dir}/${name}" ]]; then
@@ -621,6 +751,11 @@ repair_notes_and_publish() {
   ensure_git_notes "$version" || warn "Could not add local git notes for v${version}."
   retry_git_notes_push "$notes_ref" || warn "Git notes push failed after retries; publish already completed."
 }
+
+# Sourced (tools/semantic-release-run.test.sh): provide the functions only.
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  return 0
+fi
 
 dry_run_log="$(mktemp)"
 FORCE_COLOR=0 npx semantic-release --dry-run >"$dry_run_log" 2>&1 || {

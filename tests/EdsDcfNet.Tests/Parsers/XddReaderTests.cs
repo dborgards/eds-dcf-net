@@ -2,6 +2,7 @@ namespace EdsDcfNet.Tests.Parsers;
 
 using System.Text;
 using EdsDcfNet;
+using EdsDcfNet.Diagnostics;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
@@ -1241,7 +1242,7 @@ public class XddReaderTests
     }
 
     [Fact]
-    public void ParseDeviceCommissioning_UnknownActualBaudRate_StrictParsing_ThrowsEdsParseException()
+    public void ParseDeviceCommissioning_UnknownActualBaudRate_StrictParsing_ReportsAndPreservesWithoutThrowing()
     {
         const string xdc = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
@@ -1273,10 +1274,13 @@ public class XddReaderTests
   </ISO15745Profile>
 </ISO15745ProfileContainer>";
 
-        var act = () => CanOpenFile.Xdc.ReadString(xdc, new CanOpenFileOptions { StrictParsing = true });
+        // actualBaudRate is a free xsd:string: valid input the model cannot hold is reported, not rejected.
+        var result = CanOpenFile.Xdc.ReadStringWithDiagnostics(xdc, new CanOpenFileOptions { StrictParsing = true });
 
-        act.Should().Throw<EdsParseException>()
-            .WithMessage("*Unknown baud-rate string '777 Kbps'*");
+        result.Model.DeviceCommissioning.Baudrate.Should().Be(0);
+        result.Diagnostics.Should().ContainSingle(d =>
+            d.Code == ParseDiagnosticCodes.XddUnknownBaudRate && d.RawValue == "777 Kbps");
+        CanOpenFile.Xdc.WriteToString(result.Model).Should().Contain("actualBaudRate=\"777 Kbps\"");
     }
 
     [Fact]
@@ -1408,17 +1412,16 @@ public class XddReaderTests
     [Theory]
     [InlineData("7.3")]
     [InlineData("1,0")]
-    public void FileInfo_FileVersionMajorMinor_StrictParsing_ThrowsEdsParseException(string fileVersion)
+    public void FileInfo_FileVersionMajorMinor_StrictParsing_UsesMajorAndKeepsText(string fileVersion)
     {
         var xdd = MinimalXdd.Replace(
             @"fileVersion=""1""",
             $@"fileVersion=""{fileVersion}""");
 
-        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
 
-        var ex = act.Should().Throw<EdsParseException>().Which;
-        ex.Message.Should().Contain("fileVersion");
-        ex.Message.Should().Contain(fileVersion);
+        result.FileInfo.FileVersion.Should().Be(byte.Parse(fileVersion.Substring(0, 1)));
+        result.FileInfo.FileVersionText.Should().Be(fileVersion);
     }
 
     [Theory]
@@ -1442,17 +1445,17 @@ public class XddReaderTests
     [InlineData("NaN")]
     [InlineData("1.x")]
     [InlineData("abc")]
-    public void FileInfo_InvalidFileVersion_ThrowsEdsParseExceptionWithAttribution(string fileVersion)
+    public void FileInfo_NonNumericFileVersion_KeepsTextAndDefaultVersionWithoutThrowing(string fileVersion)
     {
+        // fileVersion is an xsd:string (CiA 311): valid text the Unsigned8 property cannot hold is kept.
         var xdd = MinimalXdd.Replace(
             @"fileVersion=""1""",
             $@"fileVersion=""{fileVersion}""");
 
-        var act = () => _reader.ReadString(xdd);
+        var result = _reader.ReadString(xdd);
 
-        var ex = act.Should().Throw<EdsParseException>().Which;
-        ex.Message.Should().Contain("fileVersion");
-        ex.Message.Should().Contain(fileVersion);
+        result.FileInfo.FileVersion.Should().Be(1);
+        result.FileInfo.FileVersionText.Should().Be(fileVersion);
     }
 
     [Fact]
@@ -1522,7 +1525,7 @@ public class XddReaderTests
     {
         var xdd = MinimalXdd.Replace(
             @"PDOmapping=""no""",
-            @"PDOmapping=""no"" objFlags="" 1 """);
+            @"PDOmapping=""no"" objFlags="" 0001 """);
 
         var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
 
@@ -1530,15 +1533,17 @@ public class XddReaderTests
     }
 
     [Fact]
-    public void ParseCanOpenObject_ObjFlagsWithLeadingPlus_StrictParsing_Parses()
+    public void ParseCanOpenObject_ObjFlagsWithLeadingPlus_StrictParsing_ThrowsEdsParseException()
     {
+        // objFlags is xsd:hexBinary (CiA 311 Annex A.1.4). A leading sign is not hexadecimal.
         var xdd = MinimalXdd.Replace(
             @"PDOmapping=""no""",
             @"PDOmapping=""no"" objFlags=""+1""");
 
-        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
 
-        result.ObjectDictionary.Objects[0x1000].ObjFlags.Should().Be(1u);
+        act.Should().Throw<EdsParseException>()
+            .WithMessage("*objFlags*+1*");
     }
 
     [Fact]
@@ -1649,7 +1654,7 @@ public class XddReaderTests
         var xdd = MinimalXdd.Replace(
             "</ApplicationLayers>",
             @"  <dynamicChannels>
-            <dynamicChannel dataType=""0007"" accessType=""ro"" startIndex=""1600"" endIndex=""17FF"" pDOmappingIndex=""not-a-number""/>
+            <dynamicChannel dataType=""0007"" accessType=""readOnly"" startIndex=""1600"" endIndex=""17FF"" pDOmappingIndex=""not-a-number""/>
           </dynamicChannels>
         </ApplicationLayers>");
 

@@ -19,14 +19,38 @@ public class DeviceCommissioning
 
     /// <summary>
     /// Device's baudrate in kbit/s (Unsigned16).
-    /// Common values: 10, 20, 50, 125, 250, 500, 800, 1000
+    /// Common values: 10, 20, 50, 100, 125, 250, 500, 800, 1000
     /// </summary>
+    /// <remarks>
+    /// The XDC <c>actualBaudRate</c> attribute is a free string. A read value that is not one of
+    /// the listed rates (for example <c>auto-baudRate</c>) leaves this property at <c>0</c>, is
+    /// reported as a diagnostic, and is written back unchanged while this property is unchanged.
+    /// An XDC written with <c>0</c> and no such value gets an empty <c>actualBaudRate</c>, which is
+    /// schema-valid; a validated XDC write rejects it.
+    /// </remarks>
     public ushort Baudrate { get; set; }
+
+    /// <summary>Original <c>actualBaudRate</c> text of an XDC read.</summary>
+    internal string? ActualBaudRateLexical { get; set; }
+
+    /// <summary><see cref="Baudrate"/> captured when <see cref="ActualBaudRateLexical"/> was stored.</summary>
+    internal ushort ActualBaudRateLexicalBaseline { get; set; }
 
     /// <summary>
     /// Network number (Unsigned32).
     /// </summary>
+    /// <remarks>
+    /// The XDC <c>networkNumber</c> is an <c>xsd:unsignedLong</c>. A read value above
+    /// <see cref="uint.MaxValue"/> leaves this property at <c>0</c>, is reported as a diagnostic, and is
+    /// written back unchanged while this property is unchanged.
+    /// </remarks>
     public uint NetNumber { get; set; }
+
+    /// <summary>Original <c>networkNumber</c> text of an XDC read.</summary>
+    internal string? NetworkNumberLexical { get; set; }
+
+    /// <summary><see cref="NetNumber"/> captured when <see cref="NetworkNumberLexical"/> was stored.</summary>
+    internal uint NetworkNumberLexicalBaseline { get; set; }
 
     /// <summary>
     /// Name of the network (max 243 characters).
@@ -71,4 +95,16 @@ public class DeviceCommissioning
     /// property when writing XDC.
     /// </remarks>
     public string? NetRefd { get; set; }
+
+    /// <summary>
+    /// Entries of the <c>[DeviceComissioning]</c> section that the reader does not map onto a
+    /// property, in file order. Keys compare case-insensitively.
+    /// </summary>
+    /// <remarks>
+    /// CiA 306-1 allows additional entries inside the standard sections "in order to support
+    /// future extensions" (§ 6.2). The EDS/DCF writers emit these entries after the keys they
+    /// generate for the section. A key the writer already generates for this section is not
+    /// written a second time. The section is written only when the commissioning data is not empty.
+    /// </remarks>
+    public OrderedStringDictionary RemainingEntries { get; } = new();
 }

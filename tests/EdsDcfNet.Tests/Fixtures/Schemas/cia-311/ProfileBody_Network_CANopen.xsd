@@ -1,0 +1,648 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns="http://www.canopen.org/xml/1.1" xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.canopen.org/xml/1.1" elementFormDefault="unqualified" attributeFormDefault="unqualified" version="1.0">
+	<xsd:include schemaLocation="ISO15745ProfileContainer.xsd"/>
+	<xsd:include schemaLocation="CommonElements.xsd"/>
+	<!-- CANopen profile body communication network-->
+	<xsd:complexType name="ProfileBody_CommunicationNetwork_CANopen">
+		<xsd:complexContent>
+			<xsd:extension base="ProfileBody_DataType">
+				<xsd:choice>
+					<xsd:sequence>
+						<!--################ CANopen application layers -->
+						<!--################ CANopen transport layers -->
+						<xsd:element name="ApplicationLayers">
+							<xsd:annotation>
+								<xsd:documentation>The CANopen ApplicationLayers element represents the combined profiles for the upper 3 OSI layers of the CANopen communication network integration model.</xsd:documentation>
+							</xsd:annotation>
+							<xsd:complexType>
+								<xsd:sequence>
+									<xsd:element name="identity" minOccurs="0">
+										<xsd:complexType>
+											<xsd:sequence>
+												<xsd:element ref="vendorID" minOccurs="0"/>
+												<xsd:element ref="deviceFamily" minOccurs="0"/>
+												<xsd:element ref="productID" minOccurs="0"/>
+												<xsd:element ref="version" minOccurs="0" maxOccurs="unbounded"/>
+												<xsd:element ref="buildDate" minOccurs="0"/>
+												<xsd:element ref="specificationRevision" minOccurs="0"/>
+											</xsd:sequence>
+										</xsd:complexType>
+									</xsd:element>
+									<xsd:element ref="CANopenObjectList"/>
+									<xsd:element name="dummyUsage" minOccurs="0">
+										<xsd:complexType>
+											<xsd:sequence>
+												<xsd:element name="dummy" maxOccurs="unbounded">
+													<xsd:annotation>
+														<xsd:documentation>This element is used to enable and disable certain dummy entries for the dummy mapping.</xsd:documentation>
+													</xsd:annotation>
+													<xsd:complexType>
+														<xsd:attribute name="entry" use="required">
+															<xsd:simpleType>
+																<xsd:restriction base="xsd:string">
+																	<xsd:enumeration value="Dummy0001=0"/>
+																	<xsd:enumeration value="Dummy0002=0"/>
+																	<xsd:enumeration value="Dummy0003=0"/>
+																	<xsd:enumeration value="Dummy0004=0"/>
+																	<xsd:enumeration value="Dummy0005=0"/>
+																	<xsd:enumeration value="Dummy0006=0"/>
+																	<xsd:enumeration value="Dummy0007=0"/>
+																	<xsd:enumeration value="Dummy0001=1"/>
+																	<xsd:enumeration value="Dummy0002=1"/>
+																	<xsd:enumeration value="Dummy0003=1"/>
+																	<xsd:enumeration value="Dummy0004=1"/>
+																	<xsd:enumeration value="Dummy0005=1"/>
+																	<xsd:enumeration value="Dummy0006=1"/>
+																	<xsd:enumeration value="Dummy0007=1"/>
+																</xsd:restriction>
+															</xsd:simpleType>
+														</xsd:attribute>
+													</xsd:complexType>
+												</xsd:element>
+											</xsd:sequence>
+										</xsd:complexType>
+									</xsd:element>
+									<xsd:element name="dynamicChannels" minOccurs="0">
+										<xsd:complexType>
+											<xsd:sequence>
+												<xsd:element name="dynamicChannel" maxOccurs="unbounded">
+													<xsd:annotation>
+														<xsd:documentation>This element is used to mark available channels that can be used to create a link between the data to be communicated in the CANopen network and the application program running on the device.</xsd:documentation>
+													</xsd:annotation>
+													<xsd:complexType>
+														<xsd:attribute name="dataType" type="xsd:hexBinary" use="required">
+															<xsd:annotation>
+																<xsd:documentation>CANopen data type (two hex digits).</xsd:documentation>
+															</xsd:annotation>
+														</xsd:attribute>
+														<xsd:attribute name="accessType" use="required">
+															<xsd:annotation>
+																<xsd:documentation>Access type of the object; valid values:
+- readOnly
+- writeOnly
+- readWriteOutput</xsd:documentation>
+															</xsd:annotation>
+															<xsd:simpleType>
+																<xsd:restriction base="xsd:NMTOKEN">
+																	<xsd:enumeration value="readOnly"/>
+																	<xsd:enumeration value="writeOnly"/>
+																	<xsd:enumeration value="readWriteOutput"/>
+																</xsd:restriction>
+															</xsd:simpleType>
+														</xsd:attribute>
+														<xsd:attribute name="startIndex" type="xsd:hexBinary" use="required">
+															<xsd:annotation>
+																<xsd:documentation>The index of the first object in the object dictionary used by the proccess image.</xsd:documentation>
+															</xsd:annotation>
+														</xsd:attribute>
+														<xsd:attribute name="endIndex" type="xsd:hexBinary" use="required">
+															<xsd:annotation>
+																<xsd:documentation>The index of the last object in the object dictionary used by the process image.</xsd:documentation>
+															</xsd:annotation>
+														</xsd:attribute>
+														<xsd:attribute name="maxNumber" type="xsd:unsignedInt" use="required">
+															<xsd:annotation>
+																<xsd:documentation>The maximum number of objects, which can be allocated in this segment.</xsd:documentation>
+															</xsd:annotation>
+														</xsd:attribute>
+														<xsd:attribute name="addressOffset" type="xsd:hexBinary" use="required">
+															<xsd:annotation>
+																<xsd:documentation>The content is the offset of the segment inside the process image.</xsd:documentation>
+															</xsd:annotation>
+														</xsd:attribute>
+														<xsd:attribute name="bitAlignment" type="xsd:unsignedByte" use="optional">
+															<xsd:annotation>
+																<xsd:documentation>The content defines the bit alignment used. Most often this will be 1 (bit alignment), 8 (byte alignment), 16 (word alignment), or 32 (double word alignment).</xsd:documentation>
+															</xsd:annotation>
+														</xsd:attribute>
+													</xsd:complexType>
+												</xsd:element>
+											</xsd:sequence>
+										</xsd:complexType>
+									</xsd:element>
+									<xsd:element name="moduleManagement" minOccurs="0">
+										<xsd:complexType>
+											<xsd:choice>
+												<xsd:element name="interfaceList">
+													<xsd:complexType>
+														<xsd:sequence>
+															<xsd:element name="interface" maxOccurs="unbounded">
+																<xsd:complexType>
+																	<xsd:sequence>
+																		<xsd:element name="rangeList">
+																			<xsd:complexType>
+																				<xsd:sequence>
+																					<xsd:element name="range" maxOccurs="unbounded">
+																						<xsd:complexType>
+																							<xsd:attribute name="name" type="xsd:string" use="required"/>
+																							<xsd:attribute name="moduleType" type="xsd:ID" use="required"/>
+																							<xsd:attribute name="baseIndex" type="xsd:hexBinary" use="required">
+																								<xsd:annotation>
+																									<xsd:documentation>This attribute shall define the start index for the range.</xsd:documentation>
+																								</xsd:annotation>
+																							</xsd:attribute>
+																							<xsd:attribute name="maxIndex" type="xsd:hexBinary" use="required">
+																								<xsd:annotation>
+																									<xsd:documentation>This attribute shall define the last possible index for the range.</xsd:documentation>
+																								</xsd:annotation>
+																							</xsd:attribute>
+																							<xsd:attribute name="maxSubIndex" type="xsd:hexBinary" use="optional">
+																								<xsd:annotation>
+																									<xsd:documentation>If the object is of sortMode subIndex, then this attribute shall define the last possible sub-index for the range before the next index value shall be used.</xsd:documentation>
+																								</xsd:annotation>
+																							</xsd:attribute>
+																							<xsd:attribute name="sortMode" use="required">
+																								<xsd:annotation>
+																									<xsd:documentation>This element defines that the new (sub-)object shall be added with a new index or subindex; valid values:
+- index
+- subIndex</xsd:documentation>
+																								</xsd:annotation>
+																								<xsd:simpleType>
+																									<xsd:restriction base="xsd:NMTOKEN">
+																										<xsd:enumeration value="index"/>
+																										<xsd:enumeration value="subIndex"/>
+																									</xsd:restriction>
+																								</xsd:simpleType>
+																							</xsd:attribute>
+																							<xsd:attribute name="sortNumber" use="required">
+																								<xsd:annotation>
+																									<xsd:documentation>This element defines that the index of the new (sub-)object; valid values:
+- continous - next free index
+- address - specific address</xsd:documentation>
+																								</xsd:annotation>
+																								<xsd:simpleType>
+																									<xsd:restriction base="xsd:NMTOKEN">
+																										<xsd:enumeration value="continuous"/>
+																										<xsd:enumeration value="address"/>
+																									</xsd:restriction>
+																								</xsd:simpleType>
+																							</xsd:attribute>
+																							<xsd:attribute name="sortStep" type="xsd:hexBinary" use="optional" default="01">
+																								<xsd:annotation>
+																									<xsd:documentation>This shall define the step width of the new (sub-)index, if sortNumber is set to continous.</xsd:documentation>
+																								</xsd:annotation>
+																							</xsd:attribute>
+																						</xsd:complexType>
+																					</xsd:element>
+																				</xsd:sequence>
+																			</xsd:complexType>
+																		</xsd:element>
+																	</xsd:sequence>
+																	<xsd:attribute name="uniqueIDRef" type="xsd:IDREF" use="required">
+																		<xsd:annotation>
+																			<xsd:documentation>This attribute shall reference the module interface.</xsd:documentation>
+																		</xsd:annotation>
+																	</xsd:attribute>
+																	<xsd:attribute name="addressing" use="required">
+																		<xsd:annotation>
+																			<xsd:documentation>This attribute shall indicate if the connected modules are addressed automatically or manually.</xsd:documentation>
+																		</xsd:annotation>
+																		<xsd:simpleType>
+																			<xsd:restriction base="xsd:NMTOKEN">
+																				<xsd:enumeration value="auto"/>
+																				<xsd:enumeration value="manual"/>
+																			</xsd:restriction>
+																		</xsd:simpleType>
+																	</xsd:attribute>
+																</xsd:complexType>
+															</xsd:element>
+														</xsd:sequence>
+													</xsd:complexType>
+												</xsd:element>
+												<xsd:element name="moduleInterface">
+													<xsd:annotation>
+														<xsd:documentation>This element shall be by a single module to identify the module and to describe its properties. </xsd:documentation>
+													</xsd:annotation>
+													<xsd:complexType>
+														<xsd:attribute name="childIDRef" type="xsd:NCName" use="required">
+															<xsd:annotation>
+																<xsd:documentation>This attribute shall indicate the unique ID of the referenced module.</xsd:documentation>
+															</xsd:annotation>
+														</xsd:attribute>
+														<xsd:attribute name="addressMin" type="xsd:positiveInteger" use="required">
+															<xsd:annotation>
+																<xsd:documentation>This attribute shall indicate the minimum address the module is allowed to use.</xsd:documentation>
+															</xsd:annotation>
+														</xsd:attribute>
+														<xsd:attribute name="addressMax" type="xsd:positiveInteger" use="optional">
+															<xsd:annotation>
+																<xsd:documentation>This attribute shall indicate the maximum address the module is allowed to use.</xsd:documentation>
+															</xsd:annotation>
+														</xsd:attribute>
+														<xsd:attribute name="addressing" use="optional" default="inherit">
+															<xsd:annotation>
+																<xsd:documentation>This attribute shall indicate idicate the addressing for the module. If present, it shall override the definition of the interface.</xsd:documentation>
+															</xsd:annotation>
+															<xsd:simpleType>
+																<xsd:restriction base="xsd:NMTOKEN">
+																	<xsd:enumeration value="inherit"/>
+																	<xsd:enumeration value="auto"/>
+																	<xsd:enumeration value="manual"/>
+																</xsd:restriction>
+															</xsd:simpleType>
+														</xsd:attribute>
+													</xsd:complexType>
+												</xsd:element>
+											</xsd:choice>
+										</xsd:complexType>
+									</xsd:element>
+								</xsd:sequence>
+								<xsd:attribute name="conformanceClass" type="xsd:string" use="optional">
+									<xsd:annotation>
+										<xsd:documentation>Conformance class of the device type.</xsd:documentation>
+									</xsd:annotation>
+								</xsd:attribute>
+								<xsd:attribute name="communicationEntityType" type="xsd:NMTOKENS" default="slave">
+									<xsd:annotation>
+										<xsd:documentation>Type of the communication entity - if several types are supported, their names shall be separated by a blank character, e.g. "master slave"; the type names shall be chosen out of the following enumarion of names:
+- slave (default)
+- master
+- server
+- client
+- interconnection (e.g. interconnection is a gateway functionality)
+- peer (communication entity, which acts as a client and server)</xsd:documentation>
+									</xsd:annotation>
+								</xsd:attribute>
+							</xsd:complexType>
+						</xsd:element>
+						<xsd:element name="TransportLayers">
+							<xsd:annotation>
+								<xsd:documentation>The CANopen TransportLayers element represents the combined profiles for the lower 4 OSI layers of the CANopen communication network integration model.</xsd:documentation>
+							</xsd:annotation>
+							<xsd:complexType>
+								<xsd:sequence>
+									<xsd:element name="PhysicalLayer">
+										<xsd:complexType>
+											<xsd:sequence>
+												<xsd:element name="baudRate">
+													<xsd:complexType>
+														<xsd:sequence>
+															<xsd:element name="supportedBaudRate" maxOccurs="unbounded">
+																<xsd:complexType>
+																	<xsd:attribute name="value" use="required">
+																		<xsd:annotation>
+																			<xsd:documentation>One out of the set of bit rate values supported by the device type; valid values:
+- 10 Kbps
+- 20 Kbps
+- 50 Kbps
+- 100 Kbps (This value is not offically defined by CAN in Automation specifications.)
+- 125 Kbps
+- 250 Kbps
+- 500 Kbps
+- 800 Kbps
+- 1000 Kbps
+- auto-baudRate</xsd:documentation>
+																		</xsd:annotation>
+																		<xsd:simpleType>
+																			<xsd:restriction base="xsd:string">
+																				<xsd:enumeration value="10 Kbps"/>
+																				<xsd:enumeration value="20 Kbps"/>
+																				<xsd:enumeration value="50 Kbps"/>
+																				<xsd:enumeration value="100 Kbps"/>
+																				<xsd:enumeration value="125 Kbps"/>
+																				<xsd:enumeration value="250 Kbps"/>
+																				<xsd:enumeration value="500 Kbps"/>
+																				<xsd:enumeration value="800 Kbps"/>
+																				<xsd:enumeration value="1000 Kbps"/>
+																				<xsd:enumeration value="auto-baudRate"/>
+																			</xsd:restriction>
+																		</xsd:simpleType>
+																	</xsd:attribute>
+																</xsd:complexType>
+															</xsd:element>
+														</xsd:sequence>
+														<xsd:attribute name="defaultValue" default="250 Kbps">
+															<xsd:annotation>
+																<xsd:documentation>Default value for the bit rate of the device type - this value is preset to 250 Kbps; other valid values are:
+- 10 Kbps
+- 20 Kbps
+- 50 Kbps
+- 100 Kbps (This value is not offically defined by CAN in Automation specifications.)
+- 125 Kbps
+- 250 Kbps
+- 500 Kbps
+- 800 Kbps
+- 1000 Kbps
+- auto-baudRate</xsd:documentation>
+															</xsd:annotation>
+															<xsd:simpleType>
+																<xsd:restriction base="xsd:string">
+																	<xsd:enumeration value="10 Kbps"/>
+																	<xsd:enumeration value="20 Kbps"/>
+																	<xsd:enumeration value="50 Kbps"/>
+																	<xsd:enumeration value="100 Kbps"/>
+																	<xsd:enumeration value="125 Kbps"/>
+																	<xsd:enumeration value="250 Kbps"/>
+																	<xsd:enumeration value="500 Kbps"/>
+																	<xsd:enumeration value="800 Kbps"/>
+																	<xsd:enumeration value="1000 Kbps"/>
+																	<xsd:enumeration value="auto-baudRate"/>
+																</xsd:restriction>
+															</xsd:simpleType>
+														</xsd:attribute>
+													</xsd:complexType>
+												</xsd:element>
+											</xsd:sequence>
+										</xsd:complexType>
+									</xsd:element>
+								</xsd:sequence>
+							</xsd:complexType>
+						</xsd:element>
+						<!--################ CANopen network management -->
+						<xsd:element name="NetworkManagement" minOccurs="0">
+							<xsd:annotation>
+								<xsd:documentation>The CANopen NetworkManagement element represents the network configuration and performance adjustment capabilities of the CANopen communication network integration model.</xsd:documentation>
+							</xsd:annotation>
+							<xsd:complexType>
+								<xsd:sequence>
+									<xsd:element name="CANopenGeneralFeatures">
+										<xsd:complexType>
+											<xsd:attribute name="groupMessaging" type="xsd:boolean" default="false"/>
+											<xsd:attribute name="dynamicChannels" type="xsd:unsignedByte" default="0"/>
+											<xsd:attribute name="selfStartingDevice" type="xsd:boolean" default="false"/>
+											<xsd:attribute name="SDORequestingDevice" type="xsd:boolean" default="false"/>
+											<xsd:attribute name="granularity" type="xsd:unsignedByte" use="required"/>
+											<xsd:attribute name="nrOfRxPDO" type="xsd:unsignedShort" default="0"/>
+											<xsd:attribute name="nrOfTxPDO" type="xsd:unsignedShort" default="0"/>
+											<xsd:attribute name="bootUpSlave" type="xsd:boolean" default="false"/>
+											<xsd:attribute name="layerSettingServiceSlave" type="xsd:boolean" default="false"/>
+										</xsd:complexType>
+									</xsd:element>
+									<xsd:element name="CANopenMasterFeatures" minOccurs="0">
+										<xsd:complexType>
+											<xsd:attribute name="bootUpMaster" type="xsd:boolean" default="false"/>
+											<xsd:attribute name="flyingMaster" type="xsd:boolean" default="false"/>
+											<xsd:attribute name="SDOManager" type="xsd:boolean" default="false"/>
+											<xsd:attribute name="configurationManager" type="xsd:boolean" default="false"/>
+											<xsd:attribute name="layerSettingServiceMaster" type="xsd:boolean" default="false"/>
+										</xsd:complexType>
+									</xsd:element>
+									<xsd:element name="deviceCommissioning" minOccurs="0">
+										<xsd:complexType>
+											<xsd:attribute name="nodeID" type="xsd:unsignedByte" use="required"/>
+											<xsd:attribute name="nodeName" type="xsd:string" use="required"/>
+											<xsd:attribute name="actualBaudRate" type="xsd:string" use="required"/>
+											<xsd:attribute name="networkNumber" type="xsd:unsignedLong" use="required"/>
+											<xsd:attribute name="networkName" type="xsd:string" use="required"/>
+											<xsd:attribute name="CANopenManager" type="xsd:boolean" use="required"/>
+										</xsd:complexType>
+									</xsd:element>
+								</xsd:sequence>
+							</xsd:complexType>
+						</xsd:element>
+					</xsd:sequence>
+					<xsd:element name="ExternalProfileHandle" type="ProfileHandle_DataType">
+						<xsd:annotation>
+							<xsd:documentation>The additional ExternalProfileHandle element enables external non-XML data to be referenced.</xsd:documentation>
+						</xsd:annotation>
+					</xsd:element>
+				</xsd:choice>
+				<xsd:attributeGroup ref="ag_formatAndFile"/>
+				<xsd:attribute name="supportedLanguages" type="xsd:NMTOKENS" use="optional">
+					<xsd:annotation>
+						<xsd:documentation>List of supported languages.</xsd:documentation>
+					</xsd:annotation>
+				</xsd:attribute>
+			</xsd:extension>
+		</xsd:complexContent>
+	</xsd:complexType>
+	<!--################ CANopen object dictionary -->
+	<xsd:element name="CANopenObjectList">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="CANopenObject" maxOccurs="unbounded">
+					<xsd:complexType>
+						<xsd:sequence>
+							<xsd:element name="CANopenSubObject" minOccurs="0" maxOccurs="255">
+								<xsd:complexType>
+									<xsd:attribute name="subIndex" type="xsd:hexBinary" use="required">
+										<xsd:annotation>
+											<xsd:documentation>Subindex of the sub-object (two hex digits).</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attribute name="name" type="xsd:string" use="required">
+										<xsd:annotation>
+											<xsd:documentation>Name of the sub-object.</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attribute name="objectType" type="xsd:unsignedByte" use="required">
+										<xsd:annotation>
+											<xsd:documentation>CANopen object type.</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attribute name="dataType" type="xsd:hexBinary" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>CANopen data type (two hex digits).</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attribute name="lowLimit" type="xsd:string" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>Low limit of the parameter value.</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attribute name="highLimit" type="xsd:string" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>High limit of the parameter value.</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attribute name="accessType" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>Access type of the sub-object; valid values:
+- const - read access only; the value is not changing
+- ro - read access only
+- wo - write access only
+- rw - both read and write access</xsd:documentation>
+										</xsd:annotation>
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:enumeration value="ro"/>
+												<xsd:enumeration value="wo"/>
+												<xsd:enumeration value="rw"/>
+												<xsd:enumeration value="const"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="defaultValue" type="xsd:string" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>Default value of the sub-object.</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attribute name="actualValue" type="xsd:string" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>Actual value of the sub-object.</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attribute name="denotation" type="xsd:string" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>Application specific name of the sub-object.</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attribute name="PDOmapping" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>PDO mapping of the sub-object; valid values:
+- no - not mappable
+- default - mapped by default
+- optional - optionally mapped
+- TPDO - may be mapped into TPDO only
+- RPDO - may be mapped into TPDO only</xsd:documentation>
+										</xsd:annotation>
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:enumeration value="no"/>
+												<xsd:enumeration value="default"/>
+												<xsd:enumeration value="optional"/>
+												<xsd:enumeration value="TPDO"/>
+												<xsd:enumeration value="RPDO"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="objFlags" type="xsd:hexBinary" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>Controls the behavior of tools (four hex digits); valid values:
+- bit 0: 0 - write on download allowed; 1 - write on download not allowed
+- bit 1: 0 - read on upload allowed; 1 - read on upload not allowed
+- bit 2: 0 - change of value takes effect immediatly; 1 - change of value takes effect after reset
+- bit 3 to 31: reserved (0)
+NOTE: This shall prevent unintended read or write access by generic tools in case a parameter implements a specific function. A read or write in such cases may trigger a specific function in the CANopen device.</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attribute name="uniqueIDRef" type="xsd:IDREF" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>Unique ID of an appropriate element in the application process part referenced from this object; if the attribute is present, the attributes dataType, lowLimit, highLimit, accessType, and defaultValue shall be defined by the referenced element in the application process part.</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attribute name="rangeSelector" type="xsd:string" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>If the sub-object is part of a modular device, this references the index range as defined by the CANopenIndexRange element that should be used for the index of the sub-object.</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+								</xsd:complexType>
+							</xsd:element>
+						</xsd:sequence>
+						<xsd:attribute name="index" type="xsd:hexBinary" use="required">
+							<xsd:annotation>
+								<xsd:documentation>Index of the object (four hex digits).</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="name" type="xsd:string" use="required">
+							<xsd:annotation>
+								<xsd:documentation>Name of the object.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="objectType" type="xsd:unsignedByte" use="required">
+							<xsd:annotation>
+								<xsd:documentation>CANopen object type.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="dataType" type="xsd:hexBinary" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>CANopen data type (two hex digits).</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="lowLimit" type="xsd:string" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Low limit of the parameter value.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="highLimit" type="xsd:string" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>High limit of the parameter value.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="accessType" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Access type of the object; valid values:
+- const - read access only; the value is not changing
+- ro - read access only
+- wo - write access only
+- rw - both read and write access</xsd:documentation>
+							</xsd:annotation>
+							<xsd:simpleType>
+								<xsd:restriction base="xsd:string">
+									<xsd:enumeration value="ro"/>
+									<xsd:enumeration value="wo"/>
+									<xsd:enumeration value="rw"/>
+									<xsd:enumeration value="const"/>
+								</xsd:restriction>
+							</xsd:simpleType>
+						</xsd:attribute>
+						<xsd:attribute name="defaultValue" type="xsd:string" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Default value of the object.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="actualValue" type="xsd:string" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Actual value of the object.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="denotation" type="xsd:string" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Application specific name of the object.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="PDOmapping" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>PDO mapping of the object; valid values:
+- no - not mappable
+- default - mapped by default
+- optional - optionally mapped
+- TPDO - may be mapped into TPDO only
+- RPDO - may be mapped into TPDO only</xsd:documentation>
+							</xsd:annotation>
+							<xsd:simpleType>
+								<xsd:restriction base="xsd:NMTOKEN">
+									<xsd:enumeration value="no"/>
+									<xsd:enumeration value="default"/>
+									<xsd:enumeration value="optional"/>
+									<xsd:enumeration value="TPDO"/>
+									<xsd:enumeration value="RPDO"/>
+								</xsd:restriction>
+							</xsd:simpleType>
+						</xsd:attribute>
+						<xsd:attribute name="objFlags" type="xsd:hexBinary" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Controls the behavior of tools (four hex digits); valid values:
+- bit 0: 0 - write on download allowed; 1 - write on download not allowed
+- bit 1: 0 - read on upload allowed; 1 - read on upload not allowed
+- bit 2: 0 - change of value takes effect immediatly; 1 - change of value takes effect after reset
+- bit 3 to 31: reserved (0)
+NOTE: This shall prevent unintended read or write access by generic tools in case a parameter implements a specific function. A read or write in such cases may trigger a specific function in the CANopen device.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="uniqueIDRef" type="xsd:IDREF" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Unique ID of an appropriate element in the application process part referenced from this object; if the attribute is present, the attributes dataType, lowLimit, highLimit, accessType, and defaultValue shall be defined by the referenced element in the application process part.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="subNumber" type="xsd:unsignedByte" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Number of sub-objects of the object.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="rangeSelector" type="xsd:string" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>If the object is part of a modular device, this references the index range as defined by the CANopenIndexRange element that should be used for the index of the object.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:sequence>
+			<xsd:attribute name="mandatoryObjects" type="xsd:unsignedInt" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>Number of mandatory objects in the dictionary.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="optionalObjects" type="xsd:unsignedInt" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>Number of optional objects in the dictionary.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="manufacturerObjects" type="xsd:unsignedInt" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>Number of manufacturer-specific objects in the dictionary.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+</xsd:schema>

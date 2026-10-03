@@ -3,19 +3,27 @@ namespace EdsDcfNet;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
+using EdsDcfNet.Validation;
 using EdsDcfNet.Writers;
 
 /// <summary>
 /// XDC-focused read/write operations for CiA 311 XML Device Configurations.
 /// Access via <see cref="CanOpenFile.Xdc"/>.
 /// </summary>
+/// <remarks>
+/// The file attributes follow the same rules as <see cref="XddCanOpenOperations"/>. The required
+/// <c>deviceCommissioning</c> attributes <c>nodeName</c>, <c>actualBaudRate</c> and <c>networkName</c>
+/// are always written (an empty string is schema-valid). <see cref="DeviceCommissioning.Baudrate"/> of
+/// <c>0</c> without a preserved read value gives an empty <c>actualBaudRate</c>, which a validated
+/// write rejects.
+/// </remarks>
 public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigurationFile>
 {
     internal static XdcCanOpenOperations Instance { get; } = new();
 
     private XdcCanOpenOperations()
         : base(
-            CanOpenWriteGuard.EnsureValidForWrite,
+            (model, options) => CanOpenWriteGuard.EnsureValidForWrite(model, options, XmlWriteRules.Apply),
             (filePath, maxInputSize) => new XdcReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new XdcReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),
@@ -30,7 +38,11 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
             (xdc, stream, cancellationToken) =>
                 new XdcWriter().WriteStreamAsync(xdc, stream, cancellationToken),
             xdc => new XdcWriter().GenerateString(xdc),
-            CanOpenWriteGuard.EnsureValidForWriteAsync)
+            (model, options, cancellationToken) => CanOpenWriteGuard.EnsureValidForWriteAsync(
+                model,
+                options,
+                XmlWriteRules.Apply,
+                cancellationToken))
     {
     }
 

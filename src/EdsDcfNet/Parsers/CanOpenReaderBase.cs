@@ -38,29 +38,380 @@ public abstract class CanOpenReaderBase
         ICanOpenFileModel model,
         Dictionary<string, Dictionary<string, string>> sections)
     {
+        // Every section parsed here keeps the entries it does not map (CiA 306-1 § 6.2), on its
+        // model object or in model.SectionRemainingEntries; see SectionEntryKeys.
         model.FileInfo = ParseFileInfo(sections);
+        CanOpenSectionParsers.CaptureUnmappedEntries(
+            sections, "FileInfo", IsKnownFileInfoEntryKey, model.FileInfo.RemainingEntries);
         model.DeviceInfo = CanOpenSectionParsers.ParseDeviceInfo(sections);
         ParsePreObjectDictionarySections(model, sections);
         model.ObjectDictionary = ParseObjectDictionary(sections);
+        CaptureObjectDictionarySectionEntries(model, sections);
         model.Comments = CanOpenSectionParsers.ParseComments(sections);
         ParsePostObjectDictionarySections(model, sections);
 
-        model.SupportedModules.AddRange(CanOpenSectionParsers.ParseSupportedModules(sections));
+        model.SupportedModules.AddRange(CanOpenSectionParsers.ParseSupportedModules(sections, model.SectionRemainingEntries));
         model.DynamicChannels = CanOpenSectionParsers.ParseDynamicChannels(sections);
-        model.Tools.AddRange(CanOpenSectionParsers.ParseTools(sections));
+        model.Tools.AddRange(CanOpenSectionParsers.ParseTools(sections, model.SectionRemainingEntries));
 
-        // Preserve any unknown sections for round-trip fidelity.
+        // Preserve unknown sections for round-trip fidelity. A hexadecimal name is an
+        // object index: listed indexes are parsed as objects, and an index that is in
+        // no object list is kept here (with its sub-object and companion sections)
+        // instead of being dropped. Module, companion and sub-object sections that look
+        // known but that no parser loaded are kept as well (TryPreserveUnloadedSection).
+        var listedIndexes = new HashSet<ushort>(model.ObjectDictionary.MandatoryObjects);
+        listedIndexes.UnionWith(model.ObjectDictionary.OptionalObjects);
+        listedIndexes.UnionWith(model.ObjectDictionary.ManufacturerObjects);
+        var bodyIndexes = new HashSet<ushort>();
         foreach (var sectionName in sections.Keys)
         {
-            if (!IsKnownSection(sectionName) &&
-                !IsToolSectionForParsedTools(sectionName, model.Tools.Count) &&
-                !IsSectionHandledByFormat(sectionName, model))
+            if (TryParseObjectIndexSectionName(sectionName, out var bodyIndex))
+                bodyIndexes.Add(bodyIndex);
+        }
+
+        var reportedUnlistedIndexes = new HashSet<ushort>();
+        var unloaded = new UnloadedSectionState(model.SupportedModules);
+        foreach (var sectionName in sections.Keys)
+        {
+            if (CanOpenSectionParsers.IsParsedToolSection(sections, sectionName) ||
+                IsSectionHandledByFormat(sectionName, model) ||
+                CanOpenSectionParsers.IsConsumedModuleFixedSection(sectionName, model.SupportedModules))
             {
-                model.AdditionalSections[sectionName] =
-                    new Dictionary<string, string>(sections[sectionName], StringComparer.OrdinalIgnoreCase);
+                continue;
+            }
+
+            if (TryPreserveUnlistedObjectSection(
+                    model, sections, sectionName, listedIndexes, bodyIndexes, reportedUnlistedIndexes) ||
+                TryPreserveUnloadedSection(model, sections, sectionName, unloaded))
+            {
+                continue;
+            }
+
+            if (!IsKnownSection(sectionName))
+            {
+                model.AdditionalSections[sectionName] = CopySectionEntries(sections[sectionName]);
             }
         }
+
+        // Every path that placed a section in AdditionalSections (kept unlisted object sections,
+        // the second commissioning spelling, unknown sections) is covered by this one capture,
+        // which records the file order of the sections and of their keys.
+        model.AdditionalSectionOrder.Capture(model.AdditionalSections, sections);
     }
+
+    /// <summary>
+    /// <see langword="true"/> for a <c>[FileInfo]</c> key mapped onto <see cref="EdsFileInfo"/>.
+    /// DCF adds <c>LastEDS</c>.
+    /// </summary>
+    private protected virtual bool IsKnownFileInfoEntryKey(string key) => SectionEntryKeys.IsEdsFileInfoKey(key);
+
+    /// <summary>
+    /// Keeps the unmapped entries of the object-dictionary sections in
+    /// <c>SectionRemainingEntries</c>: the three object lists, <c>[DummyUsage]</c>, and for
+    /// every parsed object its consumed compact <c>[xxxxName]</c> and its
+    /// <c>[xxxxObjectLinks]</c>. Object and sub-object bodies keep theirs on
+    /// <see cref="CanOpenObject.RemainingEntries"/> / <see cref="CanOpenSubObject.RemainingEntries"/>.
+    /// </summary>
+    /// <remarks>
+    /// <c>[xxxxObjectLinks]</c> of an EDS object stays in <c>AdditionalSections</c> as before,
+    /// but the writer emits the section from the object and skips that copy, so its unmapped
+    /// entries are kept here as well.
+    /// </remarks>
+    private void CaptureObjectDictionarySectionEntries(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+        var store = model.SectionRemainingEntries;
+        foreach (var listSection in ObjectListSectionNames)
+        {
+            CanOpenSectionParsers.CaptureCountedListEntries(
+                sections, listSection, SectionEntryKeys.SupportedObjectsKey, store);
+        }
+
+        CanOpenSectionParsers.CaptureUnmappedEntries(
+            sections, "DummyUsage", "DummyUsage", SectionEntryKeys.IsDummyUsageKey, store);
+
+        foreach (var obj in model.ObjectDictionary.Objects.Values)
+        {
+            var prefix = ToHexInvariant(obj.Index);
+            if (obj.CompactSubObj.GetValueOrDefault() > 0)
+            {
+                var nameSection = string.Concat(prefix, NameSectionSuffix);
+                CanOpenSectionParsers.CaptureCompactListEntries(sections, nameSection, obj, store);
+            }
+
+            CanOpenSectionParsers.CaptureCountedListEntries(
+                sections,
+                string.Concat(prefix, ObjectLinksSectionSuffix),
+                SectionEntryKeys.ObjectLinksCountKey,
+                store);
+            CaptureObjectCompanionEntries(sections, obj, store);
+        }
+    }
+
+    /// <summary>
+    /// Extension point for format-specific per-object companion sections whose unmapped entries
+    /// are kept in <paramref name="store"/> (DCF: <c>[xxxxValue]</c>, <c>[xxxxDenotation]</c>).
+    /// </summary>
+    private protected virtual void CaptureObjectCompanionEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        CanOpenObject obj,
+        Dictionary<string, OrderedStringDictionary> store)
+    {
+    }
+
+    private static readonly string[] ObjectListSectionNames =
+    {
+        "MandatoryObjects", "OptionalObjects", "ManufacturerObjects"
+    };
+
+    /// <summary>
+    /// Keeps a section that belongs to an object index no object list cites: the object
+    /// body itself (hexadecimal name) or one of its companions (<c>[xxxxsubN]</c>,
+    /// <c>[xxxxName]</c>, <c>[xxxxObjectLinks]</c>, DCF <c>[xxxxValue]</c> /
+    /// <c>[xxxxDenotation]</c>). Nothing is loaded as an object. Lenient mode stores the
+    /// original entries in <c>AdditionalSections</c> and reports one warning per object
+    /// index; strict mode throws on the first reported section.
+    /// </summary>
+    /// <remarks>
+    /// The warning is attached to the object body when the file has one (in any spelling
+    /// of the index, see <paramref name="bodyIndexes"/>), even if a companion section
+    /// precedes it; otherwise the first companion carries it.
+    /// </remarks>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="sectionName"/> belongs to an unlisted
+    /// object index and has been preserved, unless strict mode threw.
+    /// </returns>
+    private bool TryPreserveUnlistedObjectSection(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        HashSet<ushort> listedIndexes,
+        HashSet<ushort> bodyIndexes,
+        HashSet<ushort> reportedIndexes)
+    {
+        // Standard section names are never object indexes. Checking them first keeps a
+        // future hex-shaped standard name on its normal parse path.
+        if (KnownSectionNames.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
+            return false;
+
+        var isObjectBody = TryParseObjectIndexSectionName(sectionName, out var index);
+        if (!isObjectBody && !TryParseObjectCompanionSectionName(sectionName, out index))
+            return false;
+
+        if (listedIndexes.Contains(index))
+            return false;
+
+        if ((isObjectBody || !bodyIndexes.Contains(index)) && reportedIndexes.Add(index))
+        {
+            ReportUnlistedObjectSection(sectionName, index);
+        }
+
+        model.AdditionalSections[sectionName] = CopySectionEntries(sections[sectionName]);
+        return true;
+    }
+
+    /// <summary>
+    /// Parses the object index out of a per-object companion section name:
+    /// <c>[xxxxsubN]</c>, <c>[xxxxName]</c> or <c>[xxxxObjectLinks]</c>. DCF adds
+    /// <c>[xxxxValue]</c> and <c>[xxxxDenotation]</c>.
+    /// </summary>
+    private protected virtual bool TryParseObjectCompanionSectionName(string sectionName, out ushort index)
+        => TryParseSubObjectSectionName(sectionName, out index)
+           || TryParseCompanionSuffixSection(sectionName, NameSectionSuffix, out index)
+           || TryParseCompanionSuffixSection(sectionName, ObjectLinksSectionSuffix, out index);
+
+    /// <summary>
+    /// Like <see cref="TryParseHexPrefixedSection"/>, but the prefix must consist solely of
+    /// hexadecimal digits: <c>[2000 Name]</c> is an ordinary additional section, not a
+    /// companion of object 0x2000, and must not raise an unlisted-object diagnostic.
+    /// </summary>
+    private protected static bool TryParseCompanionSuffixSection(string sectionName, string suffix, out ushort index)
+    {
+        if (sectionName.Length > suffix.Length &&
+            sectionName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
+            IsHexDigitsOnly(sectionName[..^suffix.Length]))
+        {
+            return TryParseHexPrefixedSection(sectionName, suffix, out index);
+        }
+
+        index = 0;
+        return false;
+    }
+
+    /// <summary>
+    /// Reports <see cref="Diagnostics.ParseDiagnosticCodes.IniUnlistedObjectSection"/>.
+    /// Strict mode throws <see cref="EdsParseException"/> with the same code and message.
+    /// </summary>
+    private static void ReportUnlistedObjectSection(string sectionName, ushort index)
+        => ReportKeptSection(
+            Diagnostics.ParseDiagnosticCodes.IniUnlistedObjectSection,
+            sectionName,
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "object section 0x{0:X4} not listed in any object list",
+                index));
+
+    /// <summary>
+    /// Reports a section that is kept in <c>AdditionalSections</c> instead of being loaded.
+    /// Strict mode throws <see cref="EdsParseException"/> with the same code and message.
+    /// </summary>
+    private static void ReportKeptSection(string code, string sectionName, string message)
+    {
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            code,
+            path: sectionName,
+            message: message,
+            rawValue: sectionName));
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(message)
+            {
+                Code = code,
+                SectionName = sectionName
+            };
+        }
+    }
+
+    /// <summary>
+    /// What <see cref="TryPreserveUnloadedSection"/> needs across all sections of one file:
+    /// the parsed module numbers and the modules and objects already reported, so the
+    /// classification stays linear in the number of sections.
+    /// </summary>
+    private sealed class UnloadedSectionState
+    {
+        internal UnloadedSectionState(IEnumerable<ModuleInfo> parsedModules)
+        {
+            ParsedModuleNumbers = new HashSet<int>(parsedModules.Select(m => m.ModuleNumber));
+        }
+
+        internal HashSet<int> ParsedModuleNumbers { get; }
+
+        internal HashSet<int> ReportedModules { get; } = new();
+
+        internal HashSet<ushort> ReportedCompanionIndexes { get; } = new();
+
+        internal HashSet<ushort> ReportedSubObjectIndexes { get; } = new();
+    }
+
+    /// <summary>
+    /// Keeps a section that <see cref="IsKnownSection"/> treats as known, but that no parser
+    /// loads, so it would otherwise be dropped (CiA 306-1 § 6.2 round-trip fidelity):
+    /// <list type="bullet">
+    /// <item>a module section of a module that is not parsed from <c>[SupportedModules]</c>
+    /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniUnlistedModuleSection"/>, once per module);</item>
+    /// <item>a companion section, or a differently spelled body, of a listed object index that
+    /// has no <c>[xxxx]</c> section
+    /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniOrphanCompanionSection"/>, once per index);</item>
+    /// <item>a <c>[xxxxsubN]</c> section of a loaded object that was not loaded as a sub-object
+    /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniOrphanSubObjectSection"/>, once per index).</item>
+    /// </list>
+    /// Nothing is loaded into the model. Lenient mode stores the original entries in
+    /// <c>AdditionalSections</c>; strict mode throws on the first reported section. Runs after
+    /// <see cref="TryPreserveUnlistedObjectSection"/>, so every object index seen here is listed.
+    /// </summary>
+    /// <returns><see langword="true"/> when the section has been preserved.</returns>
+    private bool TryPreserveUnloadedSection(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        UnloadedSectionState state)
+    {
+        if (KnownSectionNames.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
+            return false;
+
+        if (TryGetUnparsedModuleNumber(sectionName, state.ParsedModuleNumbers, out var moduleNumber))
+        {
+            if (state.ReportedModules.Add(moduleNumber))
+            {
+                ReportKeptSection(
+                    Diagnostics.ParseDiagnosticCodes.IniUnlistedModuleSection,
+                    sectionName,
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "module {0} sections are not loaded: module {0} is not a parsed entry of [SupportedModules]",
+                        moduleNumber));
+            }
+
+            return KeepSection(model, sections, sectionName);
+        }
+
+        var isObjectBody = TryParseObjectIndexSectionName(sectionName, out var index);
+        if (!isObjectBody && !TryParseObjectCompanionSectionName(sectionName, out index))
+            return false;
+
+        if (!model.ObjectDictionary.Objects.TryGetValue(index, out var obj))
+        {
+            if (state.ReportedCompanionIndexes.Add(index))
+            {
+                ReportKeptSection(
+                    Diagnostics.ParseDiagnosticCodes.IniOrphanCompanionSection,
+                    sectionName,
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "object 0x{0:X4} is listed, but has no [{1}] section; its companion sections are not loaded",
+                        index,
+                        ToHexInvariant(index)));
+            }
+
+            return KeepSection(model, sections, sectionName);
+        }
+
+        if (isObjectBody || !TryParseSubObjectSectionName(sectionName, out _, out var subIndex))
+            return false;
+
+        var expectedName = string.Concat(ToHexInvariant(index), "sub", ToHexInvariant(subIndex));
+        var isExpectedName = string.Equals(sectionName, expectedName, StringComparison.OrdinalIgnoreCase);
+        if (isExpectedName && obj.SubObjects.ContainsKey(subIndex))
+            return false;
+
+        if (state.ReportedSubObjectIndexes.Add(index))
+        {
+            ReportKeptSection(
+                Diagnostics.ParseDiagnosticCodes.IniOrphanSubObjectSection,
+                sectionName,
+                isExpectedName
+                    ? string.Format(
+                        CultureInfo.InvariantCulture,
+                        "sub-object sections of object 0x{0:X4} are not loaded: the object has no SubNumber or CompactSubObj",
+                        index)
+                    : string.Format(
+                        CultureInfo.InvariantCulture,
+                        "sub-object section [{0}] of object 0x{1:X4} is not loaded: the reader expects [{2}]",
+                        sectionName,
+                        index,
+                        expectedName));
+        }
+
+        return KeepSection(model, sections, sectionName);
+    }
+
+    /// <summary>Copies <paramref name="sectionName"/> into <c>AdditionalSections</c>; always <see langword="true"/>.</summary>
+    private static bool KeepSection(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName)
+    {
+        model.AdditionalSections[sectionName] = CopySectionEntries(sections[sectionName]);
+        return true;
+    }
+
+    /// <summary>
+    /// <see langword="true"/> when <paramref name="sectionName"/> is a module section the module
+    /// parser would load (<see cref="CanOpenSectionParsers.TryClassifyModuleSection"/>) for a
+    /// module number that is not in <paramref name="parsedModuleNumbers"/>.
+    /// </summary>
+    private static bool TryGetUnparsedModuleNumber(string sectionName, HashSet<int> parsedModuleNumbers, out int moduleNumber)
+        => CanOpenSectionParsers.TryClassifyModuleSection(sectionName, out moduleNumber, out _)
+           && !parsedModuleNumbers.Contains(moduleNumber);
+
+    /// <summary>
+    /// Copies one INI section with a case-insensitive key comparer.
+    /// </summary>
+    private static Dictionary<string, string> CopySectionEntries(Dictionary<string, string> section)
+        => new(section, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Extension point for format-specific sections that must be parsed after
@@ -120,7 +471,7 @@ public abstract class CanOpenReaderBase
     /// </remarks>
     protected virtual EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
-        var fileInfo = new EdsFileInfo();
+        var fileInfo = new EdsFileInfo { EdsVersion = MissingEdsVersion };
 
         // [FileInfo] is optional — return defaults when the section is absent.
         if (!IniParser.HasSection(sections, "FileInfo"))
@@ -141,7 +492,7 @@ public abstract class CanOpenReaderBase
             "FileRevision",
             IniParser.GetValue(sections, "FileInfo", "FileRevision", "0"),
             allowMajorMinorVersionForm: true);
-        fileInfo.EdsVersion = IniParser.GetValue(sections, "FileInfo", "EDSVersion", "4.0");
+        fileInfo.EdsVersion = IniParser.GetValue(sections, "FileInfo", "EDSVersion", MissingEdsVersion);
         fileInfo.Description = IniParser.GetValue(sections, "FileInfo", "Description");
         fileInfo.CreationTime = IniParser.GetValue(sections, "FileInfo", "CreationTime");
         fileInfo.CreationDate = IniParser.GetValue(sections, "FileInfo", "CreationDate");
@@ -188,11 +539,9 @@ public abstract class CanOpenReaderBase
                 if (!key.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                var indexStr = key.Length > 5 ? key[5..] : string.Empty;
-                if (ushort.TryParse(indexStr, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
+                if (SectionEntryKeys.TryParseDummyUsageKey(key, out var index))
                 {
-                    objDict.DummyUsage[index] = ValueConverter.ParseBoolean(
-                        IniParser.GetValue(sections, "DummyUsage", key));
+                    objDict.DummyUsage[index] = IniKeyTokens.ParseBoolean(sections, "DummyUsage", key);
                     continue;
                 }
 
@@ -232,6 +581,7 @@ public abstract class CanOpenReaderBase
             return;
 
         LenientIniNumber.AppendIndexes(sections, sectionName, "SupportedObjects", targetList);
+        LenientIniNumber.ReportCountMismatch(sections, sectionName, "SupportedObjects");
     }
 
     /// <summary>
@@ -261,19 +611,53 @@ public abstract class CanOpenReaderBase
         OrderedStringDictionary destination)
     {
         // Callers already confirmed the section exists (HasSection).
-        var section = sections[sectionName];
-
-        IEnumerable<KeyValuePair<string, string>> entries = section is IniSectionDictionary ordered
-            ? ordered.EntriesInOrder()
-            : section;
-
-        foreach (var entry in entries)
+        foreach (var entry in EntriesInFileOrder(sections[sectionName]))
         {
             if (isKnownKey(entry.Key))
                 continue;
 
             destination.Add(entry.Key, entry.Value);
         }
+    }
+
+    /// <summary>
+    /// The entries of <paramref name="section"/> in file order when the INI parser built it,
+    /// otherwise in dictionary order.
+    /// </summary>
+    private static IEnumerable<KeyValuePair<string, string>> EntriesInFileOrder(Dictionary<string, string> section)
+        => section is IniSectionDictionary ordered ? ordered.EntriesInOrder() : section;
+
+    /// <summary>
+    /// CiA 306-1 v1.4.0 Table 1 footnote a: a missing <c>EDSVersion</c> is equal to "3.0".
+    /// The model default for newly created files stays "4.0".
+    /// </summary>
+    private const string MissingEdsVersion = "3.0";
+
+    /// <summary>
+    /// CiA 306-1 Table 7: a DOMAIN object whose raw <c>DataType</c> or <c>AccessType</c> entry is
+    /// absent or empty gets the replacement values DOMAIN (0x000F) and <c>rw</c>. A malformed,
+    /// non-empty entry is not replaced.
+    /// </summary>
+    internal static void ApplyDomainDefaults(CanOpenObject obj, string rawDataType, string rawAccessType)
+    {
+        if (obj.ObjectType != CanOpenObjectType.Domain)
+            return;
+
+        if (string.IsNullOrEmpty(rawDataType))
+            obj.DataType = CanOpenDataType.Domain;
+        if (string.IsNullOrEmpty(rawAccessType))
+            obj.SetAccessTypeFromProfile(AccessType.ReadWrite);
+    }
+
+    /// <summary>
+    /// Raw <c>ObjectType</c> text of a section. CiA 306-1 Table 7 NOTE 1: a missing key and an
+    /// empty value both equal VAR (0x7), so an empty value must not reach the integer parser,
+    /// which reads it as 0x0.
+    /// </summary>
+    private static string ObjectTypeText(Dictionary<string, Dictionary<string, string>> sections, string sectionName)
+    {
+        var text = IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral);
+        return string.IsNullOrWhiteSpace(text) ? CanOpenObjectType.VarLiteral : text;
     }
 
     /// <summary>
@@ -295,7 +679,7 @@ public abstract class CanOpenReaderBase
                 sections,
                 sectionName,
                 "ObjectType",
-                IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral),
+                ObjectTypeText(sections, sectionName),
                 fallback: CanOpenObjectType.Var,
                 code: Diagnostics.ParseDiagnosticCodes.InvalidObjectType,
                 coercedTo: CanOpenObjectType.VarLiteral,
@@ -317,24 +701,21 @@ public abstract class CanOpenReaderBase
         var accessTypeStr = IniParser.GetValue(sections, sectionName, "AccessType");
         if (!string.IsNullOrEmpty(accessTypeStr))
         {
-            obj.AccessType = ValueConverter.ParseAccessType(accessTypeStr);
+            obj.SetAccessTypeFromProfile(IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"));
         }
+
+        ApplyDomainDefaults(obj, dataTypeStr, accessTypeStr);
 
         obj.DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue");
         obj.LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit");
         obj.HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit");
-        obj.PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping"));
-        obj.SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping"));
+        obj.PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping");
+        obj.SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping");
         obj.InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD");
-        obj.ObjFlags = LenientIniNumber.ParseUInt32(
+        obj.ObjFlags = LenientIniNumber.ParseObjFlags(
             sections,
             sectionName,
-            "ObjFlags",
-            IniParser.GetValue(sections, sectionName, "ObjFlags", "0"),
-            fallback: 0,
-            code: Diagnostics.ParseDiagnosticCodes.InvalidObjFlags,
-            coercedTo: "0",
-            fallbackDescription: LenientIniNumber.TreatAsZero);
+            IniParser.GetValue(sections, sectionName, "ObjFlags", "0"));
 
         var subNumberStr = IniParser.GetValue(sections, sectionName, "SubNumber");
         if (!string.IsNullOrEmpty(subNumberStr))
@@ -360,6 +741,8 @@ public abstract class CanOpenReaderBase
                 LenientIniNumber.LeaveUnset);
         }
 
+        ReportNotSupportedObjectKeys(sections, sectionName, obj.ObjectType, obj.CompactSubObj.GetValueOrDefault() > 0);
+
         // Parse sub-objects for composite types, CompactSubObj templates (CiA 306 §4.5.2.4.2),
         // or an explicit SubNumber. CompactSubObj may be non-zero while SubNumber is 0/absent.
         if (obj.SubNumber > 0 ||
@@ -372,7 +755,7 @@ public abstract class CanOpenReaderBase
         CaptureRemainingEntries(sections, sectionName, IsKnownObjectEntryKey, obj.RemainingEntries);
 
         // Parse object links
-        var linksSectionName = string.Concat(ToHexInvariant(index), "ObjectLinks");
+        var linksSectionName = string.Concat(ToHexInvariant(index), ObjectLinksSectionSuffix);
         if (IniParser.HasSection(sections, linksSectionName))
         {
             LenientIniNumber.AppendIndexes(sections, linksSectionName, "ObjectLinks", obj.ObjectLinks);
@@ -440,19 +823,20 @@ public abstract class CanOpenReaderBase
     {
         if (subIndex == 0)
         {
-            return new CanOpenSubObject
+            var count = new CanOpenSubObject
             {
                 SubIndex = 0,
                 ParameterName = "NrOfObjects",
                 ObjectType = CanOpenObjectType.Var,
                 DataType = Unsigned8DataType,
-                AccessType = AccessType.ReadOnly,
                 DefaultValue = parent.CompactSubObj!.Value.ToString(CultureInfo.InvariantCulture),
                 PdoMapping = false
             };
+            count.SetAccessTypeFromProfile(AccessType.ReadOnly);
+            return count;
         }
 
-        return new CanOpenSubObject
+        var sub = new CanOpenSubObject
         {
             SubIndex = subIndex,
             ParameterName = string.Concat(
@@ -460,10 +844,11 @@ public abstract class CanOpenReaderBase
                 subIndex.ToString(CultureInfo.InvariantCulture)),
             ObjectType = CanOpenObjectType.Var,
             DataType = parent.DataType ?? 0,
-            AccessType = parent.AccessType,
             DefaultValue = parent.DefaultValue,
             PdoMapping = parent.PdoMapping
         };
+        sub.SetAccessTypeFromProfile(parent.AccessType);
+        return sub;
     }
 
     /// <summary>
@@ -486,10 +871,18 @@ public abstract class CanOpenReaderBase
         if (!sections.TryGetValue(sectionName, out var section))
             return;
 
-        // Validate even when not used as a loop bound (preserves prior ParseUInt16 failure mode).
+        // NrOfEntries is not a loop bound, but a malformed value is still reported (strict: thrown).
         if (section.TryGetValue(NrOfEntriesKey, out var nrOfEntries))
         {
-            _ = ValueConverter.ParseUInt16(nrOfEntries);
+            _ = LenientIniNumber.ParseUInt16(
+                sections,
+                sectionName,
+                NrOfEntriesKey,
+                nrOfEntries,
+                fallback: 0,
+                code: Diagnostics.ParseDiagnosticCodes.InvalidCompactListCount,
+                coercedTo: null,
+                fallbackDescription: "The sub-index entries are still applied.");
         }
 
         foreach (var entry in section)
@@ -513,15 +906,16 @@ public abstract class CanOpenReaderBase
     /// Reserved sub-index <c>0xFF</c> and non-numeric keys are rejected.
     /// </summary>
     private static bool TryParseCompactListSubIndex(string key, out byte subIndex)
-        => byte.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out subIndex)
-           && subIndex >= 1
-           && subIndex <= MaxCompactListableSubIndex;
+        => SectionEntryKeys.TryParseCompactListSubIndex(key, out subIndex);
 
     /// <summary>CiA 301 / CiA 306 UNSIGNED8 data-type index.</summary>
     private const ushort Unsigned8DataType = 0x0005;
 
     /// <summary>Section-name suffix of the optional compact parameter-name list.</summary>
     private const string NameSectionSuffix = "Name";
+
+    /// <summary>Section-name suffix of the per-object <c>[xxxxObjectLinks]</c> section.</summary>
+    private const string ObjectLinksSectionSuffix = "ObjectLinks";
 
     /// <summary>Entry-count key shared by all compact list sections.</summary>
     private const string NrOfEntriesKey = "NrOfEntries";
@@ -551,7 +945,7 @@ public abstract class CanOpenReaderBase
                 sections,
                 sectionName,
                 "ObjectType",
-                IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral),
+                ObjectTypeText(sections, sectionName),
                 fallback: CanOpenObjectType.Var,
                 code: Diagnostics.ParseDiagnosticCodes.InvalidObjectType,
                 coercedTo: CanOpenObjectType.VarLiteral,
@@ -565,23 +959,121 @@ public abstract class CanOpenReaderBase
                 code: Diagnostics.ParseDiagnosticCodes.InvalidDataType,
                 coercedTo: "0",
                 fallbackDescription: LenientIniNumber.TreatAsZero),
-            AccessType = ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")),
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
             HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
-            PdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "PDOMapping")),
-            SrdoMapping = ValueConverter.ParseBoolean(IniParser.GetValue(sections, sectionName, "SRDOMapping")),
+            PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping"),
+            SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping"),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
         };
 
-        CaptureRemainingEntries(sections, sectionName, IsKnownSubObjectEntryKey, subObj.RemainingEntries);
+        subObj.SetAccessTypeFromProfile(
+            IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"));
+
+        // Every Table 7 key counts; SubNumber and CompactSubObj are not supported in any
+        // sub-index section (CanOpenSubObject has neither). A reported key is not kept as a
+        // remaining entry, so it is not written back. ObjFlags is optional in a sub-index
+        // section and stays a remaining entry.
+        bool IsNotSupportedKey(string key) => ObjectTypeKeyMatrix.IsNotSupportedInSubObject(subObj.ObjectType, key);
+        ReportNotSupportedSubObjectKeys(sections, sectionName, subObj.ObjectType);
+
+        CaptureRemainingEntries(
+            sections,
+            sectionName,
+            key => IsKnownSubObjectEntryKey(key) || IsNotSupportedKey(key),
+            subObj.RemainingEntries);
 
         return subObj;
     }
 
     /// <summary>
+    /// Reports the keys of an object section (<c>[xxxx]</c>, <c>[MxFixedxxxx]</c>,
+    /// <c>[MxSubExtxxxx]</c>) that CiA 306-1 Table 7 marks "n" for <paramref name="objectType"/>.
+    /// </summary>
+    internal static void ReportNotSupportedObjectKeys(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        byte objectType,
+        bool hasCompactSubObj)
+        => ReportNotSupportedKeys(
+            sections,
+            sectionName,
+            objectType,
+            hasCompactSubObj,
+            key => ObjectTypeKeyMatrix.IsNotSupported(objectType, hasCompactSubObj, key));
+
+    /// <summary>
+    /// Reports the keys of a sub-index section (<c>[xxxxsubx]</c>, <c>[MxFixedxxxxsubx]</c>) that
+    /// CiA 306-1 Table 7 marks "n" (<see cref="ObjectTypeKeyMatrix.IsNotSupportedInSubObject"/>).
+    /// </summary>
+    internal static void ReportNotSupportedSubObjectKeys(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        byte objectType)
+        => ReportNotSupportedKeys(
+            sections,
+            sectionName,
+            objectType,
+            hasCompactSubObj: false,
+            key => ObjectTypeKeyMatrix.IsNotSupportedInSubObject(objectType, key));
+
+    /// <summary>
+    /// Reports every key of <paramref name="sectionName"/> that CiA 306-1 Table 7 marks as not
+    /// supported ("n") for <paramref name="objectType"/>, as selected by
+    /// <paramref name="isNotSupported"/>
+    /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniObjectKeyNotSupported"/>). The key is
+    /// checked on the raw section because the model cannot tell an omitted <c>AccessType</c> or
+    /// <c>PDOMapping</c> from its default. The value is still read; the INI writers omit the key.
+    /// Strict mode throws on the first such key.
+    /// </summary>
+    private static void ReportNotSupportedKeys(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        byte objectType,
+        bool hasCompactSubObj,
+        Func<string, bool> isNotSupported)
+    {
+        foreach (var entry in EntriesInFileOrder(sections[sectionName]))
+        {
+            if (!isNotSupported(entry.Key))
+                continue;
+
+            var message = string.Format(
+                CultureInfo.InvariantCulture,
+                "Key '{0}' in section '{1}' is not supported for ObjectType 0x{2:X}{3} (CiA 306-1 Table 7).",
+                entry.Key,
+                sectionName,
+                objectType,
+                hasCompactSubObj ? " with CompactSubObj" : string.Empty);
+            var line = IniKeyLines.TryGetLine(sections, sectionName, entry.Key);
+
+            if (StrictParsingScope.IsEnabled)
+            {
+                throw new EdsParseException(message)
+                {
+                    Code = Diagnostics.ParseDiagnosticCodes.IniObjectKeyNotSupported,
+                    SectionName = sectionName,
+                    LineNumber = line
+                };
+            }
+
+            Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                Diagnostics.ParseSeverity.Warning,
+                Diagnostics.ParseDiagnosticCodes.IniObjectKeyNotSupported,
+                path: sectionName + "." + entry.Key,
+                line: line,
+                rawValue: entry.Value,
+                message: message + " The value is read, but not written back."));
+        }
+    }
+
+    /// <summary>
     /// Determines whether <paramref name="sectionName"/> is a known section for this file format.
     /// Unknown sections are preserved in <c>AdditionalSections</c> for round-trip fidelity.
+    /// A hexadecimal object index and its sub-object sections count as known so a listed
+    /// object is not copied into <c>AdditionalSections</c> a second time. Sections of an
+    /// index that is absent from every object list are preserved with a diagnostic before
+    /// this check runs (see <see cref="TryPreserveUnlistedObjectSection"/>).
     /// Derived classes may override this to recognise additional format-specific sections.
     /// </summary>
     protected virtual bool IsKnownSection(string sectionName)
@@ -589,8 +1081,8 @@ public abstract class CanOpenReaderBase
         if (KnownSectionNames.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
             return true;
 
-        // Check for object sections (hex index)
-        if (ushort.TryParse(sectionName, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out _))
+        // Object section (hexadecimal index). Unlisted indexes are preserved separately.
+        if (TryParseObjectIndexSectionName(sectionName, out _))
             return true;
 
         // Check for sub-object sections (hex index + "sub" + hex subindex)
@@ -609,6 +1101,11 @@ public abstract class CanOpenReaderBase
     /// <c>[Tool{n}]</c> section for one of the already-parsed tools (1 ≤ n ≤ <paramref name="parsedToolCount"/>).
     /// Used to avoid treating tool data sections as unknown additional sections.
     /// </summary>
+    /// <remarks>
+    /// Kept for derived readers. The built-in readers classify a tool section by the
+    /// <c>[Tools] Items</c> range the parser reads instead: with a gap (<c>Items=2</c> and only
+    /// <c>[Tool2]</c>) the number of parsed tools is smaller than the section number.
+    /// </remarks>
     protected static bool IsToolSectionForParsedTools(string sectionName, int parsedToolCount)
     {
         if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) || sectionName.Length <= 4)
@@ -626,7 +1123,24 @@ public abstract class CanOpenReaderBase
     /// matching <see cref="ParseSubObject"/> section naming.
     /// </summary>
     protected static bool IsSubObjectSection(string sectionName)
+        => TryParseSubObjectSectionName(sectionName, out _);
+
+    /// <summary>
+    /// Parses a <c>{HexIndex}sub{HexSubIndex}</c> section name and returns the object
+    /// index. Accepts exactly the names <see cref="IsSubObjectSection"/> accepts.
+    /// </summary>
+    private static bool TryParseSubObjectSectionName(string sectionName, out ushort index)
+        => TryParseSubObjectSectionName(sectionName, out index, out _);
+
+    /// <summary>
+    /// Like <see cref="TryParseSubObjectSectionName(string, out ushort)"/>, and also returns
+    /// the sub-index.
+    /// </summary>
+    private static bool TryParseSubObjectSectionName(string sectionName, out ushort index, out byte subIndex)
     {
+        index = 0;
+        subIndex = 0;
+
         var subPos = sectionName.IndexOf("sub", StringComparison.OrdinalIgnoreCase);
         if (subPos < 1)
             return false;
@@ -643,10 +1157,19 @@ public abstract class CanOpenReaderBase
             return false;
 
         return ushort.TryParse(prefix, NumberStyles.AllowHexSpecifier,
-                   CultureInfo.InvariantCulture, out _)
+                   CultureInfo.InvariantCulture, out index)
                && byte.TryParse(suffix, NumberStyles.AllowHexSpecifier,
-                   CultureInfo.InvariantCulture, out _);
+                   CultureInfo.InvariantCulture, out subIndex);
     }
+
+    /// <summary>
+    /// Parses a section name as a CANopen object index. The accepted spellings are the
+    /// same ones <see cref="IsKnownSection"/> has always treated as object sections:
+    /// a hexadecimal value that fits in <see cref="ushort"/>, including letter-only
+    /// names such as <c>Face</c>.
+    /// </summary>
+    private static bool TryParseObjectIndexSectionName(string sectionName, out ushort index)
+        => ushort.TryParse(sectionName, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out index);
 
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="value"/> is non-empty and
@@ -701,30 +1224,18 @@ public abstract class CanOpenReaderBase
         => value.ToString("X", CultureInfo.InvariantCulture);
 
     /// <summary>
-    /// Checks if a section name matches a module section pattern: M{Digits}{KnownSuffix}.
+    /// Checks if a section name is a module section the module parser loads:
+    /// <c>[M{n}ModuleInfo]</c>, <c>[M{n}FixedObjects]</c>, <c>[M{n}SubExtends]</c>,
+    /// <c>[M{n}Comments]</c> (module number without leading zeros) or <c>[M{n}SubExtxxxx]</c>
+    /// (hexadecimal index). Other <c>M{digits}</c> names are ordinary additional sections.
     /// </summary>
+    /// <remarks>
+    /// <c>[MxFixedxxxx]</c> is intentionally not included: a body that was parsed onto a module
+    /// is excluded separately, and a body for a module that is not parsed is kept with a diagnostic.
+    /// </remarks>
     protected static bool IsModuleSection(string sectionName)
-    {
-        if (sectionName.Length < 2 ||
-            !sectionName.StartsWith("M", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        // Must have at least one digit after "M"
-        var i = 1;
-        while (i < sectionName.Length && char.IsDigit(sectionName[i]))
-            i++;
-
-        if (i == 1)
-            return false;
-
-        // The suffix after "M{digits}" must be a known module suffix
-        var suffix = sectionName[i..];
-        return suffix.Equals("ModuleInfo", StringComparison.OrdinalIgnoreCase) ||
-               suffix.Equals("FixedObjects", StringComparison.OrdinalIgnoreCase) ||
-               suffix.StartsWith("SubExtend", StringComparison.OrdinalIgnoreCase) ||
-               suffix.StartsWith("SubExt", StringComparison.OrdinalIgnoreCase) ||
-               suffix.Equals("Comments", StringComparison.OrdinalIgnoreCase);
-    }
+        => CanOpenSectionParsers.TryClassifyModuleSection(sectionName, out _, out var kind)
+           && kind != ModuleSectionKind.FixedObject;
 
     #region Obsolete compatibility shims (kept for external subclasses; removal requires a major release)
 

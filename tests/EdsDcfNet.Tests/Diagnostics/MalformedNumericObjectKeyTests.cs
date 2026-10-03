@@ -141,7 +141,7 @@ public class MalformedNumericObjectKeyTests
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
-        result.HasDiagnostics.Should().BeFalse();
+        result.Diagnostics.Should().NotContain(d => d.Code == ParseDiagnosticCodes.InvalidObjectType);
         result.Model.ObjectDictionary.Objects[0x2005].ObjectType.Should().Be(expected);
     }
 
@@ -166,15 +166,15 @@ public class MalformedNumericObjectKeyTests
     }
 
     [Fact]
-    public void ReadStringWithDiagnostics_EmptyObjectType_StaysZeroWithoutDiagnostic()
+    public void ReadStringWithDiagnostics_EmptyObjectType_IsVarWithoutDiagnostic()
     {
-        // A present empty key is 0 (NULL), the same as ValueConverter.ParseByte(""), not the omitted-key VAR default.
+        // CiA 306-1 Table 7 NOTE 1: an empty ObjectType equals VAR, like the omitted key.
         var content = ObjectSection("ParameterName=Empty\nObjectType=\nDataType=0x0007\nAccessType=ro\n");
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
         result.HasDiagnostics.Should().BeFalse();
-        result.Model.ObjectDictionary.Objects[0x2005].ObjectType.Should().Be(0);
+        result.Model.ObjectDictionary.Objects[0x2005].ObjectType.Should().Be(CanOpenObjectType.Var);
     }
 
     [Fact]
@@ -421,7 +421,7 @@ public class MalformedNumericObjectKeyTests
     [Fact]
     public void ReadStringWithDiagnostics_CompactSubObjAboveMaxValue_LeavesUnset()
     {
-        var content = ObjectSection("ParameterName=Edges\nObjectType=0x7\nCompactSubObj=256\n");
+        var content = ObjectSection("ParameterName=Edges\nObjectType=0x8\nCompactSubObj=256\n");
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
@@ -466,17 +466,24 @@ public class MalformedNumericObjectKeyTests
     }
 
     [Theory]
-    [InlineData("0", 0u)]
-    [InlineData("4294967295", 4294967295u)]
-    [InlineData("0xFFFFFFFF", 4294967295u)]
-    public void ReadStringWithDiagnostics_ObjFlagsAtValidRange_ParsesWithoutDiagnostic(string raw, uint expected)
+    [InlineData("0", 0u, false)]
+    [InlineData("4294967295", 4294967295u, true)]
+    [InlineData("0xFFFFFFFF", 4294967295u, true)]
+    public void ReadStringWithDiagnostics_ObjFlagsAtValidRange_ParsesWithoutMalformedDiagnostic(
+        string raw,
+        uint expected,
+        bool expectReservedBits)
     {
         var content = ObjectSection(
             "ParameterName=Edges\nObjectType=0x7\nObjFlags=" + raw + "\nAccessType=ro\n");
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
-        result.HasDiagnostics.Should().BeFalse();
+        // Reserved bits 2..31 are reported separately (IniObjFlagsReservedBits); the value is not malformed.
+        if (expectReservedBits)
+            result.Diagnostics.Should().ContainSingle(d => d.Code == ParseDiagnosticCodes.IniObjFlagsReservedBits);
+        else
+            result.HasDiagnostics.Should().BeFalse();
         result.Model.ObjectDictionary.Objects[0x2005].ObjFlags.Should().Be(expected);
     }
 
@@ -627,14 +634,21 @@ public class MalformedNumericObjectKeyTests
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
-        var diagnostic = result.Diagnostics.Should().ContainSingle().Subject;
+        // Count 0 means 1=0x2005 is not in the list, so [2005] is preserved, not loaded.
+        result.Diagnostics.Select(d => d.Code).Should().Equal(
+            ParseDiagnosticCodes.InvalidObjectListCount,
+            ParseDiagnosticCodes.IniUnlistedObjectSection);
+        var diagnostic = result.Diagnostics[0];
         diagnostic.Code.Should().Be(ParseDiagnosticCodes.InvalidObjectListCount);
         diagnostic.Path.Should().Be("ManufacturerObjects.SupportedObjects");
         diagnostic.RawValue.Should().Be("nope");
         diagnostic.CoercedTo.Should().Be("0");
         diagnostic.Line.Should().Be(SourceLine(content, "SupportedObjects=nope"));
+        result.Diagnostics[1].Path.Should().Be("2005");
+        result.Diagnostics[1].Message.Should().Be("object section 0x2005 not listed in any object list");
         result.Model.ObjectDictionary.ManufacturerObjects.Should().BeEmpty();
         result.Model.ObjectDictionary.Objects.Should().NotContainKey((ushort)0x2005);
+        result.Model.AdditionalSections["2005"]["ParameterName"].Should().Be("Unlisted");
         result.Model.ObjectDictionary.Objects[0x1000].ParameterName.Should().Be("Device Type");
 
         AssertStrict(
@@ -658,18 +672,24 @@ public class MalformedNumericObjectKeyTests
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
-        result.Diagnostics.Should().ContainSingle(d =>
-            d.Code == ParseDiagnosticCodes.InvalidObjectListCount &&
-            d.RawValue == "65536" &&
-            d.CoercedTo == "0");
+        // Count 0 means 1=0x1000 is not in the list, so [1000] is preserved, not loaded.
+        result.Diagnostics.Select(d => d.Code).Should().Equal(
+            ParseDiagnosticCodes.InvalidObjectListCount,
+            ParseDiagnosticCodes.IniUnlistedObjectSection);
+        result.Diagnostics[0].RawValue.Should().Be("65536");
+        result.Diagnostics[0].CoercedTo.Should().Be("0");
+        result.Diagnostics[1].Path.Should().Be("1000");
+        result.Diagnostics[1].Message.Should().Be("object section 0x1000 not listed in any object list");
         result.Model.ObjectDictionary.MandatoryObjects.Should().BeEmpty();
+        result.Model.ObjectDictionary.Objects.Should().NotContainKey((ushort)0x1000);
+        result.Model.AdditionalSections["1000"]["ParameterName"].Should().Be("Device Type");
         result.Model.DeviceInfo.VendorName.Should().Be("Test");
 
         AssertStrict(content, ParseDiagnosticCodes.InvalidObjectListCount, "MandatoryObjects", "Invalid UInt16 value: '65536'");
     }
 
     [Fact]
-    public void ReadStringWithDiagnostics_SupportedObjectsAtMaxValue_ParsesWithoutDiagnostic()
+    public void ReadStringWithDiagnostics_SupportedObjectsAtMaxValue_ParsesWithoutMalformedCountDiagnostic()
     {
         var content = Header +
             "[MandatoryObjects]\n" +
@@ -679,7 +699,10 @@ public class MalformedNumericObjectKeyTests
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
-        result.HasDiagnostics.Should().BeFalse();
+        // The count is valid; the 65535 absent entries are reported once as a count mismatch.
+        var diagnostic = result.Diagnostics.Should().ContainSingle().Subject;
+        diagnostic.Code.Should().Be(ParseDiagnosticCodes.IniObjectListCountMismatch);
+        diagnostic.Message.Should().Contain("65530 more");
         result.Model.ObjectDictionary.MandatoryObjects.Should().BeEmpty();
     }
 
@@ -819,7 +842,11 @@ public class MalformedNumericObjectKeyTests
             ParseDiagnosticCodes.UnknownAccessTypeToken,
             ParseDiagnosticCodes.InvalidObjFlags,
             ParseDiagnosticCodes.InvalidSubNumber,
-            ParseDiagnosticCodes.InvalidCompactSubObj);
+            ParseDiagnosticCodes.InvalidCompactSubObj,
+            // ObjectType is treated as VAR, for which CiA 306-1 Table 7 does not support
+            // SubNumber and CompactSubObj.
+            ParseDiagnosticCodes.IniObjectKeyNotSupported,
+            ParseDiagnosticCodes.IniObjectKeyNotSupported);
 
         var obj = result.Model.ObjectDictionary.Objects[0x2005];
         obj.ParameterName.Should().Be("Garbage");

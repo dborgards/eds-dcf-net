@@ -1,0 +1,15 @@
+# Normalize line endings to LF in the repository and on checkout on every
+# platform. The build job runs on windows-latest; without this, C# sources
+# and test fixtures were checked out with CRLF there, which made raw-string
+# fixtures and "\n"-based assertions behave differently from macOS/Linux.
+* text=auto eol=lf
+
+# Real-world corpus files are kept byte-exact (one of them is CRLF on purpose).
+tests/EdsDcfNet.Tests/Fixtures/Corpus/** -text
+
+# Binary files
+*.snk binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.ico binary

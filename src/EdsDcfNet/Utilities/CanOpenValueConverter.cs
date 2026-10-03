@@ -66,9 +66,9 @@ public static class CanOpenValueConverter
             CanOpenDataType.Unsigned56 => ParseUnsignedInteger(value, BitLength(CanOpenDataType.Unsigned56), nodeId),
             CanOpenDataType.Unsigned64 => ParseUnsignedInteger(value, BitLength(CanOpenDataType.Unsigned64), nodeId),
             CanOpenDataType.TimeOfDay or CanOpenDataType.TimeDifference => throw new NotSupportedException(
-                $"CANopen data type 0x{dataType:X4} does not have a universally interoperable EDS/DCF to .NET mapping."),
+                "CANopen data type 0x" + dataType.ToString("X4", CultureInfo.InvariantCulture) + " does not have a universally interoperable EDS/DCF to .NET mapping."),
             CanOpenDataType.Domain => throw new NotSupportedException(DomainNotSupportedMessage),
-            _ => throw new NotSupportedException($"CANopen data type 0x{dataType:X4} is not supported for typed value conversion.")
+            _ => throw new NotSupportedException("CANopen data type 0x" + dataType.ToString("X4", CultureInfo.InvariantCulture) + " is not supported for typed value conversion.")
         };
     }
 
@@ -81,7 +81,7 @@ public static class CanOpenValueConverter
     private static int BitLength(ushort dataType) =>
         CanOpenDataType.TryGetBitLength(dataType)
         ?? throw new NotSupportedException(
-            $"CANopen data type 0x{dataType:X4} has no fixed bit length and cannot be converted as an integer.");
+            "CANopen data type 0x" + dataType.ToString("X4", CultureInfo.InvariantCulture) + " has no fixed bit length and cannot be converted as an integer.");
 
     /// <summary>
     /// Formats a .NET value according to its CANopen data type index for storage in an EDS/DCF model.
@@ -123,15 +123,15 @@ public static class CanOpenValueConverter
                 CanOpenDataType.Unsigned56 => FormatUnsigned(value, BitLength(CanOpenDataType.Unsigned56)),
                 CanOpenDataType.Unsigned64 => FormatUnsigned(value, BitLength(CanOpenDataType.Unsigned64)),
                 CanOpenDataType.TimeOfDay or CanOpenDataType.TimeDifference => throw new NotSupportedException(
-                    $"CANopen data type 0x{dataType:X4} does not have a universally interoperable EDS/DCF to .NET mapping."),
+                    "CANopen data type 0x" + dataType.ToString("X4", CultureInfo.InvariantCulture) + " does not have a universally interoperable EDS/DCF to .NET mapping."),
                 CanOpenDataType.Domain => throw new NotSupportedException(DomainNotSupportedMessage),
-                _ => throw new NotSupportedException($"CANopen data type 0x{dataType:X4} is not supported for typed value conversion.")
+                _ => throw new NotSupportedException("CANopen data type 0x" + dataType.ToString("X4", CultureInfo.InvariantCulture) + " is not supported for typed value conversion.")
             };
         }
         catch (Exception ex) when (ex is FormatException || ex is InvalidCastException || ex is OverflowException)
         {
             throw new ArgumentException(
-                $"Value '{value}' cannot be represented by CANopen data type 0x{dataType:X4}.",
+                "Value '" + Convert.ToString(value, CultureInfo.InvariantCulture) + "' cannot be represented by CANopen data type 0x" + dataType.ToString("X4", CultureInfo.InvariantCulture) + ".",
                 nameof(value),
                 ex);
         }
@@ -172,7 +172,7 @@ public static class CanOpenValueConverter
         {
             0 => "0",
             1 => "1",
-            _ => throw new OverflowException($"Value {numeric} is outside the CANopen BOOLEAN value range (0 or 1).")
+            _ => throw new OverflowException("Value " + numeric.ToString(CultureInfo.InvariantCulture) + " is outside the CANopen BOOLEAN value range (0 or 1).")
         };
     }
 
@@ -273,7 +273,7 @@ public static class CanOpenValueConverter
         if (value is float or double or decimal)
         {
             throw new InvalidCastException(
-                $"Value '{value}' is a floating-point number and cannot be stored in an integer CANopen data type without loss.");
+                "Value '" + Convert.ToString(value, CultureInfo.InvariantCulture) + "' is a floating-point number and cannot be stored in an integer CANopen data type without loss.");
         }
 
         // Only genuine integral numeric types are allowed. bool, char, strings, and other
@@ -337,12 +337,12 @@ public static class CanOpenValueConverter
     {
         if (isNaN)
         {
-            throw new FormatException($"'{value}' is not a valid CANopen REAL{bits} value.");
+            throw new FormatException("'" + Convert.ToString(value, CultureInfo.InvariantCulture) + "' is not a valid CANopen REAL" + bits.ToString(CultureInfo.InvariantCulture) + " value.");
         }
 
         if (isInfinity)
         {
-            throw new OverflowException($"Value '{value}' is outside the finite REAL{bits} range.");
+            throw new OverflowException("Value '" + Convert.ToString(value, CultureInfo.InvariantCulture) + "' is outside the finite REAL" + bits.ToString(CultureInfo.InvariantCulture) + " range.");
         }
     }
 
@@ -373,7 +373,7 @@ public static class CanOpenValueConverter
         var maximum = (1L << (bits - 1)) - 1;
         if (value < minimum || value > maximum)
         {
-            throw new OverflowException($"Value {value} is outside the signed {bits}-bit range.");
+            throw new OverflowException("Value " + value.ToString(CultureInfo.InvariantCulture) + " is outside the signed " + bits.ToString(CultureInfo.InvariantCulture) + "-bit range.");
         }
     }
 
@@ -381,7 +381,7 @@ public static class CanOpenValueConverter
     {
         if (bits < 64 && value >= (1UL << bits))
         {
-            throw new OverflowException($"Value {value} is outside the unsigned {bits}-bit range.");
+            throw new OverflowException("Value " + value.ToString(CultureInfo.InvariantCulture) + " is outside the unsigned " + bits.ToString(CultureInfo.InvariantCulture) + "-bit range.");
         }
     }
 
@@ -556,6 +556,8 @@ public static class CanOpenValueConverter
         return result;
     }
 
+    // CiA 306-1 v1.4.0 section 6.3: octet strings are stored as hexadecimal bytes without a
+    // leading "0x"; Parse still accepts both forms.
     private static string FormatByteString(object value)
     {
         if (value is not byte[] bytes)
@@ -568,14 +570,21 @@ public static class CanOpenValueConverter
                 $"{value.GetType().Name} was provided.");
         }
 
+        if (bytes.Length == 0)
+        {
+            // An empty string means "not set" (typed reads fall back to DefaultValue, writers omit
+            // the key), and CiA 306-1 has no other textual form for zero bytes. Keep the bare "0x"
+            // marker, which Parse reads back as an empty array, so an explicit empty value stays
+            // distinguishable.
+            return "0x";
+        }
+
         const string hexDigits = "0123456789ABCDEF";
-        var chars = new char[(bytes.Length * 2) + 2];
-        chars[0] = '0';
-        chars[1] = 'x';
+        var chars = new char[bytes.Length * 2];
         for (var i = 0; i < bytes.Length; i++)
         {
-            chars[(i * 2) + 2] = hexDigits[bytes[i] >> 4];
-            chars[(i * 2) + 3] = hexDigits[bytes[i] & 0x0F];
+            chars[i * 2] = hexDigits[bytes[i] >> 4];
+            chars[(i * 2) + 1] = hexDigits[bytes[i] & 0x0F];
         }
 
         return new string(chars);

@@ -19,22 +19,32 @@ public class EdsWriter : IniWriterBase
     /// </summary>
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="filePath">Path where the EDS file should be written</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure the target is left untouched and the temporary file
+    /// is removed. Whether the final replace is atomic depends on the file system (for example,
+    /// network shares may not guarantee it).
+    /// A symbolic link is followed: its final target is replaced and the link is kept. The
+    /// netstandard2.0 build cannot resolve links; it serializes the content completely and then
+    /// overwrites the link target in place, which is not atomic.
+    /// On Unix the new file keeps the permission bits of the file it replaces; the netstandard2.0
+    /// build on a runtime older than .NET 7 overwrites an existing file in place instead.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="eds"/> is <see langword="null"/>.</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteFile(ElectronicDataSheet eds, string filePath)
     {
-        try
-        {
-            var content = GenerateEdsContent(eds);
-            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
-        }
-        catch (EdsWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new EdsWriteException($"Failed to write EDS file to {filePath}", ex);
-        }
+        ThrowIfNull(eds, nameof(eds));
+
+        WriteEntryPoints.ToFile(
+            filePath,
+            "EDS",
+            () =>
+            {
+                var content = GenerateEdsContent(eds);
+                TextFileIo.WriteOutputTextToFile(filePath, content);
+            },
+            (message, inner) => new EdsWriteException(message, inner));
     }
 
     /// <summary>
@@ -45,23 +55,19 @@ public class EdsWriter : IniWriterBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteStream(ElectronicDataSheet eds, Stream stream)
     {
+        ThrowIfNull(eds, nameof(eds));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            var content = GenerateEdsContent(eds);
-            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
-        }
-        catch (EdsWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new EdsWriteException("Failed to write EDS content to stream.", ex);
-        }
+        WriteEntryPoints.ToStream(
+            "EDS",
+            () =>
+            {
+                var content = GenerateEdsContent(eds);
+                TextFileIo.WriteOutputText(stream, content);
+            },
+            (message, inner) => new EdsWriteException(message, inner));
     }
 
     /// <summary>
@@ -70,30 +76,36 @@ public class EdsWriter : IniWriterBase
     /// <param name="eds">The ElectronicDataSheet to write</param>
     /// <param name="filePath">Path where the EDS file should be written</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure or cancellation the target is left untouched and the temporary file
+    /// is removed. Whether the final replace is atomic depends on the file system (for example,
+    /// network shares may not guarantee it).
+    /// A symbolic link is followed: its final target is replaced and the link is kept. The
+    /// netstandard2.0 build cannot resolve links; it serializes the content completely and then
+    /// overwrites the link target in place, which is not atomic.
+    /// On Unix the new file keeps the permission bits of the file it replaces; the netstandard2.0
+    /// build on a runtime older than .NET 7 overwrites an existing file in place instead.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="eds"/> is <see langword="null"/>.</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public async Task WriteFileAsync(
         ElectronicDataSheet eds,
         string filePath,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateEdsContent(eds);
-            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (EdsWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new EdsWriteException($"Failed to write EDS file to {filePath}", ex);
-        }
+        ThrowIfNull(eds, nameof(eds));
+
+        await WriteEntryPoints.ToFileAsync(
+            filePath,
+            "EDS",
+            async () =>
+            {
+                var content = GenerateEdsContent(eds);
+                await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new EdsWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -108,28 +120,20 @@ public class EdsWriter : IniWriterBase
         Stream stream,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfNull(eds, nameof(eds));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateEdsContent(eds);
-            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (EdsWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new EdsWriteException("Failed to write EDS content to stream.", ex);
-        }
+        await WriteEntryPoints.ToStreamAsync(
+            "EDS",
+            async () =>
+            {
+                var content = GenerateEdsContent(eds);
+                await TextFileIo.WriteOutputTextAsync(stream, content, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new EdsWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -140,71 +144,102 @@ public class EdsWriter : IniWriterBase
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public string GenerateString(ElectronicDataSheet eds)
     {
+        ThrowIfNull(eds, nameof(eds));
         return GenerateEdsContent(eds);
     }
 
     private static string GenerateEdsContent(ElectronicDataSheet eds)
     {
         var sb = new StringBuilder();
+        WriteGeneratedSections(sb, eds);
+
+        // Collected before the first additional section is written, and only when there is one.
+        HashSet<string>? generatedHeaders = null;
+        foreach (var section in eds.AdditionalSectionOrder.Sections(eds.AdditionalSections))
+        {
+            generatedHeaders ??= GetGeneratedSectionHeaders(sb);
+            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, eds.ObjectDictionary) ||
+                IsGeneratedSection(generatedHeaders, section.Key))
+            {
+                continue;
+            }
+
+            WriteSection(
+                section.Key,
+                () => WriteAdditionalSection(
+                    sb, section.Key, eds.AdditionalSectionOrder.Entries(section.Key, section.Value)));
+        }
+
+        return TextFileIo.ApplyOutputNewLine(sb.ToString());
+    }
+
+    /// <summary>
+    /// The section headers this writer generates from the model, before the additional
+    /// sections. Validated writes use it to check only the additional sections that are
+    /// written (<see cref="IniWriterBase.GetGeneratedSectionHeaders(StringBuilder)"/>).
+    /// </summary>
+    internal static HashSet<string> CollectGeneratedSectionHeaders(ElectronicDataSheet eds)
+    {
+        var sb = new StringBuilder();
+        WriteGeneratedSections(sb, eds);
+        return GetGeneratedSectionHeaders(sb);
+    }
+
+    /// <summary>Writes every section generated from the model; additional sections follow.</summary>
+    private static void WriteGeneratedSections(StringBuilder sb, ElectronicDataSheet eds)
+    {
+        var sectionEntries = eds.SectionRemainingEntries;
 
         WriteSection("FileInfo", () =>
         {
             WriteFileInfo(sb, eds.FileInfo);
+            WriteRemainingEntries(sb, eds.FileInfo.RemainingEntries, SectionEntryKeys.IsEdsFileInfoKey);
             sb.AppendLine();
         });
 
         WriteSection("DeviceInfo", () => WriteDeviceInfo(sb, eds.DeviceInfo));
 
-        if (eds.ObjectDictionary.DummyUsage.Count > 0)
+        if (eds.ObjectDictionary.DummyUsage.Count > 0 || HasSectionEntries(sectionEntries, "DummyUsage"))
         {
-            WriteSection("DummyUsage", () => WriteDummyUsage(sb, eds.ObjectDictionary));
+            WriteSection("DummyUsage", () => WriteDummyUsage(sb, eds.ObjectDictionary, sectionEntries));
         }
 
-        WriteSection("ObjectLists", () => WriteObjectLists(sb, eds.ObjectDictionary));
+        WriteSection("ObjectLists", () => WriteObjectLists(sb, eds.ObjectDictionary, sectionEntries));
 
-        WriteSection("Objects", () => WriteObjects(sb, eds.ObjectDictionary));
+        WriteSection("Objects", () => WriteObjects(sb, eds.ObjectDictionary, sectionEntries));
 
-        if (eds.SupportedModules.Count > 0)
+        if (eds.SupportedModules.Count > 0 || HasSectionEntries(sectionEntries, "SupportedModules"))
         {
-            WriteSection("SupportedModules", () => WriteSupportedModules(sb, eds.SupportedModules));
+            WriteSection("SupportedModules", () => WriteSupportedModules(sb, eds.SupportedModules, sectionEntries));
         }
 
-        if (eds.DynamicChannels != null && eds.DynamicChannels.Segments.Count > 0)
+        if (MustWriteDynamicChannels(eds.DynamicChannels))
         {
-            WriteSection("DynamicChannels", () => WriteDynamicChannels(sb, eds.DynamicChannels));
+            WriteSection("DynamicChannels", () => WriteDynamicChannels(sb, eds.DynamicChannels!));
         }
 
-        if (eds.Tools.Count > 0)
+        if (MustWriteTools(eds.Tools, sectionEntries))
         {
-            WriteSection("Tools", () => WriteTools(sb, eds.Tools));
+            WriteSection("Tools", () => WriteTools(sb, eds.Tools, sectionEntries));
         }
 
-        if (eds.Comments != null && eds.Comments.CommentLines.Count > 0)
+        if (MustWriteComments(eds.Comments))
         {
-            WriteSection("Comments", () => WriteComments(sb, eds.Comments));
+            WriteSection("Comments", () => WriteComments(sb, eds.Comments!));
         }
-
-        foreach (var section in eds.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
-        {
-            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, eds.ObjectDictionary))
-            {
-                continue;
-            }
-
-            WriteSection(section.Key, () => WriteAdditionalSection(sb, section.Key, section.Value));
-        }
-
-        return sb.ToString();
     }
 
-    private static void WriteObjects(StringBuilder sb, ObjectDictionary objDict)
+    private static void WriteObjects(
+        StringBuilder sb,
+        ObjectDictionary objDict,
+        Dictionary<string, OrderedStringDictionary> sectionEntries)
     {
         var allObjects = objDict.Objects.OrderBy(o => o.Key);
 
         foreach (var objEntry in allObjects)
         {
             var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", objEntry.Key);
-            WriteSection(sectionName, () => Instance.WriteObject(sb, objEntry.Value, WriteSection));
+            WriteSection(sectionName, () => Instance.WriteObject(sb, objEntry.Value, WriteSection, sectionEntries));
         }
     }
 
@@ -213,6 +248,13 @@ public class EdsWriter : IniWriterBase
         try
         {
             writeAction();
+        }
+        catch (IniTextRejectedException ex)
+        {
+            throw new EdsWriteException(ex.Message)
+            {
+                SectionName = sectionName
+            };
         }
         catch (EdsWriteException)
         {

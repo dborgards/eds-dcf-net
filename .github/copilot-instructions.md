@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-EdsDcfNet is a C# library for reading and writing CiA DS 306 EDS (Electronic Data Sheet) and DCF (Device Configuration File) files for CANopen devices. Zero external dependencies. Dual-targets **netstandard2.0** and **net10.0**.
+EdsDcfNet is a C# library for reading and writing CANopen device description and configuration files in five formats: CiA 306 EDS (Electronic Data Sheet), DCF (Device Configuration File) and CPJ (nodelist project), plus the CiA 311 XML formats XDD (XML Device Description) and XDC (XML Device Configuration). Zero external dependencies. Dual-targets **netstandard2.0** and **net10.0**.
 
 ## Critical Constraints
 
@@ -35,14 +35,26 @@ All numeric and date formatting/parsing **must** use `CultureInfo.InvariantCultu
 ## Architecture
 
 ```
-EDS/DCF file → IniParser → EdsReader/DcfReader → Models → DcfWriter → DCF file
+file/stream → Reader (Parsers/) → Models → [Validation/] → Writer (Writers/) → file/stream
 ```
 
-- **`CanOpenFile`** — static facade with legacy `ReadEds`/`WriteDcf`-style overloads (backward compatible) and **canonical format entry points** `CanOpenFile.Eds`, `.Dcf`, `.Cpj`, `.Xdd`, `.Xdc` for read/write/options. Prefer the entry points for new code; legacy write overloads that only cover defaults are marked `[Obsolete]` (advisory).
-- **`EdsCanOpenOperations`** et al. — format-specific operations accessed via the entry points above
-- **`IniParser`** — low-level INI section/key-value parsing (case-insensitive)
-- **`EdsReader`** / **`DcfReader`** — domain-specific parsers producing `ElectronicDataSheet` / `DeviceConfigurationFile`
-- **`DcfWriter`** — serializes `DeviceConfigurationFile` back to DCF format
+Source layout under `src/EdsDcfNet`:
+
+- `CanOpenFile.cs`, `*CanOpenOperations.cs`, `CanOpenFileOptions.cs`, `CanOpenWriteOptions.cs` — public facade and format entry points
+- `Parsers/` — readers (`EdsReader`, `DcfReader`, `CpjReader`, `XddReader`, `XdcReader`), `IniParser`, XDD sub-parsers, `SecureXmlParser`
+- `Writers/` — writers (`EdsWriter`, `DcfWriter`, `CpjWriter`, `XddWriter`, `XdcWriter`) and shared builders/helpers
+- `Validation/` — `CanOpenModelValidator`, `CanOpenValidationOptions`, `ValidationIssue`
+- `Models/` — format models and their parts
+- `Utilities/` — `ValueConverter`, `CanOpenValueConverter`, `TextFileIo`, cloners and section helpers
+- `Diagnostics/` — `CanOpenReadResult`, `ParseDiagnostic` and related types for lenient-mode reads
+- `Exceptions/`, `Extensions/` — exception types and `ObjectDictionary` extensions
+
+- **`CanOpenFile`** — static facade. The **canonical format entry points** are `CanOpenFile.Eds`, `.Dcf`, `.Cpj`, `.Xdd`, `.Xdc` (read/write/options per format). Prefer them for new code. The legacy facade overloads (`ReadEds`, `WriteDcf`, `EdsToDcf` without timestamp, etc.) are kept for backward compatibility and all 111 of them are marked `[Obsolete]` (advisory) in favour of the entry points. `CanOpenFile.Validate*` / `EnsureValid*` and the `EdsToDcf` overload with an explicit timestamp are not obsolete.
+- **`EdsCanOpenOperations`**, **`DcfCanOpenOperations`**, **`CpjCanOpenOperations`**, **`XddCanOpenOperations`**, **`XdcCanOpenOperations`** — format-specific operations behind the entry points, built on the shared `FormatCanOpenOperations<TModel>`
+- **`IniParser`** — low-level INI section/key-value parsing (case-insensitive), used by the EDS/DCF/CPJ readers
+- **`EdsReader`** / **`DcfReader`** / **`CpjReader`** — INI readers producing `ElectronicDataSheet` / `DeviceConfigurationFile` / `NodelistProject`
+- **`XddReader`** / **`XdcReader`** — XML (`System.Xml.Linq`) readers, hardened via `SecureXmlParser`
+- **`EdsWriter`** / **`DcfWriter`** / **`CpjWriter`** / **`XddWriter`** / **`XdcWriter`** — serialize the models back to their format
 - **`ValueConverter`** — parses integers (decimal/hex `0x`/octal `0`+digit), booleans, `$NODEID` formulas, AccessType enum
 
 ### Key Models
@@ -132,6 +144,9 @@ This project uses a **develop → main** integration model:
    git checkout -b feat/my-feature develop
    ```
 2. Open a PR from the feature branch **into `develop`** (never directly into `main`).
+   Merge it with **squash** (or rebase), never a merge commit; the develop ruleset
+   enforces this (see `CONTRIBUTING.md` § "Merge strategy"). The squash commit
+   message must be a valid Conventional Commit, because semantic-release analyzes it.
 3. On merge to `develop`, semantic-release publishes a `beta` pre-release to NuGet automatically.
 4. When ready for a stable release, open a PR from `develop` → `main`.
    **Important:** merge this PR with a **regular merge commit** (not squash, not rebase).
@@ -144,8 +159,17 @@ This project uses a **develop → main** integration model:
 
 ### CI Behaviour
 
-- **Push to a feature branch** → `build.yml` runs (build + test).
+- **Push to a feature branch** → no run on its own; the PR (`pull_request`)
+  runs `build.yml`, so a PR branch is not built twice. A branch without a PR
+  is not built (open a draft PR or use `workflow_dispatch`). A newer push to
+  a PR cancels that PR's run in progress.
 - **PR targeting `develop` or `main`** → `build.yml` runs (build + test as gate).
+- **Push to `develop`** → `build.yml` runs as well (alongside `semantic-release.yml`).
+- **Documentation-only PR into `develop`** (root `*.md`, `docs/**`,
+  `.github/*.md`, `LICENSE*`) → the `changes` job detects it; build, tests,
+  coverage and ApiCompat steps are skipped via `if:`, while `build` and
+  `coverage/threshold` still report success. No workflow-level `paths-ignore`
+  (it would leave required checks unreported). PRs into `main` always run in full.
 - **Merge to `develop`** → `semantic-release.yml` runs (build + test + beta pre-release).
 - **Merge to `main`** → `semantic-release.yml` runs (build + test + stable release).
 - **Test TFMs:** `EdsDcfNet.Tests` / `EdsDcfNet.TestHost` multi-target `net10.0`

@@ -4,6 +4,7 @@ using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
 using EdsDcfNet.Utilities;
+using EdsDcfNet.Validation;
 using EdsDcfNet.Writers;
 using System.Globalization;
 
@@ -18,7 +19,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
 
     private EdsCanOpenOperations()
         : base(
-            CanOpenWriteGuard.EnsureValidForWrite,
+            (model, options) => CanOpenWriteGuard.EnsureValidForWrite(model, options, IniWriteRules.Apply),
             (filePath, maxInputSize) => new EdsReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new EdsReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),
@@ -33,7 +34,11 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
             (eds, stream, cancellationToken) =>
                 new EdsWriter().WriteStreamAsync(eds, stream, cancellationToken),
             eds => new EdsWriter().GenerateString(eds),
-            CanOpenWriteGuard.EnsureValidForWriteAsync)
+            (model, options, cancellationToken) => CanOpenWriteGuard.EnsureValidForWriteAsync(
+                model,
+                options,
+                IniWriteRules.Apply,
+                cancellationToken))
     {
     }
 
@@ -48,7 +53,8 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
     /// <remarks>
     /// The timestamp is formatted with invariant culture as <c>MM-dd-yyyy</c> for
     /// <c>CreationDate</c> and <c>hh:mmtt</c> for <c>CreationTime</c>; no timezone
-    /// conversion is applied.
+    /// conversion is applied. The generated <c>Description</c> names the source EDS file; when the
+    /// EDS has no <c>FileName</c> it is <c>DCF generated from EDS</c>.
     /// </remarks>
     /// <returns>A new DeviceConfigurationFile</returns>
     public DeviceConfigurationFile ConvertToDcf(
@@ -72,7 +78,9 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
                 FileVersion = eds.FileInfo.FileVersion,
                 FileRevision = (byte)Math.Min(eds.FileInfo.FileRevision + 1, byte.MaxValue),
                 EdsVersion = eds.FileInfo.EdsVersion,
-                Description = $"DCF generated from {eds.FileInfo.FileName}",
+                Description = string.IsNullOrWhiteSpace(eds.FileInfo.FileName)
+                    ? "DCF generated from EDS"
+                    : $"DCF generated from {eds.FileInfo.FileName.Trim()}",
                 CreationDate = timestamp.ToString("MM-dd-yyyy", CultureInfo.InvariantCulture),
                 CreationTime = timestamp.ToString("hh:mmtt", CultureInfo.InvariantCulture),
                 CreatedBy = "EdsDcfNet Library",
@@ -83,7 +91,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
             {
                 NodeId = nodeId,
                 Baudrate = baudrate,
-                NodeName = nodeName ?? $"{eds.DeviceInfo.ProductName}_Node{nodeId}",
+                NodeName = nodeName ?? eds.DeviceInfo.ProductName + "_Node" + nodeId.ToString(CultureInfo.InvariantCulture),
                 NetNumber = 1,
                 NetworkName = "CANopen Network",
                 CANopenManager = false
@@ -91,13 +99,33 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
             ObjectDictionary = ModelCloner.CloneObjectDictionary(eds.ObjectDictionary),
             Comments = ModelCloner.CloneComments(eds.Comments),
             DynamicChannels = ModelCloner.CloneDynamicChannels(eds.DynamicChannels),
-            ApplicationProcess = ModelCloner.CloneApplicationProcess(eds.ApplicationProcess)
+            ApplicationProcess = ModelCloner.CloneApplicationProcess(eds.ApplicationProcess),
+            XddPreserved = ModelCloner.CloneXddPreserved(eds.XddPreserved)
         };
 
         dcf.SupportedModules.AddRange(ModelCloner.CloneSupportedModules(eds.SupportedModules));
         dcf.Tools.AddRange(ModelCloner.CloneTools(eds.Tools));
         foreach (var kvp in ModelCloner.CloneAdditionalSections(eds.AdditionalSections))
             dcf.AdditionalSections[kvp.Key] = kvp.Value;
+        ModelCloner.CopyAdditionalSectionOrder(eds, dcf);
+        foreach (var kvp in ModelCloner.CloneSectionRemainingEntries(eds.SectionRemainingEntries))
+            dcf.SectionRemainingEntries[kvp.Key] = kvp.Value;
+
+        // Unmapped [FileInfo] entries travel with the file; the DCF writer skips LastEDS,
+        // which the conversion sets from the source file name.
+        ModelCloner.CopyFileInfoRemainingEntries(eds.FileInfo, dcf.FileInfo);
+        ModelCloner.CopyFileVersionText(eds.FileInfo, dcf.FileInfo);
+
+        // Without a source file name there is no derived LastEDS. A kept, non-empty LastEDS
+        // entry of the EDS then becomes the property. An empty one stays a kept entry, which
+        // the DCF writer outputs while the property is empty.
+        if (string.IsNullOrEmpty(dcf.FileInfo.LastEds)
+            && dcf.FileInfo.RemainingEntries.TryGetValue("LastEDS", out var retainedLastEds)
+            && !string.IsNullOrEmpty(retainedLastEds))
+        {
+            dcf.FileInfo.LastEds = retainedLastEds;
+            dcf.FileInfo.RemainingEntries.Remove("LastEDS");
+        }
 
         // EDS stores DCF-only keywords in RemainingEntries. Move them onto the
         // properties so a commissioned value assigned after conversion is the

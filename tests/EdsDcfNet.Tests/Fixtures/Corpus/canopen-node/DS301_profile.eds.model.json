@@ -1,0 +1,223 @@
+{
+  "objectCount": 33,
+  "subObjectCount": 160,
+  "emptyDataTypeCount": 23,
+  "objects": [
+    {"index": "0x1000", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0x00000000", "pdoMapping": "No"},
+    {"index": "0x1001", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x00", "pdoMapping": "Optional"},
+    {"index": "0x1003", "objectType": 8, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x07", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x08", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x09", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x0A", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x0B", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x0C", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x0D", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x0E", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x0F", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"},
+      {"subIndex": "0x10", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1005", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000080", "pdoMapping": "No"},
+    {"index": "0x1006", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+    {"index": "0x1007", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+    {"index": "0x1010", "objectType": 8, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x04", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000001", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000001", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000001", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000001", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1011", "objectType": 8, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x04", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000001", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000001", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000001", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000001", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1012", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000100", "pdoMapping": "No"},
+    {"index": "0x1014", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "$NODEID+0x80", "pdoMapping": "No"},
+    {"index": "0x1015", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+    {"index": "0x1016", "objectType": 8, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x08", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x07", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x08", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1017", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+    {"index": "0x1018", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x04", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0x00000000", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1019", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+    {"index": "0x1200", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "2", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "$NODEID+0x600", "pdoMapping": "Optional"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "$NODEID+0x580", "pdoMapping": "Optional"}
+    ]},
+    {"index": "0x1280", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x03", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x80000000", "pdoMapping": "Optional"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x80000000", "pdoMapping": "Optional"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0x01", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1400", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x05", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "$NODEID+0x80000200", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "254", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1401", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x05", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "$NODEID+0x80000300", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "254", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1402", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x05", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "$NODEID+0x80000400", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "254", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1403", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x05", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "$NODEID+0x80000500", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "254", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1600", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x07", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x08", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1601", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x07", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x08", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1602", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x07", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x08", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1603", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x07", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x08", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1800", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x06", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "$NODEID+0xC0000180", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "254", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1801", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x06", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "$NODEID+0xC0000280", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "254", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1802", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x06", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "$NODEID+0xC0000380", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "254", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1803", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadOnly", "defaultValue": "0x06", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "$NODEID+0xC0000480", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "254", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0006", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1A00", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x07", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x08", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1A01", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x07", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x08", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1A02", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x07", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x08", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"}
+    ]},
+    {"index": "0x1A03", "objectType": 9, "dataType": null, "accessType": "ReadOnly", "defaultValue": "", "pdoMapping": "No", "subObjects": [
+      {"subIndex": "0x00", "objectType": 7, "dataType": "0x0005", "accessType": "ReadWrite", "defaultValue": "0", "pdoMapping": "No"},
+      {"subIndex": "0x01", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x02", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x03", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x04", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x05", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x06", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x07", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"},
+      {"subIndex": "0x08", "objectType": 7, "dataType": "0x0007", "accessType": "ReadWrite", "defaultValue": "0x00000000", "pdoMapping": "No"}
+    ]}
+  ]
+}

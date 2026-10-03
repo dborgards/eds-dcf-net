@@ -254,7 +254,7 @@ SupportedObjects=0
         result.FileInfo.FileName.Should().BeEmpty();
         result.FileInfo.FileVersion.Should().Be(1);
         result.FileInfo.FileRevision.Should().Be(0);
-        result.FileInfo.EdsVersion.Should().Be("4.0");
+        result.FileInfo.EdsVersion.Should().Be("3.0");
     }
 
     [Fact]
@@ -491,7 +491,7 @@ Baudrate=500");
     [Theory]
     [InlineData(0)]
     [InlineData(128)]
-    public void ReadString_DeviceCommissioning_InvalidNodeId_ThrowsEdsParseException(int nodeId)
+    public void ReadString_DeviceCommissioning_InvalidNodeIdStrict_ThrowsEdsParseException(int nodeId)
     {
         // Arrange
         var content = BuildMinimalDcf($@"
@@ -504,7 +504,7 @@ NetworkName=TestNetwork
 CANopenManager=0");
 
         // Act
-        var act = () => _reader.ReadString(content);
+        var act = () => CanOpenFile.Dcf.ReadString(content, new CanOpenFileOptions { StrictParsing = true });
 
         // Assert
         act.Should().Throw<EdsParseException>()
@@ -1328,7 +1328,7 @@ NrOfEntries=2
     }
 
     [Fact]
-    public void ReadString_CompactSubObj_MalformedNrOfEntries_Throws()
+    public void ReadString_CompactSubObj_MalformedNrOfEntries_AppliesValueLeniently()
     {
         var content = BuildMinimalDcf(extraSections: @"
 [ManufacturerObjects]
@@ -1349,9 +1349,11 @@ NrOfEntries=oops
 1=10
 ");
 
-        var act = () => _reader.ReadString(content);
+        // A malformed count is reported (strict: thrown, see ModuleObjectKeyMatrixTests); it is
+        // not a loop bound, so the value is still applied.
+        var result = _reader.ReadString(content);
 
-        act.Should().Throw<EdsParseException>();
+        result.ObjectDictionary.Objects[0x2100].SubObjects[1].ParameterValue.Should().Be("10");
     }
 
     [Fact]

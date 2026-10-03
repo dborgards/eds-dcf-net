@@ -106,7 +106,7 @@ internal static class XddParsingPrimitives
     /// <see cref="AccessType.ReadOnly"/> (absent field). Unknown non-empty tokens
     /// map to <see cref="AccessType.ReadOnly"/> when lenient, or throw
     /// <see cref="EdsParseException"/> when <see cref="StrictParsingScope"/> is enabled.
-    /// <c>rwr</c>/<c>rww</c> match EDS <see cref="Utilities.ValueConverter.ParseAccessType"/>;
+    /// <c>rwr</c>/<c>rww</c> match EDS <see cref="Utilities.ValueConverter.ParseAccessType(string)"/>;
     /// the XDD writer still emits <c>rw</c> for those model values (no CiA 311 equivalent).
     /// </remarks>
     internal static AccessType ParseXddAccessType(string value)
@@ -133,6 +133,81 @@ internal static class XddParsingPrimitives
             },
             _ => ReportUnknownAccessType(value)
         };
+    }
+
+    /// <summary>
+    /// Parses a CiA 311 <c>dynamicChannel</c> <c>accessType</c> token.
+    /// </summary>
+    /// <remarks>
+    /// Strict mode accepts <c>readOnly</c>, <c>writeOnly</c>, and <c>readWriteOutput</c>
+    /// (case-insensitive). Lenient mode also accepts the EDS short forms
+    /// <c>ro</c>, <c>wo</c>, <c>rw</c>, <c>rwr</c>, <c>rww</c>, and <c>const</c>.
+    /// Empty input maps to <see cref="AccessType.ReadOnly"/>. Any other token maps
+    /// to <see cref="AccessType.ReadOnly"/> when lenient, or throws
+    /// <see cref="EdsParseException"/> when <see cref="StrictParsingScope"/> is enabled.
+    /// Object <c>accessType</c> stays on <see cref="ParseXddAccessType"/>.
+    /// </remarks>
+    internal static AccessType ParseDynamicChannelAccessType(string value)
+    {
+        var token = value.Trim();
+        if (token.Length == 0)
+            return AccessType.ReadOnly;
+
+        if (token.Equals("readOnly", StringComparison.OrdinalIgnoreCase))
+            return AccessType.ReadOnly;
+        if (token.Equals("writeOnly", StringComparison.OrdinalIgnoreCase))
+            return AccessType.WriteOnly;
+        if (token.Equals("readWriteOutput", StringComparison.OrdinalIgnoreCase))
+            return AccessType.ReadWriteOutput;
+
+        if (!StrictParsingScope.IsEnabled)
+        {
+            switch (token.ToLowerInvariant())
+            {
+                case "ro":
+                    return AccessType.ReadOnly;
+                case "wo":
+                    return AccessType.WriteOnly;
+                case "rw":
+                    return AccessType.ReadWrite;
+                case "rwr":
+                    return AccessType.ReadWriteInput;
+                case "rww":
+                    return AccessType.ReadWriteOutput;
+                case "const":
+                    return AccessType.Constant;
+            }
+        }
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Unknown dynamicChannel accessType '{0}'. Expected one of: readOnly, writeOnly, readWriteOutput.",
+                    value))
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.XddUnknownAccessType
+            };
+        }
+
+        return ReportUnknownDynamicChannelAccessType(value);
+    }
+
+    private static AccessType ReportUnknownDynamicChannelAccessType(string value)
+    {
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.XddUnknownAccessType,
+            path: "dynamicChannel/accessType",
+            rawValue: value,
+            coercedTo: "readOnly",
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Unknown dynamicChannel accessType '{0}'. Expected one of: readOnly, writeOnly, readWriteOutput. Mapped to readOnly.",
+                value)));
+
+        return AccessType.ReadOnly;
     }
 
     private static AccessType ReportUnknownAccessType(string value)
@@ -223,19 +298,28 @@ internal static class XddParsingPrimitives
         return false;
     }
 
+    private const string AutoBaudRateToken = "auto-baudRate";
+
+    private const string BaudRateVocabulary =
+        "10 Kbps, 20 Kbps, 50 Kbps, 100 Kbps, 125 Kbps, 250 Kbps, 500 Kbps, 800 Kbps, 1000 Kbps, auto-baudRate";
+
     /// <summary>
-    /// Parses a CiA 311 baud-rate vocabulary string such as <c>250 Kbps</c>.
+    /// Parses a CiA 311 baud-rate vocabulary string such as <c>250 Kbps</c> (<c>supportedBaudRate/@value</c>,
+    /// <c>baudRate/@defaultValue</c>).
     /// </summary>
     /// <remarks>
     /// Supported values (case-insensitive):
-    /// <c>10 Kbps</c>, <c>20 Kbps</c>, <c>50 Kbps</c>, <c>125 Kbps</c>,
-    /// <c>250 Kbps</c>, <c>500 Kbps</c>, <c>800 Kbps</c>, <c>1000 Kbps</c>.
+    /// <c>10 Kbps</c>, <c>20 Kbps</c>, <c>50 Kbps</c>, <c>100 Kbps</c>, <c>125 Kbps</c>,
+    /// <c>250 Kbps</c>, <c>500 Kbps</c>, <c>800 Kbps</c>, <c>1000 Kbps</c> and <c>auto-baudRate</c>
+    /// (reported through <paramref name="isAuto"/>, the result is <c>0</c>).
     /// Empty input returns <c>0</c>. Unknown non-empty values return <c>0</c> when
     /// lenient, or throw <see cref="EdsParseException"/> when
-    /// <see cref="StrictParsingScope"/> is enabled.
+    /// <see cref="StrictParsingScope"/> is enabled. The XDC <c>deviceCommissioning/@actualBaudRate</c>
+    /// does not use this method: that attribute is a free string and is preserved instead.
     /// </remarks>
-    internal static ushort ParseBaudRateString(string value)
+    internal static ushort ParseBaudRateString(string value, out bool isAuto)
     {
+        isAuto = false;
         if (string.IsNullOrEmpty(value))
             return 0;
 
@@ -243,22 +327,23 @@ internal static class XddParsingPrimitives
         if (value.Length == 0)
             return 0;
 
-        if (value.Equals("10 Kbps", StringComparison.OrdinalIgnoreCase)) return 10;
-        if (value.Equals("20 Kbps", StringComparison.OrdinalIgnoreCase)) return 20;
-        if (value.Equals("50 Kbps", StringComparison.OrdinalIgnoreCase)) return 50;
-        if (value.Equals("125 Kbps", StringComparison.OrdinalIgnoreCase)) return 125;
-        if (value.Equals("250 Kbps", StringComparison.OrdinalIgnoreCase)) return 250;
-        if (value.Equals("500 Kbps", StringComparison.OrdinalIgnoreCase)) return 500;
-        if (value.Equals("800 Kbps", StringComparison.OrdinalIgnoreCase)) return 800;
-        if (value.Equals("1000 Kbps", StringComparison.OrdinalIgnoreCase)) return 1000;
+        if (value.Equals(AutoBaudRateToken, StringComparison.OrdinalIgnoreCase))
+        {
+            isAuto = true;
+            return 0;
+        }
+
+        if (TryParseKnownBaudRate(value, out var known))
+            return known;
 
         if (StrictParsingScope.IsEnabled)
         {
             throw new EdsParseException(
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "Unknown baud-rate string '{0}'. Expected one of: 10 Kbps, 20 Kbps, 50 Kbps, 125 Kbps, 250 Kbps, 500 Kbps, 800 Kbps, 1000 Kbps.",
-                    value))
+                    "Unknown baud-rate string '{0}'. Expected one of: {1}.",
+                    value,
+                    BaudRateVocabulary))
             {
                 Code = Diagnostics.ParseDiagnosticCodes.XddUnknownBaudRate
             };
@@ -272,10 +357,28 @@ internal static class XddParsingPrimitives
             coercedTo: "0",
             message: string.Format(
                 CultureInfo.InvariantCulture,
-                "Unknown baud-rate string '{0}'. Expected one of: 10 Kbps, 20 Kbps, 50 Kbps, 125 Kbps, 250 Kbps, 500 Kbps, 800 Kbps, 1000 Kbps. Treated as 0.",
-                value)));
+                "Unknown baud-rate string '{0}'. Expected one of: {1}. Treated as 0.",
+                value,
+                BaudRateVocabulary)));
 
         return 0;
+    }
+
+    /// <summary>Recognises the CiA 311 baud-rate vocabulary (case-insensitive, surrounding whitespace ignored).</summary>
+    internal static bool TryParseKnownBaudRate(string value, out ushort kbps)
+    {
+        kbps = 0;
+        value = value.Trim();
+        if (value.Equals("10 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 10;
+        else if (value.Equals("20 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 20;
+        else if (value.Equals("50 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 50;
+        else if (value.Equals("100 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 100;
+        else if (value.Equals("125 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 125;
+        else if (value.Equals("250 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 250;
+        else if (value.Equals("500 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 500;
+        else if (value.Equals("800 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 800;
+        else if (value.Equals("1000 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 1000;
+        return kbps != 0;
     }
 
     /// <summary>
@@ -349,20 +452,5 @@ internal static class XddParsingPrimitives
     }
 
     internal static string ConvertXsdDateToEds(string xsdDate)
-    {
-        if (string.IsNullOrEmpty(xsdDate))
-            return string.Empty;
-
-        // XSD date: "YYYY-MM-DD" → EDS: "MM-DD-YYYY"
-        if (xsdDate.Length >= 10 &&
-            xsdDate[4] == '-' && xsdDate[7] == '-')
-        {
-            var year = xsdDate[..4];
-            var month = xsdDate[5..7];
-            var day = xsdDate[8..10];
-            return string.Format(CultureInfo.InvariantCulture, "{0}-{1}-{2}", month, day, year);
-        }
-
-        return xsdDate;
-    }
+        => Writers.XddFormatHelper.ConvertXsdDateToEds(xsdDate);
 }

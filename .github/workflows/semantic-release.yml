@@ -42,15 +42,48 @@ concurrency:
   # production release on its way to doing nothing. Non-channel refs therefore
   # get a group of their own.
   #
+  # A release-commit push (chore(release): by semantic-release-bot) must not
+  # carry [skip ci]: that directive would also skip every develop→main
+  # pull_request workflow. The push therefore still starts this workflow, and
+  # the job `if:` below skips the release work. Concurrency is chosen when the
+  # run is queued, before that `if` runs. One pending run per group means the
+  # no-op would cancel a queued main or develop release, and nothing retries a
+  # commit already on the branch. Those pushes get semantic-release-noop-<sha>
+  # so they cannot evict, or be evicted by, a real release.
+  #
   # Queue rather than cancel: cancelling a run mid-publish is precisely how the
   # partial releases this pipeline repairs come about.
-  group: semantic-release-${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && 'channels' || github.ref }}
+  group: >-
+    ${{
+      (github.event_name == 'push' &&
+        github.event.head_commit &&
+        startsWith(github.event.head_commit.message, 'chore(release):') &&
+        github.event.head_commit.committer.name == 'semantic-release-bot') &&
+      format('semantic-release-noop-{0}', github.sha) ||
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
+      'semantic-release-channels' ||
+      format('semantic-release-{0}', github.ref)
+    }}
   cancel-in-progress: false
 
 jobs:
   release:
     # windows-latest is required so the net48 test host can bind and execute the
     # library's netstandard2.0 asset before publishing (net10.0 runs on the same job).
+    #
+    # The release commit is pushed with RELEASE_TOKEN, which starts workflows.
+    # [skip ci] used to suppress this re-entry and, with it, every pull_request
+    # workflow headed by that commit (develop→main gates included). Skip only
+    # the release-commit push. That skip does not keep the run out of the
+    # concurrency group — see the noop group above. workflow_dispatch still
+    # runs. github.actor is the token owner, not semantic-release-bot — that
+    # name is the git committer — so this matches the message and committer,
+    # as relay-release-status does.
+    if: >-
+      !(github.event_name == 'push' &&
+        github.event.head_commit &&
+        startsWith(github.event.head_commit.message, 'chore(release):') &&
+        github.event.head_commit.committer.name == 'semantic-release-bot')
     runs-on: windows-latest
 
     steps:
@@ -83,14 +116,39 @@ jobs:
           CI: true
         run: dotnet build --configuration Release --no-restore
 
+      # Same fresh results directory as build.yml. The gate and the Codecov
+      # upload both receive it; files in the checkout are not inputs.
       - name: Test
-        run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+        id: test
+        shell: bash
+        run: |
+          if [[ -z "${RUNNER_TEMP:-}" ]]; then
+            echo "RUNNER_TEMP is not set." >&2
+            exit 1
+          fi
+          temp_root="$RUNNER_TEMP"
+          if command -v cygpath >/dev/null 2>&1; then
+            temp_root="$(cygpath -u "$RUNNER_TEMP")"
+          fi
+          results="$(mktemp -d "${temp_root}/coverage.XXXXXX")"
+          dotnet_results="$results"
+          if command -v cygpath >/dev/null 2>&1; then
+            dotnet_results="$(cygpath -w "$results")"
+          fi
+          # xUnit.net v3 (xunit.v3.mtp-off) runs the test executable in its own
+          # process and does not create AppDomains, so the v2
+          # xUnit.AppDomain=denied switch is not passed. MTP stays off so
+          # coverlet.collector can still write Cobertura through VSTest.
+          MSYS_NO_PATHCONV=1 dotnet test --configuration Release --no-build --verbosity normal \
+            --collect:"XPlat Code Coverage" \
+            --results-directory "$dotnet_results"
+          echo "results_directory=${results}" >> "$GITHUB_OUTPUT"
 
       # Shared gate with build.yml — see tools/enforce-coverage-threshold.sh.
       - name: Enforce coverage threshold
         id: coverage_gate
         shell: bash
-        run: bash tools/enforce-coverage-threshold.sh .
+        run: bash tools/enforce-coverage-threshold.sh "${{ steps.test.outputs.results_directory }}"
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7

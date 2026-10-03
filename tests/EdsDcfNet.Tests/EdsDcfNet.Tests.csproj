@@ -3,6 +3,9 @@
   <PropertyGroup>
     <!-- net48 binds the library's netstandard2.0 asset so CI executes #else runtime paths. -->
     <TargetFrameworks>net10.0;net48</TargetFrameworks>
+    <!-- xUnit.net v3 test projects are stand-alone executables. dotnet test still
+         uses the VSTest adapter in xunit.runner.visualstudio. -->
+    <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <!-- Signed with the same key as EdsDcfNet so the InternalsVisibleTo grant holds.
@@ -12,14 +15,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="10.0.1">
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
-    <PackageReference Include="xunit" Version="2.9.3" />
+    <!-- xunit.v3.mtp-off is xUnit.net v3 without Microsoft.Testing.Platform.
+         The default xunit.v3 metapackage pulls MTP 2, and the .NET 10 SDK then
+         rejects the VSTest target that coverlet.collector uses. -->
+    <PackageReference Include="xunit.v3.mtp-off" Version="4.0.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

@@ -217,7 +217,9 @@ public class EdsWriterTests
             SrdoMapping = true,
             InvertedSrad = "0x2000",
             ObjFlags = 0x10,
-            SubNumber = 1
+            SubNumber = 1,
+            // CiA 306-1 Table 7 allows the limits on a RECORD only with non-zero CompactSubObj.
+            CompactSubObj = 1
         };
 
         eds.ObjectDictionary.Objects[0x2000].SubObjects[1] = new CanOpenSubObject
@@ -522,7 +524,7 @@ public class EdsWriterTests
     }
 
     [Fact]
-    public void GenerateString_OnlySubObjectZeroWithoutSubNumber_EmitsSubNumberZero()
+    public void GenerateString_OnlySubObjectZeroWithoutSubNumber_EmitsSubNumberOne()
     {
         var eds = CreateMinimalEds();
         var obj = new CanOpenObject
@@ -542,7 +544,8 @@ public class EdsWriterTests
 
         var result = _writer.GenerateString(eds);
 
-        result.Should().Contain("SubNumber=0");
+        // CiA 306-1 Table 6 / 6.6.3.2: SubNumber counts the sub-indexes including 00h.
+        result.Should().Contain("SubNumber=1");
         result.Should().Contain("[2001sub0]");
     }
 
@@ -737,7 +740,7 @@ public class EdsWriterTests
     }
 
     [Fact]
-    public void GenerateString_AdditionalSections_AreWrittenDeterministically()
+    public void GenerateString_AdditionalSectionsAddedByCaller_AreWrittenInInsertionOrder()
     {
         // Arrange
         var eds = CreateMinimalEds();
@@ -756,19 +759,17 @@ public class EdsWriterTests
         var result = _writer.GenerateString(eds);
 
         // Assert
-        var aSectionIndex = result.IndexOf("[ASection]", StringComparison.Ordinal);
         var zSectionIndex = result.IndexOf("[zSection]", StringComparison.Ordinal);
-        aSectionIndex.Should().BeGreaterThanOrEqualTo(0);
+        var aSectionIndex = result.IndexOf("[ASection]", StringComparison.Ordinal);
         zSectionIndex.Should().BeGreaterThanOrEqualTo(0);
-        aSectionIndex.Should().BeLessThan(zSectionIndex);
+        aSectionIndex.Should().BeGreaterThanOrEqualTo(0);
+        zSectionIndex.Should().BeLessThan(aSectionIndex);
 
-        var aSectionStart = aSectionIndex;
-        aSectionStart.Should().BeGreaterThanOrEqualTo(0);
-        var aKeyPos = result.IndexOf("aKey=A", aSectionStart, StringComparison.Ordinal);
-        var bKeyPos = result.IndexOf("bKey=B", aSectionStart, StringComparison.Ordinal);
-        aKeyPos.Should().BeGreaterThanOrEqualTo(0);
-        bKeyPos.Should().BeGreaterThanOrEqualTo(0);
-        aKeyPos.Should().BeLessThan(bKeyPos);
+        var zKeyPos = result.IndexOf("zKey=Z", zSectionIndex, StringComparison.Ordinal);
+        var upperAKeyPos = result.IndexOf("AKey=A", zSectionIndex, StringComparison.Ordinal);
+        zKeyPos.Should().BeGreaterThanOrEqualTo(0);
+        upperAKeyPos.Should().BeGreaterThanOrEqualTo(0);
+        zKeyPos.Should().BeLessThan(upperAKeyPos);
     }
 
     [Fact]

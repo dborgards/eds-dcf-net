@@ -30,7 +30,7 @@ public class CanOpenFileAsyncTests
     [Fact]
     public async Task ReadEdsAsync_MaxSubNumber_DoesNotHangAndParsesHighestSubObject()
     {
-        var result = await EdsReadProbeRunner.RunAsync("async", "max_subnumber.eds", TimeSpan.FromSeconds(5));
+        var result = await EdsReadProbeRunner.RunAsync("async", "max_subnumber.eds", EdsReadProbeRunner.HangGuardTimeout);
 
         result.SubNumber.Should().Be(0xFF);
         result.HasSub0.Should().BeTrue();

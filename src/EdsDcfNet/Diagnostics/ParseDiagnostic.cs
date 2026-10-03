@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Diagnostics;
 
+using System.Globalization;
+
 /// <summary>
 /// A single lenient-mode repair reported while reading a CANopen file: the parser accepted
 /// malformed input and coerced it to a default instead of throwing.
@@ -72,8 +74,8 @@ public sealed class ParseDiagnostic
     public override string ToString()
     {
         var location = Path.Length > 0
-            ? (Line.HasValue ? $" at {Path}:{Line.Value}" : $" at {Path}")
-            : (Line.HasValue ? $" at line {Line.Value}" : string.Empty);
+            ? (Line.HasValue ? $" at {Path}:" + Line.Value.ToString(CultureInfo.InvariantCulture) : $" at {Path}")
+            : (Line.HasValue ? " at line " + Line.Value.ToString(CultureInfo.InvariantCulture) : string.Empty);
         return $"[{Severity}] {Code}{location}: {Message}";
     }
 }

@@ -17,22 +17,32 @@ public class CpjWriter
     /// </summary>
     /// <param name="cpj">The NodelistProject to write</param>
     /// <param name="filePath">Path where the CPJ file should be written</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure the target is left untouched and the temporary file
+    /// is removed. Whether the final replace is atomic depends on the file system (for example,
+    /// network shares may not guarantee it).
+    /// A symbolic link is followed: its final target is replaced and the link is kept. The
+    /// netstandard2.0 build cannot resolve links; it serializes the content completely and then
+    /// overwrites the link target in place, which is not atomic.
+    /// On Unix the new file keeps the permission bits of the file it replaces; the netstandard2.0
+    /// build on a runtime older than .NET 7 overwrites an existing file in place instead.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="cpj"/> is <see langword="null"/>.</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteFile(NodelistProject cpj, string filePath)
     {
-        try
-        {
-            var content = GenerateCpjContent(cpj);
-            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
-        }
-        catch (CpjWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new CpjWriteException($"Failed to write CPJ file to {filePath}", ex);
-        }
+        ThrowIfNull(cpj, nameof(cpj));
+
+        WriteEntryPoints.ToFile(
+            filePath,
+            "CPJ",
+            () =>
+            {
+                var content = GenerateCpjContent(cpj);
+                TextFileIo.WriteOutputTextToFile(filePath, content);
+            },
+            (message, inner) => new CpjWriteException(message, inner));
     }
 
     /// <summary>
@@ -43,23 +53,19 @@ public class CpjWriter
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public void WriteStream(NodelistProject cpj, Stream stream)
     {
+        ThrowIfNull(cpj, nameof(cpj));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            var content = GenerateCpjContent(cpj);
-            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
-        }
-        catch (CpjWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new CpjWriteException("Failed to write CPJ content to stream.", ex);
-        }
+        WriteEntryPoints.ToStream(
+            "CPJ",
+            () =>
+            {
+                var content = GenerateCpjContent(cpj);
+                TextFileIo.WriteOutputText(stream, content);
+            },
+            (message, inner) => new CpjWriteException(message, inner));
     }
 
     /// <summary>
@@ -68,30 +74,36 @@ public class CpjWriter
     /// <param name="cpj">The NodelistProject to write</param>
     /// <param name="filePath">Path where the CPJ file should be written</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure or cancellation the target is left untouched and the temporary file
+    /// is removed. Whether the final replace is atomic depends on the file system (for example,
+    /// network shares may not guarantee it).
+    /// A symbolic link is followed: its final target is replaced and the link is kept. The
+    /// netstandard2.0 build cannot resolve links; it serializes the content completely and then
+    /// overwrites the link target in place, which is not atomic.
+    /// On Unix the new file keeps the permission bits of the file it replaces; the netstandard2.0
+    /// build on a runtime older than .NET 7 overwrites an existing file in place instead.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="cpj"/> is <see langword="null"/>.</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public async Task WriteFileAsync(
         NodelistProject cpj,
         string filePath,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateCpjContent(cpj);
-            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (CpjWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new CpjWriteException($"Failed to write CPJ file to {filePath}", ex);
-        }
+        ThrowIfNull(cpj, nameof(cpj));
+
+        await WriteEntryPoints.ToFileAsync(
+            filePath,
+            "CPJ",
+            async () =>
+            {
+                var content = GenerateCpjContent(cpj);
+                await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new CpjWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -106,28 +118,20 @@ public class CpjWriter
         Stream stream,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfNull(cpj, nameof(cpj));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateCpjContent(cpj);
-            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (CpjWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new CpjWriteException("Failed to write CPJ content to stream.", ex);
-        }
+        await WriteEntryPoints.ToStreamAsync(
+            "CPJ",
+            async () =>
+            {
+                var content = GenerateCpjContent(cpj);
+                await TextFileIo.WriteOutputTextAsync(stream, content, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new CpjWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -138,6 +142,7 @@ public class CpjWriter
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
     public string GenerateString(NodelistProject cpj)
     {
+        ThrowIfNull(cpj, nameof(cpj));
         return GenerateCpjContent(cpj);
     }
 
@@ -151,41 +156,44 @@ public class CpjWriter
             WriteSection(sectionName, () => WriteTopology(sb, cpj.Networks[i], sectionName));
         }
 
-        foreach (var section in cpj.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var section in cpj.AdditionalSectionOrder.Sections(cpj.AdditionalSections))
         {
             WriteSection(
                 section.Key,
                 () =>
                 {
-                    sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0}]", section.Key));
-                    foreach (var entry in section.Value.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase))
+                    IniRoundTripText.WriteSectionHeader(sb, section.Key);
+                    foreach (var entry in cpj.AdditionalSectionOrder.Entries(section.Key, section.Value))
                     {
-                        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}={1}", entry.Key, entry.Value));
+                        IniRoundTripText.WriteKeyValue(sb, entry.Key, entry.Value);
                     }
                     sb.AppendLine();
                 });
         }
 
-        return sb.ToString();
+        return TextFileIo.ApplyOutputNewLine(sb.ToString());
     }
 
     private static void WriteTopology(StringBuilder sb, NetworkTopology topology, string sectionName)
     {
-        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "[{0}]", sectionName));
+        IniRoundTripText.WriteSectionHeader(sb, sectionName);
 
         if (!string.IsNullOrEmpty(topology.NetName))
         {
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "NetName={0}", topology.NetName));
+            IniRoundTripText.WriteKeyValue(sb, "NetName", topology.NetName);
         }
 
         if (!string.IsNullOrEmpty(topology.NetRefd))
         {
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "NetRefd={0}", topology.NetRefd));
+            IniRoundTripText.WriteKeyValue(sb, "NetRefd", topology.NetRefd);
         }
 
         // Write Nodes count as hex
         var nodeCount = topology.Nodes.Count;
-        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "Nodes=0x{0:X2}", nodeCount));
+        IniRoundTripText.WriteKeyValue(
+            sb,
+            "Nodes",
+            string.Format(CultureInfo.InvariantCulture, "0x{0:X2}", nodeCount));
 
         // Write nodes ordered by node ID
         foreach (var nodeEntry in topology.Nodes.OrderBy(n => n.Key))
@@ -193,27 +201,48 @@ public class CpjWriter
             var node = nodeEntry.Value;
             var prefix = string.Format(CultureInfo.InvariantCulture, "Node{0}", node.NodeId);
 
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}Present={1}", prefix, node.Present ? "0x01" : "0x00"));
+            IniRoundTripText.WriteKeyValue(
+                sb,
+                string.Format(CultureInfo.InvariantCulture, "{0}Present", prefix),
+                node.Present ? "0x01" : "0x00");
 
             if (!string.IsNullOrEmpty(node.Name))
             {
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}Name={1}", prefix, node.Name));
+                IniRoundTripText.WriteKeyValue(
+                    sb,
+                    string.Format(CultureInfo.InvariantCulture, "{0}Name", prefix),
+                    node.Name);
             }
 
             if (!string.IsNullOrEmpty(node.Refd))
             {
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}Refd={1}", prefix, node.Refd));
+                IniRoundTripText.WriteKeyValue(
+                    sb,
+                    string.Format(CultureInfo.InvariantCulture, "{0}Refd", prefix),
+                    node.Refd);
             }
 
             if (!string.IsNullOrEmpty(node.DcfFileName))
             {
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}DCFName={1}", prefix, node.DcfFileName));
+                IniRoundTripText.WriteKeyValue(
+                    sb,
+                    string.Format(CultureInfo.InvariantCulture, "{0}DCFName", prefix),
+                    node.DcfFileName);
             }
         }
 
         if (!string.IsNullOrEmpty(topology.EdsBaseName))
         {
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "EDSBaseName={0}", topology.EdsBaseName));
+            IniRoundTripText.WriteKeyValue(sb, "EDSBaseName", topology.EdsBaseName);
+        }
+
+        // Kept entries follow in file order; a key generated above wins over a kept one.
+        foreach (var entry in topology.RemainingEntries)
+        {
+            if (SectionEntryKeys.IsWrittenTopologyKey(topology, entry.Key))
+                continue;
+
+            IniRoundTripText.WriteKeyValue(sb, entry.Key, entry.Value);
         }
 
         sb.AppendLine();
@@ -224,6 +253,13 @@ public class CpjWriter
         try
         {
             writeAction();
+        }
+        catch (IniTextRejectedException ex)
+        {
+            throw new CpjWriteException(ex.Message)
+            {
+                SectionName = sectionName
+            };
         }
         catch (CpjWriteException)
         {

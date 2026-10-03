@@ -3,6 +3,7 @@ namespace EdsDcfNet.Tests.Integration;
 using System.Reflection;
 using System.Text;
 using EdsDcfNet;
+using EdsDcfNet.Tests.Infrastructure;
 using EdsDcfNet.Models;
 using EdsDcfNet.Validation;
 
@@ -14,7 +15,7 @@ using EdsDcfNet.Validation;
 public class FormatEntryPointParameterNameContractTests
 {
     private static readonly string BaselinePath = Path.Combine(
-        AppContext.BaseDirectory,
+        TestOutputDirectory.Value,
         "Baselines",
         "format-entry-point-parameter-names.txt");
 
@@ -49,8 +50,8 @@ public class FormatEntryPointParameterNameContractTests
     {
         // Walk up from bin/... to the test project root. Do not stop on a
         // Baselines file alone: CopyToOutputDirectory places a copy under
-        // AppContext.BaseDirectory, which must not be treated as the source.
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        // the test output directory, which must not be treated as the source.
+        var dir = new DirectoryInfo(TestOutputDirectory.Value);
         while (dir is not null)
         {
             if (Directory.Exists(Path.Combine(dir.FullName, "Integration")))
@@ -59,7 +60,7 @@ public class FormatEntryPointParameterNameContractTests
         }
 
         return Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory,
+            TestOutputDirectory.Value,
             "..", "..", "..",
             "Baselines",
             "format-entry-point-parameter-names.txt"));

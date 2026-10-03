@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "severity": "Warning",
+    "code": "INI_OBJECT_LIST_COUNT_MISMATCH",
+    "path": "ManufacturerObjects.SupportedObjects",
+    "line": 116,
+    "rawValue": "105",
+    "message": "SupportedObjects is 105 but the numbered entries do not match. Entries empty or missing inside the count (105)."
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "2FFF",
+    "rawValue": "2FFF",
+    "message": "object section 0x2FFF not listed in any object list"
+  }
+]

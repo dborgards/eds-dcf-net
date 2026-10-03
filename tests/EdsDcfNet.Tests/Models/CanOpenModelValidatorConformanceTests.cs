@@ -81,9 +81,11 @@ public class CanOpenModelValidatorConformanceTests
     }
 
     [Fact]
-    public void Validate_SubNumberZeroWithOnlySubIndexZero_KeepsExistingTolerance()
+    public void Validate_SubNumberZeroWithOnlySubIndexZero_ReportsIssue()
     {
-        Check(EdsWithArray(0, 0)).Should().BeEmpty();
+        // SubNumber counts sub-index 00h, so a lone 00h is SubNumber=1 (see also WP-15).
+        Check(EdsWithArray(0, 0)).Should().ContainSingle(i => i.Path == "ObjectDictionary.Objects[0x2100].SubNumber")
+            .Which.Message.Should().Contain("SubNumber is 0 but 1 sub-objects");
     }
 
     [Fact]
@@ -335,6 +337,7 @@ public class CanOpenModelValidatorConformanceTests
     public void Strict_EnablesEveryRuleSet()
     {
         CanOpenValidationOptions.Strict.CheckSubNumberCount.Should().BeTrue();
+        CanOpenValidationOptions.Strict.CheckObjectListEntries.Should().BeTrue();
         CanOpenValidationOptions.Strict.CheckValueRanges.Should().BeTrue();
         CanOpenValidationOptions.Strict.RequireMandatoryEntries.Should().BeTrue();
         CanOpenValidationOptions.Default.CheckSubNumberCount.Should().BeFalse();

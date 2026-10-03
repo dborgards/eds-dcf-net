@@ -27,7 +27,7 @@ public sealed class MandatoryFieldsChecker
         "BaudRate_250", "BaudRate_500", "BaudRate_800", "BaudRate_1000",
     };
 
-    private static readonly HashSet<uint> AllowedBaudrates = new() { 10, 20, 50, 125, 250, 500, 800, 1000 };
+    private static readonly HashSet<uint> AllowedBaudrates = new() { 10, 20, 50, 100, 125, 250, 500, 800, 1000 };
 
     private readonly string _file;
     private readonly RawIniDocument _doc;
@@ -144,12 +144,20 @@ public sealed class MandatoryFieldsChecker
 
     private void CheckDeviceCommissioning()
     {
-        var section = _doc.Get("DeviceComissioning") ?? _doc.Get("DeviceCommissioning");
+        var section = _doc.GetDeviceCommissioning();
         if (section is null)
         {
             _findings.Add(new Finding(Severity.Error, "MND001", _file, null, "DeviceComissioning", null, null,
                 "Mandatory DCF section is missing."));
             return;
+        }
+
+        var common = _doc.Get("DeviceCommissioning");
+        if (common is not null && !ReferenceEquals(common, section))
+        {
+            // DcfReader reads the normative section and keeps the other one only as an additional section.
+            Add(Severity.Warning, "DCF003", common, null, null,
+                "Both [DeviceComissioning] and [DeviceCommissioning] are present; EdsDcfNet reads [DeviceComissioning] and ignores [DeviceCommissioning].");
         }
 
         if (section.Name.Equals("DeviceCommissioning", StringComparison.OrdinalIgnoreCase))
@@ -164,7 +172,7 @@ public sealed class MandatoryFieldsChecker
         if (baudrate.HasValue && !AllowedBaudrates.Contains((uint)baudrate.Value))
         {
             Add(Severity.Error, "MND003", section, section.Get("Baudrate"), "Baudrate",
-                "Baudrate must be one of 10, 20, 50, 125, 250, 500, 800, 1000 (kbit/s).");
+                "Baudrate must be one of 10, 20, 50, 100, 125, 250, 500, 800, 1000 (kbit/s).");
         }
 
         RequireUnsigned(section, "NetNumber", 32);

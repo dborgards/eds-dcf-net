@@ -1,5 +1,246 @@
 # Changelog
 
+## [1.15.0-beta.32](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.31...v1.15.0-beta.32) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* write through symlinks, keep Unix permissions and reject malformed bytes with explicit encodings ([#655](https://github.com/dborgards/eds-dcf-net/issues/655)) ([f309f99](https://github.com/dborgards/eds-dcf-net/commit/f309f99ee697fff2aa42080f1b8cf053fadaffbb))
+
+### 📚 Documentation
+
+* **plan:** record the follow-up packages from the tracking issue ([#643](https://github.com/dborgards/eds-dcf-net/issues/643)) ([82d8a28](https://github.com/dborgards/eds-dcf-net/commit/82d8a28a273a0fd3f18b57769912f3169d13ce96))
+
+## [1.15.0-beta.31](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.30...v1.15.0-beta.31) (2026-10-03)
+
+### ✨ Features
+
+* **validation:** report preserved object-list entries above the counter as an opt-in rule ([#642](https://github.com/dborgards/eds-dcf-net/issues/642)) ([4e9c89c](https://github.com/dborgards/eds-dcf-net/commit/4e9c89c7c62a564dfa2f23738749d547282d6749)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+## [1.15.0-beta.30](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.29...v1.15.0-beta.30) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** apply the CiA 306-1 key matrix to module objects and read compact-list counters leniently ([#641](https://github.com/dborgards/eds-dcf-net/issues/641)) ([7e55a0c](https://github.com/dborgards/eds-dcf-net/commit/7e55a0c5c2d2dc822b7197cf9ce9d0d1a374db63)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+## [1.15.0-beta.29](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.28...v1.15.0-beta.29) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** parse the remaining counter and version keys leniently ([#640](https://github.com/dborgards/eds-dcf-net/issues/640)) ([efe5ff7](https://github.com/dborgards/eds-dcf-net/commit/efe5ff71150dc77bd95774b934fad0b9bfb2efce)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+## [1.15.0-beta.28](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.27...v1.15.0-beta.28) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** preserve module, companion and sub-object sections the reader does not load ([#639](https://github.com/dborgards/eds-dcf-net/issues/639)) ([6dfafde](https://github.com/dborgards/eds-dcf-net/commit/6dfafde2db5e53ab2f59a54159d7c48456016789)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+## [1.15.0-beta.27](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.26...v1.15.0-beta.27) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **xdd:** accept the unsignedByte lexical space for nodeID and the 100 Kbps baud rate ([#637](https://github.com/dborgards/eds-dcf-net/issues/637)) ([918144b](https://github.com/dborgards/eds-dcf-net/commit/918144bdfbab8b4a7072d957d045312bf66c6b0c)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+## [1.15.0-beta.26](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.25...v1.15.0-beta.26) (2026-10-03)
+
+### ✨ Features
+
+* **cpj:** preserve unknown topology keys and node names without a present flag ([#638](https://github.com/dborgards/eds-dcf-net/issues/638)) ([ff5b1e3](https://github.com/dborgards/eds-dcf-net/commit/ff5b1e3c5453f8030f59fccafdc090014f6c9f8c))
+
+## [1.15.0-beta.25](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.24...v1.15.0-beta.25) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **converter:** build a trimmed DCF description when the EDS has no FileName ([#636](https://github.com/dborgards/eds-dcf-net/issues/636)) ([929e747](https://github.com/dborgards/eds-dcf-net/commit/929e747615e09c5ff9eeb269d448c6ec551d925d))
+
+### 📚 Documentation
+
+* mention FileVersionText, the squash merge rule and the WriteException base ([#635](https://github.com/dborgards/eds-dcf-net/issues/635)) ([6e6fc9e](https://github.com/dborgards/eds-dcf-net/commit/6e6fc9e4814be629827dad486e3adaf4e36c47e7))
+* **plan:** mark all work packages as merged and record implementation notes ([#628](https://github.com/dborgards/eds-dcf-net/issues/628)) ([17a6b1c](https://github.com/dborgards/eds-dcf-net/commit/17a6b1c73ba7097276a8c4007c4ce880784e6428))
+
+## [1.15.0-beta.24](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.23...v1.15.0-beta.24) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** write file times read from XDD in CiA 306 format ([#625](https://github.com/dborgards/eds-dcf-net/issues/625)) ([66977fc](https://github.com/dborgards/eds-dcf-net/commit/66977fcb539af9882149ec751a9a76574a11b261))
+
+## [1.15.0-beta.23](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.22...v1.15.0-beta.23) (2026-10-03)
+
+### ✨ Features
+
+* **options:** add NewLine write option ([#624](https://github.com/dborgards/eds-dcf-net/issues/624)) ([c5b7d34](https://github.com/dborgards/eds-dcf-net/commit/c5b7d3497541532b7e93b9e77d37ff62c9840d7e))
+
+## [1.15.0-beta.22](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.21...v1.15.0-beta.22) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **cpj:** read Nodes and reject reserved NodeXPresent values ([#623](https://github.com/dborgards/eds-dcf-net/issues/623)) ([dc70372](https://github.com/dborgards/eds-dcf-net/commit/dc703725ced558f0a8313b6227020d8b124dcffc))
+
+## [1.15.0-beta.21](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.20...v1.15.0-beta.21) (2026-10-03)
+
+### ✨ Features
+
+* **validation:** add CiA 306-1 list-range, ObjFlags and length rules ([#619](https://github.com/dborgards/eds-dcf-net/issues/619)) ([5908178](https://github.com/dborgards/eds-dcf-net/commit/590817882e07c1cecdf50659ba24e4eb71cd368e)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+### 📚 Documentation
+
+* fix tech-stack canvas, technical-debt list and detail drifts ([#622](https://github.com/dborgards/eds-dcf-net/issues/622)) ([d6413d1](https://github.com/dborgards/eds-dcf-net/commit/d6413d117046fdf74f33c3182032f5566dac8c5b))
+* state CiA 306/311 support as documented subset ([#620](https://github.com/dborgards/eds-dcf-net/issues/620)) ([9cb8bc8](https://github.com/dborgards/eds-dcf-net/commit/9cb8bc8d88cc46c6bfa5f97401eeb635e3a8b638))
+
+## [1.15.0-beta.20](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.19...v1.15.0-beta.20) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **xdd:** order enum values and nested parameter groups as the schema requires ([#621](https://github.com/dborgards/eds-dcf-net/issues/621)) ([0be4f85](https://github.com/dborgards/eds-dcf-net/commit/0be4f85fe1762b66b37659733cf91886de161fb4)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+## [1.15.0-beta.19](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.18...v1.15.0-beta.19) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **xdd:** preserve unmodelled XDD/XDC content and emit a schema-valid DeviceFunction ([#618](https://github.com/dborgards/eds-dcf-net/issues/618)) ([f475f27](https://github.com/dborgards/eds-dcf-net/commit/f475f27af6d74dbc46c89874a99f10839d721b3a)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+## [1.15.0-beta.18](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.17...v1.15.0-beta.18) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **writer:** keep insertion order of additional sections and keys ([#617](https://github.com/dborgards/eds-dcf-net/issues/617)) ([6d116c4](https://github.com/dborgards/eds-dcf-net/commit/6d116c42c3515c92aeb394d706aa84f2df28b2b6))
+
+## [1.15.0-beta.17](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.16...v1.15.0-beta.17) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** apply CiA 306-1 defaults for ObjectType, EDSVersion, DOMAIN and SubNumber ([#616](https://github.com/dborgards/eds-dcf-net/issues/616)) ([eeb1889](https://github.com/dborgards/eds-dcf-net/commit/eeb1889e86faa655ffd44da5af682b45c7c14f80)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+## [1.15.0-beta.16](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.15...v1.15.0-beta.16) (2026-10-03)
+
+### ✨ Features
+
+* **xdd:** round-trip order numbers, versions, comments and CANopen feature flags ([#615](https://github.com/dborgards/eds-dcf-net/issues/615)) ([b91ccd1](https://github.com/dborgards/eds-dcf-net/commit/b91ccd16cee0f008d0910f1c25a5ec4bd7335e5a))
+
+## [1.15.0-beta.15](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.14...v1.15.0-beta.15) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** apply the CiA 306-1 Tab. 7 key matrix when reading and writing objects ([#613](https://github.com/dborgards/eds-dcf-net/issues/613)) ([147c06a](https://github.com/dborgards/eds-dcf-net/commit/147c06ab82fb2243e6802b3f8f39ec9b0f306057)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+## [1.15.0-beta.14](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.13...v1.15.0-beta.14) (2026-10-03)
+
+### ✨ Features
+
+* **xdd:** keep free-form fileVersion, accept spec baud rates, treat 1018h as mandatory ([#614](https://github.com/dborgards/eds-dcf-net/issues/614)) ([339b613](https://github.com/dborgards/eds-dcf-net/commit/339b6131c95c4689862e63983bec08d9c2398c95))
+
+## [1.15.0-beta.13](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.12...v1.15.0-beta.13) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **xdd:** emit required attributes and write file times as xsd:time ([#612](https://github.com/dborgards/eds-dcf-net/issues/612)) ([c9a6429](https://github.com/dborgards/eds-dcf-net/commit/c9a642996c1cbf31c875601cb14c66ddbfb2e517))
+
+## [1.15.0-beta.12](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.11...v1.15.0-beta.12) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **checker:** continue directory sweep on unreadable files and match reader section precedence ([#611](https://github.com/dborgards/eds-dcf-net/issues/611)) ([12365b8](https://github.com/dborgards/eds-dcf-net/commit/12365b8d827294fec4d6f077fcf80bd90b5440b5))
+
+## [1.15.0-beta.11](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.10...v1.15.0-beta.11) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **dcf:** parse commissioning and device-info numbers leniently ([#610](https://github.com/dborgards/eds-dcf-net/issues/610)) ([7f82c48](https://github.com/dborgards/eds-dcf-net/commit/7f82c480cfe5057eac7bea2b1ad4e8b737070ae1)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+## [1.15.0-beta.10](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.9...v1.15.0-beta.10) (2026-10-03)
+
+### ✨ Features
+
+* **eds:** accept PPOffset address-difference tuple per CiA 306-3 ([#609](https://github.com/dborgards/eds-dcf-net/issues/609)) ([1a12e81](https://github.com/dborgards/eds-dcf-net/commit/1a12e8112d0c9ca8fe26dadd41fbf8c1e965c259))
+
+## [1.15.0-beta.9](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.8...v1.15.0-beta.9) (2026-10-03)
+
+### ✨ Features
+
+* **eds:** preserve unknown keys of every known section on round-trip ([#608](https://github.com/dborgards/eds-dcf-net/issues/608)) ([7e29c92](https://github.com/dborgards/eds-dcf-net/commit/7e29c925f4a419e31abcfabfa20158cc61c63fc1)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+### 📚 Documentation
+
+* **plan:** record merged work packages of waves 1-5 in the status table ([#607](https://github.com/dborgards/eds-dcf-net/issues/607)) ([61e7424](https://github.com/dborgards/eds-dcf-net/commit/61e742400cb06206e907589e3e8b858342beb8e4))
+
+## [1.15.0-beta.8](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.7...v1.15.0-beta.8) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** preserve unlisted object sections and report a diagnostic ([#605](https://github.com/dborgards/eds-dcf-net/issues/605)) ([fd48e65](https://github.com/dborgards/eds-dcf-net/commit/fd48e655295075c668632729d74047a05afd34e7))
+
+## [1.15.0-beta.7](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.6...v1.15.0-beta.7) (2026-10-03)
+
+### ✨ Features
+
+* **xdd:** read, keep and write all schema-defined dynamicChannel attributes ([#603](https://github.com/dborgards/eds-dcf-net/issues/603)) ([7b0d68a](https://github.com/dborgards/eds-dcf-net/commit/7b0d68a15df836fcce4bdca8750c2489e0d9c13a))
+
+## [1.15.0-beta.6](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.5...v1.15.0-beta.6) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **xdd:** honor BOM and declared encoding when reading XDD/XDC ([07fa5c4](https://github.com/dborgards/eds-dcf-net/commit/07fa5c41064f8c6f6d175942f5c556b1d52c5d80))
+
+## [1.15.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.4...v1.15.0-beta.5) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **eds:** parse and write MxSubExtends, MxSubExt, MxComments and MxFixed sections ([8b283cd](https://github.com/dborgards/eds-dcf-net/commit/8b283cd916a2018b1e637621744d2f98609a3bd4))
+
+## [1.15.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.3...v1.15.0-beta.4) (2026-10-02)
+
+### ✨ Features
+
+* **options:** add encoding option for all formats with ISO-8859-1 read fallback for INI ([82255c7](https://github.com/dborgards/eds-dcf-net/commit/82255c77991923c3cec3051bf369752aa3365483))
+
+## [1.15.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.2...v1.15.0-beta.3) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **xdd:** treat objFlags as four-digit hexBinary ([51f340f](https://github.com/dborgards/eds-dcf-net/commit/51f340ffdc2c83eb9598e576f2442cb992b66d44))
+
+## [1.15.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.1...v1.15.0-beta.2) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **xdd:** place elements in the namespaces required by the CiA 311 schema ([6aaf80e](https://github.com/dborgards/eds-dcf-net/commit/6aaf80e094600510ae78f736743129f74195ae17))
+
+## [1.15.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.14.1-beta.4...v1.15.0-beta.1) (2026-10-02)
+
+### ✨ Features
+
+* **xdd:** resolve uniqueIDRef against application process parameters and keep the reference ([9bea5b7](https://github.com/dborgards/eds-dcf-net/commit/9bea5b70635f090df9451331412b0db8cdc8fbfe))
+
+## [1.14.1-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.14.1-beta.3...v1.14.1-beta.4) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **writer:** reject control characters and separators that break INI round-trip ([e05f129](https://github.com/dborgards/eds-dcf-net/commit/e05f12971bc6dab657eb4ab66a8b9e7096667170))
+
+## [1.14.1-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.14.1-beta.2...v1.14.1-beta.3) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **writer:** write files atomically and validate null models ([#593](https://github.com/dborgards/eds-dcf-net/issues/593)) ([06be74a](https://github.com/dborgards/eds-dcf-net/commit/06be74ae2cbeb63214835aa8e97228b4beee45e3))
+
+## [1.14.1-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.14.1-beta.1...v1.14.1-beta.2) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **ini:** report malformed section headers and align string/stream line numbers ([#591](https://github.com/dborgards/eds-dcf-net/issues/591)) ([79e4b41](https://github.com/dborgards/eds-dcf-net/commit/79e4b41d018c0e98a3a53bf22b1c4a577a06f3bb))
+
+## [1.14.1-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0...v1.14.1-beta.1) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **converter:** format OCTET_STRING without 0x prefix per CiA 306-1 ([#589](https://github.com/dborgards/eds-dcf-net/issues/589)) ([a585119](https://github.com/dborgards/eds-dcf-net/commit/a585119f6dc2d317740598411992dd46b182a321))
+
+### 📚 Documentation
+
+* add deep review of v1.14.0 and action plan (2026-09-30) ([#578](https://github.com/dborgards/eds-dcf-net/issues/578)) ([029366c](https://github.com/dborgards/eds-dcf-net/commit/029366cd7319c9b6467dd074b444cadca14953b3)), closes [#579](https://github.com/dborgards/eds-dcf-net/issues/579) [#580](https://github.com/dborgards/eds-dcf-net/issues/580) [#579](https://github.com/dborgards/eds-dcf-net/issues/579)
+* align copilot instructions and arc42 constraints with the codebase ([#587](https://github.com/dborgards/eds-dcf-net/issues/587)) ([12fc2e8](https://github.com/dborgards/eds-dcf-net/commit/12fc2e8d3f72a5fc9806a623fc43539da5119226))
+* **examples:** read sample file and cover CPJ, XDD, XDC, async and strict mode ([#588](https://github.com/dborgards/eds-dcf-net/issues/588)) ([50d87e0](https://github.com/dborgards/eds-dcf-net/commit/50d87e0a7a621a16a1c52d752d8799db2dab7d17))
+* **plan:** record maintainer decisions and the tracking issue ([#586](https://github.com/dborgards/eds-dcf-net/issues/586)) ([c931e4e](https://github.com/dborgards/eds-dcf-net/commit/c931e4eef606503e165aab800af5950bed8ec16d))
+
 ## [1.14.0](https://github.com/dborgards/eds-dcf-net/compare/v1.13.0...v1.14.0) (2026-09-26)
 
 ### ✨ Features

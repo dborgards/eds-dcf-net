@@ -1,0 +1,16 @@
+{
+  "objectCount": 1,
+  "subObjectCount": 0,
+  "emptyDataTypeCount": 0,
+  "objects": [
+    {"index": "0x1000", "objectType": 7, "dataType": "0x0007", "accessType": "ReadOnly", "defaultValue": "0x191", "pdoMapping": "No"}
+  ],
+  "modules": [
+    {"moduleNumber": 1, "comments": {"lines": 2, "commentLines": ["Module with 16 input lines", "and 8 output lines."]}, "fixedObjectDefinitions": [
+      {"index": "0x6423", "parameterName": "Module parameter", "subObjects": [{"subIndex": "0x01", "parameterName": "First channel"}]}
+    ], "subExtends": ["0x6000", "0x00A0"], "subExtensionDefinitions": [
+      {"index": "0x00A0", "parameterName": "Packed bits", "count": "0;2", "objExtend": 0},
+      {"index": "0x6000", "parameterName": "Input lines", "count": "4", "objExtend": 128}
+    ]}
+  ]
+}

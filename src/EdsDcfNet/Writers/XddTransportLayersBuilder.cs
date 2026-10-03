@@ -13,27 +13,29 @@ internal static class XddTransportLayersBuilder
     {
         var defaultBaudRate = XddFormatHelper.GetDefaultBaudRateString(deviceInfo.SupportedBaudRates);
 
-        var baudRateElem = new XElement("baudRate",
+        var transportName = XddNames.ChildOfType(XddNames.NetworkProfileBodyType, "TransportLayers");
+        var physicalName = XddNames.Child(transportName, "PhysicalLayer");
+        var baudRateElem = XddNames.Element(physicalName, "baudRate",
             new XAttribute("defaultValue", defaultBaudRate));
 
         var hasSupported = false;
-        foreach (var kbps in XddFormatHelper.GetSupportedBaudRates(deviceInfo.SupportedBaudRates))
+        foreach (var supported in XddFormatHelper.GetSupportedBaudRates(deviceInfo.SupportedBaudRates))
         {
             hasSupported = true;
-            baudRateElem.Add(new XElement("supportedBaudRate",
-                new XAttribute("value", XddFormatHelper.FormatBaudRate(kbps))));
+            baudRateElem.Add(XddNames.Element(baudRateElem.Name, "supportedBaudRate",
+                new XAttribute("value", supported)));
         }
 
         if (!hasSupported)
         {
             // No baud-rate flags set: emit the fallback default as a supported entry
             // so the XML is self-consistent (defaultValue must appear in supportedBaudRate).
-            baudRateElem.Add(new XElement("supportedBaudRate",
+            baudRateElem.Add(XddNames.Element(baudRateElem.Name, "supportedBaudRate",
                 new XAttribute("value", defaultBaudRate)));
         }
 
-        return new XElement("TransportLayers",
-            new XElement("PhysicalLayer",
+        return new XElement(transportName,
+            new XElement(physicalName,
                 baudRateElem));
     }
 }

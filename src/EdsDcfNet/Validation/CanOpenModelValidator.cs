@@ -3,6 +3,7 @@ namespace EdsDcfNet.Validation;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 
 /// <summary>
 /// Validates CANopen models against common CiA 306 and CiA 311 constraints.
@@ -14,7 +15,7 @@ using EdsDcfNet.Models;
 /// </threadsafety>
 public static class CanOpenModelValidator
 {
-    private static readonly ushort[] AllowedBaudrateValues = { 10, 20, 50, 125, 250, 500, 800, 1000 };
+    private static readonly ushort[] AllowedBaudrateValues = { 10, 20, 50, 100, 125, 250, 500, 800, 1000 };
 
     private static readonly HashSet<ushort> AllowedBaudrates = new(AllowedBaudrateValues);
 
@@ -202,10 +203,15 @@ public static class CanOpenModelValidator
         // CancellationToken.None.
         var issues = new List<ValidationIssue>();
         ValidateDeviceInfo(eds.DeviceInfo, issues);
-        ValidateObjectDictionary(eds.ObjectDictionary, options, ObjectValueValidator.ResolveNodeIds(null), issues, cancellationToken);
+        var nodeIds = ObjectValueValidator.ResolveNodeIds(null);
+        ValidateObjectDictionary(eds.ObjectDictionary, options, nodeIds, issues, cancellationToken);
+        ValidateSupportedModules(eds.SupportedModules, options, nodeIds, issues, cancellationToken);
         if (options.RequireMandatoryEntries)
             ValidateMandatoryEntries(eds.FileInfo, eds.DeviceInfo, eds.ObjectDictionary, issues, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
+        IniFileTextRules.Apply(eds, options, issues, cancellationToken);
+        if (options.CheckObjectListEntries)
+            IniWriteRules.ApplyKeptObjectListEntries(eds, issues, cancellationToken);
         if (eds.ApplicationProcess != null)
             ValidateApplicationProcess(eds.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
 
@@ -224,6 +230,7 @@ public static class CanOpenModelValidator
         var nodeIds = ObjectValueValidator.ResolveNodeIds(
             commissioningOmitted ? null : dcf.DeviceCommissioning.NodeId);
         ValidateObjectDictionary(dcf.ObjectDictionary, options, nodeIds, issues, cancellationToken);
+        ValidateSupportedModules(dcf.SupportedModules, options, nodeIds, issues, cancellationToken);
         ValidateDeviceCommissioning(dcf.DeviceCommissioning, issues);
         if (options.RequireMandatoryEntries)
         {
@@ -236,6 +243,9 @@ public static class CanOpenModelValidator
             }
         }
         cancellationToken.ThrowIfCancellationRequested();
+        IniFileTextRules.Apply(dcf, options, issues, cancellationToken);
+        if (options.CheckObjectListEntries)
+            IniWriteRules.ApplyKeptObjectListEntries(dcf, issues, cancellationToken);
         if (dcf.ApplicationProcess != null)
             ValidateApplicationProcess(dcf.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
 
@@ -349,6 +359,24 @@ public static class CanOpenModelValidator
             issues,
             cancellationToken);
 
+        if (options.CheckObjectListRanges)
+        {
+            ValidateObjectListRange(
+                objectDictionary.OptionalObjects,
+                "ObjectDictionary.OptionalObjects",
+                "1000h-1FFFh or 6000h-9FFFh",
+                static index => (index >= 0x1000 && index <= 0x1FFF) || (index >= 0x6000 && index <= 0x9FFF),
+                issues,
+                cancellationToken);
+            ValidateObjectListRange(
+                objectDictionary.ManufacturerObjects,
+                "ObjectDictionary.ManufacturerObjects",
+                "2000h-5FFFh",
+                static index => index >= 0x2000 && index <= 0x5FFF,
+                issues,
+                cancellationToken);
+        }
+
         foreach (var kvp in objectDictionary.Objects)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -409,6 +437,302 @@ public static class CanOpenModelValidator
         }
     }
 
+    /// <summary>
+    /// CiA 306-1 Table 4: each object list covers an index range. An index outside the range of its
+    /// list is reported once per index.
+    /// </summary>
+    private static void ValidateObjectListRange(
+        IEnumerable<ushort> indexes,
+        string listPath,
+        string rangeDescription,
+        Func<ushort, bool> isInRange,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
+    {
+        foreach (var index in indexes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (isInRange(index))
+                continue;
+
+            issues.Add(new ValidationIssue(
+                listPath,
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Object index 0x{0:X4} is outside the range of this object list ({1}; CiA 306-1 Table 4).",
+                    index,
+                    rangeDescription),
+                ValidationIssueCodes.ObjectListIndexOutOfRange));
+        }
+    }
+
+    /// <summary>
+    /// Checks module section counters against the entries actually stored
+    /// (CiA 306-1 §8.3): <c>Lines</c> versus comment lines, <c>[MxSubExtends]</c>
+    /// versus <c>[MxSubExtxxxx]</c> definitions, <c>[MxFixedObjects]</c> versus
+    /// <c>[MxFixedxxxx]</c> bodies, and each definition's <c>Count</c> token.
+    /// Each stored fixed-object body is checked with the same object and sub-object
+    /// rules as an object-dictionary entry. With <see cref="CanOpenValidationOptions.CheckValueRanges"/>,
+    /// each sub-extension's typed values are checked the same way.
+    /// </summary>
+    private static void ValidateSupportedModules(
+        List<ModuleInfo> modules,
+        CanOpenValidationOptions options,
+        byte[] nodeIds,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
+    {
+        for (var i = 0; i < modules.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var module = modules[i];
+            var path = string.Format(CultureInfo.InvariantCulture, "SupportedModules[{0}]", i);
+            ValidateModuleComments(module, path, issues);
+            ValidateModuleFixedObjects(module, path, options, nodeIds, issues, cancellationToken);
+            ValidateModuleSubExtensions(module, path, options, nodeIds, issues, cancellationToken);
+        }
+    }
+
+    private static void ValidateModuleComments(ModuleInfo module, string path, List<ValidationIssue> issues)
+    {
+        if (module.Comments == null)
+            return;
+
+        // Lines is not written as stored; assess the count and keys the writer emits.
+        var writtenLines = module.Comments.WrittenLineCount();
+        if (!ModuleCommentKeysCoverLines(module.Comments))
+        {
+            issues.Add(new ValidationIssue(
+                path + ".Comments.Lines",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Comment line keys are not exactly 1..{0}, the Lines value written (CiA 306-1 §8.3).",
+                    writtenLines)));
+        }
+    }
+
+    private static void ValidateModuleFixedObjects(
+        ModuleInfo module,
+        string path,
+        CanOpenValidationOptions options,
+        byte[] nodeIds,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
+    {
+        if (module.FixedObjects.Count != module.FixedObjectDefinitions.Count)
+        {
+            issues.Add(new ValidationIssue(
+                path + ".FixedObjects",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "FixedObjects count is {0} but {1} fixed object definitions are present (CiA 306-1 §8.3).",
+                    module.FixedObjects.Count,
+                    module.FixedObjectDefinitions.Count)));
+        }
+
+        foreach (var index in module.FixedObjects)
+        {
+            if (!module.FixedObjectDefinitions.ContainsKey(index))
+            {
+                issues.Add(new ValidationIssue(
+                    string.Format(CultureInfo.InvariantCulture, "{0}.FixedObjectDefinitions[0x{1:X4}]", path, index),
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "FixedObjects lists 0x{0:X4} but no [MxFixedxxxx] definition is present (CiA 306-1 §8.3).",
+                        index)));
+            }
+        }
+
+        foreach (var entry in module.FixedObjectDefinitions)
+        {
+            if (!module.FixedObjects.Contains(entry.Key))
+            {
+                issues.Add(new ValidationIssue(
+                    path + ".FixedObjects",
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Fixed object 0x{0:X4} is defined but not listed in FixedObjects (CiA 306-1 §8.3).",
+                        entry.Key)));
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            ValidateObjectContent(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0}.FixedObjectDefinitions[0x{1:X4}]",
+                    path,
+                    entry.Key),
+                entry.Value,
+                options,
+                nodeIds,
+                issues);
+        }
+    }
+
+    private static void ValidateModuleSubExtensions(
+        ModuleInfo module,
+        string path,
+        CanOpenValidationOptions options,
+        byte[] nodeIds,
+        List<ValidationIssue> issues,
+        CancellationToken cancellationToken)
+    {
+        if (module.SubExtends.Count != module.SubExtensionDefinitions.Count)
+        {
+            issues.Add(new ValidationIssue(
+                path + ".SubExtends",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "SubExtends count is {0} but {1} sub-extension definitions are present (CiA 306-1 §8.3).",
+                    module.SubExtends.Count,
+                    module.SubExtensionDefinitions.Count)));
+        }
+
+        foreach (var index in module.SubExtends)
+        {
+            if (!module.SubExtensionDefinitions.ContainsKey(index))
+            {
+                issues.Add(new ValidationIssue(
+                    string.Format(CultureInfo.InvariantCulture, "{0}.SubExtensionDefinitions[0x{1:X4}]", path, index),
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "SubExtends lists 0x{0:X4} but no [MxSubExtxxxx] definition is present (CiA 306-1 §8.3).",
+                        index)));
+            }
+        }
+
+        foreach (var entry in module.SubExtensionDefinitions)
+        {
+            if (!module.SubExtends.Contains(entry.Key))
+            {
+                issues.Add(new ValidationIssue(
+                    path + ".SubExtends",
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Sub-extension 0x{0:X4} is defined but not listed in SubExtends (CiA 306-1 §8.3).",
+                        entry.Key)));
+            }
+
+            if (!IsValidModuleSubExtensionCount(entry.Value.Count))
+            {
+                issues.Add(new ValidationIssue(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0}.SubExtensionDefinitions[0x{1:X4}].Count",
+                        path,
+                        entry.Key),
+                    "Count must be an Unsigned8, or 0;<bits> when several modules share one sub-index (CiA 306-1 §8.3)."));
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            ValidateModuleSubExtensionValues(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0}.SubExtensionDefinitions[0x{1:X4}]",
+                    path,
+                    entry.Key),
+                entry.Value,
+                options,
+                nodeIds,
+                issues);
+        }
+    }
+
+    /// <summary>
+    /// A sub-extension carries the same entries as an object description.
+    /// Object type and parameter-name length are checked unconditionally, as in
+    /// <see cref="ValidateObjectContent"/>. A missing <c>ObjectType</c> is VAR, so
+    /// value checks apply. DEFTYPE and DEFSTRUCT describe types and are skipped.
+    /// </summary>
+    private static void ValidateModuleSubExtensionValues(
+        string extensionPath,
+        ModuleSubExtension extension,
+        CanOpenValidationOptions options,
+        byte[] nodeIds,
+        List<ValidationIssue> issues)
+    {
+        ValidateMaxLength(
+            extension.ParameterName,
+            MaxParameterNameLength,
+            extensionPath + ".ParameterName",
+            issues);
+
+        if (extension.ObjectType is byte objectType && !CanOpenObjectType.IsValid(objectType))
+        {
+            issues.Add(new ValidationIssue(
+                extensionPath + ".ObjectType",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "ObjectType 0x{0:X2} is not a valid CiA 306 object code.",
+                    objectType)));
+        }
+
+        var effectiveType = extension.ObjectType ?? CanOpenObjectType.Var;
+        if (!options.CheckValueRanges ||
+            effectiveType == CanOpenObjectType.DefType ||
+            effectiveType == CanOpenObjectType.DefStruct)
+        {
+            return;
+        }
+
+        ObjectValueValidator.Validate(
+            extensionPath,
+            extension.DataType,
+            extension.DefaultValue,
+            extension.LowLimit,
+            extension.HighLimit,
+            null,
+            nodeIds,
+            issues);
+    }
+
+    /// <summary>
+    /// <c>Line1</c>..<c>LineN</c> must be present for <c>N</c> = the <c>Lines</c> value the writer emits.
+    /// A gap or an offset (for example only <c>Line2</c>) would leave the file incomplete, because the
+    /// parser reads only keys <c>1..Lines</c>.
+    /// </summary>
+    private static bool ModuleCommentKeysCoverLines(Comments comments)
+        => !comments.CommentLines.Keys.Any(key => key < 1 || key > ushort.MaxValue) && !comments.TryFindMissingLine(out _);
+
+    /// <summary>
+    /// CiA 306-1 §8.3 <c>Count</c> is <c>Unsigned8</c>, or <c>0;&lt;Unsigned8&gt;</c>
+    /// when modules are packed into one sub-index by bit width. The bit width is at least 1.
+    /// </summary>
+    private static bool IsValidModuleSubExtensionCount(string? count)
+    {
+        // Explicit pattern: netstandard2.0 does not narrow string.IsNullOrEmpty.
+        if (count is not { Length: > 0 } text)
+            return false;
+
+        var separator = text.IndexOf(';');
+        if (separator < 0)
+            return TryParseModuleUnsigned8(text, out _);
+
+        if (separator == 0 || separator != text.LastIndexOf(';'))
+            return false;
+
+        var head = text[..separator];
+        var tail = text[(separator + 1)..];
+        return TryParseModuleUnsigned8(head, out var modulesPerSubIndex) &&
+               modulesPerSubIndex == 0 &&
+               TryParseModuleUnsigned8(tail, out var bits) &&
+               bits > 0;
+    }
+
+    private static bool TryParseModuleUnsigned8(string text, out byte value)
+    {
+        try
+        {
+            value = ValueConverter.ParseByte(text);
+            return true;
+        }
+        catch (EdsDcfNet.Exceptions.EdsParseException)
+        {
+            value = 0;
+            return false;
+        }
+    }
+
     private static void ValidateObject(
         ushort index,
         CanOpenObject obj,
@@ -416,8 +740,25 @@ public static class CanOpenModelValidator
         byte[] nodeIds,
         List<ValidationIssue> issues)
     {
-        var objectPath = string.Format(CultureInfo.InvariantCulture, "ObjectDictionary.Objects[0x{0:X4}]", index);
+        ValidateObjectContent(
+            string.Format(CultureInfo.InvariantCulture, "ObjectDictionary.Objects[0x{0:X4}]", index),
+            obj,
+            options,
+            nodeIds,
+            issues);
+    }
 
+    /// <summary>
+    /// Object and sub-object checks shared by the object dictionary and module
+    /// <c>[MxFixedxxxx]</c> bodies. <paramref name="objectPath"/> locates the entry.
+    /// </summary>
+    private static void ValidateObjectContent(
+        string objectPath,
+        CanOpenObject obj,
+        CanOpenValidationOptions options,
+        byte[] nodeIds,
+        List<ValidationIssue> issues)
+    {
         ValidateMaxLength(
             obj.ParameterName,
             MaxParameterNameLength,
@@ -452,14 +793,22 @@ public static class CanOpenModelValidator
             (!obj.SubNumber.HasValue || obj.SubNumber.Value == 0) &&
             !hasCompactSubObjects)
         {
-            // SubNumber=0 is CiA-valid when the only present sub-index is 0.
+            // SubNumber=0 with only sub-index 00h was tolerated because older writers counted
+            // sub-index 00h as zero. SubNumber counts it (CiA 306-1 clause 6.6.3.2, see
+            // CanOpenValidationOptions.CheckSubNumberCount), so the opt-in count rule reports it.
             var onlySubIndexZero =
                 obj.SubNumber.HasValue &&
                 obj.SubNumber.Value == 0 &&
                 obj.SubObjects.Count == 1 &&
                 obj.SubObjects.ContainsKey(0);
 
-            if (!onlySubIndexZero)
+            if (onlySubIndexZero && options.CheckSubNumberCount)
+            {
+                issues.Add(new ValidationIssue(
+                    objectPath + ".SubNumber",
+                    "SubNumber is 0 but 1 sub-objects are defined; SubNumber counts every described sub-index including sub-index 00h and excluding sub-index FFh."));
+            }
+            else if (!onlySubIndexZero)
             {
                 issues.Add(new ValidationIssue(
                     objectPath + ".SubNumber",

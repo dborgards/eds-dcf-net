@@ -12,15 +12,18 @@
 | **Nullable reference types**       | Nullable annotations are enabled (`<Nullable>enable</Nullable>`).                                |
 | **InvariantCulture**               | All numeric and date formatting/parsing must use `CultureInfo.InvariantCulture` across INI and XML format handling. |
 
-### Unavailable APIs (netstandard2.0)
+### APIs on netstandard2.0
 
-The following .NET APIs are not available and must be worked around:
+The `Polyfill` package (11.4.0, `PrivateAssets="all"`, source-generated, no runtime dependency for consumers) provides the following modern APIs on `netstandard2.0`; the first three groups are used directly in `src/EdsDcfNet` (e.g. `Parsers/IniParser.cs`, `Utilities/CanOpenValueConverter.cs`, `Parsers/XddReader.cs`):
+
+- `string.Contains(char)` and `string.Contains(string, StringComparison)`
+- `string.StartsWith(char)` / `string.EndsWith(char)`
+- Range indexers (`[n..]`, `[..n]`) via the polyfilled `System.Index`/`System.Range`
+- Nullable attributes such as `[NotNullWhen]` and `[MemberNotNull]`
+
+Still **not available** on `netstandard2.0` (Polyfill 11.4.0 does not provide it) and must be worked around:
 
 - `string.Replace(string, string, StringComparison)`
-- `string.Contains(string, StringComparison)`
-- `string.Contains(char)`
-- `string.StartsWith(char)` / `string.EndsWith(char)`
-- `[NotNullWhen]`, `[MemberNotNull]` attributes
 
 ## 2.2 Organizational Constraints
 

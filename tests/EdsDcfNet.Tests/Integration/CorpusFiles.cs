@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Tests.Integration;
 
+using EdsDcfNet.Tests.Infrastructure;
+
 /// <summary>
 /// Shared enumeration of the real-world corpus under Fixtures/Corpus (#525).
 /// Corpus files live in Fixtures/Corpus/&lt;source&gt;/&lt;file&gt; next to the source's
@@ -34,6 +36,38 @@ internal static class CorpusFiles
             yield return new object[] { file };
     }
 
+    /// <summary>True when <c>UPDATE_CORPUS_SNAPSHOTS=1</c> asks tests to rewrite their snapshots.</summary>
+    internal static bool UpdateSnapshotsRequested =>
+        string.Equals(
+            Environment.GetEnvironmentVariable("UPDATE_CORPUS_SNAPSHOTS"),
+            "1",
+            StringComparison.Ordinal);
+
+    /// <summary>Appends <paramref name="value"/> as a JSON string literal.</summary>
+    internal static void AppendJsonString(System.Text.StringBuilder sb, string value)
+    {
+        sb.Append('"');
+        foreach (var c in value)
+        {
+            switch (c)
+            {
+                case '"': sb.Append("\\\""); break;
+                case '\\': sb.Append("\\\\"); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\r': sb.Append("\\r"); break;
+                case '\t': sb.Append("\\t"); break;
+                default:
+                    if (c < ' ')
+                        sb.Append("\\u").Append(((int)c).ToString("x4"));
+                    else
+                        sb.Append(c);
+                    break;
+            }
+        }
+
+        sb.Append('"');
+    }
+
     /// <summary>No corpus file for this format yet — the sentinel row.</summary>
     internal static bool IsSentinel(string filePath) => string.IsNullOrEmpty(filePath);
 
@@ -59,8 +93,8 @@ internal static class CorpusFiles
     {
         // Walk up from bin/... to the test project root. Do not stop on a
         // Fixtures directory alone: CopyToOutputDirectory places a copy under
-        // AppContext.BaseDirectory, which must not be treated as the source.
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        // the test output directory, which must not be treated as the source.
+        var dir = new DirectoryInfo(TestOutputDirectory.Value);
         while (dir is not null)
         {
             if (Directory.Exists(Path.Combine(dir.FullName, "Integration")))
@@ -69,7 +103,7 @@ internal static class CorpusFiles
         }
 
         return Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory,
+            TestOutputDirectory.Value,
             "..", "..", "..",
             "Fixtures", "Corpus"));
     }

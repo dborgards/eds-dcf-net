@@ -30,6 +30,17 @@ internal interface ICanOpenFileModel
     /// <summary>Tool definitions from [Tools]/[ToolX] sections.</summary>
     List<ToolInfo> Tools { get; }
 
-    /// <summary>Additional sections not covered by the standard specification.</summary>
+    /// <summary>
+    /// Additional sections not covered by the standard specification. Writers emit them after the
+    /// standard sections: sections and keys the reader saw in reader order (while still present),
+    /// all others after them in dictionary enumeration order; a removed entry is skipped, and one
+    /// removed and re-added under the same name returns to its reader position.
+    /// </summary>
     Dictionary<string, Dictionary<string, string>> AdditionalSections { get; }
+
+    /// <summary>Order of <see cref="AdditionalSections"/> and their keys as the reader saw them.</summary>
+    AdditionalSectionOrder AdditionalSectionOrder { get; }
+
+    /// <summary>Unmapped entries of processed standard sections, keyed by section name.</summary>
+    Dictionary<string, OrderedStringDictionary> SectionRemainingEntries { get; }
 }

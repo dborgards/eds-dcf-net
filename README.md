@@ -35,7 +35,13 @@ sub-objects, object lists, data types, access rights, defaults, and configured v
 
 📦 **Modular** - Support for modular devices (bus couplers + modules)
 
-✅ **CiA DS 306 v1.4 / CiA 311 v1.1 Compliant** - Implemented according to official specification
+✅ **Documented CiA 306 / CiA 311 Subset** - EDS, DCF and CPJ follow CiA 306-1 v1.4.0 and CiA 306-3
+(lenient or strict reader, writer, validator). XDD and XDC follow CiA 311 v1.1.0: output is checked in the
+test suite against the CiA 311 XML schema, and, within the two profiles the library reads, XML elements
+and attributes the model does not cover are preserved on round-trip. This is not a full-conformance claim.
+The exact scope and the known limitations (additional profiles, comments and processing instructions
+between modelled elements) are listed in
+[arc42 section 8.4](docs/architecture/08-crosscutting-concepts.md#84-round-trip-fidelity).
 
 ## Quick Start
 
@@ -309,6 +315,28 @@ var text = CanOpenFile.Dcf.WriteToString(dcf);
 File.WriteAllText("device_ascii.dcf", text, asciiStrict);
 ```
 
+### Line endings (`CanOpenWriteOptions.NewLine`)
+
+By default the output uses `Environment.NewLine`, so the same model produces CRLF on Windows
+and LF on Linux/macOS. For byte-identical output across platforms, set `NewLine` on the write
+options of any format (`WriteFile`, `WriteStream`, `WriteToString`, sync and async):
+
+```csharp
+using EdsDcfNet;
+
+var options = new CanOpenWriteOptions { NewLine = "\n" };   // or "\r\n"
+CanOpenFile.Eds.WriteFile(eds, "device.eds", options);
+CanOpenFile.Xdd.WriteFile(xdd, "device.xdd", options);
+```
+
+- Only `"\n"` and `"\r\n"` are accepted. Any other value (`null`, empty, a lone `"\r"`, any
+  text) throws `ArgumentException` when the property is set, not when writing: a free-form
+  string could inject INI sections or break XML well-formedness.
+- EDS, DCF, and CPJ output contains only the chosen line ending.
+- XDD and XDC use it for the indentation between elements and for line breaks inside text
+  content (an XML parser reads either form back as a line feed). Line breaks inside attribute
+  values are written as character references and are preserved exactly.
+
 ### Reading an XDD File (CiA 311 XML)
 
 ```csharp
@@ -426,6 +454,10 @@ behavior:
 | `CheckSubNumberCount` | `SubNumber` equals the number of described sub-indexes including sub-index 00h (CiA 306-1 §6.6.3.2) |
 | `CheckValueRanges` | `DefaultValue`, `LowLimit`, `HighLimit`, `ParameterValue` fit the integer/BOOLEAN/REAL `DataType` (e.g. `1000` is rejected for UNSIGNED8); `LowLimit <= HighLimit`; default/parameter values within the limits. `$NODEID` formulas use the DCF node-ID, or node-IDs 1 and 127 in an EDS |
 | `RequireMandatoryEntries` | objects 1000h/1001h/1018h, non-empty `ParameterName`, `DataType` for VAR entries, `FileName`/`VendorName`/`ProductName`, configured DCF commissioning |
+| `CheckObjectListRanges` | `OptionalObjects` indexes lie in 1000h-1FFFh or 6000h-9FFFh and `ManufacturerObjects` indexes in 2000h-5FFFh (CiA 306-1 Table 4) |
+| `RequireIso646` | EDS/DCF text uses 7-bit ISO/IEC 646 characters only (CiA 306-1 clause 6.2). This library writes UTF-8, a documented deviation, so the rule is opt-in |
+| `CheckLineLength` | no EDS/DCF line is longer than 255 characters (CiA 306-1 clause 6.2) |
+| `CheckObjectListEntries` | no numbered `[MandatoryObjects]`/`[OptionalObjects]`/`[ManufacturerObjects]` entry is kept in `SectionRemainingEntries` (the reader keeps entries it does not load): it would be written above `SupportedObjects` (CiA 306-1 Table 5) or replaced by a generated entry |
 
 ```csharp
 // every opt-in rule set
@@ -462,6 +494,12 @@ CanOpenFile.Dcf.WriteFile(dcf, "updated.dcf", CanOpenWriteOptions.Validated);
 
 The same option works on `CanOpenFile.Eds`, `.Cpj`, `.Xdd`, and `.Xdc` write methods.
 Legacy `CanOpenFile.WriteDcf(...)` overloads delegate to these entry points.
+
+A validated EDS or DCF write also applies rules that only the INI formats have: `ObjFlags`
+bits 2..31 are reserved (CiA 306-1 Table 8; XDD/XDC also define bit 2), comment lines are at
+most 249 characters (248 in a module's `[MxComments]`), and `ParamRefd`, `UploadFile` and
+`DownloadFile` of a DCF are at most 249, 244 and 242 characters. The EDS/DCF writers always
+write `Lines` as the number of comment lines.
 
 #### Async validation
 
@@ -528,6 +566,7 @@ CanOpenFile.Cpj.WriteFile(project, "network.cpj");
 ### Working with Object Dictionary
 
 ```csharp
+using EdsDcfNet;
 using EdsDcfNet.Extensions;
 
 var dcf = CanOpenFile.Dcf.ReadFile("device.dcf");
@@ -602,7 +641,7 @@ as a thin shim (prefer `Eds.ConvertToDcf`). `Validate*` is unchanged.
 
 ### Input Size Limits and Tuning
 
-All read APIs apply a safe default input-size limit of **10 MB**
+All read APIs apply a safe default input-size limit of **10 MiB**
 (`IniParser.DefaultMaxInputSize`) to reduce denial-of-service risk from
 unexpectedly large payloads.
 
@@ -625,8 +664,9 @@ stay lenient (no public way to enable StrictParsing on those readers).
 Today this covers:
 
 - Duplicate keys within an INI section
-- Unknown XDD/XDC baud-rate strings (`supportedBaudRate`, `actualBaudRate`,
-  `baudRate/@defaultValue`)
+- Unknown XDD/XDC baud-rate strings (`supportedBaudRate`,
+  `baudRate/@defaultValue`). `deviceCommissioning/@actualBaudRate` is a free
+  string: an unlisted text is reported and preserved, not rejected
 - Unknown boolean tokens (`ValueConverter.ParseBoolean`) and CPJ present-flag
   tokens (`ValueConverter.ParsePresentFlag`)
 - Unknown access-type tokens (`ValueConverter.ParseAccessType` and XDD
@@ -639,11 +679,23 @@ Today this covers:
 - EDS/DCF `FileVersion` / `FileRevision` and XDD/XDC `fileVersion` major/minor
   tooling forms (`1.0` / `1,0`); zero-padded values such as `010` parse as
   decimal `10` across EDS/DCF/XDD
+  XDD/XDC `fileVersion` is a free `xsd:string`, so a spelling that is not a
+  plain decimal number (for example `vendor-r7`, `1.0`, `256` or an empty
+  value) is kept in `EdsFileInfo.FileVersionText` and written back while
+  `FileVersion` is unchanged; `FileVersion` then holds the best-effort major
+  component (or `1` when no number can be derived). A plain decimal such as
+  `010` sets only `FileVersion` and is written back normalised (`10`). EDS and
+  DCF writers always use `FileVersion`
 - Missing XDD/XDC `index` on `CANopenObject`, and missing or invalid
   `objectType` (schema-valid unsignedByte forms such as `+9` / `-0` are
   accepted after trim; missing `CANopenSubObject` `subIndex` stays lenient)
-- Malformed XDD/XDC unsigned numeric attributes (`objFlags`, `subNumber`,
-  `pDOmappingIndex`, general-feature counts, `networkNumber`)
+- Malformed XDD/XDC unsigned numeric attributes (`subNumber`,
+  `pDOmappingIndex`, general-feature counts, `networkNumber`; optional
+  leading sign accepted after trim)
+- XDD/XDC `objFlags` (`xsd:hexBinary`, CiA 311 Annex A.1.4): hexadecimal
+  digits only. A leading sign or `0x` prefix is rejected (lenient: ignore;
+  strict: `EdsParseException`). An odd number of hex digits is accepted in
+  lenient mode and rejected in strict mode
 
 ```csharp
 var eds = CanOpenFile.Eds.ReadFile(
@@ -871,7 +923,7 @@ Framework consumers that referenced the previously unsigned assembly must
 **For building this repository (library, tests, examples):**
 
 - .NET SDK 10.0 or higher
-- C# 13.0 (as provided by the .NET 10 SDK)
+- C# 14 (`LangVersion latest`, as provided by the .NET 10 SDK)
 
 ## License
 

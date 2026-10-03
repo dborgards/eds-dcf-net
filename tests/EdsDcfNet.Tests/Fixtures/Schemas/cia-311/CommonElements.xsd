@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns="http://www.canopen.org/xml/1.1" xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.canopen.org/xml/1.1" elementFormDefault="unqualified" attributeFormDefault="unqualified" version="1.0">
+	<!--################ common attribute group-->
+	<xsd:attributeGroup name="ag_formatAndFile">
+		<xsd:attribute name="formatName" type="xsd:string" fixed="CANopen">
+			<xsd:annotation>
+				<xsd:documentation>Format identifier that should be set to "CANopen".</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="formatVersion" type="xsd:string" fixed="1.0">
+			<xsd:annotation>
+				<xsd:documentation>Format version identifier that should be set to 1.0.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="fileName" type="xsd:string" use="required">
+			<xsd:annotation>
+				<xsd:documentation>Name of the file with extension without path.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="fileCreator" type="xsd:string" use="required">
+			<xsd:annotation>
+				<xsd:documentation>Person creating the file.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="fileCreationDate" type="xsd:date" use="required">
+			<xsd:annotation>
+				<xsd:documentation>Date of file creation.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="fileCreationTime" type="xsd:time" use="optional">
+			<xsd:annotation>
+				<xsd:documentation>Time of file creation.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="fileModifiedBy" type="xsd:string" use="optional">
+			<xsd:annotation>
+				<xsd:documentation>Person modifying the file.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="fileModificationDate" type="xsd:date" use="optional">
+			<xsd:annotation>
+				<xsd:documentation>Date of laste file change.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="fileModificationTime" type="xsd:time" use="optional">
+			<xsd:annotation>
+				<xsd:documentation>Time of last file change.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="fileVersion" type="xsd:string" use="required">
+			<xsd:annotation>
+				<xsd:documentation>Vendor specific version of the file.</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+	</xsd:attributeGroup>
+	<!--################ common groups-->
+	<xsd:group name="g_labels">
+		<xsd:annotation>
+			<xsd:documentation>The group g_labels supports the introduction of a label (name) and a description in the context of the parent element.
+Every element, which needs a name or a description, shall select one or more suitable of the four elements to perform this task: the label, the description, the labelRef and the descriptionRef element.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:sequence>
+			<xsd:choice maxOccurs="unbounded">
+				<xsd:element name="label">
+					<xsd:annotation>
+						<xsd:documentation>This element allows storage of the identifying name inside the XML file itself.</xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:simpleContent>
+							<xsd:extension base="xsd:string">
+								<xsd:attribute name="lang" type="xsd:language" use="required">
+									<xsd:annotation>
+										<xsd:documentation>This attribute references the language used for the identifying text. This attribute consists of a combination of a language code (as defined in ISO 639-2) plus an optional dash character plus an optional country code (as defined in ISO 3166-1), ex: en-us, de, fr.</xsd:documentation>
+									</xsd:annotation>
+								</xsd:attribute>
+							</xsd:extension>
+						</xsd:simpleContent>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="description">
+					<xsd:annotation>
+						<xsd:documentation>This element allows storage of descriptive information inside the XML file itself.</xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:simpleContent>
+							<xsd:extension base="xsd:string">
+								<xsd:attribute name="lang" type="xsd:language" use="required">
+									<xsd:annotation>
+										<xsd:documentation>This attribute references the language used for the descriptive information. This attribute consists of a combination of a language code (as defined in ISO 639-2) plus an optional dash character plus an optional country code (as defined in ISO 3166-1), ex: en-us, de, fr.</xsd:documentation>
+									</xsd:annotation>
+								</xsd:attribute>
+								<xsd:attribute name="URI" type="xsd:anyURI" use="optional">
+									<xsd:annotation>
+										<xsd:documentation>Optional link to further descriptive information.</xsd:documentation>
+									</xsd:annotation>
+								</xsd:attribute>
+							</xsd:extension>
+						</xsd:simpleContent>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="labelRef">
+					<xsd:annotation>
+						<xsd:documentation>This element allows storage of identifying names inside an external text resource file.</xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:simpleContent>
+							<xsd:extension base="xsd:anyURI">
+								<xsd:attribute name="dictID" type="xsd:string" use="required">
+									<xsd:annotation>
+										<xsd:documentation>This attribute references a single element insie the dictionaryList element. The dictionary element contains a link to the external text resource file.</xsd:documentation>
+									</xsd:annotation>
+								</xsd:attribute>
+								<xsd:attribute name="textID" type="xsd:string" use="required">
+									<xsd:annotation>
+										<xsd:documentation>This attribute references a chracter sequence inside the external text resource file by pattern matching.</xsd:documentation>
+									</xsd:annotation>
+								</xsd:attribute>
+							</xsd:extension>
+						</xsd:simpleContent>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="descriptionRef">
+					<xsd:annotation>
+						<xsd:documentation>This element allows storage of reference descriptive texts inside an external text resource file.</xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:simpleContent>
+							<xsd:extension base="xsd:anyURI">
+								<xsd:attribute name="dictID" type="xsd:string" use="required">
+									<xsd:annotation>
+										<xsd:documentation>This attribute references a single element insie the dictionaryList element. The dictionary element contains a link to the external text resource file.</xsd:documentation>
+									</xsd:annotation>
+								</xsd:attribute>
+								<xsd:attribute name="textID" type="xsd:string" use="required">
+									<xsd:annotation>
+										<xsd:documentation>This attribute references a chracter sequence inside the external text resource file by pattern matching.</xsd:documentation>
+									</xsd:annotation>
+								</xsd:attribute>
+							</xsd:extension>
+						</xsd:simpleContent>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:choice>
+		</xsd:sequence>
+	</xsd:group>
+	<xsd:group name="g_simple">
+		<xsd:annotation>
+			<xsd:documentation>This group contains a choice of elements, whose names represents the names of all simple data types allowed in the definition of variables or parameters inside a device profile. The simple data types conform to the elementary data types defined in IEC 61131-3; the data types BITSTRING and CHAR (=STRING[1]) are added.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:choice>
+			<xsd:element name="BOOL"/>
+			<xsd:element name="BITSTRING"/>
+			<xsd:element name="BYTE"/>
+			<xsd:element name="CHAR"/>
+			<xsd:element name="WORD"/>
+			<xsd:element name="DWORD"/>
+			<xsd:element name="LWORD"/>
+			<xsd:element name="SINT"/>
+			<xsd:element name="INT"/>
+			<xsd:element name="DINT"/>
+			<xsd:element name="LINT"/>
+			<xsd:element name="USINT"/>
+			<xsd:element name="UINT"/>
+			<xsd:element name="UDINT"/>
+			<xsd:element name="ULINT"/>
+			<xsd:element name="REAL"/>
+			<xsd:element name="LREAL"/>
+			<xsd:element name="STRING"/>
+			<xsd:element name="WSTRING"/>
+		</xsd:choice>
+	</xsd:group>
+	<!--################ common elements-->
+	<xsd:element name="vendorID">
+		<xsd:annotation>
+			<xsd:documentation>This element shall identify the vendor. This information has to be filled in when the device described is recognized and validated by a consortium.
+NOTE: Consortia specific device families and vendor identifiers are linked.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:simpleContent>
+				<xsd:extension base="xsd:string">
+					<xsd:attribute name="readOnly" type="xsd:boolean" default="true">
+						<xsd:annotation>
+							<xsd:documentation>This attribute shall indicate whether the value is read-only for a user: false, true (default).</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:simpleContent>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="deviceFamily">
+		<xsd:annotation>
+			<xsd:documentation>This element shall state the family of the device.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:group ref="g_labels"/>
+			<xsd:attribute name="readOnly" type="xsd:boolean" default="true">
+				<xsd:annotation>
+					<xsd:documentation>This attribute shall indicate whether the value is read-only for a user: false, true (default).</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="productID">
+		<xsd:annotation>
+			<xsd:documentation>This element states a vendor specific unique identification for the device type described.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:simpleContent>
+				<xsd:extension base="xsd:string">
+					<xsd:attribute name="readOnly" type="xsd:boolean" default="true">
+						<xsd:annotation>
+							<xsd:documentation>This attribute shall indicate whether the value is read-only for a user: false, true (default).</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:simpleContent>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="version">
+		<xsd:annotation>
+			<xsd:documentation>This element is used to store different types of version information. Multiple version elements are possible.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:simpleContent>
+				<xsd:extension base="xsd:string">
+					<xsd:attribute name="versionType" use="required">
+						<xsd:annotation>
+							<xsd:documentation>This attribute shall indiciate the type of the version; valid values:
+- SW - software
+- FW - firmware
+- HW - hardware</xsd:documentation>
+						</xsd:annotation>
+						<xsd:simpleType>
+							<xsd:restriction base="xsd:NMTOKEN">
+								<xsd:enumeration value="SW"/>
+								<xsd:enumeration value="FW"/>
+								<xsd:enumeration value="HW"/>
+							</xsd:restriction>
+						</xsd:simpleType>
+					</xsd:attribute>
+					<xsd:attribute name="readOnly" type="xsd:boolean" default="true">
+						<xsd:annotation>
+							<xsd:documentation>This attribute shall indicate whether the value is read-only for a user: false, true (default).</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:simpleContent>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="buildDate" type="xsd:date">
+		<xsd:annotation>
+			<xsd:documentation>This element specifies the build date of the software unit.</xsd:documentation>
+		</xsd:annotation>
+	</xsd:element>
+	<xsd:element name="specificationRevision">
+		<xsd:annotation>
+			<xsd:documentation>This element contains the revision of the specification, to which this device conforms.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:simpleContent>
+				<xsd:extension base="xsd:string">
+					<xsd:attribute name="readOnly" type="xsd:boolean" default="true">
+						<xsd:annotation>
+							<xsd:documentation>This attribute shall indicate whether the value is read-only for a user: false, true (default).</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:simpleContent>
+		</xsd:complexType>
+	</xsd:element>
+</xsd:schema>

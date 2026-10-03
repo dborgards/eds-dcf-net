@@ -39,21 +39,31 @@ public class XdcWriter : XddWriter
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="filePath">Path where the XDC file should be written</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure the target is left untouched and the temporary file
+    /// is removed. Whether the final replace is atomic depends on the file system (for example,
+    /// network shares may not guarantee it).
+    /// A symbolic link is followed: its final target is replaced and the link is kept. The
+    /// netstandard2.0 build cannot resolve links; it serializes the content completely and then
+    /// overwrites the link target in place, which is not atomic.
+    /// On Unix the new file keeps the permission bits of the file it replaces; the netstandard2.0
+    /// build on a runtime older than .NET 7 overwrites an existing file in place instead.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="dcf"/> is <see langword="null"/>.</exception>
     public void WriteFile(DeviceConfigurationFile dcf, string filePath)
     {
-        try
-        {
-            var content = GenerateString(dcf);
-            File.WriteAllText(filePath, content, TextFileIo.Utf8NoBom);
-        }
-        catch (XdcWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new XdcWriteException($"Failed to write XDC file to {filePath}", ex);
-        }
+        ThrowIfNull(dcf, nameof(dcf));
+
+        WriteEntryPoints.ToFile(
+            filePath,
+            "XDC",
+            () =>
+            {
+                var doc = BuildOutputDocument(dcf);
+                TextFileIo.WriteFileAtomic(filePath, stream => SerializeOutput(doc, stream));
+            },
+            (message, inner) => new XdcWriteException(message, inner));
     }
 
     /// <summary>
@@ -61,25 +71,22 @@ public class XdcWriter : XddWriter
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="stream">Writable destination stream</param>
+    /// <exception cref="ArgumentNullException"><paramref name="dcf"/> or <paramref name="stream"/> is <see langword="null"/>.</exception>
     public void WriteStream(DeviceConfigurationFile dcf, Stream stream)
     {
+        ThrowIfNull(dcf, nameof(dcf));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            var content = GenerateString(dcf);
-            TextFileIo.WriteAllText(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true);
-        }
-        catch (XdcWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new XdcWriteException("Failed to write XDC content to stream.", ex);
-        }
+        WriteEntryPoints.ToStream(
+            "XDC",
+            () =>
+            {
+                var doc = BuildOutputDocument(dcf);
+                SerializeOutput(doc, stream);
+            },
+            (message, inner) => new XdcWriteException(message, inner));
     }
 
     /// <summary>
@@ -88,29 +95,38 @@ public class XdcWriter : XddWriter
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="filePath">Path where the XDC file should be written</param>
     /// <param name="cancellationToken">Cancellation token for aborting file I/O</param>
+    /// <remarks>
+    /// The content is written to a temporary file in the target directory and then moved or
+    /// replaced over the target. On failure or cancellation the target is left untouched and the
+    /// temporary file is removed. Whether the final replace is atomic depends on the file system
+    /// (for example, network shares may not guarantee it).
+    /// A symbolic link is followed: its final target is replaced and the link is kept. The
+    /// netstandard2.0 build cannot resolve links; it serializes the content completely and then
+    /// overwrites the link target in place, which is not atomic.
+    /// On Unix the new file keeps the permission bits of the file it replaces; the netstandard2.0
+    /// build on a runtime older than .NET 7 overwrites an existing file in place instead.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="dcf"/> is <see langword="null"/>.</exception>
     public async Task WriteFileAsync(
         DeviceConfigurationFile dcf,
         string filePath,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateString(dcf);
-            await TextFileIo.WriteAllTextAsync(filePath, content, TextFileIo.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (XdcWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new XdcWriteException($"Failed to write XDC file to {filePath}", ex);
-        }
+        ThrowIfNull(dcf, nameof(dcf));
+
+        await WriteEntryPoints.ToFileAsync(
+            filePath,
+            "XDC",
+            async () =>
+            {
+                var doc = BuildOutputDocument(dcf);
+                await TextFileIo.WriteFileAtomicAsync(
+                    filePath,
+                    stream => SerializeOutputAsync(doc, stream, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new XdcWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -119,33 +135,26 @@ public class XdcWriter : XddWriter
     /// <param name="dcf">The DeviceConfigurationFile to write</param>
     /// <param name="stream">Writable destination stream</param>
     /// <param name="cancellationToken">Cancellation token for aborting stream I/O</param>
+    /// <exception cref="ArgumentNullException"><paramref name="dcf"/> or <paramref name="stream"/> is <see langword="null"/>.</exception>
     public async Task WriteStreamAsync(
         DeviceConfigurationFile dcf,
         Stream stream,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfNull(dcf, nameof(dcf));
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = GenerateString(dcf);
-            await TextFileIo.WriteAllTextAsync(stream, content, TextFileIo.Utf8NoBom, leaveOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (XdcWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new XdcWriteException("Failed to write XDC content to stream.", ex);
-        }
+        await WriteEntryPoints.ToStreamAsync(
+            "XDC",
+            async () =>
+            {
+                var doc = BuildOutputDocument(dcf);
+                await SerializeOutputAsync(doc, stream, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new XdcWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -153,20 +162,56 @@ public class XdcWriter : XddWriter
     /// </summary>
     /// <param name="dcf">The DeviceConfigurationFile to convert</param>
     /// <returns>XDC content as string</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="dcf"/> is <see langword="null"/>.</exception>
     public string GenerateString(DeviceConfigurationFile dcf)
+    {
+        ThrowIfNull(dcf, nameof(dcf));
+
+        return ConvertXddFailures(() => base.GenerateString(CreateEdsView(dcf), dcf.DeviceCommissioning));
+    }
+
+    private XDocument BuildOutputDocument(DeviceConfigurationFile dcf)
+        => ConvertXddFailures(() => BuildOutputDocument(CreateEdsView(dcf), dcf.DeviceCommissioning));
+
+    private static void SerializeOutput(XDocument doc, Stream stream)
     {
         try
         {
-            return base.GenerateString(CreateEdsView(dcf), dcf.DeviceCommissioning);
+            SerializeDocument(doc, stream);
         }
         catch (XddWriteException ex)
         {
-            throw new XdcWriteException(
-                ex.Message,
-                ex.InnerException ?? ex)
-            {
-                SectionName = ex.SectionName
-            };
+            throw ToXdcException(ex);
+        }
+    }
+
+    private static async Task SerializeOutputAsync(XDocument doc, Stream stream, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await SerializeDocumentAsync(doc, stream, cancellationToken).ConfigureAwait(false);
+        }
+        catch (XddWriteException ex)
+        {
+            throw ToXdcException(ex);
+        }
+    }
+
+    private static XdcWriteException ToXdcException(XddWriteException ex)
+        => new(ex.Message, ex.InnerException ?? ex)
+        {
+            SectionName = ex.SectionName
+        };
+
+    private static T ConvertXddFailures<T>(Func<T> action)
+    {
+        try
+        {
+            return action();
+        }
+        catch (XddWriteException ex)
+        {
+            throw ToXdcException(ex);
         }
         catch (XdcWriteException)
         {
@@ -205,6 +250,14 @@ public class XdcWriter : XddWriter
             elem.Add(new XAttribute("denotation", subObject.Denotation));
     }
 
+    /// <summary>
+    /// XDC models <c>actualValue</c> and <c>denotation</c>; values kept from an XDD read are not
+    /// written, the model's <see cref="CanOpenObject.ParameterValue"/> and
+    /// <see cref="CanOpenObject.Denotation"/> are (rule 13).
+    /// </summary>
+    internal override bool KeepsPreservedObjectAttribute(XName name)
+        => name != "actualValue" && name != "denotation";
+
     /// <inheritdoc/>
     protected override XElement BuildNetworkManagement(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
     {
@@ -213,12 +266,12 @@ public class XdcWriter : XddWriter
         // Align with DCF: omit only when every commissioning field is empty/zero.
         // Non-omitted commissioning with NodeId outside 1..127 fails in BuildDeviceCommissioning.
         if (commissioning != null && !DeviceCommissioningSemantics.IsOmitted(commissioning))
-            networkMgmt.Add(BuildDeviceCommissioning(commissioning));
+            networkMgmt.Add(BuildDeviceCommissioning(networkMgmt.Name, commissioning));
 
         return networkMgmt;
     }
 
-    private static XElement BuildDeviceCommissioning(DeviceCommissioning dc)
+    private static XElement BuildDeviceCommissioning(XName networkManagementName, DeviceCommissioning dc)
     {
         if (!CanOpenNodeId.IsInRange(dc.NodeId))
         {
@@ -231,28 +284,39 @@ public class XdcWriter : XddWriter
 
         // CiA 311 deviceCommissioning has no attributes for LssSerialNumber / NodeRefd /
         // NetRefd (CiA 306 DCF keys). Those properties are intentionally omitted here.
-        var elem = new XElement("deviceCommissioning");
+        var elem = XddNames.Element(networkManagementName, "deviceCommissioning");
 
         elem.Add(new XAttribute("nodeID",
             dc.NodeId.ToString(CultureInfo.InvariantCulture)));
 
-        if (!string.IsNullOrEmpty(dc.NodeName))
-            elem.Add(new XAttribute("nodeName", dc.NodeName));
+        // nodeName, actualBaudRate, networkNumber and networkName are required by the schema
+        // (xsd:string / xsd:unsignedLong); an empty string is schema-valid.
+        elem.Add(new XAttribute("nodeName", dc.NodeName ?? string.Empty));
 
-        if (dc.Baudrate > 0)
-            elem.Add(new XAttribute("actualBaudRate",
-                string.Format(CultureInfo.InvariantCulture, "{0} Kbps", dc.Baudrate)));
+        elem.Add(new XAttribute("actualBaudRate", FormatActualBaudRate(dc)));
 
         elem.Add(new XAttribute("networkNumber",
-            dc.NetNumber.ToString(CultureInfo.InvariantCulture)));
+            dc.NetworkNumberLexical != null && dc.NetNumber == dc.NetworkNumberLexicalBaseline
+                ? dc.NetworkNumberLexical
+                : dc.NetNumber.ToString(CultureInfo.InvariantCulture)));
 
-        if (!string.IsNullOrEmpty(dc.NetworkName))
-            elem.Add(new XAttribute("networkName", dc.NetworkName));
+        elem.Add(new XAttribute("networkName", dc.NetworkName ?? string.Empty));
 
         elem.Add(new XAttribute("CANopenManager",
             dc.CANopenManager ? "true" : "false"));
 
         return elem;
+    }
+
+    private static string FormatActualBaudRate(DeviceCommissioning dc)
+    {
+        // The read spelling (for example "auto-baudRate") stays while the property is unchanged.
+        if (dc.ActualBaudRateLexical != null && dc.Baudrate == dc.ActualBaudRateLexicalBaseline)
+            return dc.ActualBaudRateLexical;
+
+        return dc.Baudrate > 0
+            ? string.Format(CultureInfo.InvariantCulture, "{0} Kbps", dc.Baudrate)
+            : string.Empty;
     }
 
     /// <summary>Creates a temporary ElectronicDataSheet view from a DeviceConfigurationFile.</summary>
@@ -265,7 +329,8 @@ public class XdcWriter : XddWriter
             ObjectDictionary = dcf.ObjectDictionary,
             Comments = dcf.Comments,
             DynamicChannels = dcf.DynamicChannels,
-            ApplicationProcess = dcf.ApplicationProcess
+            ApplicationProcess = dcf.ApplicationProcess,
+            XddPreserved = dcf.XddPreserved
         };
 
         eds.SupportedModules.AddRange(dcf.SupportedModules);

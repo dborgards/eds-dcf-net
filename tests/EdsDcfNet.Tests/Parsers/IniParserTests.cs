@@ -311,7 +311,8 @@ ParameterValue=20
             .WithMessage("*Duplicate key 'NodeID'*")
             .Which;
         ex.SectionName.Should().Be("DeviceCommissioning");
-        ex.LineNumber.Should().Be(3);
+        // Physical line: the verbatim literal starts with a blank line (matches the stream path).
+        ex.LineNumber.Should().Be(4);
     }
 
     [Fact]

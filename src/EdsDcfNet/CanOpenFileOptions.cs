@@ -1,5 +1,6 @@
 namespace EdsDcfNet;
 
+using System.Text;
 using EdsDcfNet.Parsers;
 
 /// <summary>
@@ -43,9 +44,14 @@ public sealed class CanOpenFileOptions
     /// <para>Currently enforced for:</para>
     /// <list type="bullet">
     /// <item><description>Duplicate keys within an INI section (default: last write wins)</description></item>
-    /// <item><description>Unknown XDD/XDC baud-rate strings on <c>supportedBaudRate</c>, <c>actualBaudRate</c>, and <c>baudRate/@defaultValue</c> (default: treat as 0 / ignore)</description></item>
-    /// <item><description>Unknown boolean tokens in <c>ValueConverter.ParseBoolean</c> (default: treat as <see langword="false"/>)</description></item>
-    /// <item><description>Unknown access-type tokens in <c>ValueConverter.ParseAccessType</c> (default: <c>ro</c>)</description></item>
+    /// <item><description>Malformed INI section headers such as <c>[2000</c> or text after the closing bracket other than a <c>;</c> comment (default: ignore the header and the keys that follow it up to the next valid header)</description></item>
+    /// <item><description>INI lines without <c>=</c> or with an empty key (default: ignore the line). A line starting with <c>#</c> without <c>=</c> is ignored in both modes</description></item>
+    /// <item><description>Duplicate INI section headers (default: merge the keys into the earlier section)</description></item>
+    /// <item><description>Unknown XDD/XDC baud-rate strings on <c>supportedBaudRate</c> and <c>baudRate/@defaultValue</c>; the CiA 311 values <c>100 Kbps</c> and <c>auto-baudRate</c> are known (default: treat as 0 / ignore)</description></item>
+    /// <item><description>Unknown boolean tokens in <c>ValueConverter.ParseBoolean</c> (default: treat as <see langword="false"/>).
+    /// EDS/DCF diagnostics carry the section, key and line (for example <c>DeviceInfo.BaudRate_10</c>)</description></item>
+    /// <item><description>Unknown access-type tokens in <c>ValueConverter.ParseAccessType</c> (default: <c>ro</c>).
+    /// EDS/DCF diagnostics carry the section, key and line (for example <c>DynamicChannels.Dir1</c>)</description></item>
     /// <item><description>
     /// Malformed EDS/DCF numeric keys on objects and sub-objects:
     /// <c>ObjectType</c> (default: VAR / <c>0x7</c>),
@@ -55,18 +61,62 @@ public sealed class CanOpenFileOptions
     /// and <c>ObjFlags</c> (default: <c>0</c>).
     /// Object-list counts (<c>SupportedObjects</c>, <c>ObjectLinks</c>, module <c>NrOfEntries</c>)
     /// default to <c>0</c>; a malformed index entry is skipped and the rest of the list is read.
-    /// The object itself is kept. Strict mode throws <see cref="Exceptions.EdsParseException"/>
+    /// A malformed <c>NrOfEntries</c> of a compact sub-object list (<c>[xxxxName]</c>, DCF
+    /// <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c>) is reported and the sub-index entries are
+    /// still applied. The object itself is kept. Strict mode throws <see cref="Exceptions.EdsParseException"/>
     /// with the same <see cref="Diagnostics.ParseDiagnostic.Code"/>.
+    /// </description></item>
+    /// <item><description>
+    /// A key that CiA 306-1 Table 7 marks as not supported for the object type, in an EDS/DCF object
+    /// or sub-index section and in the module object sections <c>[MxFixedxxxx]</c>,
+    /// <c>[MxFixedxxxxsubx]</c> and <c>[MxSubExtxxxx]</c> (default: the value is read and reported,
+    /// and the writers omit the key).
+    /// </description></item>
+    /// <item><description>
+    /// An EDS/DCF <c>ObjFlags</c> with reserved bits 2..31 set (CiA 306-1 Table 8), and a
+    /// <c>SupportedObjects</c> count that disagrees with the numbered entries of its list. Both are
+    /// reported in lenient and strict mode without throwing; the value and the entries are kept.
+    /// </description></item>
+    /// <item><description>
+    /// Malformed numeric keys of the EDS/DCF <c>[DeviceInfo]</c> section (CiA 306-1 § 6.5):
+    /// <c>VendorNumber</c>, <c>ProductNumber</c>, <c>RevisionNumber</c>, <c>Granularity</c>,
+    /// <c>DynamicChannelsSupported</c>, <c>NrOfRXPDO</c>, <c>NrOfTXPDO</c> and <c>CompactPDO</c>
+    /// (default: the value of an absent key, <c>0</c>, or <c>8</c> for <c>Granularity</c>).
+    /// </description></item>
+    /// <item><description>
+    /// Malformed numeric keys of the DCF <c>[DeviceComissioning]</c> section (CiA 306-1 § 7.3.5):
+    /// <c>NodeID</c> (default: <c>1</c>), <c>Baudrate</c> (default: <c>250</c>),
+    /// <c>NetNumber</c> (default: <c>0</c>) and <c>LSS_SerialNumber</c> (default: left unset).
+    /// A readable <c>NodeID</c> outside <c>1..127</c> is kept in default mode and reported as a
+    /// diagnostic and by validation; strict mode throws. When a DCF has both
+    /// <c>[DeviceComissioning]</c> and <c>[DeviceCommissioning]</c>, the normative first spelling is read
+    /// and the second section is kept unchanged in <c>AdditionalSections</c> with a diagnostic
+    /// (strict: throw).
+    /// </description></item>
+    /// <item><description>
+    /// Malformed EDS/DCF counter and version keys (CiA 306-1 Tables 9, 13, 14, 15 and 18; CiA 306-3
+    /// <c>[Tools]</c>): <c>[Comments]</c> and <c>[MxComments]</c> <c>Lines</c>, <c>[Tools]</c>
+    /// <c>Items</c>, <c>[SupportedModules]</c> and DCF <c>[ConnectedModules]</c> <c>NrOfEntries</c>
+    /// (default: <c>0</c>; the numbered entries, <c>Line&lt;n&gt;</c> lines and <c>[Tool&lt;n&gt;]</c>
+    /// sections are kept unchanged), and <c>[MxModuleInfo]</c> <c>ProductVersion</c> (default: <c>1</c>)
+    /// and <c>ProductRevision</c> (default: <c>0</c>).
+    /// </description></item>
+    /// <item><description>
+    /// Malformed <c>[DynamicChannels]</c> keys <c>NrOfSeg</c> (default: <c>0</c>), <c>Type&lt;n&gt;</c>
+    /// (default: <c>0</c>) and <c>PPOffset&lt;n&gt;</c> (default: offset <c>0</c> without an address
+    /// difference)
     /// </description></item>
     /// <item><description>
     /// Unknown XDD/XDC access-type tokens in <c>ParseXddAccessType</c> (default: <c>ro</c>)
     /// and unknown XML boolean tokens in <c>ParseXmlBool</c> (default: <see langword="false"/>)
     /// </description></item>
     /// <item><description>
-    /// EDS/DCF <c>[FileInfo] FileVersion</c> / <c>FileRevision</c> and XDD/XDC <c>fileVersion</c>
-    /// major/minor tooling forms such as <c>1.0</c> / <c>1,0</c> (default: accept major component;
-    /// strict: require a plain <c>Unsigned8</c> integer). Malformed tokens throw with
-    /// section/key (or <c>ProfileBody fileVersion</c>) attribution in both modes.
+    /// EDS/DCF <c>[FileInfo] FileVersion</c> / <c>FileRevision</c> major/minor tooling forms such as
+    /// <c>1.0</c> / <c>1,0</c> (default: accept major component; strict: require a plain
+    /// <c>Unsigned8</c> integer). Malformed EDS/DCF tokens throw with section/key attribution in both modes.
+    /// The XDD/XDC <c>fileVersion</c> is a free <c>xsd:string</c> and never rejected: the major/minor form uses
+    /// the major component and other text leaves <c>FileVersion</c> at its default, in both modes; the original
+    /// text is kept in <see cref="Models.EdsFileInfo.FileVersionText"/> and reported as a diagnostic.
     /// Zero-padded values such as <c>010</c> parse as decimal <c>10</c> (aligned across EDS/DCF/XDD).
     /// </description></item>
     /// <item><description>
@@ -80,21 +130,100 @@ public sealed class CanOpenFileOptions
     /// lexical forms (optional leading sign, surrounding whitespace) are accepted after trim.
     /// </description></item>
     /// <item><description>
-    /// Malformed XDD/XDC unsigned numeric attributes such as <c>objFlags</c>, <c>subNumber</c>,
-    /// <c>pDOmappingIndex</c>, general-feature counts, and <c>networkNumber</c>
+    /// Malformed XDD/XDC unsigned numeric attributes such as <c>subNumber</c>,
+    /// <c>dynamicChannel</c> <c>maxNumber</c> and <c>bitAlignment</c>, general-feature
+    /// counts, and <c>networkNumber</c>
     /// (default: ignore / leave unset; surrounding whitespace and optional leading sign are accepted)
+    /// </description></item>
+    /// <item><description>
+    /// XDC <c>deviceCommissioning</c>. <c>actualBaudRate</c> is a free <c>xsd:string</c>, and
+    /// <c>networkNumber</c> an <c>xsd:unsignedLong</c>. A schema-valid value the model cannot hold
+    /// (<c>auto-baudRate</c>, <c>4294967296</c>) is reported as a diagnostic and left at <c>0</c> in
+    /// both modes (strict does not throw); the original text is kept for writing until
+    /// <c>Baudrate</c> or <c>NetNumber</c> changes. A <c>networkNumber</c> that is not an unsigned
+    /// integer at all is malformed (default: ignore; strict: throw).
+    /// </description></item>
+    /// <item><description>
+    /// XDD/XDC <c>dynamicChannel</c>. Schema <c>accessType</c> values are
+    /// <c>readOnly</c>, <c>writeOnly</c>, and <c>readWriteOutput</c>. Lenient mode also
+    /// accepts the EDS short forms <c>ro</c>, <c>wo</c>, <c>rw</c>, <c>rwr</c>, <c>rww</c>,
+    /// and <c>const</c>; strict mode rejects them.
+    /// <c>addressOffset</c> is <c>xsd:hexBinary</c> with no fixed length. The original
+    /// spelling is kept for writing while <c>PPOffset</c> still matches it. A schema-valid
+    /// value that does not fit in 32 bits is reported and left at <c>0</c> in both modes
+    /// (strict does not throw), and the original text is kept until <c>PPOffset</c> changes.
+    /// An odd number of hex digits, a <c>0x</c> prefix, or a non-hex character is a parse
+    /// error (lenient: ignore; strict: throw).
+    /// <c>pDOmappingIndex</c> is a legacy attribute written by older versions of this
+    /// library. When <c>addressOffset</c> is absent, lenient mode copies a numeric value
+    /// to <c>PPOffset</c> and reports a diagnostic; strict mode throws.
+    /// </description></item>
+    /// <item><description>
+    /// XDD/XDC <c>objFlags</c> is <c>xsd:hexBinary</c> (CiA 311 Annex A.1.4, four hex digits;
+    /// bits 0..2 defined, bits 3..31 reserved). Surrounding whitespace is trimmed. An odd
+    /// number of hex digits is accepted in lenient mode with a diagnostic and rejected in
+    /// strict mode. A schema-valid value that does not fit in 32 bits is reported and left
+    /// at <c>0</c> in both modes, and the original text is kept for writing until
+    /// <c>ObjFlags</c> changes. Reserved bits 3..31 are reported and still stored. A leading
+    /// sign or a <c>0x</c> prefix is not hexadecimal (default: ignore; strict: throw).
     /// </description></item>
     /// <item><description>
     /// Unknown CPJ <c>NodeNPresent</c> tokens in <c>ValueConverter.ParsePresentFlag</c>
     /// (default: treat as not present / <see langword="false"/>)
     /// </description></item>
+    /// <item><description>
+    /// CPJ <c>Nodes</c> without the <c>0x</c> prefix (CiA 306-3 Table 3 codes it hexadecimal), for
+    /// example <c>Nodes=10</c> (default: read with the decimal/octal convention and report
+    /// <c>CPJ_NODES_NOT_HEX</c>; strict: throw). A reserved CPJ <c>NodeNPresent</c> value or an
+    /// invalid <c>Nodes</c> value is reported in default mode and throws in strict mode.
+    /// </description></item>
     /// </list>
     /// </remarks>
     public bool StrictParsing { get; init; }
+
+    /// <summary>
+    /// Gets the encoding used to decode EDS, DCF, CPJ, XDD, and XDC bytes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="null"/> (the default) selects automatic detection for EDS, DCF, and CPJ.
+    /// A byte-order mark selects UTF-8, UTF-16, or UTF-32 and is not returned as text.
+    /// Otherwise the buffered bytes are decoded as strict UTF-8 (<c>throwOnInvalidBytes</c>).
+    /// When that fails with <see cref="DecoderFallbackException"/>, the bytes passed to that
+    /// strict decode are decoded as ISO-8859-1. A leading UTF-8 byte-order mark is excluded
+    /// from both decodes. A diagnostic is reported
+    /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniDecodedAsIso88591"/>,
+    /// &quot;file is not valid UTF-8, decoded as ISO-8859-1&quot;). The bytes are buffered
+    /// once, including from a non-seekable stream, and decoded from that buffer.
+    /// </para>
+    /// <para>
+    /// For XDD and XDC, <see langword="null"/> follows a byte-order mark when one is present
+    /// (UTF-8, UTF-16, or UTF-32). Otherwise the encoding named by the XML declaration is
+    /// used, and UTF-8 is used when the declaration does not name one. A declared name that
+    /// this runtime cannot create fails the read with <see cref="Exceptions.EdsParseException"/>;
+    /// the message includes that name. Invalid byte sequences are not replaced with U+FFFD.
+    /// </para>
+    /// <para>
+    /// An explicit value is used as supplied and does not fall back to ISO-8859-1. On XDD and
+    /// XDC it overrides the XML declaration. A byte-order mark for that encoding is still
+    /// removed, including when the encoding instance was constructed not to emit a preamble.
+    /// Invalid byte sequences are not replaced with U+FFFD, even when the instance carries a
+    /// replacement fallback (as <see cref="System.Text.Encoding.UTF8"/> does): the bytes are
+    /// decoded with a copy that uses <see cref="DecoderFallback.ExceptionFallback"/>, and the read
+    /// fails with <see cref="Exceptions.EdsParseException"/> carrying
+    /// <see cref="Diagnostics.ParseDiagnosticCodes.InvalidEncodedBytes"/> in both lenient and
+    /// strict mode. The supplied instance is not modified.
+    /// String overloads are already decoded text and ignore this property.
+    /// </para>
+    /// </remarks>
+    public Encoding? Encoding { get; init; }
 
     internal static long ResolveMaxInputSize(CanOpenFileOptions? options)
         => options?.MaxInputSize ?? ReaderDefaults.DefaultMaxInputSize;
 
     internal static bool ResolveStrictParsing(CanOpenFileOptions? options)
         => options?.StrictParsing ?? false;
+
+    internal static Encoding? ResolveEncoding(CanOpenFileOptions? options)
+        => options?.Encoding;
 }
