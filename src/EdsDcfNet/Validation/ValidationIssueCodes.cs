@@ -124,4 +124,12 @@ public static class ValidationIssueCodes
     /// <see cref="CanOpenValidationOptions.CheckLineLength"/>.
     /// </summary>
     public const string LineTooLong = "LINE_TOO_LONG";
+
+    /// <summary>
+    /// A numbered entry of an EDS/DCF object list (<c>[MandatoryObjects]</c>, <c>[OptionalObjects]</c>,
+    /// <c>[ManufacturerObjects]</c>) kept in <c>SectionRemainingEntries</c>: it is written above
+    /// <c>SupportedObjects</c> (CiA 306-1 Table 5), or a generated entry replaces it. Reported only with
+    /// <see cref="CanOpenValidationOptions.CheckObjectListEntries"/>.
+    /// </summary>
+    public const string IniObjectListExtraEntry = "INI_OBJECT_LIST_EXTRA_ENTRY";
 }

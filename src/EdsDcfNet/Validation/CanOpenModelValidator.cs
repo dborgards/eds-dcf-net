@@ -210,6 +210,8 @@ public static class CanOpenModelValidator
             ValidateMandatoryEntries(eds.FileInfo, eds.DeviceInfo, eds.ObjectDictionary, issues, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         IniFileTextRules.Apply(eds, options, issues, cancellationToken);
+        if (options.CheckObjectListEntries)
+            IniWriteRules.ApplyKeptObjectListEntries(eds, issues);
         if (eds.ApplicationProcess != null)
             ValidateApplicationProcess(eds.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
 
@@ -242,6 +244,8 @@ public static class CanOpenModelValidator
         }
         cancellationToken.ThrowIfCancellationRequested();
         IniFileTextRules.Apply(dcf, options, issues, cancellationToken);
+        if (options.CheckObjectListEntries)
+            IniWriteRules.ApplyKeptObjectListEntries(dcf, issues);
         if (dcf.ApplicationProcess != null)
             ValidateApplicationProcess(dcf.ApplicationProcess, "ApplicationProcess", issues, cancellationToken);
 

@@ -581,6 +581,55 @@ internal static class IniWriteRules
     /// written and therefore not checked. Only keys and values are checked; the writer emits
     /// the canonical section name.
     /// </summary>
+    /// <summary>
+    /// Opt-in rule <see cref="CanOpenValidationOptions.CheckObjectListEntries"/>: reports every
+    /// numbered entry of an object list kept in <c>SectionRemainingEntries</c>. The writer emits it
+    /// after the generated list, above <c>SupportedObjects</c>, unless a generated entry with the
+    /// same number replaces it.
+    /// </summary>
+    internal static void ApplyKeptObjectListEntries(ICanOpenFileModel model, List<ValidationIssue> issues)
+    {
+        var objectDictionary = model.ObjectDictionary;
+        ApplyKeptObjectListEntries(model, "MandatoryObjects", objectDictionary.MandatoryObjects.Count, issues);
+        ApplyKeptObjectListEntries(model, "OptionalObjects", objectDictionary.OptionalObjects.Count, issues);
+        ApplyKeptObjectListEntries(model, "ManufacturerObjects", objectDictionary.ManufacturerObjects.Count, issues);
+    }
+
+    private static void ApplyKeptObjectListEntries(
+        ICanOpenFileModel model,
+        string listName,
+        int writtenCount,
+        List<ValidationIssue> issues)
+    {
+        if (!model.SectionRemainingEntries.TryGetValue(listName, out var kept))
+            return;
+
+        foreach (var entry in kept)
+        {
+            if (!SectionEntryKeys.TryParseEntryNumber(entry.Key, out var number))
+                continue;
+
+            var message = number > writtenCount
+                ? string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Kept entry {0} of [{1}] is written above SupportedObjects={2} (CiA 306-1 Table 5).",
+                    number,
+                    listName,
+                    writtenCount)
+                : string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Kept entry {0} of [{1}] ('{2}') is replaced by the generated entry {0} (SupportedObjects={3}) and not written.",
+                    number,
+                    listName,
+                    entry.Value,
+                    writtenCount);
+            issues.Add(new ValidationIssue(
+                "SectionRemainingEntries[" + listName + "][" + entry.Key + "]",
+                message,
+                ValidationIssueCodes.IniObjectListExtraEntry));
+        }
+    }
+
     private static void ApplySectionRemainingEntries(ICanOpenFileModel model, List<ValidationIssue> issues)
     {
         foreach (var section in model.SectionRemainingEntries)

@@ -337,6 +337,7 @@ public class CanOpenModelValidatorConformanceTests
     public void Strict_EnablesEveryRuleSet()
     {
         CanOpenValidationOptions.Strict.CheckSubNumberCount.Should().BeTrue();
+        CanOpenValidationOptions.Strict.CheckObjectListEntries.Should().BeTrue();
         CanOpenValidationOptions.Strict.CheckValueRanges.Should().BeTrue();
         CanOpenValidationOptions.Strict.RequireMandatoryEntries.Should().BeTrue();
         CanOpenValidationOptions.Default.CheckSubNumberCount.Should().BeFalse();

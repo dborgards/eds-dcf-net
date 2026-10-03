@@ -27,6 +27,7 @@ public sealed class CanOpenValidationOptions
         RequireIso646 = true,
         CheckLineLength = true,
         CheckObjectListRanges = true,
+        CheckObjectListEntries = true,
     };
 
     /// <summary>
@@ -83,4 +84,15 @@ public sealed class CanOpenValidationOptions
     /// 2000h-5FFFh (CiA 306-1 Table 4). The ranges apply to the object lists of every format.
     /// </summary>
     public bool CheckObjectListRanges { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether an EDS or DCF may keep numbered entries of
+    /// <c>[MandatoryObjects]</c>, <c>[OptionalObjects]</c> or <c>[ManufacturerObjects]</c> in
+    /// <see cref="Models.ICanOpenFileModel.SectionRemainingEntries"/>. The reader keeps an entry it
+    /// does not load there (above <c>SupportedObjects</c>, or empty or invalid inside it), and the
+    /// writer emits it again after the generated list. Such an entry is reported when it lies above
+    /// the written <c>SupportedObjects</c> (CiA 306-1 Table 5) or when a generated entry with the
+    /// same number replaces it. It has no effect on the other formats.
+    /// </summary>
+    public bool CheckObjectListEntries { get; init; }
 }

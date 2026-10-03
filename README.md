@@ -457,6 +457,7 @@ behavior:
 | `CheckObjectListRanges` | `OptionalObjects` indexes lie in 1000h-1FFFh or 6000h-9FFFh and `ManufacturerObjects` indexes in 2000h-5FFFh (CiA 306-1 Table 4) |
 | `RequireIso646` | EDS/DCF text uses 7-bit ISO/IEC 646 characters only (CiA 306-1 clause 6.2). This library writes UTF-8, a documented deviation, so the rule is opt-in |
 | `CheckLineLength` | no EDS/DCF line is longer than 255 characters (CiA 306-1 clause 6.2) |
+| `CheckObjectListEntries` | no numbered `[MandatoryObjects]`/`[OptionalObjects]`/`[ManufacturerObjects]` entry is kept in `SectionRemainingEntries` (the reader keeps entries it does not load): it would be written above `SupportedObjects` (CiA 306-1 Table 5) or replaced by a generated entry |
 
 ```csharp
 // every opt-in rule set
