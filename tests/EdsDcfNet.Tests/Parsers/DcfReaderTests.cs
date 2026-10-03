@@ -1328,7 +1328,7 @@ NrOfEntries=2
     }
 
     [Fact]
-    public void ReadString_CompactSubObj_MalformedNrOfEntries_Throws()
+    public void ReadString_CompactSubObj_MalformedNrOfEntries_AppliesValueLeniently()
     {
         var content = BuildMinimalDcf(extraSections: @"
 [ManufacturerObjects]
@@ -1349,9 +1349,11 @@ NrOfEntries=oops
 1=10
 ");
 
-        var act = () => _reader.ReadString(content);
+        // A malformed count is reported (strict: thrown, see ModuleObjectKeyMatrixTests); it is
+        // not a loop bound, so the value is still applied.
+        var result = _reader.ReadString(content);
 
-        act.Should().Throw<EdsParseException>();
+        result.ObjectDictionary.Objects[0x2100].SubObjects[1].ParameterValue.Should().Be("10");
     }
 
     [Fact]

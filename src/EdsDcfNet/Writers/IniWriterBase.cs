@@ -379,6 +379,16 @@ public abstract class IniWriterBase
         => !ObjectTypeKeyMatrix.IsNotSupportedInSubObject(subObj.ObjectType, key);
 
     /// <summary>
+    /// <c>[MxSubExtxxxx]</c> counterpart of <see cref="IsObjectKeyWritten"/>. A missing
+    /// <see cref="ModuleSubExtension.ObjectType"/> is VAR (CiA 306-1 Table 7 NOTE 1).
+    /// </summary>
+    internal static bool IsSubExtensionKeyWritten(ModuleSubExtension extension, string key)
+        => !ObjectTypeKeyMatrix.IsNotSupported(
+            extension.ObjectType ?? CanOpenObjectType.Var,
+            extension.CompactSubObj.GetValueOrDefault() > 0,
+            key);
+
+    /// <summary>
     /// Highest compact-listable sub-index for <paramref name="obj"/>, or 0 when
     /// CompactSubObj is absent/zero. Caps at 254 per CiA 306. Also 0 for VAR, DEFTYPE and
     /// DOMAIN, for which CiA 306-1 Table 7 does not support <c>CompactSubObj</c>: their
@@ -1035,6 +1045,10 @@ public abstract class IniWriterBase
     /// When it is absent and sub-objects exist, the emitted value is the described-entry
     /// count (including sub-index 00h and excluding FFh), matching
     /// <see cref="CanOpenObject.SubNumber"/>.
+    /// CiA 306-1 § 8.3 gives a fixed object the contents of an object description, so Table 7
+    /// "n" keys are omitted as in <see cref="IsObjectKeyWritten"/>. <c>SubNumber</c> of a VAR,
+    /// DEFTYPE or DOMAIN with sub-objects is still written (decision E10; a validated write
+    /// rejects such an object).
     /// </summary>
     private static void WriteModuleFixedObject(StringBuilder sb, int moduleNumber, ushort index, CanOpenObject obj)
     {
@@ -1042,9 +1056,14 @@ public abstract class IniWriterBase
             sb,
             string.Format(CultureInfo.InvariantCulture, "M{0}Fixed{1:X}", moduleNumber, index));
 
-        var subNumberToWrite = obj.SubNumber ?? DescribedSubIndexCount(obj);
+        bool IsWritten(string key) => IsObjectKeyWritten(obj, key);
 
-        if (subNumberToWrite > 0 || obj.SubObjects.Count > 0)
+        var subNumberToWrite = obj.SubNumber ?? DescribedSubIndexCount(obj);
+        var writesSubNumber = IsWritten("SubNumber")
+            ? subNumberToWrite > 0 || obj.SubObjects.Count > 0
+            : obj.SubObjects.Count > 0;
+
+        if (writesSubNumber)
         {
             WriteKeyValue(sb, "SubNumber", subNumberToWrite.ToString(CultureInfo.InvariantCulture));
         }
@@ -1052,29 +1071,35 @@ public abstract class IniWriterBase
         WriteKeyValue(sb, "ParameterName", obj.ParameterName);
         WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(obj.ObjectType));
 
-        if (obj.DataType.HasValue)
+        if (obj.DataType.HasValue && IsWritten("DataType"))
         {
             WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(obj.DataType.Value));
         }
 
-        WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(obj.AccessType));
+        if (IsWritten("AccessType"))
+        {
+            WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(obj.AccessType));
+        }
 
-        if (!string.IsNullOrEmpty(obj.DefaultValue))
+        if (!string.IsNullOrEmpty(obj.DefaultValue) && IsWritten("DefaultValue"))
         {
             WriteKeyValue(sb, "DefaultValue", obj.DefaultValue);
         }
 
-        if (!string.IsNullOrEmpty(obj.LowLimit))
+        if (!string.IsNullOrEmpty(obj.LowLimit) && IsWritten("LowLimit"))
         {
             WriteKeyValue(sb, "LowLimit", obj.LowLimit);
         }
 
-        if (!string.IsNullOrEmpty(obj.HighLimit))
+        if (!string.IsNullOrEmpty(obj.HighLimit) && IsWritten("HighLimit"))
         {
             WriteKeyValue(sb, "HighLimit", obj.HighLimit);
         }
 
-        WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(obj.PdoMapping));
+        if (IsWritten("PDOMapping"))
+        {
+            WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(obj.PdoMapping));
+        }
 
         if (obj.SrdoMapping)
         {
@@ -1091,7 +1116,7 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, "ObjFlags", ValueConverter.FormatInteger(obj.ObjFlags));
         }
 
-        if (obj.CompactSubObj.HasValue && obj.CompactSubObj.Value > 0)
+        if (obj.CompactSubObj is > 0 && IsWritten("CompactSubObj"))
         {
             WriteKeyValue(sb, "CompactSubObj", obj.CompactSubObj.Value.ToString(CultureInfo.InvariantCulture));
         }
@@ -1160,27 +1185,41 @@ public abstract class IniWriterBase
                 moduleNumber,
                 index,
                 dictionaryKey));
+        // Table 7 for the sub-object's own type, as in WriteSubObject.
+        bool IsWritten(string key) => IsSubObjectKeyWritten(subObj, key);
+
         WriteKeyValue(sb, "ParameterName", subObj.ParameterName);
         WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(subObj.ObjectType));
-        WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(subObj.DataType));
-        WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(subObj.AccessType));
 
-        if (!string.IsNullOrEmpty(subObj.DefaultValue))
+        if (IsWritten("DataType"))
+        {
+            WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(subObj.DataType));
+        }
+
+        if (IsWritten("AccessType"))
+        {
+            WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(subObj.AccessType));
+        }
+
+        if (!string.IsNullOrEmpty(subObj.DefaultValue) && IsWritten("DefaultValue"))
         {
             WriteKeyValue(sb, "DefaultValue", subObj.DefaultValue);
         }
 
-        if (!string.IsNullOrEmpty(subObj.LowLimit))
+        if (!string.IsNullOrEmpty(subObj.LowLimit) && IsWritten("LowLimit"))
         {
             WriteKeyValue(sb, "LowLimit", subObj.LowLimit);
         }
 
-        if (!string.IsNullOrEmpty(subObj.HighLimit))
+        if (!string.IsNullOrEmpty(subObj.HighLimit) && IsWritten("HighLimit"))
         {
             WriteKeyValue(sb, "HighLimit", subObj.HighLimit);
         }
 
-        WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(subObj.PdoMapping));
+        if (IsWritten("PDOMapping"))
+        {
+            WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(subObj.PdoMapping));
+        }
 
         if (subObj.SrdoMapping)
         {
@@ -1207,7 +1246,10 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, "ParamRefd", subObj.ParamRefd);
         }
 
-        WriteRemainingEntries(sb, subObj.RemainingEntries, SectionEntryKeys.IsDcfSubObjectKey);
+        WriteRemainingEntries(
+            sb,
+            subObj.RemainingEntries,
+            key => SectionEntryKeys.IsDcfSubObjectKey(key) || !IsSubObjectKeyWritten(subObj, key));
         sb.AppendLine();
     }
 
@@ -1226,7 +1268,10 @@ public abstract class IniWriterBase
         var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}SubExt{1:X}", moduleNumber, index);
         IniRoundTripText.WriteSectionHeader(sb, sectionName);
 
-        if (extension.SubNumber.HasValue)
+        // CiA 306-1 § 8.3: the entries of a standard object description, so Table 7 applies.
+        bool IsWritten(string key) => IsSubExtensionKeyWritten(extension, key);
+
+        if (extension.SubNumber.HasValue && IsWritten("SubNumber"))
         {
             WriteKeyValue(sb, "SubNumber", extension.SubNumber.Value.ToString(CultureInfo.InvariantCulture));
         }
@@ -1238,32 +1283,42 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(extension.ObjectType.Value));
         }
 
-        WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(extension.DataType));
-        WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(extension.AccessType));
+        if (IsWritten("DataType"))
+        {
+            WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(extension.DataType));
+        }
 
-        if (!string.IsNullOrEmpty(extension.DefaultValue))
+        if (IsWritten("AccessType"))
+        {
+            WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(extension.AccessType));
+        }
+
+        if (!string.IsNullOrEmpty(extension.DefaultValue) && IsWritten("DefaultValue"))
         {
             WriteKeyValue(sb, "DefaultValue", extension.DefaultValue);
         }
 
-        if (!string.IsNullOrEmpty(extension.LowLimit))
+        if (!string.IsNullOrEmpty(extension.LowLimit) && IsWritten("LowLimit"))
         {
             WriteKeyValue(sb, "LowLimit", extension.LowLimit);
         }
 
-        if (!string.IsNullOrEmpty(extension.HighLimit))
+        if (!string.IsNullOrEmpty(extension.HighLimit) && IsWritten("HighLimit"))
         {
             WriteKeyValue(sb, "HighLimit", extension.HighLimit);
         }
 
-        WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(extension.PdoMapping));
+        if (IsWritten("PDOMapping"))
+        {
+            WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(extension.PdoMapping));
+        }
 
         if (extension.ObjFlags > 0)
         {
             WriteKeyValue(sb, "ObjFlags", ValueConverter.FormatInteger(extension.ObjFlags));
         }
 
-        if (extension.CompactSubObj is > 0)
+        if (extension.CompactSubObj is > 0 && IsWritten("CompactSubObj"))
         {
             WriteKeyValue(sb, "CompactSubObj", extension.CompactSubObj.Value.ToString(CultureInfo.InvariantCulture));
         }

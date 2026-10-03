@@ -877,8 +877,12 @@ public class ModuleSectionRoundTripTests
     [Fact]
     public void WriteToString_ValidatedRoundTrip_ConsistentModuleSections_Succeeds()
     {
-        // Arrange
+        // Arrange — [M1Fixed6423] is a VAR, which CiA 306-1 Table 7 gives no sub-indexes
+        // (decision E10 rejects it on a validated write); drop them to keep the model consistent.
         var eds = CanOpenFile.Eds.ReadString(ModuleSections);
+        var fixedVar = eds.SupportedModules[0].FixedObjectDefinitions[0x6423];
+        fixedVar.SubObjects.Clear();
+        fixedVar.SubNumber = null;
 
         // Act
         var written = CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);

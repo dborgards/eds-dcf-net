@@ -318,8 +318,8 @@ internal static class IniWriteRules
     /// <summary>
     /// Checks the text fields the writer emits. <paramref name="appliesKeyMatrix"/> is
     /// <see langword="true"/> for object-dictionary entries, whose writer omits CiA 306-1 Table 7
-    /// "n" keys (<see cref="Writers.IniWriterBase.IsObjectKeyWritten"/>); module fixed objects
-    /// are written without the matrix.
+    /// "n" keys (<see cref="Writers.IniWriterBase.IsObjectKeyWritten"/>). Both callers pass
+    /// <see langword="true"/>: module fixed objects are written with the matrix as well.
     /// </summary>
     private static void ApplyObject(
         CanOpenObject obj,
@@ -514,8 +514,10 @@ internal static class IniWriteRules
                     path,
                     entry.Key);
                 // WriteModuleFixedObject emits DCF value fields and filters remaining
-                // entries with the DCF key set for both EDS and DCF.
-                ApplyObject(entry.Value, includeDcfFields: true, objectPath, issues, appliesKeyMatrix: false);
+                // entries with the DCF key set for both EDS and DCF. It applies CiA 306-1
+                // Table 7 like the object writer, including decision E10.
+                ApplyObjectTypeSubObjects(entry.Value, objectPath, issues);
+                ApplyObject(entry.Value, includeDcfFields: true, objectPath, issues, appliesKeyMatrix: true);
             }
 
             foreach (var entry in module.SubExtensionDefinitions)
@@ -528,9 +530,12 @@ internal static class IniWriteRules
                 var extension = entry.Value;
                 Check(extension.ParameterName, IniTextSlot.Value, extensionPath + ".ParameterName", issues);
                 CheckObjFlags(extension.ObjFlags, extensionPath + ".ObjFlags", issues);
-                CheckIfPresent(extension.DefaultValue, IniTextSlot.Value, extensionPath + ".DefaultValue", issues);
-                CheckIfPresent(extension.LowLimit, IniTextSlot.Value, extensionPath + ".LowLimit", issues);
-                CheckIfPresent(extension.HighLimit, IniTextSlot.Value, extensionPath + ".HighLimit", issues);
+                if (Writers.IniWriterBase.IsSubExtensionKeyWritten(extension, "DefaultValue"))
+                    CheckIfPresent(extension.DefaultValue, IniTextSlot.Value, extensionPath + ".DefaultValue", issues);
+                if (Writers.IniWriterBase.IsSubExtensionKeyWritten(extension, "LowLimit"))
+                    CheckIfPresent(extension.LowLimit, IniTextSlot.Value, extensionPath + ".LowLimit", issues);
+                if (Writers.IniWriterBase.IsSubExtensionKeyWritten(extension, "HighLimit"))
+                    CheckIfPresent(extension.HighLimit, IniTextSlot.Value, extensionPath + ".HighLimit", issues);
                 Check(extension.Count, IniTextSlot.Value, extensionPath + ".Count", issues);
             }
         }

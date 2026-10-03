@@ -195,6 +195,13 @@ public static class ParseDiagnosticCodes
     public const string InvalidCommentLineCount = "INVALID_COMMENT_LINE_COUNT";
 
     /// <summary>
+    /// Malformed EDS/DCF <c>NrOfEntries</c> of a compact sub-object list (<c>[xxxxName]</c>, DCF
+    /// <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c>, CiA 306-1 § 6.6.3.4 and § 7.3.2). The count is
+    /// not a loop bound: lenient mode still applies the sub-index entries; strict mode throws.
+    /// </summary>
+    public const string InvalidCompactListCount = "INVALID_COMPACT_LIST_COUNT";
+
+    /// <summary>
     /// Malformed EDS/DCF <c>[Tools]</c> <c>Items</c>; lenient mode treats it as <c>0</c>, so the
     /// <c>[Tool&lt;n&gt;]</c> sections are kept in <c>AdditionalSections</c>.
     /// </summary>

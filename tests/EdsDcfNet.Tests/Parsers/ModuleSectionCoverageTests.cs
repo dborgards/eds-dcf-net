@@ -25,7 +25,8 @@ public class ModuleSectionCoverageTests
         {
             Index = 0x6000,
             ParameterName = "Listed",
-            ObjectType = 0x7,
+            // ARRAY with CompactSubObj: Table 7 keeps DataType, limits and CompactSubObj.
+            ObjectType = 0x8,
             DataType = 0x0005,
             DefaultValue = "1",
             LowLimit = "0",
