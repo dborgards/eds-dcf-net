@@ -522,13 +522,8 @@ public class XddWriter
     /// <c>xsd:hexBinary</c> requires an even number of digits, so a value whose
     /// natural width is five or seven digits is padded to six or eight.
     /// </summary>
-    private static string FormatObjFlags(uint flags)
-    {
-        var text = flags.ToString("X4", CultureInfo.InvariantCulture);
-        if ((text.Length & 1) != 0)
-            text = "0" + text;
-        return text;
-    }
+    private static string FormatObjFlags(uint flags) =>
+        XddFormatHelper.FormatHexBinary(flags);
 
     // ── Protected format helpers (part of the extensibility API for subclasses) ──
 

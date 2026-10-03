@@ -584,26 +584,166 @@ internal static class XddCommNetProfileParser
                 seg.Type = ParseHexDataType(typeStr);
 
             if (chanElem.Attribute("accessType")?.Value is string dirStr)
-                seg.Dir = ParseXddAccessType(dirStr);
+                seg.Dir = ParseDynamicChannelAccessType(dirStr);
 
             seg.Range = chanElem.Attribute("startIndex")?.Value ?? string.Empty;
             var endIdx = chanElem.Attribute("endIndex")?.Value;
             if (!string.IsNullOrEmpty(endIdx) && !string.IsNullOrEmpty(seg.Range))
                 seg.Range = seg.Range + "-" + endIdx;
 
-            var ppOffsetStr = GetTrimmedAttributeValue(chanElem, "pDOmappingIndex");
-            if (!string.IsNullOrEmpty(ppOffsetStr))
+            var maxNumber = GetTrimmedAttributeValue(chanElem, "maxNumber");
+            if (!string.IsNullOrEmpty(maxNumber))
             {
-                var ppOffsetParsed = uint.TryParse(ppOffsetStr, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var ppOffset);
-                if (ppOffsetParsed)
-                    seg.PPOffset = ppOffset;
-                RejectFailedNumericAttribute(ppOffsetStr, ppOffsetParsed, "pDOmappingIndex");
+                var maxParsed = uint.TryParse(maxNumber, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var maxValue);
+                if (maxParsed)
+                    seg.MaxNumber = maxValue;
+                RejectFailedNumericAttribute(maxNumber, maxParsed, "maxNumber");
             }
+
+            var bitAlignment = GetTrimmedAttributeValue(chanElem, "bitAlignment");
+            if (!string.IsNullOrEmpty(bitAlignment))
+            {
+                var bitParsed = byte.TryParse(bitAlignment, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var bitValue);
+                if (bitParsed)
+                    seg.BitAlignment = bitValue;
+                RejectFailedNumericAttribute(bitAlignment, bitParsed, "bitAlignment");
+            }
+
+            var addressOffset = chanElem.Attribute("addressOffset");
+            if (addressOffset != null)
+                ReadAddressOffset(seg, addressOffset.Value);
+            else
+                ReadLegacyMappingIndex(seg, GetTrimmedAttributeValue(chanElem, "pDOmappingIndex"));
 
             result.Segments.Add(seg);
         }
 
         return result.Segments.Count > 0 ? result : null;
+    }
+
+    private static readonly char[] XsdWhitespace = { ' ', '\t', '\n', '\r' };
+
+    /// <summary>
+    /// <c>addressOffset</c> is <c>xsd:hexBinary</c> with no fixed length. The spelling
+    /// is kept so a later write can emit the same digits. A value that does not fit
+    /// in <see cref="uint"/> is reported and kept in both parsing modes. Only
+    /// surrounding whitespace is allowed (whiteSpace=collapse); interior whitespace
+    /// is not a valid lexical form and is rejected.
+    /// </summary>
+    private static void ReadAddressOffset(DynamicChannelSegment segment, string raw)
+    {
+        var collapsed = raw.Trim(XsdWhitespace);
+        if (!IsEvenAsciiHex(collapsed))
+        {
+            RejectAddressOffset(raw);
+            return;
+        }
+
+        uint value;
+        if (collapsed.Length == 0)
+        {
+            value = 0;
+        }
+        else if (!uint.TryParse(collapsed, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value))
+        {
+            Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                Diagnostics.ParseSeverity.Warning,
+                Diagnostics.ParseDiagnosticCodes.XddAddressOffsetExceedsUInt32,
+                path: "dynamicChannel/addressOffset",
+                message: string.Format(
+                    CultureInfo.InvariantCulture,
+                    "addressOffset '{0}' is valid xsd:hexBinary and does not fit in 32 bits. PPOffset was left at 0 and the original text is preserved for writing.",
+                    raw),
+                rawValue: raw));
+            segment.PPOffset = 0;
+            segment.AddressOffsetLexical = raw;
+            segment.AddressOffsetLexicalBaseline = 0;
+            return;
+        }
+
+        segment.PPOffset = value;
+        segment.AddressOffsetLexical = raw;
+        segment.AddressOffsetLexicalBaseline = value;
+    }
+
+    private static void RejectAddressOffset(string raw)
+    {
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.XddInvalidNumericAttribute,
+            path: "dynamicChannel/addressOffset",
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Invalid addressOffset '{0}'. Value is not an xsd:hexBinary value. The attribute is ignored.",
+                raw),
+            rawValue: raw));
+
+        if (!StrictParsingScope.IsEnabled)
+            return;
+
+        throw new EdsParseException(
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "Invalid addressOffset '{0}'. Value is not an xsd:hexBinary value.",
+                raw))
+        {
+            Code = Diagnostics.ParseDiagnosticCodes.XddInvalidNumericAttribute
+        };
+    }
+
+    /// <summary>
+    /// Older versions of this library wrote <see cref="DynamicChannelSegment.PPOffset"/>
+    /// as <c>pDOmappingIndex</c>. The schema has no such attribute.
+    /// </summary>
+    private static void ReadLegacyMappingIndex(DynamicChannelSegment segment, string? raw)
+    {
+        if (string.IsNullOrEmpty(raw))
+            return;
+
+        var parsed = uint.TryParse(raw, UnsignedXsdIntegerStyles, CultureInfo.InvariantCulture, out var offset);
+        var message = string.Format(
+            CultureInfo.InvariantCulture,
+            "dynamicChannel uses legacy attribute pDOmappingIndex '{0}', which is not defined by the CiA 311 schema. Expected addressOffset.",
+            raw);
+
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.XddLegacyAttribute,
+            path: "dynamicChannel/pDOmappingIndex",
+            message: message,
+            rawValue: raw,
+            coercedTo: parsed ? offset.ToString(CultureInfo.InvariantCulture) : null));
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(message)
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.XddLegacyAttribute
+            };
+        }
+
+        if (parsed)
+            segment.PPOffset = offset;
+        else
+            RejectFailedNumericAttribute(raw, parsed: false, "pDOmappingIndex");
+    }
+
+    private static bool IsEvenAsciiHex(string text)
+    {
+        if ((text.Length & 1) != 0)
+            return false;
+
+        for (var i = 0; i < text.Length; i++)
+        {
+            var character = text[i];
+            var hex = (character >= '0' && character <= '9')
+                || (character >= 'a' && character <= 'f')
+                || (character >= 'A' && character <= 'F');
+            if (!hex)
+                return false;
+        }
+
+        return true;
     }
 
     private static void ParseBaudRates(XElement transportLayers, DeviceInfo deviceInfo)

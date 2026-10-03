@@ -171,4 +171,18 @@ public static class ParseDiagnosticCodes
     /// (or the chain cycles). Lenient mode leaves <c>DataType</c> unset; strict mode throws.
     /// </summary>
     public const string XddUnresolvedDataTypeIdRef = "XDD_UNRESOLVED_DATA_TYPE_ID_REF";
+
+    /// <summary>
+    /// XDD/XDC <c>addressOffset</c> is schema-valid <c>xsd:hexBinary</c> that does not fit
+    /// in <see cref="EdsDcfNet.Models.DynamicChannelSegment.PPOffset"/>. The property stays
+    /// <c>0</c> and the original text is preserved for writing. Reported in lenient and
+    /// strict mode; strict mode does not throw.
+    /// </summary>
+    public const string XddAddressOffsetExceedsUInt32 = "XDD_ADDRESS_OFFSET_EXCEEDS_UINT32";
+
+    /// <summary>
+    /// An attribute written by an older version of this library and absent from the
+    /// CiA 311 schema. Lenient mode still applies a recognized value. Strict mode throws.
+    /// </summary>
+    public const string XddLegacyAttribute = "XDD_LEGACY_ATTRIBUTE";
 }
