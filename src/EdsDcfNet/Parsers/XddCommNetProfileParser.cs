@@ -621,14 +621,18 @@ internal static class XddCommNetProfileParser
         return result.Segments.Count > 0 ? result : null;
     }
 
+    private static readonly char[] XsdWhitespace = { ' ', '\t', '\n', '\r' };
+
     /// <summary>
     /// <c>addressOffset</c> is <c>xsd:hexBinary</c> with no fixed length. The spelling
     /// is kept so a later write can emit the same digits. A value that does not fit
-    /// in <see cref="uint"/> is reported and kept in both parsing modes.
+    /// in <see cref="uint"/> is reported and kept in both parsing modes. Only
+    /// surrounding whitespace is allowed (whiteSpace=collapse); interior whitespace
+    /// is not a valid lexical form and is rejected.
     /// </summary>
     private static void ReadAddressOffset(DynamicChannelSegment segment, string raw)
     {
-        var collapsed = RemoveXsdWhitespace(raw);
+        var collapsed = raw.Trim(XsdWhitespace);
         if (!IsEvenAsciiHex(collapsed))
         {
             RejectAddressOffset(raw);
@@ -740,28 +744,6 @@ internal static class XddCommNetProfileParser
         }
 
         return true;
-    }
-
-    private static string RemoveXsdWhitespace(string raw)
-    {
-        if (raw.IndexOf(' ') < 0 &&
-            raw.IndexOf('\t') < 0 &&
-            raw.IndexOf('\n') < 0 &&
-            raw.IndexOf('\r') < 0)
-        {
-            return raw;
-        }
-
-        var buffer = new char[raw.Length];
-        var count = 0;
-        for (var i = 0; i < raw.Length; i++)
-        {
-            var character = raw[i];
-            if (character != ' ' && character != '\t' && character != '\n' && character != '\r')
-                buffer[count++] = character;
-        }
-
-        return new string(buffer, 0, count);
     }
 
     private static void ParseBaudRates(XElement transportLayers, DeviceInfo deviceInfo)

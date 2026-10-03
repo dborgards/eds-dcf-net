@@ -279,6 +279,62 @@ PPOffset2=16
         Attribute(rewritten, "addressOffset").Should().Be("0000");
     }
 
+    [Theory]
+    [InlineData("00 10")]
+    [InlineData("0 0 1 0")]
+    [InlineData("00&#9;10")]
+    [InlineData("00&#10;10")]
+    [InlineData("00&#13;10")]
+    public void ReadString_AddressOffsetInteriorWhitespace_LenientIgnoresStrictThrows(string raw)
+    {
+        // Arrange — xsd:hexBinary has whiteSpace=collapse; interior whitespace is not
+        // part of the lexical space and must not be silently stripped.
+        var xml = WithChannels(Channel(
+            "dataType=\"07\" accessType=\"readOnly\" startIndex=\"1000\" endIndex=\"1000\" maxNumber=\"1\" addressOffset=\"" + raw + "\""));
+        var expectedRaw = XDocument.Parse(xml).Descendants()
+            .First(e => e.Name.LocalName == "dynamicChannel").Attribute("addressOffset")!.Value;
+
+        // Act
+        var lenient = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml);
+        var strict = () => CanOpenFile.Xdd.ReadString(xml, Strict);
+
+        // Assert
+        lenient.Model.DynamicChannels!.Segments[0].PPOffset.Should().Be(0u);
+        lenient.Model.DynamicChannels.Segments[0].AddressOffsetLexical.Should().BeNull();
+        lenient.Diagnostics.Should().ContainSingle(diagnostic =>
+            diagnostic.Code == ParseDiagnosticCodes.XddInvalidNumericAttribute &&
+            diagnostic.RawValue == expectedRaw);
+        strict.Should().Throw<EdsParseException>()
+            .Which.Code.Should().Be(ParseDiagnosticCodes.XddInvalidNumericAttribute);
+
+        var rewritten = CanOpenFile.Xdd.WriteToString(lenient.Model);
+        Attribute(rewritten, "addressOffset").Should().Be("0000");
+    }
+
+    [Theory]
+    [InlineData(" 0010")]
+    [InlineData("0010 ")]
+    [InlineData("  0010  ")]
+    [InlineData("&#9;0010&#10;&#13;")]
+    public void ReadString_AddressOffsetSurroundingWhitespace_AcceptedInBothModes(string raw)
+    {
+        // Arrange — leading/trailing whitespace is removed by whiteSpace=collapse.
+        var xml = WithChannels(Channel(
+            "dataType=\"07\" accessType=\"readOnly\" startIndex=\"1000\" endIndex=\"1000\" maxNumber=\"1\" addressOffset=\"" + raw + "\""));
+
+        // Act
+        var lenient = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml);
+        var strict = CanOpenFile.Xdd.ReadString(xml, Strict);
+        var rewritten = CanOpenFile.Xdd.WriteToString(strict);
+
+        // Assert
+        lenient.Diagnostics.Should().BeEmpty();
+        lenient.Model.DynamicChannels!.Segments[0].PPOffset.Should().Be(0x10u);
+        strict.DynamicChannels!.Segments[0].PPOffset.Should().Be(0x10u);
+        Attribute(rewritten, "addressOffset").Trim().Should().Be("0010");
+        CanOpenFile.Xdd.ReadString(rewritten, Strict).DynamicChannels!.Segments[0].PPOffset.Should().Be(0x10u);
+    }
+
     [Fact]
     public void ReadString_LegacyMappingIndex_LenientKeepsOffsetStrictThrows()
     {
