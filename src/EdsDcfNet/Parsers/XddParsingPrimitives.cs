@@ -135,6 +135,81 @@ internal static class XddParsingPrimitives
         };
     }
 
+    /// <summary>
+    /// Parses a CiA 311 <c>dynamicChannel</c> <c>accessType</c> token.
+    /// </summary>
+    /// <remarks>
+    /// Strict mode accepts <c>readOnly</c>, <c>writeOnly</c>, and <c>readWriteOutput</c>
+    /// (case-insensitive). Lenient mode also accepts the EDS short forms
+    /// <c>ro</c>, <c>wo</c>, <c>rw</c>, <c>rwr</c>, <c>rww</c>, and <c>const</c>.
+    /// Empty input maps to <see cref="AccessType.ReadOnly"/>. Any other token maps
+    /// to <see cref="AccessType.ReadOnly"/> when lenient, or throws
+    /// <see cref="EdsParseException"/> when <see cref="StrictParsingScope"/> is enabled.
+    /// Object <c>accessType</c> stays on <see cref="ParseXddAccessType"/>.
+    /// </remarks>
+    internal static AccessType ParseDynamicChannelAccessType(string value)
+    {
+        var token = value.Trim();
+        if (token.Length == 0)
+            return AccessType.ReadOnly;
+
+        if (token.Equals("readOnly", StringComparison.OrdinalIgnoreCase))
+            return AccessType.ReadOnly;
+        if (token.Equals("writeOnly", StringComparison.OrdinalIgnoreCase))
+            return AccessType.WriteOnly;
+        if (token.Equals("readWriteOutput", StringComparison.OrdinalIgnoreCase))
+            return AccessType.ReadWriteOutput;
+
+        if (!StrictParsingScope.IsEnabled)
+        {
+            switch (token.ToLowerInvariant())
+            {
+                case "ro":
+                    return AccessType.ReadOnly;
+                case "wo":
+                    return AccessType.WriteOnly;
+                case "rw":
+                    return AccessType.ReadWrite;
+                case "rwr":
+                    return AccessType.ReadWriteInput;
+                case "rww":
+                    return AccessType.ReadWriteOutput;
+                case "const":
+                    return AccessType.Constant;
+            }
+        }
+
+        if (StrictParsingScope.IsEnabled)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Unknown dynamicChannel accessType '{0}'. Expected one of: readOnly, writeOnly, readWriteOutput.",
+                    value))
+            {
+                Code = Diagnostics.ParseDiagnosticCodes.XddUnknownAccessType
+            };
+        }
+
+        return ReportUnknownDynamicChannelAccessType(value);
+    }
+
+    private static AccessType ReportUnknownDynamicChannelAccessType(string value)
+    {
+        Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+            Diagnostics.ParseSeverity.Warning,
+            Diagnostics.ParseDiagnosticCodes.XddUnknownAccessType,
+            path: "dynamicChannel/accessType",
+            rawValue: value,
+            coercedTo: "readOnly",
+            message: string.Format(
+                CultureInfo.InvariantCulture,
+                "Unknown dynamicChannel accessType '{0}'. Expected one of: readOnly, writeOnly, readWriteOutput. Mapped to readOnly.",
+                value)));
+
+        return AccessType.ReadOnly;
+    }
+
     private static AccessType ReportUnknownAccessType(string value)
     {
         Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(

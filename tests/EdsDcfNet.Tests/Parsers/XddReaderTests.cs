@@ -1651,7 +1651,7 @@ public class XddReaderTests
         var xdd = MinimalXdd.Replace(
             "</ApplicationLayers>",
             @"  <dynamicChannels>
-            <dynamicChannel dataType=""0007"" accessType=""ro"" startIndex=""1600"" endIndex=""17FF"" pDOmappingIndex=""not-a-number""/>
+            <dynamicChannel dataType=""0007"" accessType=""readOnly"" startIndex=""1600"" endIndex=""17FF"" pDOmappingIndex=""not-a-number""/>
           </dynamicChannels>
         </ApplicationLayers>");
 

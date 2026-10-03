@@ -265,7 +265,11 @@ internal static class ModelCloner
                 Type = segment.Type,
                 Dir = segment.Dir,
                 Range = segment.Range,
-                PPOffset = segment.PPOffset
+                PPOffset = segment.PPOffset,
+                MaxNumber = segment.MaxNumber,
+                BitAlignment = segment.BitAlignment,
+                AddressOffsetLexical = segment.AddressOffsetLexical,
+                AddressOffsetLexicalBaseline = segment.AddressOffsetLexicalBaseline
             });
         }
 

@@ -753,17 +753,19 @@ public class XddWriterTests
         // Assert
         result.Should().Contain("dynamicChannels");
         result.Should().Contain("dynamicChannel");
-        result.Should().Contain("dataType=\"0007\"");
-        result.Should().Contain("accessType=\"ro\"");
+        result.Should().Contain("dataType=\"07\"");
+        result.Should().Contain("accessType=\"readOnly\"");
         result.Should().Contain("startIndex=\"1600\"");
         result.Should().Contain("endIndex=\"17FF\"");
-        result.Should().Contain("pDOmappingIndex=\"5\"");
+        result.Should().Contain("maxNumber=\"512\"");
+        result.Should().Contain("addressOffset=\"0005\"");
+        result.Should().NotContain("pDOmappingIndex");
     }
 
     [Fact]
-    public void GenerateString_DynamicChannel_NoEndIndex_WhenSingleRangePart()
+    public void GenerateString_DynamicChannel_SingleIndex_RepeatsEndIndex()
     {
-        // Arrange — Range with no '-' separator → only startIndex written
+        // Arrange — CiA 311 requires endIndex. A range with one index uses that index for both ends.
         var eds = CreateSampleEds();
         eds.DynamicChannels = new DynamicChannels();
         eds.DynamicChannels.Segments.Add(new DynamicChannelSegment
@@ -777,8 +779,13 @@ public class XddWriterTests
         var result = _writer.GenerateString(eds);
 
         // Assert
+        result.Should().Contain("dataType=\"04\"");
+        result.Should().Contain("accessType=\"readWriteOutput\"");
         result.Should().Contain("startIndex=\"2000\"");
-        result.Should().NotContain("endIndex");
+        result.Should().Contain("endIndex=\"2000\"");
+        result.Should().Contain("maxNumber=\"1\"");
+        result.Should().Contain("addressOffset=\"0000\"");
+        result.Should().NotContain("pDOmappingIndex");
     }
 
     [Fact]

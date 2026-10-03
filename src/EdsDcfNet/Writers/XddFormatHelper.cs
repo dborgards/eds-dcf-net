@@ -14,8 +14,65 @@ internal static class XddFormatHelper
         index.ToString("X4", CultureInfo.InvariantCulture);
 
     /// <summary>Formats a data type as 4 uppercase hex digits (e.g. "0007").</summary>
+    /// <remarks>
+    /// Used for <c>CANopenObject</c> and <c>CANopenSubObject</c>.
+    /// <c>dynamicChannel/@dataType</c> uses <see cref="FormatDynamicChannelDataType"/>.
+    /// </remarks>
     internal static string FormatDataType(ushort dataType) =>
         dataType.ToString("X4", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Formats an unsigned value as <c>xsd:hexBinary</c>: uppercase hexadecimal,
+    /// an even number of digits, and at least four digits.
+    /// </summary>
+    /// <remarks>
+    /// An odd count is not schema-valid, so a value whose natural width is five
+    /// or seven digits is padded to six or eight. Dynamic-channel <c>dataType</c>
+    /// is not formatted here; see <see cref="FormatDynamicChannelDataType"/>.
+    /// </remarks>
+    internal static string FormatHexBinary(uint value)
+    {
+        var text = value.ToString("X", CultureInfo.InvariantCulture);
+        if (text.Length < 4)
+            text = text.PadLeft(4, '0');
+        if ((text.Length & 1) != 0)
+            text = "0" + text;
+        return text;
+    }
+
+    /// <summary>
+    /// Formats <c>dynamicChannel/@dataType</c>.
+    /// </summary>
+    /// <remarks>
+    /// The schema annotation and CiA 311 Table 51 specify two hex digits, unlike
+    /// <see cref="FormatDataType"/>, which emits four digits for a CANopen object.
+    /// Values above <c>0xFF</c> use four digits so a <see cref="ushort"/> is not
+    /// truncated. The compiled <c>xsd:hexBinary</c> type accepts both widths.
+    /// </remarks>
+    internal static string FormatDynamicChannelDataType(ushort dataType) =>
+        dataType <= byte.MaxValue
+            ? dataType.ToString("X2", CultureInfo.InvariantCulture)
+            : dataType.ToString("X4", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Converts an <see cref="AccessType"/> to a CiA 311 <c>dynamicChannel</c>
+    /// <c>accessType</c> token.
+    /// </summary>
+    /// <remarks>
+    /// The schema allows <c>readOnly</c>, <c>writeOnly</c>, and <c>readWriteOutput</c>.
+    /// <see cref="AccessType.Constant"/> is written as <c>readOnly</c>.
+    /// <see cref="AccessType.ReadWrite"/> and <see cref="AccessType.ReadWriteInput"/>
+    /// are written as <c>readWriteOutput</c>, the only read/write token.
+    /// </remarks>
+    internal static string DynamicChannelAccessTypeToString(AccessType accessType) =>
+        accessType switch
+        {
+            AccessType.WriteOnly => "writeOnly",
+            AccessType.ReadWrite => "readWriteOutput",
+            AccessType.ReadWriteInput => "readWriteOutput",
+            AccessType.ReadWriteOutput => "readWriteOutput",
+            _ => "readOnly"
+        };
 
     /// <summary>
     /// Converts an <see cref="AccessType"/> to an XDD access type string.
