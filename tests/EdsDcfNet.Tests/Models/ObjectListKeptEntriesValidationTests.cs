@@ -146,6 +146,20 @@ public class ObjectListKeptEntriesValidationTests
     }
 
     [Fact]
+    public void Validate_NullObjectListStore_OptInReportsNothing()
+    {
+        // Arrange — a null store means nothing is kept (the writer skips it as well).
+        var eds = CanOpenFile.Eds.ReadString(AboveCount);
+        eds.SectionRemainingEntries["MandatoryObjects"] = null!;
+
+        // Act
+        var issues = CanOpenFile.Validate(eds, EntriesOnly);
+
+        // Assert
+        issues.Should().NotContain(issue => issue.Code == ValidationIssueCodes.IniObjectListExtraEntry);
+    }
+
+    [Fact]
     public async Task ValidateAsync_KeptEntryAboveSupportedObjects_OptInReportsEntry()
     {
         // Arrange

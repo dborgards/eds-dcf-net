@@ -601,7 +601,8 @@ internal static class IniWriteRules
         int writtenCount,
         List<ValidationIssue> issues)
     {
-        if (!model.SectionRemainingEntries.TryGetValue(listName, out var kept))
+        // A null store is "nothing kept"; the writer treats it the same way.
+        if (!model.SectionRemainingEntries.TryGetValue(listName, out var kept) || kept == null)
             return;
 
         foreach (var entry in kept)
