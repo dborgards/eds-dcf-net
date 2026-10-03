@@ -138,6 +138,9 @@ public class CpjTopologyRemainingEntriesTests
     [InlineData("Node01Name")]
     [InlineData("NodeXName")]
     [InlineData("Node1Color")]
+    [InlineData("Node-1Name")]
+    [InlineData("Node5")]
+    [InlineData("Node")]
     public void ReadString_NodeKeyOutsideTable3_IsKeptAsRemainingEntry(string key)
     {
         var content = Cpj("[Topology]", "Nodes=0x01", "Node1Present=0x01", key + "=v");
