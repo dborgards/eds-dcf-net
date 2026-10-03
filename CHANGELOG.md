@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.8](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.7...v1.15.0-beta.8) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** preserve unlisted object sections and report a diagnostic ([#605](https://github.com/dborgards/eds-dcf-net/issues/605)) ([fd48e65](https://github.com/dborgards/eds-dcf-net/commit/fd48e655295075c668632729d74047a05afd34e7))
+
 ## [1.15.0-beta.7](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.6...v1.15.0-beta.7) (2026-10-03)
 
 ### ✨ Features
