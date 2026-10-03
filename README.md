@@ -678,11 +678,13 @@ Today this covers:
 - EDS/DCF `FileVersion` / `FileRevision` and XDD/XDC `fileVersion` major/minor
   tooling forms (`1.0` / `1,0`); zero-padded values such as `010` parse as
   decimal `10` across EDS/DCF/XDD
-  XDD/XDC `fileVersion` is a free `xsd:string` (for example `vendor-r7`), so
-  the original text is kept in `EdsFileInfo.FileVersionText` and written back
-  while `FileVersion` is unchanged; `FileVersion` then holds the best-effort
-  major component (or `1` when no number can be derived). EDS and DCF writers
-  always use `FileVersion`
+  XDD/XDC `fileVersion` is a free `xsd:string`, so a spelling that is not a
+  plain decimal number (for example `vendor-r7`, `1.0`, `256` or an empty
+  value) is kept in `EdsFileInfo.FileVersionText` and written back while
+  `FileVersion` is unchanged; `FileVersion` then holds the best-effort major
+  component (or `1` when no number can be derived). A plain decimal such as
+  `010` sets only `FileVersion` and is written back normalised (`10`). EDS and
+  DCF writers always use `FileVersion`
 - Missing XDD/XDC `index` on `CANopenObject`, and missing or invalid
   `objectType` (schema-valid unsignedByte forms such as `+9` / `-0` are
   accepted after trim; missing `CANopenSubObject` `subIndex` stays lenient)
