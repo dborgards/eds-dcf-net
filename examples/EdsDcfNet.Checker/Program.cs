@@ -81,17 +81,9 @@ public static class Program
         {
             if (Directory.Exists(input))
             {
-                try
+                if (!CollectSweepFiles(Directory.EnumerateFiles(input, "*.*", enumeration), files, out var error))
                 {
-                    // EnumerateFiles is lazy; AddRange is what walks the tree, so I/O failures
-                    // surface here rather than inside the per-file read handler below.
-                    files.AddRange(Directory.EnumerateFiles(input, "*.*", enumeration)
-                        .Where(f => IsEds(f) || IsDcf(f))
-                        .OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    Console.Error.WriteLine("Cannot read '" + input + "': " + ex.Message);
+                    Console.Error.WriteLine("Cannot read '" + input + "': " + error);
                     unreadable++;
                 }
             }
@@ -157,6 +149,35 @@ public static class Program
         }
 
         return failed ? 1 : 0;
+    }
+
+    /// <summary>
+    /// Adds the EDS/DCF files of a (lazy) enumeration to <paramref name="files"/>, sorted. When the
+    /// enumeration throws an I/O error midway, the files yielded before it are kept and
+    /// <see langword="false"/> is returned.
+    /// </summary>
+    public static bool CollectSweepFiles(IEnumerable<string> enumeration, List<string> files, out string? error)
+    {
+        var found = new List<string>();
+        error = null;
+        try
+        {
+            foreach (var f in enumeration)
+            {
+                if (IsEds(f) || IsDcf(f))
+                {
+                    found.Add(f);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            error = ex.Message;
+        }
+
+        found.Sort(StringComparer.OrdinalIgnoreCase);
+        files.AddRange(found);
+        return error is null;
     }
 
     public static List<Finding> CheckFile(string file, bool runLibrary)

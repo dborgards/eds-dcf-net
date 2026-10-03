@@ -57,6 +57,29 @@ public class CheckerSweepAndSectionTests
         }
     }
 
+    [Fact]
+    public void CollectSweepFiles_EnumerationThrowsMidway_KeepsFilesYieldedBeforeTheError()
+    {
+        // Arrange
+        var files = new List<string>();
+
+        // Act
+        var complete = Program.CollectSweepFiles(Throwing(), files, out var error);
+
+        // Assert
+        complete.Should().BeFalse();
+        error.Should().Be("gone");
+        files.Should().Equal("a.eds", "b.dcf");
+
+        static IEnumerable<string> Throwing()
+        {
+            yield return "b.dcf";
+            yield return "readme.txt";
+            yield return "a.eds";
+            throw new IOException("gone");
+        }
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
