@@ -170,6 +170,18 @@ internal static class IniWriteRules
         if (!DeviceCommissioningSemantics.IsWrittenToDcf(commissioning))
             return;
 
+        // Kept entries alone can require [DeviceComissioning] (same emission rule as the DCF
+        // writer). The commissioning data is then omitted, so NodeId is 0, which the DCF writer
+        // rejects. CanOpenModelValidator accepts NodeId 0 for omitted commissioning because it
+        // also serves XDC, which does not write these entries.
+        if (DeviceCommissioningSemantics.IsOmitted(commissioning))
+        {
+            issues.Add(new ValidationIssue(
+                "DeviceCommissioning.NodeId",
+                "Node-ID 0 is outside the CANopen range " + CanOpenNodeId.RangeDescription
+                + ". The kept DeviceCommissioning.RemainingEntries require the [DeviceComissioning] section."));
+        }
+
         Check(commissioning.NodeName, IniTextSlot.Value, "DeviceCommissioning.NodeName", issues);
         CheckIfPresent(commissioning.NodeRefd, IniTextSlot.Value, "DeviceCommissioning.NodeRefd", issues);
         Check(commissioning.NetworkName, IniTextSlot.Value, "DeviceCommissioning.NetworkName", issues);

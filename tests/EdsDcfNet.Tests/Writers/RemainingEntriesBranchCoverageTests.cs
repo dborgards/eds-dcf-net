@@ -163,6 +163,19 @@ public class RemainingEntriesBranchCoverageTests
         SectionEntryKeys.IsCommentsKey("Line" + key, 2).Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData("FileName", null, true)]
+    [InlineData("LastEDS", null, false)]
+    [InlineData("LastEDS", "", false)]
+    [InlineData("lasteds", "source.eds", true)]
+    [InlineData("Vendor", "source.eds", false)]
+    [InlineData("Vendor", null, false)]
+    public void IsWrittenDcfFileInfoKey_KeptKey_IsSuppressedOnlyWhenWritten(string key, string? lastEds, bool expected)
+    {
+        // LastEDS is written only from a non-empty LastEds property (CiA 306-1 § 7.2).
+        SectionEntryKeys.IsWrittenDcfFileInfoKey(key, lastEds).Should().Be(expected);
+    }
+
     [Fact]
     public void IsGeneratedCommentsKey_LinesAndGeneratedLine_AreGenerated()
     {

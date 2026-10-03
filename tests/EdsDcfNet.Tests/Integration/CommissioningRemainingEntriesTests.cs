@@ -51,11 +51,15 @@ public class CommissioningRemainingEntriesTests
         dcf.DeviceCommissioning.RemainingEntries["Vendor"] = "X";
 
         // Act
-        var act = () => CanOpenFile.Dcf.WriteToString(dcf);
+        var unvalidated = () => CanOpenFile.Dcf.WriteToString(dcf);
+        var validated = () => CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Validated);
 
         // Assert — the section is required, so the out-of-range NodeId 0 is reported instead of
-        // the kept entry being dropped silently.
-        act.Should().Throw<DcfWriteException>().WithMessage("*NodeId 0*");
+        // the kept entry being dropped silently: by the guard for a validated write, by the
+        // writer otherwise.
+        unvalidated.Should().Throw<DcfWriteException>().WithMessage("*NodeId 0*");
+        validated.Should().Throw<ModelValidationException>()
+            .Which.Issues.Should().Contain(issue => issue.Path == "DeviceCommissioning.NodeId");
     }
 
     [Fact]
