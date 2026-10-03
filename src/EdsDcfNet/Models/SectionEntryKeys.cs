@@ -279,9 +279,15 @@ internal static class SectionEntryKeys
     /// Compact sub-object list (<c>[xxxxName]</c>, DCF <c>[xxxxValue]</c> /
     /// <c>[xxxxDenotation]</c>): <c>NrOfEntries</c> or a sub-index key the reader applies.
     /// </summary>
-    internal static bool IsCompactListKey(string key)
+    /// <remarks>
+    /// Reader: <paramref name="subIndexes"/> are the object's sub-objects, so only keys that are
+    /// applied to a sub-object count; a numbered key without a matching sub-object is kept as a
+    /// remaining entry. Writer: <paramref name="subIndexes"/> are the entries the writer
+    /// generates, so a kept key is dropped only when the writer emits the same sub-index.
+    /// </remarks>
+    internal static bool IsAppliedCompactListKey(string key, ICollection<byte> subIndexes)
         => string.Equals(key, NrOfEntriesKey, StringComparison.OrdinalIgnoreCase)
-           || TryParseCompactListSubIndex(key, out _);
+           || (TryParseCompactListSubIndex(key, out var subIndex) && subIndexes.Contains(subIndex));
 
     /// <summary>
     /// Parses a compact list key as a decimal sub-index in the CiA 306 range 1..254.

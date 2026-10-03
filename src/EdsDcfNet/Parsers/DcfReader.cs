@@ -170,7 +170,11 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         {
             var sectionName = string.Concat(ToHexInvariant(obj.Index), suffix);
             CanOpenSectionParsers.CaptureUnmappedEntries(
-                sections, sectionName, sectionName, SectionEntryKeys.IsCompactListKey, store);
+                sections,
+                sectionName,
+                sectionName,
+                key => SectionEntryKeys.IsAppliedCompactListKey(key, obj.SubObjects.Keys),
+                store);
         }
     }
 

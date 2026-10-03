@@ -306,7 +306,7 @@ public class DcfWriter : IniWriterBase
                     WriteKeyValue(sb, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
                 }
 
-                WriteRemainingEntries(sb, kept, SectionEntryKeys.IsCompactListKey);
+                WriteRemainingEntries(sb, kept, key => SectionEntryKeys.IsAppliedCompactListKey(key, entries.Keys));
                 sb.AppendLine();
             });
     }

@@ -467,7 +467,7 @@ public abstract class IniWriterBase
                     WriteKeyValue(sb, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
                 }
 
-                WriteRemainingEntries(sb, keptEntries, SectionEntryKeys.IsCompactListKey);
+                WriteRemainingEntries(sb, keptEntries, key => SectionEntryKeys.IsAppliedCompactListKey(key, names.Keys));
 
                 sb.AppendLine();
             });
