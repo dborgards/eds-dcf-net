@@ -139,8 +139,26 @@ public abstract class CanOpenReaderBase
     /// </summary>
     private protected virtual bool TryParseObjectCompanionSectionName(string sectionName, out ushort index)
         => TryParseSubObjectSectionName(sectionName, out index)
-           || TryParseHexPrefixedSection(sectionName, NameSectionSuffix, out index)
-           || TryParseHexPrefixedSection(sectionName, ObjectLinksSectionSuffix, out index);
+           || TryParseCompanionSuffixSection(sectionName, NameSectionSuffix, out index)
+           || TryParseCompanionSuffixSection(sectionName, ObjectLinksSectionSuffix, out index);
+
+    /// <summary>
+    /// Like <see cref="TryParseHexPrefixedSection"/>, but the prefix must consist solely of
+    /// hexadecimal digits: <c>[2000 Name]</c> is an ordinary additional section, not a
+    /// companion of object 0x2000, and must not raise an unlisted-object diagnostic.
+    /// </summary>
+    private protected static bool TryParseCompanionSuffixSection(string sectionName, string suffix, out ushort index)
+    {
+        if (sectionName.Length > suffix.Length &&
+            sectionName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
+            IsHexDigitsOnly(sectionName[..^suffix.Length]))
+        {
+            return TryParseHexPrefixedSection(sectionName, suffix, out index);
+        }
+
+        index = 0;
+        return false;
+    }
 
     /// <summary>
     /// Reports <see cref="Diagnostics.ParseDiagnosticCodes.IniUnlistedObjectSection"/>.

@@ -456,6 +456,48 @@ public class UnlistedObjectSectionTests
     }
 
     [Fact]
+    public void ReadString_CompanionNameWithSpaceBeforeSuffix_PreservedWithoutObjectDiagnostic()
+    {
+        // Arrange — "2000 Name" is not a companion spelling; the space makes it an ordinary section.
+        var content = Eds("""
+            [2000 Name]
+            1=Custom
+            """);
+
+        // Act
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+        var strictAct = () => CanOpenFile.Eds.ReadString(content, Strict);
+
+        // Assert
+        result.Model.AdditionalSections.Keys.Should().BeEquivalentTo("2000 Name");
+        result.Model.AdditionalSections["2000 Name"]["1"].Should().Be("Custom");
+        result.Diagnostics.Should().NotContain(diagnostic =>
+            diagnostic.Code == ParseDiagnosticCodes.IniUnlistedObjectSection);
+        strictAct.Should().NotThrow();
+    }
+
+    [Fact]
+    public void ReadString_DcfCompanionValueWithSpaceBeforeSuffix_PreservedWithoutObjectDiagnostic()
+    {
+        // Arrange — same for the DCF-only companion suffixes.
+        var content = Dcf("""
+            [2000 Value]
+            1=7
+            """);
+
+        // Act
+        var result = CanOpenFile.Dcf.ReadStringWithDiagnostics(content);
+        var strictAct = () => CanOpenFile.Dcf.ReadString(content, Strict);
+
+        // Assert
+        result.Model.AdditionalSections.Keys.Should().BeEquivalentTo("2000 Value");
+        result.Model.AdditionalSections["2000 Value"]["1"].Should().Be("7");
+        result.Diagnostics.Should().NotContain(diagnostic =>
+            diagnostic.Code == ParseDiagnosticCodes.IniUnlistedObjectSection);
+        strictAct.Should().NotThrow();
+    }
+
+    [Fact]
     public void ReadString_UnlistedSubObjectSection_StrictParsing_ThrowsEdsParseException()
     {
         // Arrange
