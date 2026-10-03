@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.14](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.13...v1.15.0-beta.14) (2026-10-03)
+
+### ✨ Features
+
+* **xdd:** keep free-form fileVersion, accept spec baud rates, treat 1018h as mandatory ([#614](https://github.com/dborgards/eds-dcf-net/issues/614)) ([339b613](https://github.com/dborgards/eds-dcf-net/commit/339b6131c95c4689862e63983bec08d9c2398c95))
+
 ## [1.15.0-beta.13](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.12...v1.15.0-beta.13) (2026-10-03)
 
 ### 🐛 Bug Fixes
