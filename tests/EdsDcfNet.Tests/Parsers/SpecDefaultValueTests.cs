@@ -97,6 +97,29 @@ public class SpecDefaultValueTests
     }
 
     [Fact]
+    public void WriteToString_VarWhoseOnlySubObjectIsSubIndexFf_WritesSubNumberOneAndKeepsSubObject()
+    {
+        // Arrange: FFh is not counted by SubNumber, but the reader loads VAR sub-objects only for SubNumber > 0.
+        var variable = new CanOpenObject
+        {
+            Index = 0x2000,
+            ParameterName = "Var",
+            ObjectType = CanOpenObjectType.Var,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadWrite
+        };
+        variable.SubObjects[0xFF] = SubVar(0xFF);
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(EdsWith(variable));
+        var reread = CanOpenFile.Eds.ReadString(written);
+
+        // Assert
+        SectionValue(written, "2000", "SubNumber").Should().Be("1");
+        reread.ObjectDictionary.Objects[0x2000].SubObjects.Should().ContainKey(0xFF);
+    }
+
+    [Fact]
     public void WriteToString_ExplicitSubNumber_IsWrittenAsStored()
     {
         // Arrange

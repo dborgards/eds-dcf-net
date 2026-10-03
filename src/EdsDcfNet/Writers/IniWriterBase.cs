@@ -186,6 +186,12 @@ public abstract class IniWriterBase
         // E10: reject only on validated writes, see IniWriteRules).
         var subNumberToWrite = ResolveSubNumberForWrite(obj, compactMax, useCompact);
         var keepsSubNumberForSubObjects = !IsWritten("SubNumber") && obj.SubObjects.Count > 0;
+        if (keepsSubNumberForSubObjects && subNumberToWrite == 0)
+        {
+            // The reader loads sub-objects of these types only for SubNumber > 0. FFh is not
+            // counted, so a lone FFh sub-object would otherwise write SubNumber=0 and be lost.
+            subNumberToWrite = 1;
+        }
 
         if ((subNumberToWrite > 0 || (!useCompact && obj.SubObjects.Count > 0)) &&
             (IsWritten("SubNumber") || keepsSubNumberForSubObjects))
