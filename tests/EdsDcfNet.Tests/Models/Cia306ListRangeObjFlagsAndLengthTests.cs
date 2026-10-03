@@ -883,4 +883,15 @@ public class Cia306ListRangeObjFlagsAndLengthTests
 
         act.Should().Throw<OperationCanceledException>();
     }
+
+    [Fact]
+    public void WriteToString_PaddedCommentLineKeyOfAnyLength_IsNotLengthChecked()
+    {
+        // Line01 is an ordinary preserved entry (the reader reads only canonical Line<n>).
+        var eds = CanOpenFile.Eds.ReadString(EdsHeader + "[Comments]\nLines=0\nLine01=" + new string('c', 300) + "\n");
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        act.Should().NotThrow();
+    }
 }

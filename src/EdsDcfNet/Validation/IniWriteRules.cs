@@ -410,7 +410,7 @@ internal static class IniWriteRules
         {
             if (!SectionEntryKeys.IsGeneratedCommentsKey(entry.Key, comments.CommentLines.Keys)
                 && entry.Key.StartsWith("Line", StringComparison.OrdinalIgnoreCase)
-                && int.TryParse(entry.Key[4..], NumberStyles.None, CultureInfo.InvariantCulture, out _))
+                && SectionEntryKeys.TryParseEntryNumber(entry.Key[4..], out _))
             {
                 CheckMaxLength(
                     entry.Value,
