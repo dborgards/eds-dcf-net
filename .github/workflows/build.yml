@@ -86,13 +86,14 @@ jobs:
         docs_only=false
         range=""
         if [[ "$EVENT_NAME" == "pull_request" && "$BASE_REF" == "develop" ]]; then
-          # Three-dot: changes since the merge base, like the PR's file list.
+          # Three-dot: changes since the merge base, like the PR's file list;
+          # --no-renames lists a rename's source path as well as its target.
           range="${PR_BASE_SHA}...${PR_HEAD_SHA}"
         elif [[ "$EVENT_NAME" == "push" && -n "$PUSH_BEFORE" && "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]]; then
           range="${PUSH_BEFORE}...${PUSH_AFTER}"
         fi
 
-        if [[ -n "$range" ]] && files=$(git diff --name-only "$range") && [[ -n "$files" ]]; then
+        if [[ -n "$range" ]] && files=$(git diff --name-only --no-renames "$range") && [[ -n "$files" ]]; then
           docs_only=true
           while IFS= read -r file; do
             case "$file" in
