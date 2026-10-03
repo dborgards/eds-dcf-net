@@ -36,14 +36,14 @@ SupportedObjects=1
 [2000]
 ParameterName=Vendor Object
 Group=Motion
-ObjectType=0x7
+ObjectType=0x8
 ParameterValue=eds-extension
 DataType=0x0007
 AccessType=rw
 Lang-Bemerkung=Hinweis
 PDOMAPPING=1
 DefaultValue=0
-SubNumber=1
+CompactSubObj=1
 ObjFlags=1
 
 [2000sub1]
@@ -175,7 +175,7 @@ SupportedObjects=1
 [2000]
 ParameterName=Vendor Object
 Group=Motion
-ObjectType=0x7
+ObjectType=0x8
 ParameterValue=42
 DataType=0x0007
 AccessType=rw
@@ -185,7 +185,7 @@ PDOMapping=0
 ParamRefd=X1
 UploadFile=up.bin
 DownloadFile=down.bin
-SubNumber=1
+CompactSubObj=1
 
 [2000sub1]
 ParameterName=Vendor Sub
@@ -520,7 +520,7 @@ Lang-Bemerkung=Sub note
 
             [2000]
             ParameterName=Vendor Object
-            ObjectType=0x7
+            ObjectType=0x8
             DataType=0x0007
             AccessType=rw
             PDOMapping=0
@@ -530,7 +530,7 @@ Lang-Bemerkung=Sub note
             UploadFile=up.bin
             downloadfile=down.bin
             Group=Motion
-            SubNumber=1
+            CompactSubObj=1
 
             [2000sub1]
             ParameterName=Vendor Sub

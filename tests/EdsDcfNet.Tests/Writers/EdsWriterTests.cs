@@ -217,7 +217,9 @@ public class EdsWriterTests
             SrdoMapping = true,
             InvertedSrad = "0x2000",
             ObjFlags = 0x10,
-            SubNumber = 1
+            SubNumber = 1,
+            // CiA 306-1 Table 7 allows the limits on a RECORD only with non-zero CompactSubObj.
+            CompactSubObj = 1
         };
 
         eds.ObjectDictionary.Objects[0x2000].SubObjects[1] = new CanOpenSubObject
