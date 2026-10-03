@@ -274,6 +274,45 @@ public class XddValueRangesMandatoryObjectsTests
         Attributes(written, "fileVersion").Should().Equal(text, text);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void WriteToString_XddEmptyFileVersionAttribute_RoundTripsCharacterExactInBothModes(string text)
+    {
+        // Arrange
+        var xml = Document(fileVersion: text);
+
+        // Act
+        var lenient = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml);
+        var strict = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml, Strict);
+        var written = CanOpenFile.Xdd.WriteToString(strict.Model, CanOpenWriteOptions.Validated);
+
+        // Assert
+        foreach (var result in new[] { lenient, strict })
+        {
+            result.Model.FileInfo.FileVersion.Should().Be(1);
+            result.Model.FileInfo.FileVersionText.Should().Be(text);
+            result.Diagnostics.Should().ContainSingle(d => d.Code == ParseDiagnosticCodes.XddFileVersionNotNumeric);
+        }
+
+        Attributes(written, "fileVersion").Should().Equal(text, text);
+    }
+
+    [Fact]
+    public void ReadString_XddMissingFileVersionAttribute_KeepsDefaultWithoutText()
+    {
+        // Arrange
+        var xml = Document().Replace(" fileVersion=\"1\"", string.Empty);
+
+        // Act
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml);
+
+        // Assert
+        result.Model.FileInfo.FileVersion.Should().Be(1);
+        result.Model.FileInfo.FileVersionText.Should().BeNull();
+        result.Diagnostics.Should().NotContain(d => d.Code == ParseDiagnosticCodes.XddFileVersionNotNumeric);
+    }
+
     [Fact]
     public void ReadStringWithDiagnostics_XddMajorMinorFileVersionWithMajorAboveByte_KeepsTextWithoutThrowing()
     {

@@ -23,10 +23,9 @@ internal static class XddDeviceProfileParser
         // "1,0") also sets the major component, other text leaves the default and is reported. Both
         // are valid xsd:string input, so StrictParsing does not reject them. Whitespace-only matches a missing
         // attribute and keeps the model default (1).
-        var fileVersionText = profileBody.Attribute("fileVersion")?.Value ?? string.Empty;
-        var fileVersionStr = fileVersionText.Trim();
-        if (!string.IsNullOrEmpty(fileVersionStr))
-            ReadFileVersion(fileInfo, fileVersionText, fileVersionStr);
+        var fileVersionText = profileBody.Attribute("fileVersion")?.Value;
+        if (fileVersionText != null)
+            ReadFileVersion(fileInfo, fileVersionText, fileVersionText.Trim());
 
         // fileCreationDate is xsd:date "YYYY-MM-DD" → convert to EDS "MM-DD-YYYY". The original
         // spelling (it may carry a time zone) is kept so the writer can emit it unchanged.
