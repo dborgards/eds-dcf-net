@@ -150,6 +150,12 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
            || ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(sectionName, model.ObjectDictionary);
 
     /// <inheritdoc/>
+    private protected override bool TryParseObjectCompanionSectionName(string sectionName, out ushort index)
+        => base.TryParseObjectCompanionSectionName(sectionName, out index)
+           || TryParseHexPrefixedSection(sectionName, "Value", out index)
+           || TryParseHexPrefixedSection(sectionName, "Denotation", out index);
+
+    /// <inheritdoc/>
     protected override EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
         var fileInfo = base.ParseFileInfo(sections);

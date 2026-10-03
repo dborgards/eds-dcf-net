@@ -301,6 +301,196 @@ public class UnlistedObjectSectionTests
     }
 
     [Fact]
+    public void WriteToString_UnlistedRecordWithSubObjectSections_RoundTripsAllSectionsVerbatim()
+    {
+        // Arrange — [2000] is unlisted; its sub-object sections belong to it and must survive too.
+        var content = Eds("""
+            [2000]
+            ParameterName=Hidden Record
+            ObjectType=0x9
+            SubNumber=2
+
+            [2000sub0]
+            ParameterName=NrOfEntries
+            ObjectType=0x7
+            DataType=0x0005
+            AccessType=ro
+            DefaultValue=1
+            PDOMapping=0
+
+            [2000sub1]
+            ParameterName=Hidden Entry
+            ObjectType=0x7
+            DataType=0x0007
+            AccessType=rw
+            DefaultValue=0x12345678
+            PDOMapping=1
+            """);
+        var read = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(read.Model);
+        var again = CanOpenFile.Eds.ReadStringWithDiagnostics(written);
+
+        // Assert
+        read.Model.ObjectDictionary.Objects.Should().NotContainKey(0x2000);
+        read.Model.AdditionalSections.Keys.Should().BeEquivalentTo("2000", "2000sub0", "2000sub1");
+        read.Model.AdditionalSections["2000sub0"]["ParameterName"].Should().Be("NrOfEntries");
+        read.Model.AdditionalSections["2000sub1"]["DefaultValue"].Should().Be("0x12345678");
+        read.Model.AdditionalSections["2000sub1"]["PDOMapping"].Should().Be("1");
+        read.Diagnostics.Should().ContainSingle(diagnostic =>
+            diagnostic.Code == ParseDiagnosticCodes.IniUnlistedObjectSection)
+            .Which.Path.Should().Be("2000");
+
+        written.Should().Contain("[2000sub0]").And.Contain("[2000sub1]");
+        again.Model.ObjectDictionary.Objects.Should().NotContainKey(0x2000);
+        again.Model.AdditionalSections.Keys.Should().BeEquivalentTo("2000", "2000sub0", "2000sub1");
+        again.Model.AdditionalSections["2000"].Should().Equal(read.Model.AdditionalSections["2000"]);
+        again.Model.AdditionalSections["2000sub0"].Should().Equal(read.Model.AdditionalSections["2000sub0"]);
+        again.Model.AdditionalSections["2000sub1"].Should().Equal(read.Model.AdditionalSections["2000sub1"]);
+    }
+
+    [Fact]
+    public void WriteToString_DcfUnlistedObjectWithAuxiliarySections_RoundTripsAllSectionsVerbatim()
+    {
+        // Arrange — DCF per-object companions of an unlisted compact array.
+        var content = Dcf("""
+            [2000]
+            ParameterName=Hidden Array
+            ObjectType=0x8
+            DataType=0x0005
+            AccessType=rw
+            CompactSubObj=2
+
+            [2000ObjectLinks]
+            ObjectLinks=1
+            1=0x1000
+
+            [2000Value]
+            NrOfEntries=2
+            1=11
+            2=22
+
+            [2000Denotation]
+            NrOfEntries=1
+            1=First
+            """);
+        var read = CanOpenFile.Dcf.ReadStringWithDiagnostics(content);
+
+        // Act
+        var written = CanOpenFile.Dcf.WriteToString(read.Model);
+        var again = CanOpenFile.Dcf.ReadStringWithDiagnostics(written);
+
+        // Assert
+        read.Model.ObjectDictionary.Objects.Should().NotContainKey(0x2000);
+        read.Model.AdditionalSections.Keys.Should().BeEquivalentTo(
+            "2000", "2000ObjectLinks", "2000Value", "2000Denotation");
+        read.Model.AdditionalSections["2000Value"]["2"].Should().Be("22");
+        read.Model.AdditionalSections["2000Denotation"]["1"].Should().Be("First");
+        read.Model.AdditionalSections["2000ObjectLinks"]["1"].Should().Be("0x1000");
+        read.Diagnostics.Should().ContainSingle(diagnostic =>
+            diagnostic.Code == ParseDiagnosticCodes.IniUnlistedObjectSection)
+            .Which.Path.Should().Be("2000");
+
+        written.Should().Contain("[2000Value]").And.Contain("[2000Denotation]").And.Contain("[2000ObjectLinks]");
+        again.Model.ObjectDictionary.Objects.Should().NotContainKey(0x2000);
+        again.Model.AdditionalSections.Keys.Should().BeEquivalentTo(
+            "2000", "2000ObjectLinks", "2000Value", "2000Denotation");
+        again.Model.AdditionalSections["2000Value"].Should().Equal(read.Model.AdditionalSections["2000Value"]);
+        again.Model.AdditionalSections["2000Denotation"].Should().Equal(read.Model.AdditionalSections["2000Denotation"]);
+        again.Model.AdditionalSections["2000ObjectLinks"].Should().Equal(read.Model.AdditionalSections["2000ObjectLinks"]);
+    }
+
+    [Fact]
+    public void ReadString_UnlistedSubObjectSectionWithoutParentSection_PreservesAndReportsOnce()
+    {
+        // Arrange — no [2000] body at all; the first orphan companion carries the diagnostic.
+        var content = Eds("""
+            [2000sub0]
+            ParameterName=Orphan Count
+
+            [2000sub1]
+            ParameterName=Orphan Entry
+            """);
+
+        // Act
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+
+        // Assert
+        result.Model.AdditionalSections.Keys.Should().BeEquivalentTo("2000sub0", "2000sub1");
+        result.Model.AdditionalSections["2000sub1"]["ParameterName"].Should().Be("Orphan Entry");
+        result.Diagnostics.Should().ContainSingle(diagnostic =>
+            diagnostic.Code == ParseDiagnosticCodes.IniUnlistedObjectSection &&
+            diagnostic.Message == "object section 0x2000 not listed in any object list")
+            .Which.Path.Should().Be("2000sub0");
+    }
+
+    [Fact]
+    public void ReadString_UnlistedSubObjectSection_StrictParsing_ThrowsEdsParseException()
+    {
+        // Arrange
+        var content = Eds("""
+            [2000sub1]
+            ParameterName=Orphan Entry
+            """);
+
+        // Act
+        var act = () => CanOpenFile.Eds.ReadString(content, Strict);
+
+        // Assert
+        var exception = act.Should().Throw<EdsParseException>().Which;
+        exception.Code.Should().Be(ParseDiagnosticCodes.IniUnlistedObjectSection);
+        exception.SectionName.Should().Be("2000sub1");
+    }
+
+    [Fact]
+    public void ReadString_ListedRecordWithSubObjectAndAuxiliarySections_ParsesObjectAndCopiesNothing()
+    {
+        // Arrange — the same companions of a listed index are parsed, not preserved.
+        var content = Dcf("""
+            [ManufacturerObjects]
+            SupportedObjects=1
+            1=0x2000
+
+            [2000]
+            ParameterName=Listed Record
+            ObjectType=0x9
+            SubNumber=2
+
+            [2000sub0]
+            ParameterName=NrOfEntries
+            ObjectType=0x7
+            DataType=0x0005
+            AccessType=ro
+            DefaultValue=1
+
+            [2000sub1]
+            ParameterName=Listed Entry
+            ObjectType=0x7
+            DataType=0x0007
+            AccessType=rw
+            DefaultValue=0
+            ParameterValue=7
+
+            [2000ObjectLinks]
+            ObjectLinks=1
+            1=0x1000
+            """);
+
+        // Act
+        var result = CanOpenFile.Dcf.ReadStringWithDiagnostics(content);
+
+        // Assert
+        var obj = result.Model.ObjectDictionary.Objects.Should().ContainKey(0x2000).WhoseValue;
+        obj.SubObjects.Should().HaveCount(2);
+        obj.SubObjects[1].ParameterValue.Should().Be("7");
+        obj.ObjectLinks.Should().Equal((ushort)0x1000);
+        result.Model.AdditionalSections.Should().BeEmpty();
+        result.Diagnostics.Should().NotContain(diagnostic =>
+            diagnostic.Code == ParseDiagnosticCodes.IniUnlistedObjectSection);
+    }
+
+    [Fact]
     public void ReadString_CpjHexSection_PreservedWithoutObjectDiagnostic()
     {
         // Arrange — CPJ has no object lists; a hex section is an ordinary extra section.

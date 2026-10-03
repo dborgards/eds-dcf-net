@@ -1594,10 +1594,11 @@ ObjectLinks=1
     }
 
     [Fact]
-    public void ReadString_OrphanPaddedValueAndDenotation_ReaderDropsThem()
+    public void ReadString_OrphanPaddedValueAndDenotation_ReaderPreservesThem()
     {
-        // Arrange — IsKnownSection accepts any hex-prefixed Value/Denotation
-        // section, then ApplyCompactListSection never runs without a parent object.
+        // Arrange — 0x0040 is in no object list, so its hex-prefixed Value/Denotation
+        // companions are preserved in AdditionalSections (with INI_UNLISTED_OBJECT_SECTION)
+        // instead of being dropped; OBJ011 still reports the padded spelling.
         const string content = @"
 [DeviceInfo]
 VendorName=Test
@@ -1629,8 +1630,8 @@ PDOMapping=0
 
         // Assert
         loaded.ObjectDictionary.Objects.Should().NotContainKey((ushort)0x40);
-        loaded.AdditionalSections.Should().NotContainKey("0040Value");
-        loaded.AdditionalSections.Should().NotContainKey("00040Denotation");
+        loaded.AdditionalSections["0040Value"]["1"].Should().Be("7");
+        loaded.AdditionalSections["00040Denotation"]["1"].Should().Be("Label");
     }
 
     [Theory]
