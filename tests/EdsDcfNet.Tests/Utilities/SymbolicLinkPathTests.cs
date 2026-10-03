@@ -28,6 +28,26 @@ public class SymbolicLinkPathTests
         next.Should().Be(rawTarget);
     }
 
+#if NET
+    [Theory]
+    [InlineData(@"D:\links\link.eds", @"\x.eds", @"D:\x.eds")]
+    [InlineData(@"C:\links\link.eds", @"C:x.eds", @"C:\links\x.eds")]
+    public void Next_WindowsRootedButNotFullyQualifiedTarget_IsQualifiedAgainstLinkLocation(
+        string link,
+        string rawTarget,
+        string expected)
+    {
+        Assert.SkipUnless(IsWindows, "Root-relative and drive-relative paths are Windows path syntax.");
+
+        // Act
+        var next = SymbolicLinkPath.Next(link, rawTarget);
+
+        // Assert
+        next.Should().Be(expected);
+        Path.IsPathFullyQualified(next).Should().BeTrue();
+    }
+#endif
+
     [Fact]
     public void Next_UnixAbsoluteTarget_IsReturnedVerbatim()
     {
