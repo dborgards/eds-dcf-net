@@ -723,6 +723,27 @@ public class ObjectTypeKeyMatrixTests
             issue.Code == ValidationIssueCodes.IniSubObjectsNotSupported);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData((byte)3)]
+    public void WriteToString_VarWithOnlySubIndexZero_UnvalidatedRoundTripKeepsSubObject(byte? compactSubObj)
+    {
+        // Arrange: E10 writes the sub-object count, so a lone sub-index 0 is not SubNumber=0.
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        var obj = eds.ObjectDictionary.Objects[0x1000];
+        obj.CompactSubObj = compactSubObj;
+        obj.SubObjects[0] = Var(0, "Count", 0x0005);
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(eds);
+        var reread = CanOpenFile.Eds.ReadString(written);
+
+        // Assert
+        written.Should().Contain("SubNumber=1");
+        reread.ObjectDictionary.Objects[0x1000].SubObjects.Keys.Should().Equal((byte)0);
+        reread.ObjectDictionary.Objects[0x1000].SubObjects[0].ParameterName.Should().Be("Count");
+    }
+
     [Fact]
     public void WriteToString_DcfVarWithSubObjects_ValidatedWriteRejects()
     {

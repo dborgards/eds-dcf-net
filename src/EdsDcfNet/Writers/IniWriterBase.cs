@@ -185,8 +185,17 @@ public abstract class IniWriterBase
         // an object has sub-objects, so an unvalidated write loses nothing on re-read (decision
         // E10: reject only on validated writes, see IniWriteRules).
         var subNumberToWrite = ResolveSubNumberForWrite(obj, compactMax, useCompact);
+        var keepsSubNumberForSubObjects = !IsWritten("SubNumber") && obj.SubObjects.Count > 0;
+        if (keepsSubNumberForSubObjects)
+        {
+            // The reader loads sub-objects of these types only for SubNumber > 0, so the E10 path
+            // writes the sub-object count (at least 1), not the highest sub-index: a lone
+            // sub-index 0 must not become SubNumber=0. The general S11 correction is WP-11.
+            subNumberToWrite = Math.Max((byte)1, DescribedSubIndexCount(obj));
+        }
+
         if ((subNumberToWrite > 0 || (!useCompact && obj.SubObjects.Count > 0)) &&
-            (IsWritten("SubNumber") || obj.SubObjects.Count > 0))
+            (IsWritten("SubNumber") || keepsSubNumberForSubObjects))
         {
             WriteKeyValue(sb, "SubNumber", subNumberToWrite.ToString(CultureInfo.InvariantCulture));
         }
