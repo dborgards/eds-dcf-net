@@ -187,7 +187,7 @@ public class XddSchemaNamespaceTests
     }
 
     [Theory]
-    [InlineData("Fixtures/sample_device.xdd", "xdd", 2)]
+    [InlineData("Fixtures/sample_device.xdd", "xdd", 0)]
     [InlineData("Fixtures/sample_device.eds", "eds", 0)]
     [InlineData(CorpusXdd, "xdd", 0)]
     [InlineData("Fixtures/minimal.xdc", "xdc", 0)]
@@ -275,11 +275,7 @@ public class XddSchemaNamespaceTests
 
     private static string[] ExpectedRemainder(string path) => path switch
     {
-        "Fixtures/sample_device.xdd" => new[]
-        {
-            "The element 'enum' in namespace 'http://www.canopen.org/xml/1.1' has invalid child element 'USINT'. List of possible elements expected: 'label, description, labelRef, descriptionRef' as well as 'enumValue' in namespace 'http://www.canopen.org/xml/1.1'.",
-            "The element 'parameterGroup' in namespace 'http://www.canopen.org/xml/1.1' has invalid child element 'parameterGroup' in namespace 'http://www.canopen.org/xml/1.1'. List of possible elements expected: 'parameterRef' in namespace 'http://www.canopen.org/xml/1.1'.",
-        },
+        "Fixtures/sample_device.xdd" => Array.Empty<string>(),
         "Fixtures/sample_device.eds" => Array.Empty<string>(),
         CorpusXdd => Array.Empty<string>(),
         "Fixtures/minimal.xdc" => Array.Empty<string>(),
