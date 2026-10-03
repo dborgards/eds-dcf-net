@@ -175,7 +175,7 @@ public abstract class IniWriterBase
             string.Format(CultureInfo.InvariantCulture, "{0:X}", obj.Index));
 
         // CiA 306-1 Table 7: keys marked "n" for the object type are not written.
-        bool IsWritten(string key) => !ObjectTypeKeyMatrix.IsNotSupported(obj.ObjectType, useCompact, key);
+        bool IsWritten(string key) => IsObjectKeyWritten(obj, key);
 
         // CiA 306: SubNumber is normally omitted under CompactSubObj. Keep/emit it when
         // expanded sub-objects exist above the compact range so the reader can reach them
@@ -354,6 +354,21 @@ public abstract class IniWriterBase
         Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
     }
+
+    /// <summary>
+    /// <see langword="false"/> when CiA 306-1 Table 7 marks <paramref name="key"/> as not supported
+    /// for <paramref name="obj"/>, so the object writer omits it. Shared with the validated-write
+    /// rules, which check only keys that are written.
+    /// </summary>
+    internal static bool IsObjectKeyWritten(CanOpenObject obj, string key)
+        => !ObjectTypeKeyMatrix.IsNotSupported(obj.ObjectType, GetCompactMaxSubIndex(obj) > 0, key);
+
+    /// <summary>
+    /// Sub-object counterpart of <see cref="IsObjectKeyWritten"/>; a sub-object has no
+    /// <c>CompactSubObj</c> of its own.
+    /// </summary>
+    internal static bool IsSubObjectKeyWritten(CanOpenSubObject subObj, string key)
+        => !ObjectTypeKeyMatrix.IsNotSupported(subObj.ObjectType, hasCompactSubObj: false, key);
 
     /// <summary>
     /// Highest compact-listable sub-index for <paramref name="obj"/>, or 0 when
@@ -537,7 +552,7 @@ public abstract class IniWriterBase
 
         // CiA 306-1 Table 7 applies to sub-index sections as well; a sub-object has no
         // CompactSubObj of its own.
-        bool IsWritten(string key) => !ObjectTypeKeyMatrix.IsNotSupported(subObj.ObjectType, hasCompactSubObj: false, key);
+        bool IsWritten(string key) => IsSubObjectKeyWritten(subObj, key);
 
         WriteKeyValue(sb, "ParameterName", subObj.ParameterName);
         WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(subObj.ObjectType));

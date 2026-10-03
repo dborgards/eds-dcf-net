@@ -206,7 +206,7 @@ internal static class IniWriteRules
                 "ObjectDictionary.Objects[0x{0:X4}]",
                 entry.Key);
             ApplyObjectTypeSubObjects(entry.Value, objectPath, issues);
-            ApplyObject(entry.Value, includeDcfFields, objectPath, issues);
+            ApplyObject(entry.Value, includeDcfFields, objectPath, issues, appliesKeyMatrix: true);
         }
     }
 
@@ -231,16 +231,26 @@ internal static class IniWriteRules
             ValidationIssueCodes.IniSubObjectsNotSupported));
     }
 
+    /// <summary>
+    /// Checks the text fields the writer emits. <paramref name="appliesKeyMatrix"/> is
+    /// <see langword="true"/> for object-dictionary entries, whose writer omits CiA 306-1 Table 7
+    /// "n" keys (<see cref="Writers.IniWriterBase.IsObjectKeyWritten"/>); module fixed objects
+    /// are written without the matrix.
+    /// </summary>
     private static void ApplyObject(
         CanOpenObject obj,
         bool includeDcfFields,
         string objectPath,
-        List<ValidationIssue> issues)
+        List<ValidationIssue> issues,
+        bool appliesKeyMatrix)
     {
         Check(obj.ParameterName, IniTextSlot.Value, objectPath + ".ParameterName", issues);
-        CheckIfPresent(obj.DefaultValue, IniTextSlot.Value, objectPath + ".DefaultValue", issues);
-        CheckIfPresent(obj.LowLimit, IniTextSlot.Value, objectPath + ".LowLimit", issues);
-        CheckIfPresent(obj.HighLimit, IniTextSlot.Value, objectPath + ".HighLimit", issues);
+        if (!appliesKeyMatrix || Writers.IniWriterBase.IsObjectKeyWritten(obj, "DefaultValue"))
+            CheckIfPresent(obj.DefaultValue, IniTextSlot.Value, objectPath + ".DefaultValue", issues);
+        if (!appliesKeyMatrix || Writers.IniWriterBase.IsObjectKeyWritten(obj, "LowLimit"))
+            CheckIfPresent(obj.LowLimit, IniTextSlot.Value, objectPath + ".LowLimit", issues);
+        if (!appliesKeyMatrix || Writers.IniWriterBase.IsObjectKeyWritten(obj, "HighLimit"))
+            CheckIfPresent(obj.HighLimit, IniTextSlot.Value, objectPath + ".HighLimit", issues);
         CheckIfPresent(obj.InvertedSrad, IniTextSlot.Value, objectPath + ".InvertedSrad", issues);
         if (includeDcfFields)
         {
@@ -264,7 +274,7 @@ internal static class IniWriteRules
                 "{0}.SubObjects[0x{1:X2}]",
                 objectPath,
                 subEntry.Key);
-            ApplySubObject(subEntry.Value, includeDcfFields, subPath, issues);
+            ApplySubObject(subEntry.Value, includeDcfFields, subPath, issues, appliesKeyMatrix);
         }
     }
 
@@ -272,12 +282,16 @@ internal static class IniWriteRules
         CanOpenSubObject subObj,
         bool includeDcfFields,
         string subPath,
-        List<ValidationIssue> issues)
+        List<ValidationIssue> issues,
+        bool appliesKeyMatrix)
     {
         Check(subObj.ParameterName, IniTextSlot.Value, subPath + ".ParameterName", issues);
-        CheckIfPresent(subObj.DefaultValue, IniTextSlot.Value, subPath + ".DefaultValue", issues);
-        CheckIfPresent(subObj.LowLimit, IniTextSlot.Value, subPath + ".LowLimit", issues);
-        CheckIfPresent(subObj.HighLimit, IniTextSlot.Value, subPath + ".HighLimit", issues);
+        if (!appliesKeyMatrix || Writers.IniWriterBase.IsSubObjectKeyWritten(subObj, "DefaultValue"))
+            CheckIfPresent(subObj.DefaultValue, IniTextSlot.Value, subPath + ".DefaultValue", issues);
+        if (!appliesKeyMatrix || Writers.IniWriterBase.IsSubObjectKeyWritten(subObj, "LowLimit"))
+            CheckIfPresent(subObj.LowLimit, IniTextSlot.Value, subPath + ".LowLimit", issues);
+        if (!appliesKeyMatrix || Writers.IniWriterBase.IsSubObjectKeyWritten(subObj, "HighLimit"))
+            CheckIfPresent(subObj.HighLimit, IniTextSlot.Value, subPath + ".HighLimit", issues);
         CheckIfPresent(subObj.InvertedSrad, IniTextSlot.Value, subPath + ".InvertedSrad", issues);
         if (includeDcfFields)
         {
@@ -353,7 +367,7 @@ internal static class IniWriteRules
                     entry.Key);
                 // WriteModuleFixedObject emits DCF value fields and filters remaining
                 // entries with the DCF key set for both EDS and DCF.
-                ApplyObject(entry.Value, includeDcfFields: true, objectPath, issues);
+                ApplyObject(entry.Value, includeDcfFields: true, objectPath, issues, appliesKeyMatrix: false);
             }
 
             foreach (var entry in module.SubExtensionDefinitions)

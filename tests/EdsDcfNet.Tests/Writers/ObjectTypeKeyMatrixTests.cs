@@ -723,6 +723,69 @@ public class ObjectTypeKeyMatrixTests
             issue.Code == ValidationIssueCodes.IniSubObjectsNotSupported);
     }
 
+    [Fact]
+    public void WriteToString_RecordWithUnwrittenDefaultValue_ValidatedWriteSkipsTextCheck()
+    {
+        // Arrange: DefaultValue is "n" for a RECORD without CompactSubObj and is never written,
+        // so its leading space cannot break the round-trip.
+        var record = StructuredObject(CanOpenObjectType.Record);
+        record.DefaultValue = " 1";
+        record.LowLimit = " 0";
+        record.HighLimit = " 2";
+        var eds = EdsWith(record);
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        SectionKeys(written, "2000").Should().NotContain(new[] { "DefaultValue", "LowLimit", "HighLimit" });
+    }
+
+    [Fact]
+    public void WriteToString_SubObjectsWithUnwrittenKeys_ValidatedWriteSkipsTextCheck()
+    {
+        // Arrange
+        var record = StructuredObject(CanOpenObjectType.Record);
+        record.DefaultValue = string.Empty;
+        record.SubObjects[0].ObjectType = CanOpenObjectType.Record;
+        record.SubObjects[0].DefaultValue = " 1";
+        record.SubObjects[1].ObjectType = CanOpenObjectType.Domain;
+        record.SubObjects[1].LowLimit = " 0";
+        record.SubObjects[1].HighLimit = " 1";
+        var eds = EdsWith(record);
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        SectionKeys(written, "2000sub0").Should().NotContain("DefaultValue");
+        SectionKeys(written, "2000sub1").Should().NotContain(new[] { "LowLimit", "HighLimit" });
+    }
+
+    [Fact]
+    public void WriteToString_VarWithLeadingSpaceDefaultValue_ValidatedWriteRejects()
+    {
+        // Arrange
+        var variable = new CanOpenObject
+        {
+            Index = 0x2000,
+            ParameterName = "Var",
+            ObjectType = CanOpenObjectType.Var,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadWrite,
+            DefaultValue = " 1"
+        };
+        var eds = EdsWith(variable);
+
+        // Act
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        act.Should().Throw<ModelValidationException>().Which.Issues.Should().Contain(issue =>
+            issue.Path == "ObjectDictionary.Objects[0x2000].DefaultValue" &&
+            issue.Code == ValidationIssueCodes.IniTextNotRoundTrippable);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData((byte)3)]
