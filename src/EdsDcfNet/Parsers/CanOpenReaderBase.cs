@@ -38,16 +38,21 @@ public abstract class CanOpenReaderBase
         ICanOpenFileModel model,
         Dictionary<string, Dictionary<string, string>> sections)
     {
+        // Every section parsed here keeps the entries it does not map (CiA 306-1 § 6.2), on its
+        // model object or in model.SectionRemainingEntries; see SectionEntryKeys.
         model.FileInfo = ParseFileInfo(sections);
+        CanOpenSectionParsers.CaptureUnmappedEntries(
+            sections, "FileInfo", IsKnownFileInfoEntryKey, model.FileInfo.RemainingEntries);
         model.DeviceInfo = CanOpenSectionParsers.ParseDeviceInfo(sections);
         ParsePreObjectDictionarySections(model, sections);
         model.ObjectDictionary = ParseObjectDictionary(sections);
+        CaptureObjectDictionarySectionEntries(model, sections);
         model.Comments = CanOpenSectionParsers.ParseComments(sections);
         ParsePostObjectDictionarySections(model, sections);
 
-        model.SupportedModules.AddRange(CanOpenSectionParsers.ParseSupportedModules(sections));
+        model.SupportedModules.AddRange(CanOpenSectionParsers.ParseSupportedModules(sections, model.SectionRemainingEntries));
         model.DynamicChannels = CanOpenSectionParsers.ParseDynamicChannels(sections);
-        model.Tools.AddRange(CanOpenSectionParsers.ParseTools(sections));
+        model.Tools.AddRange(CanOpenSectionParsers.ParseTools(sections, model.SectionRemainingEntries));
 
         // Preserve unknown sections for round-trip fidelity. A hexadecimal name is an
         // object index: listed indexes are parsed as objects, and an index that is in
@@ -85,6 +90,73 @@ public abstract class CanOpenReaderBase
             }
         }
     }
+
+    /// <summary>
+    /// <see langword="true"/> for a <c>[FileInfo]</c> key mapped onto <see cref="EdsFileInfo"/>.
+    /// DCF adds <c>LastEDS</c>.
+    /// </summary>
+    private protected virtual bool IsKnownFileInfoEntryKey(string key) => SectionEntryKeys.IsEdsFileInfoKey(key);
+
+    /// <summary>
+    /// Keeps the unmapped entries of the object-dictionary sections in
+    /// <c>SectionRemainingEntries</c>: the three object lists, <c>[DummyUsage]</c>, and for
+    /// every parsed object its consumed compact <c>[xxxxName]</c> and its
+    /// <c>[xxxxObjectLinks]</c>. Object and sub-object bodies keep theirs on
+    /// <see cref="CanOpenObject.RemainingEntries"/> / <see cref="CanOpenSubObject.RemainingEntries"/>.
+    /// </summary>
+    /// <remarks>
+    /// <c>[xxxxObjectLinks]</c> of an EDS object stays in <c>AdditionalSections</c> as before,
+    /// but the writer emits the section from the object and skips that copy, so its unmapped
+    /// entries are kept here as well.
+    /// </remarks>
+    private void CaptureObjectDictionarySectionEntries(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections)
+    {
+        var store = model.SectionRemainingEntries;
+        foreach (var listSection in ObjectListSectionNames)
+        {
+            CanOpenSectionParsers.CaptureCountedListEntries(
+                sections, listSection, SectionEntryKeys.SupportedObjectsKey, store);
+        }
+
+        CanOpenSectionParsers.CaptureUnmappedEntries(
+            sections, "DummyUsage", "DummyUsage", SectionEntryKeys.IsDummyUsageKey, store);
+
+        foreach (var obj in model.ObjectDictionary.Objects.Values)
+        {
+            var prefix = ToHexInvariant(obj.Index);
+            if (obj.CompactSubObj.GetValueOrDefault() > 0)
+            {
+                var nameSection = string.Concat(prefix, NameSectionSuffix);
+                CanOpenSectionParsers.CaptureUnmappedEntries(
+                    sections, nameSection, nameSection, SectionEntryKeys.IsCompactListKey, store);
+            }
+
+            CanOpenSectionParsers.CaptureCountedListEntries(
+                sections,
+                string.Concat(prefix, ObjectLinksSectionSuffix),
+                SectionEntryKeys.ObjectLinksCountKey,
+                store);
+            CaptureObjectCompanionEntries(sections, obj, store);
+        }
+    }
+
+    /// <summary>
+    /// Extension point for format-specific per-object companion sections whose unmapped entries
+    /// are kept in <paramref name="store"/> (DCF: <c>[xxxxValue]</c>, <c>[xxxxDenotation]</c>).
+    /// </summary>
+    private protected virtual void CaptureObjectCompanionEntries(
+        Dictionary<string, Dictionary<string, string>> sections,
+        CanOpenObject obj,
+        Dictionary<string, OrderedStringDictionary> store)
+    {
+    }
+
+    private static readonly string[] ObjectListSectionNames =
+    {
+        "MandatoryObjects", "OptionalObjects", "ManufacturerObjects"
+    };
 
     /// <summary>
     /// Keeps a section that belongs to an object index no object list cites: the object
@@ -320,8 +392,7 @@ public abstract class CanOpenReaderBase
                 if (!key.StartsWith("Dummy", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                var indexStr = key.Length > 5 ? key[5..] : string.Empty;
-                if (ushort.TryParse(indexStr, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var index))
+                if (SectionEntryKeys.TryParseDummyUsageKey(key, out var index))
                 {
                     objDict.DummyUsage[index] = ValueConverter.ParseBoolean(
                         IniParser.GetValue(sections, "DummyUsage", key));
@@ -647,9 +718,7 @@ public abstract class CanOpenReaderBase
     /// Reserved sub-index <c>0xFF</c> and non-numeric keys are rejected.
     /// </summary>
     private static bool TryParseCompactListSubIndex(string key, out byte subIndex)
-        => byte.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out subIndex)
-           && subIndex >= 1
-           && subIndex <= MaxCompactListableSubIndex;
+        => SectionEntryKeys.TryParseCompactListSubIndex(key, out subIndex);
 
     /// <summary>CiA 301 / CiA 306 UNSIGNED8 data-type index.</summary>
     private const ushort Unsigned8DataType = 0x0005;

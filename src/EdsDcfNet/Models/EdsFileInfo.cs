@@ -75,4 +75,16 @@ public class EdsFileInfo
     /// For DCF files: File name of the EDS file used as template.
     /// </summary>
     public string? LastEds { get; set; }
+
+    /// <summary>
+    /// Entries of the <c>[FileInfo]</c> section that the reader does not map onto a
+    /// property, in file order. Keys compare case-insensitively.
+    /// </summary>
+    /// <remarks>
+    /// CiA 306-1 allows additional entries inside the standard sections "in order to support
+    /// future extensions" (§ 6.2). The EDS/DCF writers emit these entries after the keys they
+    /// generate for the section. A key the writer already generates for this section is not
+    /// written a second time. In a DCF, <c>LastEDS</c> is mapped onto <see cref="LastEds"/>; an EDS keeps it here.
+    /// </remarks>
+    public OrderedStringDictionary RemainingEntries { get; } = new();
 }

@@ -74,11 +74,23 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, "CANopenSafetySupported", ValueConverter.FormatBoolean(deviceInfo.CANopenSafetySupported));
         }
 
+        WriteRemainingEntries(sb, deviceInfo.RemainingEntries, SectionEntryKeys.IsDeviceInfoKey);
+
         sb.AppendLine();
     }
 
     /// <summary>Writes the [DummyUsage] section.</summary>
     protected static void WriteDummyUsage(StringBuilder sb, ObjectDictionary objDict)
+        => WriteDummyUsage(sb, objDict, sectionEntries: null);
+
+    /// <summary>
+    /// Writes <c>[DummyUsage]</c>, then the kept entries of that section from
+    /// <paramref name="sectionEntries"/> (see <c>SectionRemainingEntries</c>).
+    /// </summary>
+    private protected static void WriteDummyUsage(
+        StringBuilder sb,
+        ObjectDictionary objDict,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
         IniRoundTripText.WriteSectionHeader(sb, "DummyUsage");
 
@@ -87,14 +99,51 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, string.Format(CultureInfo.InvariantCulture, "Dummy{0:X4}", dummy.Key), ValueConverter.FormatBoolean(dummy.Value));
         }
 
+        WriteRemainingEntries(sb, GetSectionEntries(sectionEntries, "DummyUsage"), SectionEntryKeys.IsDummyUsageKey);
+
         sb.AppendLine();
     }
 
     /// <summary>Writes MandatoryObjects, OptionalObjects, and ManufacturerObjects list sections.</summary>
     protected static void WriteObjectLists(StringBuilder sb, ObjectDictionary objDict)
     {
-        ObjectListSectionWriter.WriteObjectLists(sb, objDict, WriteKeyValue);
+        ObjectListSectionWriter.WriteObjectLists(sb, objDict, WriteKeyValue, sectionEntries: null);
     }
+
+    /// <summary>
+    /// Writes the three object list sections with their kept entries. A list without objects is
+    /// written when <paramref name="sectionEntries"/> keeps entries for it.
+    /// </summary>
+    private protected static void WriteObjectLists(
+        StringBuilder sb,
+        ObjectDictionary objDict,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
+    {
+        ObjectListSectionWriter.WriteObjectLists(sb, objDict, WriteKeyValue, sectionEntries);
+    }
+
+    /// <summary>
+    /// Returns the kept entries of <paramref name="sectionName"/>, or <see langword="null"/>
+    /// when there are none.
+    /// </summary>
+    private protected static OrderedStringDictionary? GetSectionEntries(
+        Dictionary<string, OrderedStringDictionary>? sectionEntries,
+        string sectionName)
+        => sectionEntries != null
+           && sectionEntries.TryGetValue(sectionName, out var entries)
+           && entries != null
+           && entries.Count > 0
+            ? entries
+            : null;
+
+    /// <summary>
+    /// <see langword="true"/> when <paramref name="sectionEntries"/> keeps at least one entry
+    /// for <paramref name="sectionName"/>.
+    /// </summary>
+    private protected static bool HasSectionEntries(
+        Dictionary<string, OrderedStringDictionary>? sectionEntries,
+        string sectionName)
+        => GetSectionEntries(sectionEntries, sectionName) != null;
 
     /// <summary>
     /// Writes the shared (EDS) fields of a <see cref="CanOpenObject"/>.
@@ -104,6 +153,19 @@ public abstract class IniWriterBase
     /// <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c> lists are emitted (CiA 306).
     /// </summary>
     protected void WriteObject(StringBuilder sb, CanOpenObject obj, Action<string, Action> writeSection)
+        => WriteObject(sb, obj, writeSection, sectionEntries: null);
+
+    /// <summary>
+    /// Writes an object like <see cref="WriteObject(StringBuilder, CanOpenObject, Action{string, Action})"/>
+    /// and appends the kept entries of its companion sections (<c>[xxxxName]</c>,
+    /// <c>[xxxxObjectLinks]</c>, DCF <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c>) from
+    /// <paramref name="sectionEntries"/>.
+    /// </summary>
+    private protected void WriteObject(
+        StringBuilder sb,
+        CanOpenObject obj,
+        Action<string, Action> writeSection,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
         var compactMax = GetCompactMaxSubIndex(obj);
         var useCompact = compactMax > 0;
@@ -191,13 +253,21 @@ public abstract class IniWriterBase
 
         if (useCompact)
         {
-            WriteCompactNameSection(sb, obj, compactMax, expandedSubIndexes, writeSection);
-            WriteCompactValueAndDenotationSections(sb, obj, compactMax, expandedSubIndexes, writeSection);
+            WriteCompactNameSection(sb, obj, compactMax, expandedSubIndexes, writeSection, sectionEntries);
         }
 
-        if (obj.ObjectLinks.Count > 0)
+        WriteCompactValueAndDenotationSections(
+            sb,
+            obj,
+            useCompact ? compactMax : 0,
+            expandedSubIndexes,
+            writeSection,
+            sectionEntries);
+
+        var linkSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}ObjectLinks", obj.Index);
+        var keptLinkEntries = GetSectionEntries(sectionEntries, linkSectionName);
+        if (obj.ObjectLinks.Count > 0 || keptLinkEntries != null)
         {
-            var linkSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}ObjectLinks", obj.Index);
             writeSection(
                 linkSectionName,
                 () =>
@@ -212,9 +282,33 @@ public abstract class IniWriterBase
                         WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(obj.ObjectLinks[i]));
                     }
 
+                    WriteRemainingEntries(
+                        sb,
+                        keptLinkEntries,
+                        key => SectionEntryKeys.IsCountedListKey(key, SectionEntryKeys.ObjectLinksCountKey, obj.ObjectLinks.Count));
+
                     sb.AppendLine();
                 });
         }
+    }
+
+    /// <summary>
+    /// Writes the compact value lists and, when <paramref name="sectionEntries"/> keeps entries
+    /// for them, their kept entries. <paramref name="compactMax"/> is <c>0</c> for an object
+    /// without CompactSubObj storage. The default calls
+    /// <see cref="WriteCompactValueAndDenotationSections(StringBuilder, CanOpenObject, int, HashSet{byte}, Action{string, Action})"/>
+    /// for compact objects only.
+    /// </summary>
+    private protected virtual void WriteCompactValueAndDenotationSections(
+        StringBuilder sb,
+        CanOpenObject obj,
+        int compactMax,
+        HashSet<byte> expandedSubIndexes,
+        Action<string, Action> writeSection,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
+    {
+        if (compactMax > 0)
+            WriteCompactValueAndDenotationSections(sb, obj, compactMax, expandedSubIndexes, writeSection);
     }
 
     /// <summary>
@@ -333,7 +427,8 @@ public abstract class IniWriterBase
         CanOpenObject obj,
         int compactMax,
         HashSet<byte> expandedSubIndexes,
-        Action<string, Action> writeSection)
+        Action<string, Action> writeSection,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
         var names = new SortedDictionary<byte, string>();
         for (var i = 1; i <= compactMax; i++)
@@ -354,10 +449,11 @@ public abstract class IniWriterBase
             }
         }
 
-        if (names.Count == 0)
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Name", obj.Index);
+        var keptEntries = GetSectionEntries(sectionEntries, sectionName);
+        if (names.Count == 0 && keptEntries == null)
             return;
 
-        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Name", obj.Index);
         writeSection(
             sectionName,
             () =>
@@ -370,6 +466,8 @@ public abstract class IniWriterBase
                 {
                     WriteKeyValue(sb, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
                 }
+
+                WriteRemainingEntries(sb, keptEntries, SectionEntryKeys.IsCompactListKey);
 
                 sb.AppendLine();
             });
@@ -461,13 +559,18 @@ public abstract class IniWriterBase
     /// <summary>
     /// Writes unknown section keys in insertion order, after the known keywords.
     /// Keys that this format already writes from dedicated properties are skipped so they
-    /// cannot be emitted twice or replace a commissioned property value.
+    /// cannot be emitted twice or replace a commissioned property value. For list sections
+    /// <paramref name="isDedicatedKey"/> also covers the entries the writer generated, so a
+    /// generated entry wins over a kept entry with the same key.
     /// </summary>
-    private static void WriteRemainingEntries(
+    private protected static void WriteRemainingEntries(
         StringBuilder sb,
-        OrderedStringDictionary entries,
+        OrderedStringDictionary? entries,
         Func<string, bool> isDedicatedKey)
     {
+        if (entries == null)
+            return;
+
         foreach (var entry in entries)
         {
             if (isDedicatedKey(entry.Key))
@@ -487,14 +590,28 @@ public abstract class IniWriterBase
 
     /// <summary>Writes the [SupportedModules] list and each [M{n}ModuleInfo] section.</summary>
     protected static void WriteSupportedModules(StringBuilder sb, List<ModuleInfo> modules)
+        => WriteSupportedModules(sb, modules, sectionEntries: null);
+
+    /// <summary>
+    /// Writes <c>[SupportedModules]</c> and every module with the kept entries of each module
+    /// section from <paramref name="sectionEntries"/>.
+    /// </summary>
+    private protected static void WriteSupportedModules(
+        StringBuilder sb,
+        List<ModuleInfo> modules,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
         IniRoundTripText.WriteSectionHeader(sb, "SupportedModules");
         WriteKeyValue(sb, "NrOfEntries", modules.Count.ToString(CultureInfo.InvariantCulture));
+        WriteRemainingEntries(
+            sb,
+            GetSectionEntries(sectionEntries, "SupportedModules"),
+            SectionEntryKeys.IsSupportedModulesKey);
         sb.AppendLine();
 
         foreach (var module in modules)
         {
-            WriteModuleInfo(sb, module);
+            WriteModuleInfo(sb, module, sectionEntries);
         }
     }
 
@@ -505,14 +622,20 @@ public abstract class IniWriterBase
     /// <c>[MxSubExtxxxx]</c>.
     /// </summary>
     protected static void WriteModuleInfo(StringBuilder sb, ModuleInfo module)
+        => WriteModuleInfo(sb, module, sectionEntries: null);
+
+    private static void WriteModuleInfo(
+        StringBuilder sb,
+        ModuleInfo module,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
-        IniRoundTripText.WriteSectionHeader(
-            sb,
-            string.Format(CultureInfo.InvariantCulture, "M{0}ModuleInfo", module.ModuleNumber));
+        var moduleInfoSection = string.Format(CultureInfo.InvariantCulture, "M{0}ModuleInfo", module.ModuleNumber);
+        IniRoundTripText.WriteSectionHeader(sb, moduleInfoSection);
         WriteKeyValue(sb, "ProductName", module.ProductName);
         WriteKeyValue(sb, "ProductVersion", module.ProductVersion.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "ProductRevision", module.ProductRevision.ToString(CultureInfo.InvariantCulture));
         WriteKeyValue(sb, "OrderCode", module.OrderCode);
+        WriteRemainingEntries(sb, GetSectionEntries(sectionEntries, moduleInfoSection), SectionEntryKeys.IsModuleInfoKey);
         sb.AppendLine();
 
         if (module.Comments != null)
@@ -520,11 +643,11 @@ public abstract class IniWriterBase
             WriteModuleComments(sb, module);
         }
 
-        if (module.FixedObjects.Count > 0)
+        var fixedObjectsSection = string.Format(CultureInfo.InvariantCulture, "M{0}FixedObjects", module.ModuleNumber);
+        var keptFixedObjects = GetSectionEntries(sectionEntries, fixedObjectsSection);
+        if (module.FixedObjects.Count > 0 || keptFixedObjects != null)
         {
-            IniRoundTripText.WriteSectionHeader(
-                sb,
-                string.Format(CultureInfo.InvariantCulture, "M{0}FixedObjects", module.ModuleNumber));
+            IniRoundTripText.WriteSectionHeader(sb, fixedObjectsSection);
             WriteKeyValue(sb, "NrOfEntries", module.FixedObjects.Count.ToString(CultureInfo.InvariantCulture));
 
             for (int i = 0; i < module.FixedObjects.Count; i++)
@@ -532,6 +655,10 @@ public abstract class IniWriterBase
                 WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), ValueConverter.FormatInteger(module.FixedObjects[i]));
             }
 
+            WriteRemainingEntries(
+                sb,
+                keptFixedObjects,
+                key => SectionEntryKeys.IsCountedListKey(key, SectionEntryKeys.NrOfEntriesKey, module.FixedObjects.Count));
             sb.AppendLine();
         }
 
@@ -555,11 +682,11 @@ public abstract class IniWriterBase
             WriteModuleFixedObject(sb, module.ModuleNumber, index, module.FixedObjectDefinitions[index]);
         }
 
-        if (module.SubExtends.Count > 0)
+        var subExtendsSection = string.Format(CultureInfo.InvariantCulture, "M{0}SubExtends", module.ModuleNumber);
+        var keptSubExtends = GetSectionEntries(sectionEntries, subExtendsSection);
+        if (module.SubExtends.Count > 0 || keptSubExtends != null)
         {
-            IniRoundTripText.WriteSectionHeader(
-                sb,
-                string.Format(CultureInfo.InvariantCulture, "M{0}SubExtends", module.ModuleNumber));
+            IniRoundTripText.WriteSectionHeader(sb, subExtendsSection);
             WriteKeyValue(sb, "NrOfEntries", module.SubExtends.Count.ToString(CultureInfo.InvariantCulture));
 
             for (var i = 0; i < module.SubExtends.Count; i++)
@@ -570,6 +697,10 @@ public abstract class IniWriterBase
                     ValueConverter.FormatInteger(module.SubExtends[i]));
             }
 
+            WriteRemainingEntries(
+                sb,
+                keptSubExtends,
+                key => SectionEntryKeys.IsCountedListKey(key, SectionEntryKeys.NrOfEntriesKey, module.SubExtends.Count));
             sb.AppendLine();
         }
 
@@ -581,7 +712,7 @@ public abstract class IniWriterBase
 
             if (module.SubExtensionDefinitions.TryGetValue(index, out var listed))
             {
-                WriteModuleSubExtension(sb, module.ModuleNumber, index, listed);
+                WriteModuleSubExtension(sb, module.ModuleNumber, index, listed, sectionEntries);
             }
         }
 
@@ -590,7 +721,7 @@ public abstract class IniWriterBase
             if (writtenExtensions.Contains(index))
                 continue;
 
-            WriteModuleSubExtension(sb, module.ModuleNumber, index, module.SubExtensionDefinitions[index]);
+            WriteModuleSubExtension(sb, module.ModuleNumber, index, module.SubExtensionDefinitions[index], sectionEntries);
         }
     }
 
@@ -608,12 +739,23 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, string.Format(CultureInfo.InvariantCulture, "Line{0}", line.Key), line.Value);
         }
 
+        WriteCommentsRemainingEntries(sb, comments);
         sb.AppendLine();
     }
 
     /// <summary>
+    /// Kept entries of <c>[Comments]</c> / <c>[MxComments]</c>. A <c>Line&lt;n&gt;</c> generated
+    /// from <see cref="Comments.CommentLines"/> wins over a kept entry with the same key.
+    /// </summary>
+    private static void WriteCommentsRemainingEntries(StringBuilder sb, Comments comments)
+        => WriteRemainingEntries(
+            sb,
+            comments.RemainingEntries,
+            key => SectionEntryKeys.IsGeneratedCommentsKey(key, comments.CommentLines.Keys));
+
+    /// <summary>
     /// Writes <c>[MxFixedxxxx]</c> and its <c>[MxFixedxxxxsubx]</c> sections.
-    /// Field order matches <see cref="WriteObject"/> so a module object body is
+    /// Field order matches <see cref="WriteObject(StringBuilder, CanOpenObject, Action{string, Action})"/> so a module object body is
     /// the same canonical INI as a dictionary object, with the module prefix.
     /// An explicit <see cref="CanOpenObject.SubNumber"/> is written as stored.
     /// When it is absent and sub-objects exist, the emitted value is the described-entry
@@ -804,11 +946,11 @@ public abstract class IniWriterBase
         StringBuilder sb,
         int moduleNumber,
         ushort index,
-        ModuleSubExtension extension)
+        ModuleSubExtension extension,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
-        IniRoundTripText.WriteSectionHeader(
-            sb,
-            string.Format(CultureInfo.InvariantCulture, "M{0}SubExt{1:X}", moduleNumber, index));
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "M{0}SubExt{1:X}", moduleNumber, index);
+        IniRoundTripText.WriteSectionHeader(sb, sectionName);
 
         if (extension.SubNumber.HasValue)
         {
@@ -859,6 +1001,7 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, "ObjExtend", extension.ObjExtend.Value.ToString(CultureInfo.InvariantCulture));
         }
 
+        WriteRemainingEntries(sb, GetSectionEntries(sectionEntries, sectionName), SectionEntryKeys.IsModuleSubExtensionKey);
         sb.AppendLine();
     }
 
@@ -873,6 +1016,7 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, string.Format(CultureInfo.InvariantCulture, "Line{0}", line.Key), line.Value);
         }
 
+        WriteCommentsRemainingEntries(sb, comments);
         sb.AppendLine();
     }
 
@@ -892,14 +1036,29 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, $"PPOffset{idx}", seg.PPOffset.ToString(CultureInfo.InvariantCulture));
         }
 
+        WriteRemainingEntries(
+            sb,
+            dynamicChannels.RemainingEntries,
+            key => SectionEntryKeys.IsDynamicChannelsKey(key, dynamicChannels.Segments.Count));
         sb.AppendLine();
     }
 
     /// <summary>Writes the [Tools] list and each [Tool{n}] section.</summary>
     protected static void WriteTools(StringBuilder sb, List<ToolInfo> tools)
+        => WriteTools(sb, tools, sectionEntries: null);
+
+    /// <summary>
+    /// Writes <c>[Tools]</c> with its kept entries from <paramref name="sectionEntries"/>, then
+    /// each <c>[Tool{n}]</c> with <see cref="ToolInfo.RemainingEntries"/>.
+    /// </summary>
+    private protected static void WriteTools(
+        StringBuilder sb,
+        List<ToolInfo> tools,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
         IniRoundTripText.WriteSectionHeader(sb, "Tools");
         WriteKeyValue(sb, "Items", tools.Count.ToString(CultureInfo.InvariantCulture));
+        WriteRemainingEntries(sb, GetSectionEntries(sectionEntries, "Tools"), SectionEntryKeys.IsToolsKey);
         sb.AppendLine();
 
         for (int i = 0; i < tools.Count; i++)
@@ -910,9 +1069,32 @@ public abstract class IniWriterBase
                 string.Format(CultureInfo.InvariantCulture, "Tool{0}", idx));
             WriteKeyValue(sb, "Name", tools[i].Name);
             WriteKeyValue(sb, "Command", tools[i].Command);
+            WriteRemainingEntries(sb, tools[i].RemainingEntries, SectionEntryKeys.IsToolKey);
             sb.AppendLine();
         }
     }
+
+    /// <summary>
+    /// <see langword="true"/> when <paramref name="sectionEntries"/> or the model keeps entries
+    /// that require the <c>[Tools]</c> section although there is no tool.
+    /// </summary>
+    private protected static bool MustWriteTools(
+        List<ToolInfo> tools,
+        Dictionary<string, OrderedStringDictionary> sectionEntries)
+        => tools.Count > 0 || HasSectionEntries(sectionEntries, "Tools");
+
+    /// <summary>
+    /// <see langword="true"/> when <c>[Comments]</c> has lines or kept entries to write.
+    /// </summary>
+    private protected static bool MustWriteComments(Comments? comments)
+        => comments != null && (comments.CommentLines.Count > 0 || comments.RemainingEntries.Count > 0);
+
+    /// <summary>
+    /// <see langword="true"/> when <c>[DynamicChannels]</c> has segments or kept entries to write.
+    /// </summary>
+    private protected static bool MustWriteDynamicChannels(DynamicChannels? dynamicChannels)
+        => dynamicChannels != null
+           && (dynamicChannels.Segments.Count > 0 || dynamicChannels.RemainingEntries.Count > 0);
 
     /// <summary>Writes a non-standard additional section.</summary>
     protected static void WriteAdditionalSection(StringBuilder sb, string sectionName, Dictionary<string, string> entries)

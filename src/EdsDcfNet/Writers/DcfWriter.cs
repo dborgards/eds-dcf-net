@@ -227,6 +227,21 @@ public class DcfWriter : IniWriterBase
         int compactMax,
         HashSet<byte> expandedSubIndexes,
         Action<string, Action> writeSection)
+        => WriteCompactValueAndDenotationSections(sb, obj, compactMax, expandedSubIndexes, writeSection, sectionEntries: null);
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Also called with <paramref name="compactMax"/> <c>0</c> for an object without compact
+    /// storage: the reader applies <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c> to every object,
+    /// so a list section that only carries kept entries is written again.
+    /// </remarks>
+    private protected override void WriteCompactValueAndDenotationSections(
+        StringBuilder sb,
+        CanOpenObject obj,
+        int compactMax,
+        HashSet<byte> expandedSubIndexes,
+        Action<string, Action> writeSection,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
         WriteCompactListSection(
             sb,
@@ -235,7 +250,8 @@ public class DcfWriter : IniWriterBase
             expandedSubIndexes,
             writeSection,
             "Value",
-            static sub => sub.ParameterValue);
+            static sub => sub.ParameterValue,
+            sectionEntries);
 
         WriteCompactListSection(
             sb,
@@ -244,7 +260,8 @@ public class DcfWriter : IniWriterBase
             expandedSubIndexes,
             writeSection,
             "Denotation",
-            static sub => sub.Denotation);
+            static sub => sub.Denotation,
+            sectionEntries);
     }
 
     private static void WriteCompactListSection(
@@ -254,7 +271,8 @@ public class DcfWriter : IniWriterBase
         HashSet<byte> expandedSubIndexes,
         Action<string, Action> writeSection,
         string suffix,
-        Func<CanOpenSubObject, string?> selectValue)
+        Func<CanOpenSubObject, string?> selectValue,
+        Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
         var entries = new SortedDictionary<byte, string>();
         for (var i = 1; i <= compactMax; i++)
@@ -270,10 +288,11 @@ public class DcfWriter : IniWriterBase
                 entries[subIndex] = value!;
         }
 
-        if (entries.Count == 0)
+        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}{1}", obj.Index, suffix);
+        var kept = GetSectionEntries(sectionEntries, sectionName);
+        if (entries.Count == 0 && kept == null)
             return;
 
-        var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}{1}", obj.Index, suffix);
         writeSection(
             sectionName,
             () =>
@@ -287,6 +306,7 @@ public class DcfWriter : IniWriterBase
                     WriteKeyValue(sb, entry.Key.ToString(CultureInfo.InvariantCulture), entry.Value);
                 }
 
+                WriteRemainingEntries(sb, kept, SectionEntryKeys.IsCompactListKey);
                 sb.AppendLine();
             });
     }
@@ -332,10 +352,14 @@ public class DcfWriter : IniWriterBase
             WriteKeyValue(sb, "LSS_SerialNumber", dc.LssSerialNumber.Value.ToString(CultureInfo.InvariantCulture));
         }
 
+        WriteRemainingEntries(sb, dc.RemainingEntries, SectionEntryKeys.IsDeviceCommissioningKey);
         sb.AppendLine();
     }
 
-    private static void WriteConnectedModules(StringBuilder sb, List<int> connectedModules)
+    private static void WriteConnectedModules(
+        StringBuilder sb,
+        List<int> connectedModules,
+        Dictionary<string, OrderedStringDictionary> sectionEntries)
     {
         IniRoundTripText.WriteSectionHeader(sb, "ConnectedModules");
         WriteKeyValue(sb, "NrOfEntries", connectedModules.Count.ToString(CultureInfo.InvariantCulture));
@@ -345,6 +369,10 @@ public class DcfWriter : IniWriterBase
             WriteKeyValue(sb, (i + 1).ToString(CultureInfo.InvariantCulture), connectedModules[i].ToString(CultureInfo.InvariantCulture));
         }
 
+        WriteRemainingEntries(
+            sb,
+            GetSectionEntries(sectionEntries, "ConnectedModules"),
+            key => SectionEntryKeys.IsCountedListKey(key, SectionEntryKeys.NrOfEntriesKey, connectedModules.Count));
         sb.AppendLine();
     }
 
@@ -357,6 +385,7 @@ public class DcfWriter : IniWriterBase
             WriteKeyValue(sb, "LastEDS", fileInfo.LastEds);
         }
 
+        WriteRemainingEntries(sb, fileInfo.RemainingEntries, SectionEntryKeys.IsDcfFileInfoKey);
         sb.AppendLine();
     }
 
@@ -365,6 +394,7 @@ public class DcfWriter : IniWriterBase
     private static string GenerateDcfContent(DeviceConfigurationFile dcf)
     {
         var sb = new StringBuilder();
+        var sectionEntries = dcf.SectionRemainingEntries;
 
         WriteSection("FileInfo", () => WriteDcfFileInfo(sb, dcf.FileInfo));
 
@@ -375,38 +405,38 @@ public class DcfWriter : IniWriterBase
             WriteSection("DeviceCommissioning", () => WriteDeviceCommissioning(sb, dcf.DeviceCommissioning));
         }
 
-        if (dcf.ObjectDictionary.DummyUsage.Count > 0)
+        if (dcf.ObjectDictionary.DummyUsage.Count > 0 || HasSectionEntries(sectionEntries, "DummyUsage"))
         {
-            WriteSection("DummyUsage", () => WriteDummyUsage(sb, dcf.ObjectDictionary));
+            WriteSection("DummyUsage", () => WriteDummyUsage(sb, dcf.ObjectDictionary, sectionEntries));
         }
 
-        WriteSection("ObjectLists", () => WriteObjectLists(sb, dcf.ObjectDictionary));
+        WriteSection("ObjectLists", () => WriteObjectLists(sb, dcf.ObjectDictionary, sectionEntries));
 
-        WriteSection("Objects", () => WriteObjects(sb, dcf.ObjectDictionary));
+        WriteSection("Objects", () => WriteObjects(sb, dcf.ObjectDictionary, sectionEntries));
 
-        if (dcf.SupportedModules.Count > 0)
+        if (dcf.SupportedModules.Count > 0 || HasSectionEntries(sectionEntries, "SupportedModules"))
         {
-            WriteSection("SupportedModules", () => WriteSupportedModules(sb, dcf.SupportedModules));
+            WriteSection("SupportedModules", () => WriteSupportedModules(sb, dcf.SupportedModules, sectionEntries));
         }
 
-        if (dcf.ConnectedModules.Count > 0)
+        if (dcf.ConnectedModules.Count > 0 || HasSectionEntries(sectionEntries, "ConnectedModules"))
         {
-            WriteSection("ConnectedModules", () => WriteConnectedModules(sb, dcf.ConnectedModules));
+            WriteSection("ConnectedModules", () => WriteConnectedModules(sb, dcf.ConnectedModules, sectionEntries));
         }
 
-        if (dcf.DynamicChannels != null && dcf.DynamicChannels.Segments.Count > 0)
+        if (MustWriteDynamicChannels(dcf.DynamicChannels))
         {
-            WriteSection("DynamicChannels", () => WriteDynamicChannels(sb, dcf.DynamicChannels));
+            WriteSection("DynamicChannels", () => WriteDynamicChannels(sb, dcf.DynamicChannels!));
         }
 
-        if (dcf.Tools.Count > 0)
+        if (MustWriteTools(dcf.Tools, sectionEntries))
         {
-            WriteSection("Tools", () => WriteTools(sb, dcf.Tools));
+            WriteSection("Tools", () => WriteTools(sb, dcf.Tools, sectionEntries));
         }
 
-        if (dcf.Comments != null && dcf.Comments.CommentLines.Count > 0)
+        if (MustWriteComments(dcf.Comments))
         {
-            WriteSection("Comments", () => WriteComments(sb, dcf.Comments));
+            WriteSection("Comments", () => WriteComments(sb, dcf.Comments!));
         }
 
         foreach (var section in dcf.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
@@ -422,14 +452,17 @@ public class DcfWriter : IniWriterBase
         return sb.ToString();
     }
 
-    private static void WriteObjects(StringBuilder sb, ObjectDictionary objDict)
+    private static void WriteObjects(
+        StringBuilder sb,
+        ObjectDictionary objDict,
+        Dictionary<string, OrderedStringDictionary> sectionEntries)
     {
         var allObjects = objDict.Objects.OrderBy(o => o.Key);
 
         foreach (var objEntry in allObjects)
         {
             var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", objEntry.Key);
-            WriteSection(sectionName, () => Instance.WriteObject(sb, objEntry.Value, WriteSection));
+            WriteSection(sectionName, () => Instance.WriteObject(sb, objEntry.Value, WriteSection, sectionEntries));
         }
     }
 

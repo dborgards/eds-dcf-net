@@ -32,4 +32,7 @@ internal interface ICanOpenFileModel
 
     /// <summary>Additional sections not covered by the standard specification.</summary>
     Dictionary<string, Dictionary<string, string>> AdditionalSections { get; }
+
+    /// <summary>Unmapped entries of processed standard sections, keyed by section name.</summary>
+    Dictionary<string, OrderedStringDictionary> SectionRemainingEntries { get; }
 }

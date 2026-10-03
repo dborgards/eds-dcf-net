@@ -93,6 +93,18 @@ public class DeviceInfo
     /// CANopen Safety supported according to EN 50325-5 (Boolean, 0 = not supported, 1 = supported).
     /// </summary>
     public bool CANopenSafetySupported { get; set; }
+
+    /// <summary>
+    /// Entries of the <c>[DeviceInfo]</c> section that the reader does not map onto a
+    /// property, in file order. Keys compare case-insensitively.
+    /// </summary>
+    /// <remarks>
+    /// CiA 306-1 allows additional entries inside the standard sections "in order to support
+    /// future extensions" (§ 6.2). The EDS/DCF writers emit these entries after the keys they
+    /// generate for the section. A key the writer already generates for this section is not
+    /// written a second time. This includes the entries CiA 306-1 § 6.5 reserves for compatibility, such as <c>ProductVersion</c>, <c>ProductRevision</c>, <c>LMT_ManufacturerName</c>, <c>LMT_ProductName</c>, <c>ExtendedBootUpMaster</c> and <c>ExtendedBootUpSlave</c>.
+    /// </remarks>
+    public OrderedStringDictionary RemainingEntries { get; } = new();
 }
 
 /// <summary>

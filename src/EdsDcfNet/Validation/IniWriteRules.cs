@@ -30,9 +30,11 @@ internal static class IniWriteRules
             case DeviceConfigurationFile dcf:
                 ApplyFile(dcf, includeDcfFields: true, issues);
                 ApplyCommissioning(dcf.DeviceCommissioning, issues);
+                ApplySectionRemainingEntries(dcf.SectionRemainingEntries, issues);
                 break;
             case ElectronicDataSheet eds:
                 ApplyFile(eds, includeDcfFields: false, issues);
+                ApplySectionRemainingEntries(eds.SectionRemainingEntries, issues);
                 break;
             case NodelistProject cpj:
                 ApplyProject(cpj, issues);
@@ -145,6 +147,12 @@ internal static class IniWriteRules
         Check(fileInfo.ModifiedBy, IniTextSlot.Value, "FileInfo.ModifiedBy", issues);
         if (includeLastEds)
             CheckIfPresent(fileInfo.LastEds, IniTextSlot.Value, "FileInfo.LastEds", issues);
+
+        ApplyRemaining(
+            fileInfo.RemainingEntries,
+            includeLastEds ? SectionEntryKeys.IsDcfFileInfoKey : SectionEntryKeys.IsEdsFileInfoKey,
+            "FileInfo",
+            issues);
     }
 
     private static void ApplyDeviceInfo(DeviceInfo deviceInfo, List<ValidationIssue> issues)
@@ -152,6 +160,7 @@ internal static class IniWriteRules
         Check(deviceInfo.VendorName, IniTextSlot.Value, "DeviceInfo.VendorName", issues);
         Check(deviceInfo.ProductName, IniTextSlot.Value, "DeviceInfo.ProductName", issues);
         Check(deviceInfo.OrderCode, IniTextSlot.Value, "DeviceInfo.OrderCode", issues);
+        ApplyRemaining(deviceInfo.RemainingEntries, SectionEntryKeys.IsDeviceInfoKey, "DeviceInfo", issues);
     }
 
     private static void ApplyCommissioning(DeviceCommissioning commissioning, List<ValidationIssue> issues)
@@ -163,6 +172,11 @@ internal static class IniWriteRules
         CheckIfPresent(commissioning.NodeRefd, IniTextSlot.Value, "DeviceCommissioning.NodeRefd", issues);
         Check(commissioning.NetworkName, IniTextSlot.Value, "DeviceCommissioning.NetworkName", issues);
         CheckIfPresent(commissioning.NetRefd, IniTextSlot.Value, "DeviceCommissioning.NetRefd", issues);
+        ApplyRemaining(
+            commissioning.RemainingEntries,
+            SectionEntryKeys.IsDeviceCommissioningKey,
+            "DeviceCommissioning",
+            issues);
     }
 
     private static void ApplyDictionary(ObjectDictionary dictionary, bool includeDcfFields, List<ValidationIssue> issues)
@@ -261,8 +275,14 @@ internal static class IniWriteRules
 
     private static void ApplyCommentLines(Comments? comments, string path, List<ValidationIssue> issues)
     {
-        if (comments == null || comments.CommentLines.Count == 0)
+        if (comments == null)
             return;
+
+        ApplyRemaining(
+            comments.RemainingEntries,
+            key => SectionEntryKeys.IsGeneratedCommentsKey(key, comments.CommentLines.Keys),
+            path,
+            issues);
 
         foreach (var line in comments.CommentLines)
         {
@@ -315,8 +335,14 @@ internal static class IniWriteRules
 
     private static void ApplyDynamicChannels(DynamicChannels? dynamicChannels, List<ValidationIssue> issues)
     {
-        if (dynamicChannels == null || dynamicChannels.Segments.Count == 0)
+        if (dynamicChannels == null)
             return;
+
+        ApplyRemaining(
+            dynamicChannels.RemainingEntries,
+            key => SectionEntryKeys.IsDynamicChannelsKey(key, dynamicChannels.Segments.Count),
+            "DynamicChannels",
+            issues);
 
         for (var i = 0; i < dynamicChannels.Segments.Count; i++)
         {
@@ -335,6 +361,29 @@ internal static class IniWriteRules
             var path = string.Format(CultureInfo.InvariantCulture, "Tools[{0}]", i);
             Check(tools[i].Name, IniTextSlot.Value, path + ".Name", issues);
             Check(tools[i].Command, IniTextSlot.Value, path + ".Command", issues);
+            ApplyRemaining(tools[i].RemainingEntries, SectionEntryKeys.IsToolKey, path, issues);
+        }
+    }
+
+    /// <summary>
+    /// Checks every kept entry of <c>SectionRemainingEntries</c>. The writer emits them under
+    /// the canonical section name, so only keys and values are checked.
+    /// </summary>
+    private static void ApplySectionRemainingEntries(
+        Dictionary<string, OrderedStringDictionary> sections,
+        List<ValidationIssue> issues)
+    {
+        foreach (var section in sections)
+        {
+            if (section.Value == null)
+                continue;
+
+            foreach (var entry in section.Value)
+            {
+                var path = "SectionRemainingEntries[" + section.Key + "][" + entry.Key + "]";
+                Check(entry.Key, IniTextSlot.Key, path, issues);
+                Check(entry.Value, IniTextSlot.Value, path, issues);
+            }
         }
     }
 

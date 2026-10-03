@@ -167,42 +167,44 @@ public class EdsWriter : IniWriterBase
     private static string GenerateEdsContent(ElectronicDataSheet eds)
     {
         var sb = new StringBuilder();
+        var sectionEntries = eds.SectionRemainingEntries;
 
         WriteSection("FileInfo", () =>
         {
             WriteFileInfo(sb, eds.FileInfo);
+            WriteRemainingEntries(sb, eds.FileInfo.RemainingEntries, SectionEntryKeys.IsEdsFileInfoKey);
             sb.AppendLine();
         });
 
         WriteSection("DeviceInfo", () => WriteDeviceInfo(sb, eds.DeviceInfo));
 
-        if (eds.ObjectDictionary.DummyUsage.Count > 0)
+        if (eds.ObjectDictionary.DummyUsage.Count > 0 || HasSectionEntries(sectionEntries, "DummyUsage"))
         {
-            WriteSection("DummyUsage", () => WriteDummyUsage(sb, eds.ObjectDictionary));
+            WriteSection("DummyUsage", () => WriteDummyUsage(sb, eds.ObjectDictionary, sectionEntries));
         }
 
-        WriteSection("ObjectLists", () => WriteObjectLists(sb, eds.ObjectDictionary));
+        WriteSection("ObjectLists", () => WriteObjectLists(sb, eds.ObjectDictionary, sectionEntries));
 
-        WriteSection("Objects", () => WriteObjects(sb, eds.ObjectDictionary));
+        WriteSection("Objects", () => WriteObjects(sb, eds.ObjectDictionary, sectionEntries));
 
-        if (eds.SupportedModules.Count > 0)
+        if (eds.SupportedModules.Count > 0 || HasSectionEntries(sectionEntries, "SupportedModules"))
         {
-            WriteSection("SupportedModules", () => WriteSupportedModules(sb, eds.SupportedModules));
+            WriteSection("SupportedModules", () => WriteSupportedModules(sb, eds.SupportedModules, sectionEntries));
         }
 
-        if (eds.DynamicChannels != null && eds.DynamicChannels.Segments.Count > 0)
+        if (MustWriteDynamicChannels(eds.DynamicChannels))
         {
-            WriteSection("DynamicChannels", () => WriteDynamicChannels(sb, eds.DynamicChannels));
+            WriteSection("DynamicChannels", () => WriteDynamicChannels(sb, eds.DynamicChannels!));
         }
 
-        if (eds.Tools.Count > 0)
+        if (MustWriteTools(eds.Tools, sectionEntries))
         {
-            WriteSection("Tools", () => WriteTools(sb, eds.Tools));
+            WriteSection("Tools", () => WriteTools(sb, eds.Tools, sectionEntries));
         }
 
-        if (eds.Comments != null && eds.Comments.CommentLines.Count > 0)
+        if (MustWriteComments(eds.Comments))
         {
-            WriteSection("Comments", () => WriteComments(sb, eds.Comments));
+            WriteSection("Comments", () => WriteComments(sb, eds.Comments!));
         }
 
         foreach (var section in eds.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
@@ -218,14 +220,17 @@ public class EdsWriter : IniWriterBase
         return sb.ToString();
     }
 
-    private static void WriteObjects(StringBuilder sb, ObjectDictionary objDict)
+    private static void WriteObjects(
+        StringBuilder sb,
+        ObjectDictionary objDict,
+        Dictionary<string, OrderedStringDictionary> sectionEntries)
     {
         var allObjects = objDict.Objects.OrderBy(o => o.Key);
 
         foreach (var objEntry in allObjects)
         {
             var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}", objEntry.Key);
-            WriteSection(sectionName, () => Instance.WriteObject(sb, objEntry.Value, WriteSection));
+            WriteSection(sectionName, () => Instance.WriteObject(sb, objEntry.Value, WriteSection, sectionEntries));
         }
     }
 

@@ -16,4 +16,16 @@ public class Comments
     /// Key is the line number (1-based), value is the comment text.
     /// </summary>
     public Dictionary<int, string> CommentLines { get; } = new();
+
+    /// <summary>
+    /// Entries of the <c>[Comments]</c> section that the reader does not map onto a
+    /// property, in file order. Keys compare case-insensitively.
+    /// </summary>
+    /// <remarks>
+    /// CiA 306-1 allows additional entries inside the standard sections "in order to support
+    /// future extensions" (§ 6.2). The EDS/DCF writers emit these entries after the keys they
+    /// generate for the section. A key the writer already generates for this section is not
+    /// written a second time. The same type holds a module's <c>[MxComments]</c> section (§ 8.3). <c>Line&lt;n&gt;</c> entries above <see cref="Lines"/> are not comment lines and stay here; a line the writer generates from <see cref="CommentLines"/> replaces a kept entry with the same key.
+    /// </remarks>
+    public OrderedStringDictionary RemainingEntries { get; } = new();
 }

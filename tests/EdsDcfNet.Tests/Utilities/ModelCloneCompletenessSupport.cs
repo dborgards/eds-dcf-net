@@ -30,6 +30,18 @@ internal static class ModelCloneSampleBuilder
             return list;
         }
 
+        if (parameterType == typeof(Dictionary<string, OrderedStringDictionary>))
+        {
+            var entries = new OrderedStringDictionary
+            {
+                [$"key_{seed++}"] = $"value_{seed++}"
+            };
+            return new Dictionary<string, OrderedStringDictionary>(StringComparer.OrdinalIgnoreCase)
+            {
+                [$"Section_{seed++}"] = entries
+            };
+        }
+
         if (parameterType == typeof(Dictionary<string, Dictionary<string, string>>))
         {
             var section = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)

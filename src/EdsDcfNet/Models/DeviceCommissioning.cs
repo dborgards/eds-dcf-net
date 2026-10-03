@@ -71,4 +71,16 @@ public class DeviceCommissioning
     /// property when writing XDC.
     /// </remarks>
     public string? NetRefd { get; set; }
+
+    /// <summary>
+    /// Entries of the <c>[DeviceComissioning]</c> section that the reader does not map onto a
+    /// property, in file order. Keys compare case-insensitively.
+    /// </summary>
+    /// <remarks>
+    /// CiA 306-1 allows additional entries inside the standard sections "in order to support
+    /// future extensions" (§ 6.2). The EDS/DCF writers emit these entries after the keys they
+    /// generate for the section. A key the writer already generates for this section is not
+    /// written a second time. The section is written only when the commissioning data is not empty.
+    /// </remarks>
+    public OrderedStringDictionary RemainingEntries { get; } = new();
 }
