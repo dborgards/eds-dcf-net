@@ -256,7 +256,7 @@ public class DcfWriter : IniWriterBase
             expandedSubIndexes,
             writeSection,
             "Value",
-            static sub => sub.ParameterValue,
+            SelectParameterValue,
             sectionEntries);
 
         WriteCompactListSection(
@@ -266,9 +266,15 @@ public class DcfWriter : IniWriterBase
             expandedSubIndexes,
             writeSection,
             "Denotation",
-            static sub => sub.Denotation,
+            SelectDenotation,
             sectionEntries);
     }
+
+    /// <summary>Value of a sub-object in the DCF <c>[xxxxValue]</c> list.</summary>
+    internal static string? SelectParameterValue(CanOpenSubObject subObj) => subObj.ParameterValue;
+
+    /// <summary>Value of a sub-object in the DCF <c>[xxxxDenotation]</c> list.</summary>
+    internal static string? SelectDenotation(CanOpenSubObject subObj) => subObj.Denotation;
 
     private static void WriteCompactListSection(
         StringBuilder sb,
@@ -280,19 +286,7 @@ public class DcfWriter : IniWriterBase
         Func<CanOpenSubObject, string?> selectValue,
         Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
-        var entries = new SortedDictionary<byte, string>();
-        for (var i = 1; i <= compactMax; i++)
-        {
-            var subIndex = (byte)i;
-            if (expandedSubIndexes.Contains(subIndex))
-                continue;
-            if (!obj.SubObjects.TryGetValue(subIndex, out var subObj))
-                continue;
-
-            var value = selectValue(subObj);
-            if (!string.IsNullOrEmpty(value))
-                entries[subIndex] = value!;
-        }
+        var entries = GetCompactListEntries(obj, compactMax, expandedSubIndexes, (_, sub) => selectValue(sub));
 
         var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}{1}", obj.Index, suffix);
         var kept = GetSectionEntries(sectionEntries, sectionName);

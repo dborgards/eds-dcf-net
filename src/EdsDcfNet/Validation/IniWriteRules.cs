@@ -30,11 +30,11 @@ internal static class IniWriteRules
             case DeviceConfigurationFile dcf:
                 ApplyFile(dcf, includeDcfFields: true, issues);
                 ApplyCommissioning(dcf.DeviceCommissioning, issues);
-                ApplySectionRemainingEntries(dcf.SectionRemainingEntries, issues);
+                ApplySectionRemainingEntries(dcf, issues);
                 break;
             case ElectronicDataSheet eds:
                 ApplyFile(eds, includeDcfFields: false, issues);
-                ApplySectionRemainingEntries(eds.SectionRemainingEntries, issues);
+                ApplySectionRemainingEntries(eds, issues);
                 break;
             case NodelistProject cpj:
                 ApplyProject(cpj, issues);
@@ -366,20 +366,28 @@ internal static class IniWriteRules
     }
 
     /// <summary>
-    /// Checks every kept entry of <c>SectionRemainingEntries</c>. The writer emits them under
-    /// the canonical section name, so only keys and values are checked.
+    /// Checks the kept entries of <c>SectionRemainingEntries</c> that the writer outputs. The
+    /// filter comes from <see cref="Writers.IniWriterBase.TryGetWrittenSectionFilter"/>: a
+    /// section the writer does not emit (for example of a removed module) and a kept key the
+    /// writer generates itself (for example slot <c>1</c> of a non-empty object list) are not
+    /// written and therefore not checked. Only keys and values are checked; the writer emits
+    /// the canonical section name.
     /// </summary>
-    private static void ApplySectionRemainingEntries(
-        Dictionary<string, OrderedStringDictionary> sections,
-        List<ValidationIssue> issues)
+    private static void ApplySectionRemainingEntries(ICanOpenFileModel model, List<ValidationIssue> issues)
     {
-        foreach (var section in sections)
+        foreach (var section in model.SectionRemainingEntries)
         {
-            if (section.Value == null)
+            if (section.Value == null
+                || !Writers.IniWriterBase.TryGetWrittenSectionFilter(model, section.Key, out var isSuppressedKey))
+            {
                 continue;
+            }
 
             foreach (var entry in section.Value)
             {
+                if (isSuppressedKey(entry.Key))
+                    continue;
+
                 var path = "SectionRemainingEntries[" + section.Key + "][" + entry.Key + "]";
                 Check(entry.Key, IniTextSlot.Key, path, issues);
                 Check(entry.Value, IniTextSlot.Value, path, issues);

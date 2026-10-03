@@ -236,19 +236,15 @@ public abstract class IniWriterBase
 
         sb.AppendLine();
 
-        var expandedSubIndexes = new HashSet<byte>();
-        if (obj.SubObjects.Count > 0)
+        var expandedSubIndexes = GetExpandedSubIndexes(obj, compactMax);
+        foreach (var subObjEntry in obj.SubObjects.OrderBy(s => s.Key))
         {
-            foreach (var subObjEntry in obj.SubObjects.OrderBy(s => s.Key))
-            {
-                var subObj = subObjEntry.Value;
-                if (useCompact && !MustExpandCompactSubObject(obj, subObj, compactMax))
-                    continue;
+            if (!expandedSubIndexes.Contains(subObjEntry.Key))
+                continue;
 
-                expandedSubIndexes.Add(subObjEntry.Key);
-                var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", obj.Index, subObjEntry.Key);
-                writeSection(sectionName, () => WriteSubObject(sb, obj.Index, subObj));
-            }
+            var subObj = subObjEntry.Value;
+            var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", obj.Index, subObjEntry.Key);
+            writeSection(sectionName, () => WriteSubObject(sb, obj.Index, subObj));
         }
 
         if (useCompact)
@@ -341,7 +337,7 @@ public abstract class IniWriterBase
     /// Highest compact-listable sub-index for <paramref name="obj"/>, or 0 when
     /// CompactSubObj is absent/zero. Caps at 254 per CiA 306.
     /// </summary>
-    private static int GetCompactMaxSubIndex(CanOpenObject obj)
+    internal static int GetCompactMaxSubIndex(CanOpenObject obj)
     {
         if (!obj.CompactSubObj.HasValue || obj.CompactSubObj.Value == 0)
             return 0;
@@ -456,24 +452,7 @@ public abstract class IniWriterBase
         Action<string, Action> writeSection,
         Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
-        var names = new SortedDictionary<byte, string>();
-        for (var i = 1; i <= compactMax; i++)
-        {
-            var subIndex = (byte)i;
-            if (expandedSubIndexes.Contains(subIndex))
-                continue;
-            if (!obj.SubObjects.TryGetValue(subIndex, out var subObj))
-                continue;
-
-            var defaultName = string.Concat(
-                obj.ParameterName,
-                subIndex.ToString(CultureInfo.InvariantCulture));
-            if (!string.IsNullOrEmpty(subObj.ParameterName)
-                && !subObj.ParameterName.Equals(defaultName, StringComparison.Ordinal))
-            {
-                names[subIndex] = subObj.ParameterName;
-            }
-        }
+        var names = GetCompactNameEntries(obj, compactMax, expandedSubIndexes);
 
         var sectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}Name", obj.Index);
         var keptEntries = GetSectionEntries(sectionEntries, sectionName);
@@ -605,6 +584,195 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, entry.Key, entry.Value);
         }
     }
+
+    /// <summary>
+    /// Decides for one <c>SectionRemainingEntries</c> section whether the EDS/DCF writer emits
+    /// it for <paramref name="model"/> and, if so, which kept keys it suppresses because it
+    /// generates them itself. The validated-write rules use this so they check exactly the kept
+    /// entries the writer outputs.
+    /// </summary>
+    /// <param name="model">An <see cref="ElectronicDataSheet"/> or <see cref="DeviceConfigurationFile"/>.</param>
+    /// <param name="sectionName">A store key; the writer looks sections up by its canonical name.</param>
+    /// <param name="isSuppressedKey">Kept keys the writer does not output.</param>
+    /// <returns><see langword="false"/> when the writer does not emit the section.</returns>
+    internal static bool TryGetWrittenSectionFilter(
+        ICanOpenFileModel model,
+        string sectionName,
+        out Func<string, bool> isSuppressedKey)
+    {
+        isSuppressedKey = static _ => true;
+        var od = model.ObjectDictionary;
+        switch (sectionName.ToUpperInvariant())
+        {
+            case "DUMMYUSAGE":
+                isSuppressedKey = SectionEntryKeys.IsDummyUsageKey;
+                return true;
+            case "MANDATORYOBJECTS":
+                return CountedList(SectionEntryKeys.SupportedObjectsKey, od.MandatoryObjects.Count, out isSuppressedKey);
+            case "OPTIONALOBJECTS":
+                return CountedList(SectionEntryKeys.SupportedObjectsKey, od.OptionalObjects.Count, out isSuppressedKey);
+            case "MANUFACTUREROBJECTS":
+                return CountedList(SectionEntryKeys.SupportedObjectsKey, od.ManufacturerObjects.Count, out isSuppressedKey);
+            case "SUPPORTEDMODULES":
+                isSuppressedKey = SectionEntryKeys.IsSupportedModulesKey;
+                return true;
+            case "TOOLS":
+                isSuppressedKey = SectionEntryKeys.IsToolsKey;
+                return true;
+            case "CONNECTEDMODULES":
+                return model is DeviceConfigurationFile dcf
+                       && CountedList(SectionEntryKeys.NrOfEntriesKey, dcf.ConnectedModules.Count, out isSuppressedKey);
+        }
+
+        foreach (var module in model.SupportedModules)
+        {
+            if (TryGetWrittenModuleSectionFilter(module, sectionName, out isSuppressedKey))
+                return true;
+        }
+
+        foreach (var obj in od.Objects.Values)
+        {
+            if (TryGetWrittenObjectSectionFilter(obj, model is DeviceConfigurationFile, sectionName, out isSuppressedKey))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetWrittenModuleSectionFilter(
+        ModuleInfo module,
+        string sectionName,
+        out Func<string, bool> isSuppressedKey)
+    {
+        isSuppressedKey = static _ => true;
+        if (IsSectionNamed(sectionName, "M{0}ModuleInfo", module.ModuleNumber))
+        {
+            isSuppressedKey = SectionEntryKeys.IsModuleInfoKey;
+            return true;
+        }
+
+        if (IsSectionNamed(sectionName, "M{0}FixedObjects", module.ModuleNumber))
+            return CountedList(SectionEntryKeys.NrOfEntriesKey, module.FixedObjects.Count, out isSuppressedKey);
+
+        if (IsSectionNamed(sectionName, "M{0}SubExtends", module.ModuleNumber))
+            return CountedList(SectionEntryKeys.NrOfEntriesKey, module.SubExtends.Count, out isSuppressedKey);
+
+        foreach (var index in module.SubExtensionDefinitions.Keys)
+        {
+            if (IsSectionNamed(sectionName, "M{0}SubExt{1:X}", module.ModuleNumber, index))
+            {
+                isSuppressedKey = SectionEntryKeys.IsModuleSubExtensionKey;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryGetWrittenObjectSectionFilter(
+        CanOpenObject obj,
+        bool isDcf,
+        string sectionName,
+        out Func<string, bool> isSuppressedKey)
+    {
+        isSuppressedKey = static _ => true;
+        if (IsSectionNamed(sectionName, "{0:X}ObjectLinks", obj.Index))
+            return CountedList(SectionEntryKeys.ObjectLinksCountKey, obj.ObjectLinks.Count, out isSuppressedKey);
+
+        var compactMax = GetCompactMaxSubIndex(obj);
+        var expanded = GetExpandedSubIndexes(obj, compactMax);
+        if (compactMax > 0 && IsSectionNamed(sectionName, "{0:X}Name", obj.Index))
+            return CompactList(GetCompactNameEntries(obj, compactMax, expanded).Keys, out isSuppressedKey);
+
+        // DCF writes [xxxxValue] / [xxxxDenotation] for every object (compact lists only with compact storage).
+        if (isDcf && IsSectionNamed(sectionName, "{0:X}Value", obj.Index))
+            return CompactList(GetCompactListEntries(obj, compactMax, expanded, (_, sub) => DcfWriter.SelectParameterValue(sub)).Keys, out isSuppressedKey);
+
+        if (isDcf && IsSectionNamed(sectionName, "{0:X}Denotation", obj.Index))
+            return CompactList(GetCompactListEntries(obj, compactMax, expanded, (_, sub) => DcfWriter.SelectDenotation(sub)).Keys, out isSuppressedKey);
+
+        return false;
+    }
+
+    private static bool IsSectionNamed(string sectionName, string format, params object[] args)
+        => string.Equals(
+            sectionName,
+            string.Format(CultureInfo.InvariantCulture, format, args),
+            StringComparison.OrdinalIgnoreCase);
+
+    private static bool CountedList(string countKey, int generatedCount, out Func<string, bool> isSuppressedKey)
+    {
+        isSuppressedKey = key => SectionEntryKeys.IsCountedListKey(key, countKey, generatedCount);
+        return true;
+    }
+
+    private static bool CompactList(ICollection<byte> generatedSubIndexes, out Func<string, bool> isSuppressedKey)
+    {
+        isSuppressedKey = key => SectionEntryKeys.IsAppliedCompactListKey(key, generatedSubIndexes);
+        return true;
+    }
+
+    /// <summary>
+    /// Sub-indexes the writer emits as expanded <c>[xxxxsubN]</c> sections: all of them without
+    /// compact storage (<paramref name="compactMax"/> <c>0</c>), otherwise only those that the
+    /// compact lists cannot represent.
+    /// </summary>
+    internal static HashSet<byte> GetExpandedSubIndexes(CanOpenObject obj, int compactMax)
+    {
+        var expanded = new HashSet<byte>();
+        foreach (var entry in obj.SubObjects)
+        {
+            if (compactMax == 0 || MustExpandCompactSubObject(obj, entry.Value, compactMax))
+                expanded.Add(entry.Key);
+        }
+
+        return expanded;
+    }
+
+    /// <summary>
+    /// The entries of a compact list the writer generates: for every sub-index
+    /// <c>1..compactMax</c> that is not expanded, the non-empty value from
+    /// <paramref name="selectValue"/>.
+    /// </summary>
+    internal static SortedDictionary<byte, string> GetCompactListEntries(
+        CanOpenObject obj,
+        int compactMax,
+        HashSet<byte> expandedSubIndexes,
+        Func<byte, CanOpenSubObject, string?> selectValue)
+    {
+        var entries = new SortedDictionary<byte, string>();
+        for (var i = 1; i <= compactMax; i++)
+        {
+            var subIndex = (byte)i;
+            if (expandedSubIndexes.Contains(subIndex) || !obj.SubObjects.TryGetValue(subIndex, out var subObj))
+                continue;
+
+            var value = selectValue(subIndex, subObj);
+            if (!string.IsNullOrEmpty(value))
+                entries[subIndex] = value!;
+        }
+
+        return entries;
+    }
+
+    /// <summary>
+    /// The <c>[xxxxName]</c> entries the writer generates: parameter names that differ from the
+    /// compact default <c>ParameterName + sub-index</c> (CiA 306 § 6.6.3.4).
+    /// </summary>
+    internal static SortedDictionary<byte, string> GetCompactNameEntries(
+        CanOpenObject obj,
+        int compactMax,
+        HashSet<byte> expandedSubIndexes)
+        => GetCompactListEntries(
+            obj,
+            compactMax,
+            expandedSubIndexes,
+            (subIndex, subObj) => string.Equals(
+                subObj.ParameterName,
+                string.Concat(obj.ParameterName, subIndex.ToString(CultureInfo.InvariantCulture)),
+                StringComparison.Ordinal)
+                ? null
+                : subObj.ParameterName);
 
     /// <summary>
     /// Kept entries of a counted list section. The count key and the slots
