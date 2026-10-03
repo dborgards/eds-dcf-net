@@ -293,6 +293,15 @@ public class XddWriter
         return profile;
     }
 
+    /// <remarks>
+    /// The schema gives the network <c>ProfileBody</c> a choice: the layer sequence
+    /// (<c>ApplicationLayers</c>, <c>TransportLayers</c>, <c>NetworkManagement</c>) or a single
+    /// <c>ExternalProfileHandle</c>. A handle kept from an XDD/XDC read is written alone, instead of
+    /// the generated layers, while the object dictionary is empty (the model holds nothing the
+    /// handle cannot stand for). Once the model has objects, the generated layers are written and the
+    /// kept handle is dropped, because it cannot express them (rule 13, the model wins). This applies
+    /// to XDD and XDC alike.
+    /// </remarks>
     [SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Calls virtual members via instance dispatch.")]
     private XElement BuildCommNetProfile(ElectronicDataSheet eds, DeviceCommissioning? commissioning)
@@ -304,6 +313,36 @@ public class XddWriter
         XddProfileBuilder.AddFileInfoAttributes(profileBody, XddPreservedContentWriter.NetworkFileInfo(preserved, eds.FileInfo));
         XddPreservedContentWriter.AddAttributes(profileBody, preserved.AttributesAt(XddPreservedContent.NetworkProfileBody));
 
+        var keptBody = preserved.ElementsAt(XddPreservedContent.NetworkProfileBody);
+        var handleOnly = eds.ObjectDictionary.Objects.Count == 0
+            && keptBody.Any(element => element.Name.LocalName == ExternalProfileHandleName);
+
+        if (!handleOnly)
+            AddNetworkLayers(profileBody, eds, commissioning, preserved);
+
+        XddPreservedContentWriter.MergeElements(
+            profileBody,
+            handleOnly ? keptBody : keptBody.Where(element => element.Name.LocalName != ExternalProfileHandleName),
+            XddPreservedContentWriter.NetworkProfileBodyOrder);
+
+        var profile = XddProfileBuilder.BuildProfile("CommunicationNetwork", profileBody);
+        XddPreservedContentWriter.MergeElements(
+            profile,
+            preserved.ElementsAt(XddPreservedContent.NetworkProfile),
+            XddPreservedContentWriter.ProfileOrder,
+            "ProfileHeader");
+        return profile;
+    }
+
+    private const string ExternalProfileHandleName = "ExternalProfileHandle";
+
+    /// <summary>Adds the generated layer sequence, with the content kept inside it.</summary>
+    private void AddNetworkLayers(
+        XElement profileBody,
+        ElectronicDataSheet eds,
+        DeviceCommissioning? commissioning,
+        XddPreservedContent preserved)
+    {
         var appLayers = BuildApplicationLayers(eds);
         XddPreservedContentWriter.AddAttributes(appLayers, preserved.AttributesAt(XddPreservedContent.ApplicationLayers));
         XddPreservedContentWriter.MergeElements(
@@ -322,19 +361,6 @@ public class XddWriter
                 .Where(element => commissioning == null || element.Name.LocalName != "deviceCommissioning"),
             XddPreservedContentWriter.NetworkManagementOrder);
         profileBody.Add(networkMgmt);
-
-        XddPreservedContentWriter.MergeElements(
-            profileBody,
-            preserved.ElementsAt(XddPreservedContent.NetworkProfileBody),
-            XddPreservedContentWriter.NetworkProfileBodyOrder);
-
-        var profile = XddProfileBuilder.BuildProfile("CommunicationNetwork", profileBody);
-        XddPreservedContentWriter.MergeElements(
-            profile,
-            preserved.ElementsAt(XddPreservedContent.NetworkProfile),
-            XddPreservedContentWriter.ProfileOrder,
-            "ProfileHeader");
-        return profile;
     }
 
     [SuppressMessage("Performance", "CA1822:Mark members as static",

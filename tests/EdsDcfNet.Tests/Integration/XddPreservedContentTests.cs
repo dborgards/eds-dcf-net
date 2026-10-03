@@ -685,6 +685,116 @@ public class XddPreservedContentTests
         Single(written, "characteristicContent").Element("label")!.Value.Should().BeEmpty("no DeviceIdentity was read, and nothing is invented");
     }
 
+    // ── ExternalProfileHandle choice of the network profile ──────────────────
+
+    private const string HandleOnlyXdd = """
+        <?xml version="1.0" encoding="utf-8"?>
+        <co:ISO15745ProfileContainer xmlns:co="http://www.canopen.org/xml/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <co:ISO15745Profile>
+            <ProfileHeader>
+              <ProfileIdentification>handle-device</ProfileIdentification>
+              <ProfileRevision>1</ProfileRevision>
+              <ProfileName />
+              <ProfileSource />
+              <ProfileClassID>Device</ProfileClassID>
+              <ISO15745Reference>
+                <ISO15745Part>1</ISO15745Part>
+                <ISO15745Edition>1</ISO15745Edition>
+                <ProfileTechnology>CANopen</ProfileTechnology>
+              </ISO15745Reference>
+            </ProfileHeader>
+            <ProfileBody xsi:type="co:ProfileBody_Device_CANopen" fileName="handle.xdd" fileCreator="c" fileCreationDate="2026-01-01" fileVersion="1">
+              <co:DeviceIdentity>
+                <co:vendorName>Vendor</co:vendorName>
+                <co:productName>Legacy device</co:productName>
+              </co:DeviceIdentity>
+              <co:DeviceFunction>
+                <co:capabilities>
+                  <co:characteristicsList>
+                    <co:characteristic>
+                      <co:characteristicName><label lang="en">Kind</label></co:characteristicName>
+                      <co:characteristicContent><label lang="en">legacy</label></co:characteristicContent>
+                    </co:characteristic>
+                  </co:characteristicsList>
+                </co:capabilities>
+              </co:DeviceFunction>
+            </ProfileBody>
+          </co:ISO15745Profile>
+          <co:ISO15745Profile>
+            <ProfileHeader>
+              <ProfileIdentification>handle-network</ProfileIdentification>
+              <ProfileRevision>1</ProfileRevision>
+              <ProfileName />
+              <ProfileSource />
+              <ProfileClassID>CommunicationNetwork</ProfileClassID>
+              <ISO15745Reference>
+                <ISO15745Part>1</ISO15745Part>
+                <ISO15745Edition>1</ISO15745Edition>
+                <ProfileTechnology>CANopen</ProfileTechnology>
+              </ISO15745Reference>
+            </ProfileHeader>
+            <ProfileBody xsi:type="co:ProfileBody_CommunicationNetwork_CANopen" fileName="handle.xdd" fileCreator="c" fileCreationDate="2026-01-01" fileVersion="1" formatName="CANopen" formatVersion="1.0">
+              <ExternalProfileHandle>
+                <ProfileIdentification>legacy</ProfileIdentification>
+                <ProfileRevision>1</ProfileRevision>
+                <ProfileLocation>legacy/device.eds</ProfileLocation>
+              </ExternalProfileHandle>
+            </ProfileBody>
+          </co:ISO15745Profile>
+        </co:ISO15745ProfileContainer>
+        """;
+
+    [Fact]
+    public void WriteToString_HandleOnlyNetworkProfileXddRoundTrip_WritesTheProfileBodyUnchanged()
+    {
+        // Arrange
+        var source = XDocument.Parse(HandleOnlyXdd);
+
+        // Act
+        var xml = CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(HandleOnlyXdd));
+
+        // Assert
+        Cia311Schema.Validate(HandleOnlyXdd).Should().BeEmpty();
+        Cia311Schema.Validate(xml).Should().BeEmpty();
+        NetworkBody(XDocument.Parse(xml)).ToString(SaveOptions.DisableFormatting)
+            .Should().Be(NetworkBody(source).ToString(SaveOptions.DisableFormatting));
+    }
+
+    [Fact]
+    public void WriteToString_HandleOnlyNetworkProfileXdcRoundTrip_WritesTheProfileBodyUnchanged()
+    {
+        // Arrange
+        var source = XDocument.Parse(HandleOnlyXdd);
+
+        // Act
+        var xml = CanOpenFile.Xdc.WriteToString(CanOpenFile.Xdc.ReadString(HandleOnlyXdd));
+
+        // Assert
+        Cia311Schema.Validate(xml).Should().BeEmpty();
+        NetworkBody(XDocument.Parse(xml)).ToString(SaveOptions.DisableFormatting)
+            .Should().Be(NetworkBody(source).ToString(SaveOptions.DisableFormatting));
+    }
+
+    [Fact]
+    public void WriteToString_HandleOnlyNetworkProfileWithObjectAddedInCode_WritesGeneratedLayersWithoutHandle()
+    {
+        // Arrange — the handle cannot express the new object, so the model wins.
+        var eds = CanOpenFile.Xdd.ReadString(HandleOnlyXdd);
+        eds.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000, ParameterName = "Device type", ObjectType = 7, DataType = 7, DefaultValue = "0",
+        };
+
+        // Act
+        var xml = CanOpenFile.Xdd.WriteToString(eds);
+        var body = NetworkBody(XDocument.Parse(xml));
+
+        // Assert
+        Cia311Schema.Validate(xml).Should().BeEmpty();
+        body.Elements().Select(e => e.Name.LocalName).Should().Equal("ApplicationLayers", "TransportLayers", "NetworkManagement");
+        body.Descendants("CANopenObject").Should().ContainSingle();
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private static XDocument RoundTrip(string path)
