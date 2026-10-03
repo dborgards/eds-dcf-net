@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.27](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.26...v1.15.0-beta.27) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **xdd:** accept the unsignedByte lexical space for nodeID and the 100 Kbps baud rate ([#637](https://github.com/dborgards/eds-dcf-net/issues/637)) ([918144b](https://github.com/dborgards/eds-dcf-net/commit/918144bdfbab8b4a7072d957d045312bf66c6b0c)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
 ## [1.15.0-beta.26](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.25...v1.15.0-beta.26) (2026-10-03)
 
 ### ✨ Features
