@@ -335,8 +335,8 @@ classDiagram
 `EdsParseException` is used for EDS/DCF/CPJ/XDD/XDC parsing errors; its `Code` carries the stable
 diagnostic identifier (see §8.1 parse diagnostics) when the error corresponds to an instrumented
 lenient-mode repair.  
-`WriteException` is the abstract base of all write failures (it carries `SectionName`), so callers can catch any format's write error through one type.  
-`ModelValidationException` is thrown by `CanOpenFile.EnsureValid*` and by writes with `CanOpenWriteOptions.Validated` when validation issues are found.  
+`WriteException` is the abstract base of the format-specific write exceptions (`EdsWriteException`, `DcfWriteException`, `CpjWriteException`, `XddWriteException`, `XdcWriteException`; it carries `SectionName`), so callers can catch any format's write error through one type.  
+`ModelValidationException` derives directly from `Exception`, independent of `WriteException`; it is thrown by `CanOpenFile.EnsureValid*` and by writes with `CanOpenWriteOptions.Validated` when validation issues are found.  
 `EdsWriteException` is used for EDS write/generation failures.  
 `DcfWriteException` is used for DCF write/generation failures.  
 `CpjWriteException` is used for CPJ write/generation failures.  
