@@ -30,13 +30,18 @@ internal sealed class AdditionalSectionOrder
         _sections.Clear();
         _keys.Clear();
 
-        foreach (var pair in fileSections)
+        // The parser's sections record their header order; enumeration order is not guaranteed.
+        IEnumerable<string> names = fileSections is IniSectionsDictionary ordered
+            ? ordered.NamesInOrder
+            : fileSections.Keys;
+
+        foreach (var name in names)
         {
-            if (!additionalSections.ContainsKey(pair.Key))
+            if (!additionalSections.ContainsKey(name) || !fileSections.TryGetValue(name, out var section))
                 continue;
 
-            _sections.Add(pair.Key);
-            _keys[pair.Key] = KeysInFileOrder(pair.Value);
+            _sections.Add(name);
+            _keys[name] = KeysInFileOrder(section);
         }
     }
 

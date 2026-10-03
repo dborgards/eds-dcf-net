@@ -309,4 +309,41 @@ public class AdditionalSectionsOrderTests
         // Assert
         Pos(written, "Zeta=1").Should().BeLessThan(Pos(written, "Alpha=2"));
     }
+
+    [Fact]
+    public void Capture_ParserSectionsAfterRemoveAndReAdd_UsesHeaderOrderNotHashOrder()
+    {
+        // Arrange: removing a section frees a slot that the next insertion reuses, so the
+        // enumeration order of the dictionary differs from the header order.
+        var fileSections = new IniSectionsDictionary();
+        fileSections.Set("A", new Dictionary<string, string>());
+        fileSections.Set("B", new Dictionary<string, string>());
+        fileSections.Set("C", new Dictionary<string, string>());
+        fileSections.Remove("A");
+        fileSections.Set("D", new Dictionary<string, string>());
+        var additional = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["A"] = new Dictionary<string, string>(),
+            ["D"] = new Dictionary<string, string>(),
+            ["C"] = new Dictionary<string, string>(),
+            ["B"] = new Dictionary<string, string>()
+        };
+        var order = new AdditionalSectionOrder();
+
+        // Act
+        order.Capture(additional, fileSections);
+
+        // Assert
+        order.Sections(additional).Select(s => s.Key).Should().Equal("B", "C", "D", "A");
+    }
+
+    [Fact]
+    public void ParseString_Sections_RecordHeaderOrder()
+    {
+        // Act
+        var sections = IniParser.ParseString(Join("[Zeta]", "A=1", "[Alpha]", "B=2", "[Mid]"));
+
+        // Assert
+        ((IniSectionsDictionary)sections).NamesInOrder.Should().Equal("Zeta", "Alpha", "Mid");
+    }
 }
