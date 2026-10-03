@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.23](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.22...v1.15.0-beta.23) (2026-10-03)
+
+### ✨ Features
+
+* **options:** add NewLine write option ([#624](https://github.com/dborgards/eds-dcf-net/issues/624)) ([c5b7d34](https://github.com/dborgards/eds-dcf-net/commit/c5b7d3497541532b7e93b9e77d37ff62c9840d7e))
+
 ## [1.15.0-beta.22](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.21...v1.15.0-beta.22) (2026-10-03)
 
 ### 🐛 Bug Fixes
