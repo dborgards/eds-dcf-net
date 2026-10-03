@@ -186,6 +186,15 @@ public class CpjReader : IFileReader<NodelistProject>
             topology.Nodes[(byte)nodeId] = node;
         }
 
+        // Everything the loop above did not map onto a property stays verbatim: vendor keys and the
+        // entries of a node without a loaded NodeXPresent (CiA 306-3 Table 3).
+        CanOpenSectionParsers.CaptureUnmappedEntries(
+            sections,
+            sectionName,
+            key => SectionEntryKeys.IsWrittenTopologyKey(topology, key),
+            topology.RemainingEntries);
+        ReportNodeEntriesWithoutPresent(sections, sectionName, topology);
+
         if (declaredNodes != null && declaredNodes.Value != topology.Nodes.Count)
         {
             Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
@@ -202,6 +211,41 @@ public class CpjReader : IFileReader<NodelistProject>
         }
 
         return topology;
+    }
+
+    /// <summary>
+    /// CiA 306-3 Table 3: <c>NodeXPresent</c> is mandatory for each existing node and a missing entry
+    /// means "not present". A <c>NodeXName</c>, <c>NodeXRefd</c> or <c>NodeXDCFName</c> without it is
+    /// valid but incomplete, so it is only reported (strict mode does not throw) and the entry is kept.
+    /// A <c>NodeXPresent</c> that exists with an empty value is already reported as reserved.
+    /// </summary>
+    private static void ReportNodeEntriesWithoutPresent(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        NetworkTopology topology)
+    {
+        foreach (var entry in topology.RemainingEntries)
+        {
+            if (!SectionEntryKeys.TryParseTopologyNodeKey(entry.Key, out var nodeId, out var suffix)
+                || suffix == "Present"
+                || sections[sectionName].ContainsKey(
+                    string.Format(CultureInfo.InvariantCulture, "Node{0}Present", nodeId)))
+            {
+                continue;
+            }
+
+            Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                Diagnostics.ParseSeverity.Warning,
+                Diagnostics.ParseDiagnosticCodes.CpjNodeEntryWithoutPresent,
+                path: sectionName + "." + entry.Key,
+                line: IniKeyLines.TryGetLine(sections, sectionName, entry.Key),
+                rawValue: entry.Value,
+                message: string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} has no Node{1}Present entry, so node {1} is not loaded. CiA 306-3 Table 3 makes NodeXPresent mandatory for each existing node. The entry is kept and written back unchanged.",
+                    entry.Key,
+                    nodeId)));
+        }
     }
 
     /// <summary>

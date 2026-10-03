@@ -317,4 +317,13 @@ public static class ParseDiagnosticCodes
     /// writer emits the number of nodes in the model. Reported in lenient and strict mode.
     /// </summary>
     public const string CpjNodeCountMismatch = "CPJ_NODE_COUNT_MISMATCH";
+
+    /// <summary>
+    /// A CPJ topology section has <c>NodeXName</c>, <c>NodeXRefd</c> or <c>NodeXDCFName</c> but no
+    /// <c>NodeXPresent</c> (CiA 306-3 Table 3: a missing <c>NodeXPresent</c> means the node is not
+    /// present, and the entry is mandatory for each existing node). The node is not loaded; the entry is
+    /// kept verbatim in <c>NetworkTopology.RemainingEntries</c> and written back. Reported as a warning in
+    /// lenient and strict mode: the information is valid, only incomplete, so strict mode does not throw.
+    /// </summary>
+    public const string CpjNodeEntryWithoutPresent = "CPJ_NODE_ENTRY_WITHOUT_PRESENT";
 }
