@@ -116,14 +116,35 @@ jobs:
           CI: true
         run: dotnet build --configuration Release --no-restore
 
+      # Same fresh results directory as build.yml. The gate and the Codecov
+      # upload both receive it; files in the checkout are not inputs.
       - name: Test
-        run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+        id: test
+        shell: bash
+        run: |
+          if [[ -z "${RUNNER_TEMP:-}" ]]; then
+            echo "RUNNER_TEMP is not set." >&2
+            exit 1
+          fi
+          temp_root="$RUNNER_TEMP"
+          if command -v cygpath >/dev/null 2>&1; then
+            temp_root="$(cygpath -u "$RUNNER_TEMP")"
+          fi
+          results="$(mktemp -d "${temp_root}/coverage.XXXXXX")"
+          dotnet_results="$results"
+          if command -v cygpath >/dev/null 2>&1; then
+            dotnet_results="$(cygpath -w "$results")"
+          fi
+          MSYS_NO_PATHCONV=1 dotnet test --configuration Release --no-build --verbosity normal \
+            --collect:"XPlat Code Coverage" \
+            --results-directory "$dotnet_results"
+          echo "results_directory=${results}" >> "$GITHUB_OUTPUT"
 
       # Shared gate with build.yml — see tools/enforce-coverage-threshold.sh.
       - name: Enforce coverage threshold
         id: coverage_gate
         shell: bash
-        run: bash tools/enforce-coverage-threshold.sh .
+        run: bash tools/enforce-coverage-threshold.sh "${{ steps.test.outputs.results_directory }}"
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7

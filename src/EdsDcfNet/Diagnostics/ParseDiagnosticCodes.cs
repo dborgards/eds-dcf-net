@@ -25,6 +25,13 @@ public static class ParseDiagnosticCodes
     /// <summary>Section header that repeats an earlier section; lenient mode merges the keys into it.</summary>
     public const string IniDuplicateSection = "INI_DUPLICATE_SECTION";
 
+    /// <summary>
+    /// EDS/DCF/CPJ bytes are not valid UTF-8 and were decoded as ISO-8859-1.
+    /// Reported in both lenient and strict mode; strict mode does not throw, because the
+    /// file is legible legacy text rather than a malformed INI construct.
+    /// </summary>
+    public const string IniDecodedAsIso88591 = "INI_DECODED_AS_ISO_8859_1";
+
     /// <summary>Invalid <c>DummyUsage</c> key in an INI file; the entry is ignored.</summary>
     public const string IniInvalidDummyUsageKey = "INI_INVALID_DUMMY_USAGE_KEY";
 
@@ -64,6 +71,12 @@ public static class ParseDiagnosticCodes
     /// Malformed EDS/DCF <c>ObjFlags</c>; lenient mode treats it as <c>0</c>.
     /// </summary>
     public const string InvalidObjFlags = "INVALID_OBJ_FLAGS";
+
+    /// <summary>
+    /// Malformed <c>ObjExtend</c> in a module <c>[MxSubExtxxxx]</c> section (CiA 306-1 §8.3);
+    /// lenient mode leaves it unset.
+    /// </summary>
+    public const string InvalidModuleObjExtend = "INVALID_MODULE_OBJ_EXTEND";
 
     /// <summary>
     /// Malformed object-list count (<c>SupportedObjects</c>, <c>ObjectLinks</c>, or module <c>NrOfEntries</c>);

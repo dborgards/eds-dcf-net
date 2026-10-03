@@ -475,5 +475,12 @@ of a `BREAKING CHANGE:` footer.
 
 | Branch | Require PR | Require status checks | Restrict direct push |
 |---|---|---|---|
-| `main` | Yes | `build` | Yes |
-| `develop` | Yes | `build` | Yes |
+| `main` | Yes | `build`; `codecov/patch` (Codecov app) | Yes |
+| `develop` | Yes | `build`; `coverage/threshold` (GitHub Actions) | Yes |
+
+`coverage/threshold` is the commit status from the line-coverage gate in
+`build.yml` (relayed onto release commits by `relay-release-status`). It is
+the 95% line total from `tools/enforce-coverage-threshold.sh`, not Codecov's
+patch check. On `develop`, the ruleset must require `coverage/threshold` from
+GitHub Actions. On `main`, `codecov/patch` is Codecov's own check; leave that
+requirement in place.

@@ -228,10 +228,16 @@ internal static class ModelCloner
                 {
                     Index = kvp.Value.Index,
                     ParameterName = kvp.Value.ParameterName,
+                    SubNumber = kvp.Value.SubNumber,
+                    ObjectType = kvp.Value.ObjectType,
                     DataType = kvp.Value.DataType,
                     AccessType = kvp.Value.AccessType,
                     DefaultValue = kvp.Value.DefaultValue,
+                    LowLimit = kvp.Value.LowLimit,
+                    HighLimit = kvp.Value.HighLimit,
                     PdoMapping = kvp.Value.PdoMapping,
+                    ObjFlags = kvp.Value.ObjFlags,
+                    CompactSubObj = kvp.Value.CompactSubObj,
                     Count = kvp.Value.Count,
                     ObjExtend = kvp.Value.ObjExtend
                 };

@@ -2,7 +2,6 @@ namespace EdsDcfNet.Parsers;
 
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
 using EdsDcfNet.Exceptions;
 
 /// <summary>
@@ -15,6 +14,14 @@ using EdsDcfNet.Exceptions;
 /// Duplicate keys within a section use last-write-wins by default (lenient).
 /// Pass <c>strictParsing: true</c> or set <see cref="CanOpenFileOptions.StrictParsing"/>
 /// on facade reads to throw <see cref="EdsParseException"/> on duplicates.
+/// </para>
+/// <para>
+/// File and stream bytes are decoded automatically unless
+/// <see cref="CanOpenFileOptions.Encoding"/> is set on a facade read: a byte-order mark
+/// wins, otherwise strict UTF-8 is tried and, on <see cref="System.Text.DecoderFallbackException"/>,
+/// those same bytes are decoded as ISO-8859-1. A leading UTF-8 byte-order mark is excluded
+/// from both decodes. Stream reads still limit the
+/// decoded character count; the raw buffer is capped by <see cref="InputBufferLimit"/>.
 /// </para>
 /// </remarks>
 public static class IniParser
@@ -89,12 +96,12 @@ public static class IniParser
                         "File '{0}' is too large ({1:N0} bytes). Maximum supported size is {2:N0} bytes.",
                         filePath, fileInfo.Length, maxInputSize));
 
-            // Stream through ParseReader so MaxInputSize is enforced while reading
-            // (guards TOCTOU if the file grows after the FileInfo.Length check).
+            // Buffer through the byte-limited stream so MaxInputSize stays a byte cap
+            // (guards TOCTOU if the file grows after the FileInfo.Length check) and the
+            // same bytes can be decoded twice when UTF-8 fails.
             using var stream = OpenFileWithByteLimit(filePath, maxInputSize, useAsync: false);
-            using var reader = new StreamReader(stream);
-
-            return ParseReader(reader, maxInputSize);
+            var bytes = ReadToEnd(stream);
+            return ParseDecodedBytes(bytes, maxInputSize);
         }
     }
 
@@ -127,9 +134,8 @@ public static class IniParser
                     filePath, fileInfo.Length, maxInputSize));
 
         using var stream = OpenFileWithByteLimit(filePath, maxInputSize, useAsync: true);
-        using var reader = new StreamReader(stream);
-
-        return await ParseReaderAsync(reader, maxInputSize, cancellationToken).ConfigureAwait(false);
+        var bytes = await ReadToEndAsync(stream, cancellationToken).ConfigureAwait(false);
+        return ParseDecodedBytes(bytes, maxInputSize);
     }
 
     private static ByteLimitingStream OpenFileWithByteLimit(
@@ -186,8 +192,8 @@ public static class IniParser
             ThrowIfNull(stream, nameof(stream));
             if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
 
-            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
-            return ParseReader(reader, maxInputSize);
+            var bytes = ReadBounded(stream, StreamByteCap(maxInputSize), StreamByteCapMessage(maxInputSize));
+            return ParseDecodedBytes(bytes, maxInputSize);
         }
     }
 
@@ -211,8 +217,8 @@ public static class IniParser
         ThrowIfNull(stream, nameof(stream));
         if (!stream.CanRead) throw new ArgumentException("Stream must be readable.", nameof(stream));
 
-        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
-        return await ParseReaderAsync(reader, maxInputSize, cancellationToken).ConfigureAwait(false);
+        var bytes = await ReadBoundedAsync(stream, StreamByteCap(maxInputSize), StreamByteCapMessage(maxInputSize), cancellationToken).ConfigureAwait(false);
+        return ParseDecodedBytes(bytes, maxInputSize);
     }
 
     /// <summary>
@@ -353,135 +359,6 @@ public static class IniParser
         }
 
         return sections;
-    }
-
-    private static Dictionary<string, Dictionary<string, string>> ParseReader(
-        StreamReader reader,
-        long maxInputSize)
-    {
-        var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
-        string? currentSection = null;
-        var lineNumber = 0;
-        long totalChars = 0;
-        var currentLine = new StringBuilder();
-        var skipNextLineFeed = false;
-        var buffer = new char[4096];
-
-        while (true)
-        {
-            var charsRead = reader.Read(buffer, 0, buffer.Length);
-            if (charsRead == 0)
-                break;
-
-            for (var i = 0; i < charsRead; i++)
-            {
-                EnsureContentWithinSizeLimit(ref totalChars, maxInputSize);
-                ProcessReaderCharacter(buffer[i], ref skipNextLineFeed, currentLine, ref lineNumber, ref currentSection, sections);
-            }
-        }
-
-        FlushPendingLine(currentLine, ref lineNumber, ref currentSection, sections);
-        return sections;
-    }
-
-    private static async Task<Dictionary<string, Dictionary<string, string>>> ParseReaderAsync(
-        StreamReader reader,
-        long maxInputSize,
-        CancellationToken cancellationToken)
-    {
-        var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
-        string? currentSection = null;
-        var lineNumber = 0;
-        long totalChars = 0;
-        var currentLine = new StringBuilder();
-        var skipNextLineFeed = false;
-        var buffer = new char[4096];
-
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-#if NET10_0_OR_GREATER
-            var charsRead = await reader.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
-#else
-            var charsRead = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
-#endif
-            if (charsRead == 0)
-                break;
-
-            for (var i = 0; i < charsRead; i++)
-            {
-                EnsureContentWithinSizeLimit(ref totalChars, maxInputSize);
-                ProcessReaderCharacter(buffer[i], ref skipNextLineFeed, currentLine, ref lineNumber, ref currentSection, sections);
-            }
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        FlushPendingLine(currentLine, ref lineNumber, ref currentSection, sections);
-        return sections;
-    }
-
-    private static void EnsureContentWithinSizeLimit(ref long totalChars, long maxInputSize)
-    {
-        totalChars++;
-        if (totalChars > maxInputSize)
-        {
-            throw new EdsParseException(
-                string.Format(
-                    CultureInfo.InvariantCulture,
-                    "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
-                    totalChars,
-                    maxInputSize));
-        }
-    }
-
-    private static void ProcessReaderCharacter(
-        char character,
-        ref bool skipNextLineFeed,
-        StringBuilder currentLine,
-        ref int lineNumber,
-        ref string? currentSection,
-        Dictionary<string, Dictionary<string, string>> sections)
-    {
-        if (skipNextLineFeed)
-        {
-            skipNextLineFeed = false;
-            if (character == '\n')
-            {
-                return;
-            }
-        }
-
-        if (character == '\r')
-        {
-            lineNumber++;
-            ParseLine(currentLine.ToString(), lineNumber, ref currentSection, sections);
-            currentLine.Clear();
-            skipNextLineFeed = true;
-            return;
-        }
-
-        if (character == '\n')
-        {
-            lineNumber++;
-            ParseLine(currentLine.ToString(), lineNumber, ref currentSection, sections);
-            currentLine.Clear();
-            return;
-        }
-
-        currentLine.Append(character);
-    }
-
-    private static void FlushPendingLine(
-        StringBuilder currentLine,
-        ref int lineNumber,
-        ref string? currentSection,
-        Dictionary<string, Dictionary<string, string>> sections)
-    {
-        if (currentLine.Length == 0)
-            return;
-
-        lineNumber++;
-        ParseLine(currentLine.ToString(), lineNumber, ref currentSection, sections);
     }
 
     private static void ParseLine(
@@ -691,6 +568,110 @@ public static class IniParser
                 Code = Diagnostics.ParseDiagnosticCodes.IniDuplicateSection
             };
         }
+    }
+
+    private const int ReadChunkSize = 8192;
+
+    private static Dictionary<string, Dictionary<string, string>> ParseDecodedBytes(byte[] bytes, long maxInputSize)
+    {
+        var content = IniTextDecoder.Decode(bytes);
+        if ((long)content.Length > maxInputSize)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Content is too large ({0:N0} characters). Maximum supported size is {1:N0} characters.",
+                    content.Length,
+                    maxInputSize));
+        }
+
+        return ParseLines(SplitLines(content));
+    }
+
+    private static long StreamByteCap(long maxInputSize)
+        => InputBufferLimit.GetMaxBufferedByteCount(maxInputSize, FileEncodingScope.CurrentRead);
+
+    private static string StreamByteCapMessage(long maxInputSize)
+        => string.Format(
+            CultureInfo.InvariantCulture,
+            "Content is too large. Maximum supported size is {0:N0} characters.",
+            maxInputSize);
+
+    private static byte[] ReadToEnd(Stream stream)
+        => ReadBounded(stream, long.MaxValue, exceededMessage: string.Empty);
+
+    private static Task<byte[]> ReadToEndAsync(Stream stream, CancellationToken cancellationToken)
+        => ReadBoundedAsync(stream, long.MaxValue, exceededMessage: string.Empty, cancellationToken);
+
+    /// <summary>
+    /// Reads at most <paramref name="maxBytes"/>, plus one probe byte when the stream
+    /// continues, then throws. The remainder of an overlong stream is not consumed.
+    /// </summary>
+    private static byte[] ReadBounded(Stream stream, long maxBytes, string exceededMessage)
+    {
+        using var buffer = new MemoryStream();
+        var chunk = new byte[ReadChunkSize];
+        long total = 0;
+        while (true)
+        {
+            var want = NextReadSize(maxBytes, total);
+            var read = stream.Read(chunk, 0, want);
+            if (read == 0)
+                break;
+
+            total += read;
+            if (total > maxBytes)
+                throw new EdsParseException(exceededMessage);
+
+            buffer.Write(chunk, 0, read);
+        }
+
+        return buffer.ToArray();
+    }
+
+    private static async Task<byte[]> ReadBoundedAsync(
+        Stream stream,
+        long maxBytes,
+        string exceededMessage,
+        CancellationToken cancellationToken)
+    {
+        using var buffer = new MemoryStream();
+        var chunk = new byte[ReadChunkSize];
+        long total = 0;
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var want = NextReadSize(maxBytes, total);
+#if NET10_0_OR_GREATER
+            var read = await stream.ReadAsync(chunk.AsMemory(0, want), cancellationToken).ConfigureAwait(false);
+#else
+            var read = await stream.ReadAsync(chunk, 0, want, cancellationToken).ConfigureAwait(false);
+#endif
+            if (read == 0)
+                break;
+
+            total += read;
+            if (total > maxBytes)
+                throw new EdsParseException(exceededMessage);
+
+            buffer.Write(chunk, 0, read);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return buffer.ToArray();
+    }
+
+    internal static int NextReadSize(long maxBytes, long total)
+    {
+        if (maxBytes == long.MaxValue)
+            return ReadChunkSize;
+
+        var remaining = maxBytes - total;
+        if (remaining < 0)
+            return 0;
+
+        var probe = remaining >= int.MaxValue ? int.MaxValue : (int)remaining + 1;
+        return probe < ReadChunkSize ? probe : ReadChunkSize;
     }
 
     private static void ThrowIfNull(object? value, string parameterName)

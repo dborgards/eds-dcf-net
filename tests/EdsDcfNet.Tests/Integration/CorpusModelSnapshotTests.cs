@@ -42,7 +42,7 @@ public class CorpusModelSnapshotTests
             return;
 
         var model = CanOpenFile.Eds.ReadFileWithDiagnostics(filePath).Model;
-        AssertModelMatchesSnapshot(filePath, Serialize(model.ObjectDictionary, uniqueIdRefs: null));
+        AssertModelMatchesSnapshot(filePath, Serialize(model.ObjectDictionary, uniqueIdRefs: null, model.SupportedModules));
     }
 
     [Theory]
@@ -53,7 +53,7 @@ public class CorpusModelSnapshotTests
             return;
 
         var model = CanOpenFile.Dcf.ReadFileWithDiagnostics(filePath).Model;
-        AssertModelMatchesSnapshot(filePath, Serialize(model.ObjectDictionary, uniqueIdRefs: null));
+        AssertModelMatchesSnapshot(filePath, Serialize(model.ObjectDictionary, uniqueIdRefs: null, model.SupportedModules));
     }
 
     [Theory]
@@ -66,7 +66,10 @@ public class CorpusModelSnapshotTests
         var model = CanOpenFile.Xdd.ReadFileWithDiagnostics(filePath).Model;
         AssertModelMatchesSnapshot(
             filePath,
-            Serialize(model.ObjectDictionary, CountUniqueIdRefs(filePath, model.ObjectDictionary)));
+            Serialize(
+                model.ObjectDictionary,
+                CountUniqueIdRefs(filePath, model.ObjectDictionary),
+                model.SupportedModules));
     }
 
     [Theory]
@@ -79,7 +82,31 @@ public class CorpusModelSnapshotTests
         var model = CanOpenFile.Xdc.ReadFileWithDiagnostics(filePath).Model;
         AssertModelMatchesSnapshot(
             filePath,
-            Serialize(model.ObjectDictionary, CountUniqueIdRefs(filePath, model.ObjectDictionary)));
+            Serialize(
+                model.ObjectDictionary,
+                CountUniqueIdRefs(filePath, model.ObjectDictionary),
+                model.SupportedModules));
+    }
+
+    [Fact]
+    public void ModuleSectionsCanonicalFile_ModelSnapshot_ShowsFilledCollections()
+    {
+        // Arrange
+        var model = CanOpenFile.Eds.ReadFile(Path.Combine("Fixtures", "module_sections_canonical.eds"));
+        var snapshotPath = Path.Combine("Fixtures", "module_sections_canonical.eds.model.json");
+
+        // Act
+        var snapshot = Serialize(model.ObjectDictionary, uniqueIdRefs: null, model.SupportedModules);
+
+        // Assert — the frozen snapshot is the visible record that module collections are filled.
+        var expected = File.ReadAllText(snapshotPath).Replace("\r\n", "\n");
+        snapshot.Should().Be(expected);
+        snapshot.Should().Contain("\"comments\"");
+        snapshot.Should().Contain("\"fixedObjectDefinitions\"");
+        snapshot.Should().Contain("\"subExtends\"");
+        snapshot.Should().Contain("\"subExtensionDefinitions\"");
+        snapshot.Should().Contain("\"count\": \"4\"");
+        snapshot.Should().Contain("\"count\": \"0;2\"");
     }
 
     [Fact]
@@ -174,7 +201,10 @@ public class CorpusModelSnapshotTests
         return int.Parse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
     }
 
-    private static string Serialize(ObjectDictionary od, (int Total, int Resolved)? uniqueIdRefs)
+    private static string Serialize(
+        ObjectDictionary od,
+        (int Total, int Resolved)? uniqueIdRefs,
+        IReadOnlyList<ModuleInfo>? modules = null)
     {
         var sb = new StringBuilder();
         sb.Append("{\n");
@@ -220,10 +250,127 @@ public class CorpusModelSnapshotTests
             sb.Append('}');
         }
 
-        sb.Append(firstObject ? "]\n" : "\n  ]\n");
-        sb.Append("}\n");
+        sb.Append(firstObject ? "]" : "\n  ]");
+        AppendModules(sb, modules);
+        sb.Append("\n}\n");
         return sb.ToString();
     }
+
+    /// <summary>
+    /// Emits module collections only when a file actually carries CiA 306-1 §8.3
+    /// section data. Files without those collections keep the previous snapshot text.
+    /// </summary>
+    private static void AppendModules(StringBuilder sb, IReadOnlyList<ModuleInfo>? modules)
+    {
+        if (modules == null || !modules.Any(HasModuleSectionData))
+            return;
+
+        sb.Append(",\n  \"modules\": [");
+        var firstModule = true;
+        foreach (var module in modules.Where(HasModuleSectionData))
+        {
+            sb.Append(firstModule ? "\n    {" : ",\n    {");
+            firstModule = false;
+            sb.Append("\"moduleNumber\": ").Append(module.ModuleNumber.ToString(CultureInfo.InvariantCulture));
+
+            if (module.Comments != null)
+            {
+                sb.Append(", \"comments\": {\"lines\": ")
+                    .Append(module.Comments.Lines.ToString(CultureInfo.InvariantCulture))
+                    .Append(", \"commentLines\": [");
+                var firstLine = true;
+                foreach (var line in module.Comments.CommentLines.OrderBy(entry => entry.Key))
+                {
+                    sb.Append(firstLine ? "" : ", ");
+                    firstLine = false;
+                    CorpusFiles.AppendJsonString(sb, line.Value);
+                }
+
+                sb.Append("]}");
+            }
+
+            if (module.FixedObjectDefinitions.Count > 0)
+            {
+                sb.Append(", \"fixedObjectDefinitions\": [");
+                var firstObject = true;
+                foreach (var obj in module.FixedObjectDefinitions.Values.OrderBy(o => o.Index))
+                {
+                    sb.Append(firstObject ? "\n      {" : ",\n      {");
+                    firstObject = false;
+                    AppendIndex(sb, "index", obj.Index, 4);
+                    sb.Append(", \"parameterName\": ");
+                    CorpusFiles.AppendJsonString(sb, obj.ParameterName);
+                    if (obj.SubObjects.Count > 0)
+                    {
+                        sb.Append(", \"subObjects\": [");
+                        var firstSub = true;
+                        foreach (var sub in obj.SubObjects.Values.OrderBy(s => s.SubIndex))
+                        {
+                            sb.Append(firstSub ? "{" : ", {");
+                            firstSub = false;
+                            AppendIndex(sb, "subIndex", sub.SubIndex, 2);
+                            sb.Append(", \"parameterName\": ");
+                            CorpusFiles.AppendJsonString(sb, sub.ParameterName);
+                            sb.Append('}');
+                        }
+
+                        sb.Append(']');
+                    }
+
+                    sb.Append('}');
+                }
+
+                sb.Append("\n    ]");
+            }
+
+            if (module.SubExtends.Count > 0)
+            {
+                sb.Append(", \"subExtends\": [");
+                for (var i = 0; i < module.SubExtends.Count; i++)
+                {
+                    if (i > 0)
+                        sb.Append(", ");
+                    sb.Append("\"0x").Append(module.SubExtends[i].ToString("X4", CultureInfo.InvariantCulture)).Append('"');
+                }
+
+                sb.Append(']');
+            }
+
+            if (module.SubExtensionDefinitions.Count > 0)
+            {
+                sb.Append(", \"subExtensionDefinitions\": [");
+                var firstExtension = true;
+                foreach (var extension in module.SubExtensionDefinitions.Values.OrderBy(e => e.Index))
+                {
+                    sb.Append(firstExtension ? "\n      {" : ",\n      {");
+                    firstExtension = false;
+                    AppendIndex(sb, "index", extension.Index, 4);
+                    sb.Append(", \"parameterName\": ");
+                    CorpusFiles.AppendJsonString(sb, extension.ParameterName);
+                    sb.Append(", \"count\": ");
+                    CorpusFiles.AppendJsonString(sb, extension.Count);
+                    sb.Append(", \"objExtend\": ");
+                    if (extension.ObjExtend is { } objExtend)
+                        sb.Append(objExtend.ToString(CultureInfo.InvariantCulture));
+                    else
+                        sb.Append("null");
+                    sb.Append('}');
+                }
+
+                sb.Append("\n    ]");
+            }
+
+            sb.Append('}');
+        }
+
+        sb.Append("\n  ]");
+    }
+
+    private static bool HasModuleSectionData(ModuleInfo module)
+        => module.Comments != null
+           || module.FixedObjectDefinitions.Count > 0
+           || module.SubExtends.Count > 0
+           || module.SubExtensionDefinitions.Count > 0;
 
     private static void AppendIndex(StringBuilder sb, string name, int value, int width)
     {

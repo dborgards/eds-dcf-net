@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.15.0-beta.6](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.5...v1.15.0-beta.6) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **xdd:** honor BOM and declared encoding when reading XDD/XDC ([07fa5c4](https://github.com/dborgards/eds-dcf-net/commit/07fa5c41064f8c6f6d175942f5c556b1d52c5d80))
+
+## [1.15.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.4...v1.15.0-beta.5) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **eds:** parse and write MxSubExtends, MxSubExt, MxComments and MxFixed sections ([8b283cd](https://github.com/dborgards/eds-dcf-net/commit/8b283cd916a2018b1e637621744d2f98609a3bd4))
+
+## [1.15.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.3...v1.15.0-beta.4) (2026-10-02)
+
+### ✨ Features
+
+* **options:** add encoding option for all formats with ISO-8859-1 read fallback for INI ([82255c7](https://github.com/dborgards/eds-dcf-net/commit/82255c77991923c3cec3051bf369752aa3365483))
+
+## [1.15.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.2...v1.15.0-beta.3) (2026-10-02)
+
+### 🐛 Bug Fixes
+
+* **xdd:** treat objFlags as four-digit hexBinary ([51f340f](https://github.com/dborgards/eds-dcf-net/commit/51f340ffdc2c83eb9598e576f2442cb992b66d44))
+
 ## [1.15.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.1...v1.15.0-beta.2) (2026-10-02)
 
 ### 🐛 Bug Fixes
