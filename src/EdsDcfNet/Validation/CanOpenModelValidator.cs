@@ -15,7 +15,7 @@ using EdsDcfNet.Utilities;
 /// </threadsafety>
 public static class CanOpenModelValidator
 {
-    private static readonly ushort[] AllowedBaudrateValues = { 10, 20, 50, 125, 250, 500, 800, 1000 };
+    private static readonly ushort[] AllowedBaudrateValues = { 10, 20, 50, 100, 125, 250, 500, 800, 1000 };
 
     private static readonly HashSet<ushort> AllowedBaudrates = new(AllowedBaudrateValues);
 

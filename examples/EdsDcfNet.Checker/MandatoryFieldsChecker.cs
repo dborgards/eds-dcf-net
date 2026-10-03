@@ -27,7 +27,7 @@ public sealed class MandatoryFieldsChecker
         "BaudRate_250", "BaudRate_500", "BaudRate_800", "BaudRate_1000",
     };
 
-    private static readonly HashSet<uint> AllowedBaudrates = new() { 10, 20, 50, 125, 250, 500, 800, 1000 };
+    private static readonly HashSet<uint> AllowedBaudrates = new() { 10, 20, 50, 100, 125, 250, 500, 800, 1000 };
 
     private readonly string _file;
     private readonly RawIniDocument _doc;
@@ -172,7 +172,7 @@ public sealed class MandatoryFieldsChecker
         if (baudrate.HasValue && !AllowedBaudrates.Contains((uint)baudrate.Value))
         {
             Add(Severity.Error, "MND003", section, section.Get("Baudrate"), "Baudrate",
-                "Baudrate must be one of 10, 20, 50, 125, 250, 500, 800, 1000 (kbit/s).");
+                "Baudrate must be one of 10, 20, 50, 100, 125, 250, 500, 800, 1000 (kbit/s).");
         }
 
         RequireUnsigned(section, "NetNumber", 32);
