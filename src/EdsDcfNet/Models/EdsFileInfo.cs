@@ -42,14 +42,30 @@ public class EdsFileInfo
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
-    /// File creation time (format "hh:mm(AM|PM)").
+    /// File creation time. EDS and DCF use "hh:mm(AM|PM)"; an XDD/XDC read keeps the
+    /// <c>fileCreationTime</c> <c>xsd:time</c> text as read (for example
+    /// <c>19:31:59.7179280+01:00</c>).
     /// </summary>
+    /// <remarks>
+    /// The XDD/XDC writers emit either form as <c>xsd:time</c> and omit a value that is neither.
+    /// </remarks>
     public string CreationTime { get; set; } = string.Empty;
 
     /// <summary>
     /// Date of file creation (format "mm-dd-yyyy").
     /// </summary>
+    /// <remarks>
+    /// The XDD/XDC writers emit <c>fileCreationDate</c> (required, <c>xsd:date</c>) only for a date
+    /// that exists in the calendar. Without one the attribute is omitted and the document is not
+    /// schema-valid; a validated XDD/XDC write rejects the model.
+    /// </remarks>
     public string CreationDate { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Original <c>fileCreationDate</c> text of an XDD/XDC read (<c>xsd:date</c>, possibly with a
+    /// time zone). The writer emits it while its calendar date still equals <see cref="CreationDate"/>.
+    /// </summary>
+    internal string? CreationDateLexical { get; set; }
 
     /// <summary>
     /// Name or description of the file creator (max 245 characters).
@@ -57,7 +73,7 @@ public class EdsFileInfo
     public string CreatedBy { get; set; } = string.Empty;
 
     /// <summary>
-    /// Time of last modification (format "hh:mm(AM|PM)").
+    /// Time of last modification. Same two forms as <see cref="CreationTime"/>.
     /// </summary>
     public string ModificationTime { get; set; } = string.Empty;
 
@@ -65,6 +81,11 @@ public class EdsFileInfo
     /// Date of last file modification (format "mm-dd-yyyy").
     /// </summary>
     public string ModificationDate { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Original <c>fileModificationDate</c> text of an XDD/XDC read; see <see cref="CreationDateLexical"/>.
+    /// </summary>
+    internal string? ModificationDateLexical { get; set; }
 
     /// <summary>
     /// Name or description of the modifier (max 244 characters).

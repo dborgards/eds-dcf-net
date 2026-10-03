@@ -47,31 +47,31 @@ internal static class XddProfileBuilder
     // ── ProfileBody file info ─────────────────────────────────────────────────
 
     /// <summary>Adds file metadata attributes to a <c>ProfileBody</c> element.</summary>
+    /// <remarks>
+    /// <c>fileName</c>, <c>fileCreator</c> and <c>fileVersion</c> are required and always written
+    /// (an empty string is schema-valid). A date or time is written only when it is valid; an
+    /// omitted optional attribute is schema-valid, a mistyped one is not. A missing or invalid
+    /// <c>fileCreationDate</c> (required) is not invented; see <c>XmlWriteRules</c>.
+    /// </remarks>
     internal static void AddFileInfoAttributes(XElement profileBody, EdsFileInfo fileInfo)
     {
-        if (!string.IsNullOrEmpty(fileInfo.FileName))
-            profileBody.Add(new XAttribute("fileName", fileInfo.FileName));
+        profileBody.Add(new XAttribute("fileName", fileInfo.FileName ?? string.Empty));
+        profileBody.Add(new XAttribute("fileCreator", fileInfo.CreatedBy ?? string.Empty));
 
-        if (!string.IsNullOrEmpty(fileInfo.CreatedBy))
-            profileBody.Add(new XAttribute("fileCreator", fileInfo.CreatedBy));
+        if (XddFormatHelper.TryFormatFileDate(fileInfo.CreationDate, fileInfo.CreationDateLexical, out var creationDate))
+            profileBody.Add(new XAttribute("fileCreationDate", creationDate));
 
-        // Convert EDS date "MM-DD-YYYY" to XSD date "YYYY-MM-DD"
-        var xsdCreationDate = XddFormatHelper.ConvertEdsDateToXsd(fileInfo.CreationDate);
-        if (!string.IsNullOrEmpty(xsdCreationDate))
-            profileBody.Add(new XAttribute("fileCreationDate", xsdCreationDate));
-
-        if (!string.IsNullOrEmpty(fileInfo.CreationTime))
-            profileBody.Add(new XAttribute("fileCreationTime", fileInfo.CreationTime));
+        if (XddFormatHelper.TryConvertFileTimeToXsd(fileInfo.CreationTime, out var creationTime))
+            profileBody.Add(new XAttribute("fileCreationTime", creationTime));
 
         profileBody.Add(new XAttribute("fileVersion",
             fileInfo.FileVersion.ToString(CultureInfo.InvariantCulture)));
 
-        var xsdModDate = XddFormatHelper.ConvertEdsDateToXsd(fileInfo.ModificationDate);
-        if (!string.IsNullOrEmpty(xsdModDate))
-            profileBody.Add(new XAttribute("fileModificationDate", xsdModDate));
+        if (XddFormatHelper.TryFormatFileDate(fileInfo.ModificationDate, fileInfo.ModificationDateLexical, out var modificationDate))
+            profileBody.Add(new XAttribute("fileModificationDate", modificationDate));
 
-        if (!string.IsNullOrEmpty(fileInfo.ModificationTime))
-            profileBody.Add(new XAttribute("fileModificationTime", fileInfo.ModificationTime));
+        if (XddFormatHelper.TryConvertFileTimeToXsd(fileInfo.ModificationTime, out var modificationTime))
+            profileBody.Add(new XAttribute("fileModificationTime", modificationTime));
 
         if (!string.IsNullOrEmpty(fileInfo.ModifiedBy))
             profileBody.Add(new XAttribute("fileModifiedBy", fileInfo.ModifiedBy));

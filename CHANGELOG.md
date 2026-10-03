@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.12](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.11...v1.15.0-beta.12) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **checker:** continue directory sweep on unreadable files and match reader section precedence ([#611](https://github.com/dborgards/eds-dcf-net/issues/611)) ([12365b8](https://github.com/dborgards/eds-dcf-net/commit/12365b8d827294fec4d6f077fcf80bd90b5440b5))
+
 ## [1.15.0-beta.11](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.10...v1.15.0-beta.11) (2026-10-03)
 
 ### 🐛 Bug Fixes

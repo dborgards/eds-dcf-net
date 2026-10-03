@@ -625,8 +625,9 @@ stay lenient (no public way to enable StrictParsing on those readers).
 Today this covers:
 
 - Duplicate keys within an INI section
-- Unknown XDD/XDC baud-rate strings (`supportedBaudRate`, `actualBaudRate`,
-  `baudRate/@defaultValue`)
+- Unknown XDD/XDC baud-rate strings (`supportedBaudRate`,
+  `baudRate/@defaultValue`). `deviceCommissioning/@actualBaudRate` is a free
+  string: an unlisted text is reported and preserved, not rejected
 - Unknown boolean tokens (`ValueConverter.ParseBoolean`) and CPJ present-flag
   tokens (`ValueConverter.ParsePresentFlag`)
 - Unknown access-type tokens (`ValueConverter.ParseAccessType` and XDD

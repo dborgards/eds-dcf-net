@@ -10,6 +10,15 @@ using EdsDcfNet.Writers;
 /// XDD-focused read/write operations for CiA 311 XML Device Descriptions.
 /// Access via <see cref="CanOpenFile.Xdd"/>.
 /// </summary>
+/// <remarks>
+/// The default write is tolerant. <c>fileCreationDate</c> (required by the schema) is written only
+/// for a valid <see cref="EdsFileInfo.CreationDate"/>, so a model without one produces a document that
+/// is not schema-valid, as does an empty object dictionary. A date or time that is not valid is omitted.
+/// With <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> these cases throw
+/// <see cref="ModelValidationException"/>. <see cref="EdsFileInfo.CreationTime"/> and
+/// <see cref="EdsFileInfo.ModificationTime"/> are written as <c>xsd:time</c>: an <c>xsd:time</c> value
+/// unchanged, the EDS form <c>hh:mmAM/PM</c> converted to <c>HH:mm:ss</c>.
+/// </remarks>
 public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDataSheet>
 {
     internal static XddCanOpenOperations Instance { get; } = new();
