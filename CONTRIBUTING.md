@@ -19,6 +19,21 @@ refactor/xyz    ──┘      │           │
 | `develop` | Integration branch. Every merge here triggers a beta pre-release (e.g., `1.5.0-beta.1`) on NuGet. |
 | `feat/*`, `fix/*`, `refactor/*`, etc. | Short-lived work branches, always branched from `develop`. |
 
+### Merge strategy
+
+The merge method is enforced by the repository rulesets (see
+[Branch protection](#branch-protection-repository-rulesets)):
+
+- **Feature, fix and chore PRs into `develop`** are merged with **squash** (or
+  rebase); a merge commit is not allowed there. The squash commit message must
+  be a valid Conventional Commit: it is the commit semantic-release analyzes for
+  the beta release.
+- **The release PR `develop` → `main`** is merged with a **regular merge
+  commit, never squash or rebase** (the only method the `main` ruleset allows).
+  Squashing would collapse the individual `feat:`/`fix:` commits into one commit
+  that semantic-release does not recognize, and the stable release would be
+  skipped silently.
+
 ## How to contribute
 
 1. **Fork / clone the repository.**
@@ -489,12 +504,27 @@ Quick check before merging: *"Will this note reach consumers?"* — it will only
 if it is the **subject** of a commit whose type is release-visible, or the text
 of a `BREAKING CHANGE:` footer.
 
-## Recommended branch protection settings
+## Branch protection (repository rulesets)
+
+Both branches are protected by repository rulesets (verify with
+`gh api repos/dborgards/eds-dcf-net/rules/branches/develop`, likewise `main`):
 
 | Branch | Require PR | Require status checks | Restrict direct push |
 |---|---|---|---|
 | `main` | Yes | `build`; `codecov/patch` (Codecov app) | Yes |
 | `develop` | Yes | `build`; `coverage/threshold` (GitHub Actions) | Yes |
+
+Allowed merge methods per ruleset:
+
+| Branch | Allowed merge methods |
+|---|---|
+| `main` | merge commit only |
+| `develop` | squash, rebase |
+
+Both rulesets also block deletion and non-fast-forward pushes, require
+the branch to be up to date before merging (strict status checks), require all
+review threads to be resolved (no approving review is required), and gate on
+CodeQL results and code quality. Changes reach both branches only through PRs.
 
 `coverage/threshold` is the commit status from the line-coverage gate in
 `build.yml` (relayed onto release commits by `relay-release-status`). It is
