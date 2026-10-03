@@ -35,7 +35,11 @@ sub-objects, object lists, data types, access rights, defaults, and configured v
 
 📦 **Modular** - Support for modular devices (bus couplers + modules)
 
-✅ **CiA DS 306 v1.4 / CiA 311 v1.1 Compliant** - Implemented according to official specification
+✅ **Documented CiA 306 / CiA 311 Subset** - EDS, DCF and CPJ follow CiA 306-1 v1.4.0 and CiA 306-3
+(lenient or strict reader, writer, validator). XDD and XDC follow CiA 311 v1.1.0: output is checked in the
+test suite against the CiA 311 XML schema, and XML content the model does not cover is preserved.
+This is not a full-conformance claim. The supported scope and the known limitations are listed in
+[arc42 section 8.4](docs/architecture/08-crosscutting-concepts.md#84-round-trip-fidelity).
 
 ## Quick Start
 
