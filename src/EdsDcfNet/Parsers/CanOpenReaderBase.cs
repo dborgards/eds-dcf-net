@@ -427,8 +427,9 @@ public abstract class CanOpenReaderBase
     }
 
     /// <summary>
-    /// <see langword="true"/> for <c>M{digits}Fixed…</c>: a <c>[MxFixedxxxx]</c> or
-    /// <c>[MxFixedxxxxsubx]</c> name, which <see cref="IsModuleSection"/> leaves out.
+    /// <see langword="true"/> for a <c>[MxFixedxxxx]</c> or <c>[MxFixedxxxxsubx]</c> name with a
+    /// hexadecimal index (and sub-index), which <see cref="IsModuleSection"/> leaves out. Other
+    /// <c>M{n}Fixed…</c> names, such as <c>[M5FixedVendor]</c>, stay ordinary additional sections.
     /// </summary>
     private static bool IsModuleFixedObjectSection(string sectionName)
     {
@@ -439,7 +440,8 @@ public abstract class CanOpenReaderBase
         while (digitsEnd < sectionName.Length && char.IsDigit(sectionName[digitsEnd]))
             digitsEnd++;
 
-        return digitsEnd > 1 && sectionName[digitsEnd..].StartsWith("Fixed", StringComparison.OrdinalIgnoreCase);
+        return digitsEnd > 1
+               && CanOpenSectionParsers.TryParseFixedObjectSuffix(sectionName[digitsEnd..], out _, out _, out _);
     }
 
     /// <summary>

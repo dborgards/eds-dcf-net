@@ -220,6 +220,46 @@ public class OrphanKnownSectionTests
     }
 
     [Fact]
+    public void ReadString_ModuleFixedNameWithoutHexIndex_PreservedWithoutModuleDiagnostic()
+    {
+        // Arrange — the module parser never loads [M5FixedVendor]; it is an ordinary section.
+        var content = Eds("""
+            [M5FixedVendor]
+            VendorKey=kept
+
+            """);
+
+        // Act
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+        var strict = () => CanOpenFile.Eds.ReadString(content, Strict);
+
+        // Assert
+        result.Model.AdditionalSections["M5FixedVendor"]["VendorKey"].Should().Be("kept");
+        result.Diagnostics.Should().NotContain(d => d.Code == ParseDiagnosticCodes.IniUnlistedModuleSection);
+        strict.Should().NotThrow();
+    }
+
+    [Theory]
+    [InlineData("M5Fixed2000")]
+    [InlineData("M5Fixed2000sub1")]
+    public void ReadString_ModuleFixedObjectOfUnparsedModule_ReportsModuleDiagnostic(string sectionName)
+    {
+        // Arrange
+        var content = Eds("[" + sectionName + "]" + Environment.NewLine + "ParameterName=Fixed" + Environment.NewLine);
+
+        // Act
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+        var strict = () => CanOpenFile.Eds.ReadString(content, Strict);
+
+        // Assert
+        result.Model.AdditionalSections[sectionName]["ParameterName"].Should().Be("Fixed");
+        result.Diagnostics.Should().ContainSingle(d => d.Code == ParseDiagnosticCodes.IniUnlistedModuleSection)
+            .Which.Path.Should().Be(sectionName);
+        strict.Should().Throw<EdsParseException>()
+            .Which.Code.Should().Be(ParseDiagnosticCodes.IniUnlistedModuleSection);
+    }
+
+    [Fact]
     public void ReadString_ParsedModuleSections_AreNotCopiedOrReported()
     {
         // Arrange

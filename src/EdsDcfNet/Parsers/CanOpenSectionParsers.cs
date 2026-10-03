@@ -811,8 +811,25 @@ internal static class CanOpenSectionParsers
         subIndex = 0;
         isSubObject = false;
 
-        if (!TryParseModuleSuffix(sectionName, moduleNumber, out var suffix) ||
-            !suffix.StartsWith("Fixed", StringComparison.OrdinalIgnoreCase) ||
+        return TryParseModuleSuffix(sectionName, moduleNumber, out var suffix)
+               && TryParseFixedObjectSuffix(suffix, out index, out subIndex, out isSubObject);
+    }
+
+    /// <summary>
+    /// Parses the part of a module section name after <c>M{n}</c> as <c>Fixedxxxx</c> or
+    /// <c>Fixedxxxxsubx</c> (hexadecimal index and sub-index), the names the module parser loads.
+    /// </summary>
+    internal static bool TryParseFixedObjectSuffix(
+        string suffix,
+        out ushort index,
+        out byte subIndex,
+        out bool isSubObject)
+    {
+        index = 0;
+        subIndex = 0;
+        isSubObject = false;
+
+        if (!suffix.StartsWith("Fixed", StringComparison.OrdinalIgnoreCase) ||
             suffix.Equals("FixedObjects", StringComparison.OrdinalIgnoreCase))
         {
             return false;
