@@ -16,7 +16,7 @@ using EdsDcfNet.Parsers;
 /// not map, or they are lost on write. The case list is derived from the reader:
 /// every name in <c>KnownSectionNames</c> must have a template here, and the cases are the
 /// fixture sections that <c>IsKnownSection</c>, <c>IsSectionHandledByFormat</c> (including the
-/// DCF override), <c>IsToolSectionForParsedTools</c> or
+/// DCF override), <c>CanOpenSectionParsers.IsParsedToolSection</c> or
 /// <c>CanOpenSectionParsers.IsConsumedModuleFixedSection</c> classify as processed. <c>[xxxxObjectLinks]</c> of an existing object is
 /// added for EDS as well, because the EDS writer emits it from the object and skips the
 /// <c>AdditionalSections</c> copy.
@@ -134,10 +134,10 @@ public class SectionRemainingEntriesCompletenessTests
         var reader = isDcf ? (CanOpenReaderBase)new DcfReader() : new EdsReader();
         var isKnown = typeof(CanOpenReaderBase).GetMethod("IsKnownSection", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var isHandled = typeof(CanOpenReaderBase).GetMethod("IsSectionHandledByFormat", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        var isTool = typeof(CanOpenReaderBase).GetMethod("IsToolSectionForParsedTools", BindingFlags.Static | BindingFlags.NonPublic)!;
-        var isModuleFixed = typeof(CanOpenReaderBase).Assembly
-            .GetType("EdsDcfNet.Parsers.CanOpenSectionParsers", throwOnError: true)!
-            .GetMethod("IsConsumedModuleFixedSection", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var sectionParsers = typeof(CanOpenReaderBase).Assembly
+            .GetType("EdsDcfNet.Parsers.CanOpenSectionParsers", throwOnError: true)!;
+        var isTool = sectionParsers.GetMethod("IsParsedToolSection", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var isModuleFixed = sectionParsers.GetMethod("IsConsumedModuleFixedSection", BindingFlags.Static | BindingFlags.NonPublic)!;
 
         var sections = new List<string>();
         foreach (var spelling in CommissioningSpellings)
@@ -147,7 +147,6 @@ public class SectionRemainingEntriesCompletenessTests
 
             var content = BuildFixture(isDcf, spelling);
             object model = isDcf ? CanOpenFile.Dcf.ReadString(content) : CanOpenFile.Eds.ReadString(content);
-            var tools = isDcf ? ((DeviceConfigurationFile)model).Tools : ((ElectronicDataSheet)model).Tools;
             var modules = isDcf ? ((DeviceConfigurationFile)model).SupportedModules : ((ElectronicDataSheet)model).SupportedModules;
 
             foreach (var template in FixtureTemplates(isDcf, spelling))
@@ -155,7 +154,7 @@ public class SectionRemainingEntriesCompletenessTests
                 var known = (bool)isKnown.Invoke(reader, new object[] { template.Section })!;
                 // The same checks ParseCommonSections uses to keep a section out of AdditionalSections.
                 var handled = (bool)isHandled.Invoke(reader, new[] { template.Section, model })!
-                              || (bool)isTool.Invoke(null, new object[] { template.Section, tools.Count })!
+                              || (bool)isTool.Invoke(null, new object[] { IniParser.ParseString(content), template.Section })!
                               || (bool)isModuleFixed.Invoke(null, new object[] { template.Section, modules })!;
 
                 // EDS keeps [xxxxObjectLinks] of an existing object in AdditionalSections, but the

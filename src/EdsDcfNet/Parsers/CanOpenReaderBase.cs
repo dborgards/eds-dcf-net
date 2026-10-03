@@ -71,7 +71,7 @@ public abstract class CanOpenReaderBase
         var reportedUnlistedIndexes = new HashSet<ushort>();
         foreach (var sectionName in sections.Keys)
         {
-            if (IsToolSectionForParsedTools(sectionName, model.Tools.Count) ||
+            if (CanOpenSectionParsers.IsParsedToolSection(sections, sectionName) ||
                 IsSectionHandledByFormat(sectionName, model) ||
                 CanOpenSectionParsers.IsConsumedModuleFixedSection(sectionName, model.SupportedModules))
             {
@@ -820,6 +820,11 @@ public abstract class CanOpenReaderBase
     /// <c>[Tool{n}]</c> section for one of the already-parsed tools (1 ≤ n ≤ <paramref name="parsedToolCount"/>).
     /// Used to avoid treating tool data sections as unknown additional sections.
     /// </summary>
+    /// <remarks>
+    /// Kept for derived readers. The built-in readers classify a tool section by the
+    /// <c>[Tools] Items</c> range the parser reads instead: with a gap (<c>Items=2</c> and only
+    /// <c>[Tool2]</c>) the number of parsed tools is smaller than the section number.
+    /// </remarks>
     protected static bool IsToolSectionForParsedTools(string sectionName, int parsedToolCount)
     {
         if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase) || sectionName.Length <= 4)

@@ -891,8 +891,29 @@ internal static class CanOpenSectionParsers
     /// Parses the <c>[Tools]</c> section and each individual <c>[Tool{n}]</c> section
     /// into a list of <see cref="ToolInfo"/> objects.
     /// </summary>
+    /// <summary>
+    /// <see langword="true"/> when <see cref="ParseTools(Dictionary{string, Dictionary{string, string}}, Dictionary{string, OrderedStringDictionary})"/>
+    /// reads <paramref name="sectionName"/> if the section is present: the canonical name
+    /// <c>Tool&lt;n&gt;</c> with <c>1 &lt;= n &lt;= Items</c>. The reader uses this to keep a
+    /// parsed tool section out of <c>AdditionalSections</c>.
+    /// </summary>
+    internal static bool IsParsedToolSection(Dictionary<string, Dictionary<string, string>> sections, string sectionName)
+    {
+        if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase)
+            || !int.TryParse(sectionName[4..], NumberStyles.None, CultureInfo.InvariantCulture, out var number)
+            || number < 1)
+        {
+            return false;
+        }
+
+        // ParseTools has already parsed Items successfully, so this cannot throw here.
+        var items = ValueConverter.ParseByte(IniParser.GetValue(sections, "Tools", "Items", "0"));
+        return number <= items
+               && string.Equals(sectionName, "Tool" + number.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+    }
+
     internal static List<ToolInfo> ParseTools(Dictionary<string, Dictionary<string, string>> sections)
-        => ParseTools(sections, new Dictionary<string, OrderedStringDictionary>(StringComparer.OrdinalIgnoreCase));
+        =>ParseTools(sections, new Dictionary<string, OrderedStringDictionary>(StringComparer.OrdinalIgnoreCase));
 
     /// <summary>
     /// Parses <c>[Tools]</c> and <c>[Tool{n}]</c>. Unmapped <c>[Tools]</c> entries go to
