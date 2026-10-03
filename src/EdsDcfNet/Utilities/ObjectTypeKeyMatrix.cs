@@ -65,6 +65,17 @@ internal static class ObjectTypeKeyMatrix
            && rules[column] == KeyRule.NotSupported;
 
     /// <summary>
+    /// Sub-index section view of <see cref="IsNotSupported"/>. A sub-object has no sub-indexes
+    /// and no compact representation of its own, so <c>SubNumber</c> and <c>CompactSubObj</c>
+    /// are not supported there for any object type (including the DEFSTRUCT/ARRAY/RECORD
+    /// column, where Table 7 lists them as "m"/"nc" for the object section).
+    /// </summary>
+    internal static bool IsNotSupportedInSubObject(byte objectType, string key)
+        => string.Equals(key, "SubNumber", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(key, "CompactSubObj", StringComparison.OrdinalIgnoreCase)
+           || IsNotSupported(objectType, hasCompactSubObj: false, key);
+
+    /// <summary>
     /// <see langword="true"/> when an object of <paramref name="objectType"/> may carry
     /// sub-indexes, that is, when Table 7 does not mark <c>SubNumber</c> as "n" for it.
     /// </summary>

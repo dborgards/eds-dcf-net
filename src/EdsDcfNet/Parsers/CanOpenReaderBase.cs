@@ -568,7 +568,7 @@ public abstract class CanOpenReaderBase
             sectionName,
             obj.ObjectType,
             obj.CompactSubObj.GetValueOrDefault() > 0,
-            SectionEntryKeys.IsEdsObjectKey);
+            key => ObjectTypeKeyMatrix.IsNotSupported(obj.ObjectType, obj.CompactSubObj.GetValueOrDefault() > 0, key));
 
         // Parse sub-objects for composite types, CompactSubObj templates (CiA 306 §4.5.2.4.2),
         // or an explicit SubNumber. CompactSubObj may be non-zero while SubNumber is 0/absent.
@@ -789,21 +789,22 @@ public abstract class CanOpenReaderBase
         subObj.SetAccessTypeFromProfile(
             ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")));
 
-        // Every Table 7 key counts, including SubNumber and CompactSubObj, which CanOpenSubObject
-        // does not map. A reported key is not kept as a remaining entry, so it is not written
-        // back. ObjFlags is optional in a sub-index section and stays a remaining entry.
+        // Every Table 7 key counts; SubNumber and CompactSubObj are not supported in any
+        // sub-index section (CanOpenSubObject has neither). A reported key is not kept as a
+        // remaining entry, so it is not written back. ObjFlags is optional in a sub-index
+        // section and stays a remaining entry.
+        bool IsNotSupportedKey(string key) => ObjectTypeKeyMatrix.IsNotSupportedInSubObject(subObj.ObjectType, key);
         ReportNotSupportedKeys(
             sections,
             sectionName,
             subObj.ObjectType,
             hasCompactSubObj: false,
-            static _ => true);
+            IsNotSupportedKey);
 
         CaptureRemainingEntries(
             sections,
             sectionName,
-            key => IsKnownSubObjectEntryKey(key) ||
-                   ObjectTypeKeyMatrix.IsNotSupported(subObj.ObjectType, hasCompactSubObj: false, key),
+            key => IsKnownSubObjectEntryKey(key) || IsNotSupportedKey(key),
             subObj.RemainingEntries);
 
         return subObj;
@@ -811,7 +812,8 @@ public abstract class CanOpenReaderBase
 
     /// <summary>
     /// Reports every key of <paramref name="sectionName"/> that CiA 306-1 Table 7 marks as not
-    /// supported ("n") for <paramref name="objectType"/>
+    /// supported ("n") for <paramref name="objectType"/>, as selected by
+    /// <paramref name="isNotSupported"/>
     /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniObjectKeyNotSupported"/>). The key is
     /// checked on the raw section because the model cannot tell an omitted <c>AccessType</c> or
     /// <c>PDOMapping</c> from its default. The value is still read; the INI writers omit the key.
@@ -822,15 +824,12 @@ public abstract class CanOpenReaderBase
         string sectionName,
         byte objectType,
         bool hasCompactSubObj,
-        Func<string, bool> isMappedKey)
+        Func<string, bool> isNotSupported)
     {
         foreach (var entry in EntriesInFileOrder(sections[sectionName]))
         {
-            if (!isMappedKey(entry.Key) ||
-                !ObjectTypeKeyMatrix.IsNotSupported(objectType, hasCompactSubObj, entry.Key))
-            {
+            if (!isNotSupported(entry.Key))
                 continue;
-            }
 
             var message = string.Format(
                 CultureInfo.InvariantCulture,

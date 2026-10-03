@@ -364,11 +364,11 @@ public abstract class IniWriterBase
         => !ObjectTypeKeyMatrix.IsNotSupported(obj.ObjectType, GetCompactMaxSubIndex(obj) > 0, key);
 
     /// <summary>
-    /// Sub-object counterpart of <see cref="IsObjectKeyWritten"/>; a sub-object has no
-    /// <c>CompactSubObj</c> of its own.
+    /// Sub-object counterpart of <see cref="IsObjectKeyWritten"/>; <c>SubNumber</c> and
+    /// <c>CompactSubObj</c> are never written in a sub-index section.
     /// </summary>
     internal static bool IsSubObjectKeyWritten(CanOpenSubObject subObj, string key)
-        => !ObjectTypeKeyMatrix.IsNotSupported(subObj.ObjectType, hasCompactSubObj: false, key);
+        => !ObjectTypeKeyMatrix.IsNotSupportedInSubObject(subObj.ObjectType, key);
 
     /// <summary>
     /// Highest compact-listable sub-index for <paramref name="obj"/>, or 0 when

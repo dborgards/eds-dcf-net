@@ -525,6 +525,57 @@ public class ObjectTypeKeyMatrixTests
     }
 
     [Fact]
+    public void ReadStringWithDiagnostics_RecordSubObjectWithCompactSubObj_ReportsAndDropsKey()
+    {
+        // Arrange: a sub-object has no compact representation, so CompactSubObj is "n" in every
+        // sub-index section, also for a RECORD sub-object.
+        var content = Eds(
+            "[2000]",
+            "SubNumber=2",
+            "ParameterName=Record",
+            "ObjectType=0x9",
+            "[2000sub0]",
+            "ParameterName=Count",
+            "DataType=0x0005",
+            "AccessType=ro",
+            "DefaultValue=1",
+            "[2000sub1]",
+            "ParameterName=Nested",
+            "ObjectType=0x9",
+            "CompactSubObj=1",
+            "Group=Vendor");
+
+        // Act
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+        var written = CanOpenFile.Eds.WriteToString(result.Model);
+
+        // Assert
+        var diagnostic = result.Diagnostics.Should().ContainSingle().Subject;
+        diagnostic.Code.Should().Be(ParseDiagnosticCodes.IniObjectKeyNotSupported);
+        diagnostic.Path.Should().Be("2000sub1.CompactSubObj");
+        result.Model.ObjectDictionary.Objects[0x2000].SubObjects[1].RemainingEntries.Keys.Should().Equal("Group");
+        SectionKeys(written, "2000sub1").Should().NotContain("CompactSubObj");
+    }
+
+    [Fact]
+    public void WriteToString_RecordSubObjectRemainingCompactSubObj_ValidatedWriteDropsKey()
+    {
+        // Arrange
+        var record = StructuredObject(CanOpenObjectType.Record);
+        record.DefaultValue = string.Empty;
+        record.SubObjects[1].ObjectType = CanOpenObjectType.Record;
+        record.SubObjects[1].RemainingEntries.Add("CompactSubObj", " 1");
+        record.SubObjects[1].RemainingEntries.Add("SubNumber", " 1");
+        var eds = EdsWith(record);
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        SectionKeys(written, "2000sub1").Should().NotContain(new[] { "CompactSubObj", "SubNumber" });
+    }
+
+    [Fact]
     public void ReadStringWithDiagnostics_CompactArrayWithSubNumber_DoesNotReport()
     {
         // Arrange: S18 — "nc" (Table 7, footnote c); the writer keeps SubNumber for expanded
