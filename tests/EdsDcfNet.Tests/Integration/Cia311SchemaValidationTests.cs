@@ -36,11 +36,11 @@ public class Cia311SchemaValidationTests
     public static IEnumerable<object[]> KnownGaps()
     {
         // Historical fixtures still have no CiA 311 namespace. Writer output no longer
-        // fails there; the next problem is content (WP-43 DeviceFunction, or a time value).
+        // fails there; the next problem is content (WP-43 DeviceFunction).
         yield return new object[] { "fixture:sample_device.xdd", "ISO15745ProfileContainer" };
         yield return new object[] { "fixture:minimal.xdc", "ISO15745ProfileContainer" };
         yield return new object[] { "XddWriter:sample_device.xdd", "capabilities" };
-        yield return new object[] { "XddWriter:sample_device.eds", "fileCreationTime" };
+        yield return new object[] { "XddWriter:sample_device.eds", "capabilities" };
         yield return new object[] { "XddWriter:corpus/basicDevice.xdd", "capabilities" };
         yield return new object[] { "XdcWriter:minimal.xdc", "capabilities" };
     }

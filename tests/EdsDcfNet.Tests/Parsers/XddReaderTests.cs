@@ -2,6 +2,7 @@ namespace EdsDcfNet.Tests.Parsers;
 
 using System.Text;
 using EdsDcfNet;
+using EdsDcfNet.Diagnostics;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 using EdsDcfNet.Parsers;
@@ -1241,7 +1242,7 @@ public class XddReaderTests
     }
 
     [Fact]
-    public void ParseDeviceCommissioning_UnknownActualBaudRate_StrictParsing_ThrowsEdsParseException()
+    public void ParseDeviceCommissioning_UnknownActualBaudRate_StrictParsing_ReportsAndPreservesWithoutThrowing()
     {
         const string xdc = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <ISO15745ProfileContainer xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
@@ -1273,10 +1274,13 @@ public class XddReaderTests
   </ISO15745Profile>
 </ISO15745ProfileContainer>";
 
-        var act = () => CanOpenFile.Xdc.ReadString(xdc, new CanOpenFileOptions { StrictParsing = true });
+        // actualBaudRate is a free xsd:string: valid input the model cannot hold is reported, not rejected.
+        var result = CanOpenFile.Xdc.ReadStringWithDiagnostics(xdc, new CanOpenFileOptions { StrictParsing = true });
 
-        act.Should().Throw<EdsParseException>()
-            .WithMessage("*Unknown baud-rate string '777 Kbps'*");
+        result.Model.DeviceCommissioning.Baudrate.Should().Be(0);
+        result.Diagnostics.Should().ContainSingle(d =>
+            d.Code == ParseDiagnosticCodes.XddUnknownBaudRate && d.RawValue == "777 Kbps");
+        CanOpenFile.Xdc.WriteToString(result.Model).Should().Contain("actualBaudRate=\"777 Kbps\"");
     }
 
     [Fact]

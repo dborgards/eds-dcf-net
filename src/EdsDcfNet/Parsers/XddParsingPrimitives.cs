@@ -307,7 +307,8 @@ internal static class XddParsingPrimitives
     /// <c>250 Kbps</c>, <c>500 Kbps</c>, <c>800 Kbps</c>, <c>1000 Kbps</c>.
     /// Empty input returns <c>0</c>. Unknown non-empty values return <c>0</c> when
     /// lenient, or throw <see cref="EdsParseException"/> when
-    /// <see cref="StrictParsingScope"/> is enabled.
+    /// <see cref="StrictParsingScope"/> is enabled. The XDC <c>deviceCommissioning/@actualBaudRate</c>
+    /// does not use this method: that attribute is a free string and is preserved instead.
     /// </remarks>
     internal static ushort ParseBaudRateString(string value)
     {
@@ -318,14 +319,8 @@ internal static class XddParsingPrimitives
         if (value.Length == 0)
             return 0;
 
-        if (value.Equals("10 Kbps", StringComparison.OrdinalIgnoreCase)) return 10;
-        if (value.Equals("20 Kbps", StringComparison.OrdinalIgnoreCase)) return 20;
-        if (value.Equals("50 Kbps", StringComparison.OrdinalIgnoreCase)) return 50;
-        if (value.Equals("125 Kbps", StringComparison.OrdinalIgnoreCase)) return 125;
-        if (value.Equals("250 Kbps", StringComparison.OrdinalIgnoreCase)) return 250;
-        if (value.Equals("500 Kbps", StringComparison.OrdinalIgnoreCase)) return 500;
-        if (value.Equals("800 Kbps", StringComparison.OrdinalIgnoreCase)) return 800;
-        if (value.Equals("1000 Kbps", StringComparison.OrdinalIgnoreCase)) return 1000;
+        if (TryParseKnownBaudRate(value, out var known))
+            return known;
 
         if (StrictParsingScope.IsEnabled)
         {
@@ -351,6 +346,22 @@ internal static class XddParsingPrimitives
                 value)));
 
         return 0;
+    }
+
+    /// <summary>Recognises the CiA 311 baud-rate vocabulary (case-insensitive, surrounding whitespace ignored).</summary>
+    internal static bool TryParseKnownBaudRate(string value, out ushort kbps)
+    {
+        kbps = 0;
+        value = value.Trim();
+        if (value.Equals("10 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 10;
+        else if (value.Equals("20 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 20;
+        else if (value.Equals("50 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 50;
+        else if (value.Equals("125 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 125;
+        else if (value.Equals("250 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 250;
+        else if (value.Equals("500 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 500;
+        else if (value.Equals("800 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 800;
+        else if (value.Equals("1000 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 1000;
+        return kbps != 0;
     }
 
     /// <summary>
@@ -424,20 +435,5 @@ internal static class XddParsingPrimitives
     }
 
     internal static string ConvertXsdDateToEds(string xsdDate)
-    {
-        if (string.IsNullOrEmpty(xsdDate))
-            return string.Empty;
-
-        // XSD date: "YYYY-MM-DD" → EDS: "MM-DD-YYYY"
-        if (xsdDate.Length >= 10 &&
-            xsdDate[4] == '-' && xsdDate[7] == '-')
-        {
-            var year = xsdDate[..4];
-            var month = xsdDate[5..7];
-            var day = xsdDate[8..10];
-            return string.Format(CultureInfo.InvariantCulture, "{0}-{1}-{2}", month, day, year);
-        }
-
-        return xsdDate;
-    }
+        => Writers.XddFormatHelper.ConvertXsdDateToEds(xsdDate);
 }

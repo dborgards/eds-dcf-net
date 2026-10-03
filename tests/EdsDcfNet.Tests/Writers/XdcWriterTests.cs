@@ -155,7 +155,7 @@ public class XdcWriterTests
     }
 
     [Fact]
-    public void GenerateString_DeviceCommissioning_OptionalFieldsOmitted_AndManagerTrue()
+    public void GenerateString_DeviceCommissioning_EmptyRequiredStrings_WrittenEmpty_AndManagerTrue()
     {
         // Arrange
         var dcf = CreateSampleDcf();
@@ -175,9 +175,9 @@ public class XdcWriterTests
         result.Should().Contain("nodeID=\"5\"");
         result.Should().Contain("networkNumber=\"7\"");
         result.Should().Contain("CANopenManager=\"true\"");
-        result.Should().NotContain("nodeName=");
-        result.Should().NotContain("actualBaudRate=");
-        result.Should().NotContain("networkName=");
+        result.Should().Contain("nodeName=\"\"");
+        result.Should().Contain("actualBaudRate=\"\"");
+        result.Should().Contain("networkName=\"\"");
     }
 
     [Fact]

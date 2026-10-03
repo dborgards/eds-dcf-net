@@ -297,23 +297,34 @@ public class XdcWriter : XddWriter
         elem.Add(new XAttribute("nodeID",
             dc.NodeId.ToString(CultureInfo.InvariantCulture)));
 
-        if (!string.IsNullOrEmpty(dc.NodeName))
-            elem.Add(new XAttribute("nodeName", dc.NodeName));
+        // nodeName, actualBaudRate, networkNumber and networkName are required by the schema
+        // (xsd:string / xsd:unsignedLong); an empty string is schema-valid.
+        elem.Add(new XAttribute("nodeName", dc.NodeName ?? string.Empty));
 
-        if (dc.Baudrate > 0)
-            elem.Add(new XAttribute("actualBaudRate",
-                string.Format(CultureInfo.InvariantCulture, "{0} Kbps", dc.Baudrate)));
+        elem.Add(new XAttribute("actualBaudRate", FormatActualBaudRate(dc)));
 
         elem.Add(new XAttribute("networkNumber",
-            dc.NetNumber.ToString(CultureInfo.InvariantCulture)));
+            dc.NetworkNumberLexical != null && dc.NetNumber == dc.NetworkNumberLexicalBaseline
+                ? dc.NetworkNumberLexical
+                : dc.NetNumber.ToString(CultureInfo.InvariantCulture)));
 
-        if (!string.IsNullOrEmpty(dc.NetworkName))
-            elem.Add(new XAttribute("networkName", dc.NetworkName));
+        elem.Add(new XAttribute("networkName", dc.NetworkName ?? string.Empty));
 
         elem.Add(new XAttribute("CANopenManager",
             dc.CANopenManager ? "true" : "false"));
 
         return elem;
+    }
+
+    private static string FormatActualBaudRate(DeviceCommissioning dc)
+    {
+        // The read spelling (for example "auto-baudRate") stays while the property is unchanged.
+        if (dc.ActualBaudRateLexical != null && dc.Baudrate == dc.ActualBaudRateLexicalBaseline)
+            return dc.ActualBaudRateLexical;
+
+        return dc.Baudrate > 0
+            ? string.Format(CultureInfo.InvariantCulture, "{0} Kbps", dc.Baudrate)
+            : string.Empty;
     }
 
     /// <summary>Creates a temporary ElectronicDataSheet view from a DeviceConfigurationFile.</summary>

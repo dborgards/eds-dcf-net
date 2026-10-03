@@ -47,7 +47,7 @@ public sealed class CanOpenFileOptions
     /// <item><description>Malformed INI section headers such as <c>[2000</c> or text after the closing bracket other than a <c>;</c> comment (default: ignore the header and the keys that follow it up to the next valid header)</description></item>
     /// <item><description>INI lines without <c>=</c> or with an empty key (default: ignore the line). A line starting with <c>#</c> without <c>=</c> is ignored in both modes</description></item>
     /// <item><description>Duplicate INI section headers (default: merge the keys into the earlier section)</description></item>
-    /// <item><description>Unknown XDD/XDC baud-rate strings on <c>supportedBaudRate</c>, <c>actualBaudRate</c>, and <c>baudRate/@defaultValue</c> (default: treat as 0 / ignore)</description></item>
+    /// <item><description>Unknown XDD/XDC baud-rate strings on <c>supportedBaudRate</c> and <c>baudRate/@defaultValue</c> (default: treat as 0 / ignore)</description></item>
     /// <item><description>Unknown boolean tokens in <c>ValueConverter.ParseBoolean</c> (default: treat as <see langword="false"/>)</description></item>
     /// <item><description>Unknown access-type tokens in <c>ValueConverter.ParseAccessType</c> (default: <c>ro</c>)</description></item>
     /// <item><description>
@@ -109,6 +109,14 @@ public sealed class CanOpenFileOptions
     /// <c>dynamicChannel</c> <c>maxNumber</c> and <c>bitAlignment</c>, general-feature
     /// counts, and <c>networkNumber</c>
     /// (default: ignore / leave unset; surrounding whitespace and optional leading sign are accepted)
+    /// </description></item>
+    /// <item><description>
+    /// XDC <c>deviceCommissioning</c>. <c>actualBaudRate</c> is a free <c>xsd:string</c>, and
+    /// <c>networkNumber</c> an <c>xsd:unsignedLong</c>. A schema-valid value the model cannot hold
+    /// (<c>auto-baudRate</c>, <c>4294967296</c>) is reported as a diagnostic and left at <c>0</c> in
+    /// both modes (strict does not throw); the original text is kept for writing until
+    /// <c>Baudrate</c> or <c>NetNumber</c> changes. A <c>networkNumber</c> that is not an unsigned
+    /// integer at all is malformed (default: ignore; strict: throw).
     /// </description></item>
     /// <item><description>
     /// XDD/XDC <c>dynamicChannel</c>. Schema <c>accessType</c> values are

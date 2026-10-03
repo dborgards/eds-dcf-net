@@ -10,6 +10,13 @@ using EdsDcfNet.Writers;
 /// XDC-focused read/write operations for CiA 311 XML Device Configurations.
 /// Access via <see cref="CanOpenFile.Xdc"/>.
 /// </summary>
+/// <remarks>
+/// The file attributes follow the same rules as <see cref="XddCanOpenOperations"/>. The required
+/// <c>deviceCommissioning</c> attributes <c>nodeName</c>, <c>actualBaudRate</c> and <c>networkName</c>
+/// are always written (an empty string is schema-valid). <see cref="DeviceCommissioning.Baudrate"/> of
+/// <c>0</c> without a preserved read value gives an empty <c>actualBaudRate</c>, which a validated
+/// write rejects.
+/// </remarks>
 public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigurationFile>
 {
     internal static XdcCanOpenOperations Instance { get; } = new();
