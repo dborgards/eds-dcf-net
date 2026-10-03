@@ -26,6 +26,10 @@ public class AsyncCancellationTestSupportTests
     [Fact(Timeout = 5000)]
     public async Task AssertCanceledMidRunAsync_WhenWorkNeverStarts_ThrowsTimeout()
     {
+        // xUnit1069: a timed fact must reference TestContext.Current.CancellationToken.
+        // This timeout is a hang guard; the helper asserts its own TimeoutException.
+        TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
+
         var delegateRan = 0;
         var scheduler = new QueuedOnlyScheduler();
 

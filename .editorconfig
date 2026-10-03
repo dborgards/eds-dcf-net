@@ -49,3 +49,9 @@ dotnet_diagnostic.CS0618.severity = none
 
 [tests/EdsDcfNet.Tests/Parsers/CanOpenReaderBaseCompatTests.cs]
 dotnet_diagnostic.CS0618.severity = none
+
+# xUnit.net v3 xUnit1051 flags every optional CancellationToken that is left at
+# its default. Tests pass a token when cancellation is the behavior under test;
+# the other calls use CancellationToken.None, matching an uncancelled test.
+[tests/EdsDcfNet.Tests/**.cs]
+dotnet_diagnostic.xUnit1051.severity = none

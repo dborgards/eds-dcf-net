@@ -3,6 +3,9 @@
   <PropertyGroup>
     <!-- net48 binds the library's netstandard2.0 asset so CI executes #else runtime paths. -->
     <TargetFrameworks>net10.0;net48</TargetFrameworks>
+    <!-- xUnit.net v3 test projects are stand-alone executables. dotnet test still
+         uses the VSTest adapter in xunit.runner.visualstudio. -->
+    <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <!-- Signed with the same key as EdsDcfNet so the InternalsVisibleTo grant holds.
@@ -19,7 +22,7 @@
     <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
-    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.v3" Version="4.0.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -52,17 +55,6 @@
   <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>
-
-  <!--
-    coverlet.collector 10.1.0 instruments the strong-named netstandard2.0 asset.
-    net48 discovery loads that rewrite inside an xUnit AppDomain, which verifies
-    the strong name and fails with FileLoadException 0x80131045 ("No test is
-    available"). App domains exist only on .NET Framework; net10.0 ignores this.
-    https://github.com/coverlet-coverage/coverlet/blob/master/Documentation/KnownIssues.md
-  -->
-  <ItemGroup>
-    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
 
   <ItemGroup>
     <None Update="Fixtures\**\*">

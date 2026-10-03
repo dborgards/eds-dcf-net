@@ -4,9 +4,9 @@ namespace EdsDcfNet.Tests.Infrastructure;
 /// Directory of this test assembly, where fixtures and baselines are copied.
 /// </summary>
 /// <remarks>
-/// net48 runs with xUnit AppDomains denied so coverlet can load the instrumented
-/// strong-named library. <see cref="AppContext.BaseDirectory"/> is then the vstest
-/// testhost folder. The assembly location stays this output directory on every TFM.
+/// Fixtures and baselines are copied next to this assembly. Its location is that
+/// output directory on every target framework, including when a runner's
+/// <see cref="AppContext.BaseDirectory"/> is a different host folder.
 /// </remarks>
 internal static class TestOutputDirectory
 {
