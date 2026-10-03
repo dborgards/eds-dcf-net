@@ -2,6 +2,7 @@ namespace EdsDcfNet.Tests.Integration;
 
 using System.Diagnostics;
 using System.Globalization;
+using EdsDcfNet.Tests.Infrastructure;
 using Xunit.Sdk;
 
 internal static class EdsReadProbeRunner
@@ -18,7 +19,7 @@ internal static class EdsReadProbeRunner
 
     public static async Task<ProbeResult> RunAsync(string mode, string fixtureFileName, TimeSpan timeout)
     {
-        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", fixtureFileName);
+        var fixturePath = Path.Combine(TestOutputDirectory.Value, "Fixtures", fixtureFileName);
         if (!File.Exists(fixturePath))
         {
             throw new XunitException($"Fixture file not found: {fixturePath}");
@@ -169,13 +170,13 @@ internal static class EdsReadProbeRunner
 
     private static string GetProbeAssemblyPath(string repoRoot)
     {
-        var baseDirectoryInfo = new DirectoryInfo(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory));
+        var baseDirectoryInfo = new DirectoryInfo(Path.TrimEndingDirectorySeparator(TestOutputDirectory.Value));
         var targetFramework = baseDirectoryInfo.Name;
         var configuration = baseDirectoryInfo.Parent?.Name;
 
         if (string.IsNullOrEmpty(configuration))
         {
-            throw new XunitException($"Unable to determine test configuration from base directory '{AppContext.BaseDirectory}'.");
+            throw new XunitException($"Unable to determine test configuration from output directory '{TestOutputDirectory.Value}'.");
         }
 
         var candidates = new[]
@@ -214,7 +215,7 @@ internal static class EdsReadProbeRunner
 
     private static string FindRepoRoot()
     {
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        var current = new DirectoryInfo(TestOutputDirectory.Value);
         while (current != null)
         {
             if (File.Exists(Path.Combine(current.FullName, "EdsDcfNet.sln")))
@@ -225,7 +226,7 @@ internal static class EdsReadProbeRunner
             current = current.Parent;
         }
 
-        throw new XunitException($"Unable to locate repository root from '{AppContext.BaseDirectory}'.");
+        throw new XunitException($"Unable to locate repository root from '{TestOutputDirectory.Value}'.");
     }
 
     private static void TryKillProcess(Process process)

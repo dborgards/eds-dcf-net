@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Tests.Integration;
 
+using EdsDcfNet.Tests.Infrastructure;
+
 /// <summary>
 /// Shared enumeration of the real-world corpus under Fixtures/Corpus (#525).
 /// Corpus files live in Fixtures/Corpus/&lt;source&gt;/&lt;file&gt; next to the source's
@@ -91,8 +93,8 @@ internal static class CorpusFiles
     {
         // Walk up from bin/... to the test project root. Do not stop on a
         // Fixtures directory alone: CopyToOutputDirectory places a copy under
-        // AppContext.BaseDirectory, which must not be treated as the source.
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        // the test output directory, which must not be treated as the source.
+        var dir = new DirectoryInfo(TestOutputDirectory.Value);
         while (dir is not null)
         {
             if (Directory.Exists(Path.Combine(dir.FullName, "Integration")))
@@ -101,7 +103,7 @@ internal static class CorpusFiles
         }
 
         return Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory,
+            TestOutputDirectory.Value,
             "..", "..", "..",
             "Fixtures", "Corpus"));
     }
