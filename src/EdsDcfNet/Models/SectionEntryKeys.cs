@@ -335,4 +335,69 @@ internal static class SectionEntryKeys
 
         return int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out number);
     }
+
+    private static readonly string[] TopologyNodeSuffixes = { "Present", "Name", "Refd", "DCFName" };
+
+    /// <summary>
+    /// <see langword="true"/> for a <c>[Topology]</c> key that the CPJ reader maps onto a property of
+    /// <paramref name="topology"/> and the CPJ writer generates from it: <c>NetName</c>, <c>NetRefd</c>,
+    /// <c>Nodes</c>, <c>EDSBaseName</c>, and <c>NodeXPresent</c>/<c>NodeXName</c>/<c>NodeXRefd</c>/
+    /// <c>NodeXDCFName</c> of a node whose <see cref="NetworkNode.NodeId"/> is X (the IDs the writer emits).
+    /// </summary>
+    internal static bool IsWrittenTopologyKey(NetworkTopology topology, string key)
+    {
+        if (key.Equals("NetName", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("NetRefd", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("Nodes", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("EDSBaseName", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!TryParseTopologyNodeKey(key, out var nodeId, out _))
+            return false;
+
+        // The writer names the keys after NetworkNode.NodeId, not after the dictionary key.
+        foreach (var node in topology.Nodes.Values)
+        {
+            if (node.NodeId == nodeId)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Splits a <c>NodeX&lt;suffix&gt;</c> key of Table 3 of CiA 306-3 (X is the node-ID 1..127, decimal
+    /// without leading zeros; suffix <c>Present</c>, <c>Name</c>, <c>Refd</c> or <c>DCFName</c>).
+    /// </summary>
+    internal static bool TryParseTopologyNodeKey(string key, out byte nodeId, out string suffix)
+    {
+        nodeId = 0;
+        suffix = string.Empty;
+        const string prefix = "Node";
+        if (!key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var digitsEnd = prefix.Length;
+        while (digitsEnd < key.Length && key[digitsEnd] >= '0' && key[digitsEnd] <= '9')
+            digitsEnd++;
+
+        var digits = key.Substring(prefix.Length, digitsEnd - prefix.Length);
+        if (!TryParseEntryNumber(digits, out var id) || id > CanOpenNodeId.MaxValue)
+            return false;
+
+        var rest = key.Substring(digitsEnd);
+        foreach (var candidate in TopologyNodeSuffixes)
+        {
+            if (rest.Equals(candidate, StringComparison.OrdinalIgnoreCase))
+            {
+                nodeId = (byte)id;
+                suffix = candidate;
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
