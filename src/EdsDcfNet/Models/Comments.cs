@@ -14,7 +14,9 @@ public class Comments
     /// <remarks>
     /// The EDS/DCF writers do not write this value as stored: they write the number of
     /// <see cref="CommentLines"/> (at least the highest line number), so the file stays consistent
-    /// when lines were added or removed after reading.
+    /// when lines were added or removed after reading. Keep the line numbers contiguous from 1: a
+    /// validated EDS/DCF write rejects a gap, because the file would lack a <c>Line&lt;n&gt;</c>
+    /// inside <c>Lines</c>.
     /// </remarks>
     public ushort Lines { get; set; }
 
@@ -49,7 +51,7 @@ public class Comments
 
     /// <summary>
     /// List of comment lines (max 249 characters each).
-    /// Key is the line number (1-based), value is the comment text.
+    /// Key is the line number (1-based, contiguous for a validated EDS/DCF write), value is the comment text.
     /// </summary>
     public Dictionary<int, string> CommentLines { get; } = new();
 

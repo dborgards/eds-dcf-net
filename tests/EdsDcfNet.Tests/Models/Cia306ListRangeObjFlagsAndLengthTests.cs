@@ -676,4 +676,49 @@ public class Cia306ListRangeObjFlagsAndLengthTests
         issues.Should().NotContain(i => i.Path == "SupportedModules[0].Comments.Lines");
         written.Should().Contain("[M1Comments]").And.Contain("Lines=2");
     }
+
+    [Fact]
+    public void WriteToString_TopLevelSparseCommentKeys_ValidatedRejectsUnvalidatedWritesAsBefore()
+    {
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.Comments = new Comments();
+        eds.Comments.CommentLines[1] = "first";
+        eds.Comments.CommentLines[3] = "third";
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
+        dcf.Comments = eds.Comments;
+
+        var edsAct = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+        var dcfAct = () => CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Validated);
+
+        foreach (var act in new[] { edsAct, dcfAct })
+        {
+            act.Should().Throw<ModelValidationException>().Which.Issues.Should().ContainSingle(i =>
+                i.Path == "Comments.CommentLines" && i.Message.Contains("2", StringComparison.Ordinal));
+        }
+
+        CanOpenFile.Eds.WriteToString(eds).Should().Contain("Lines=3").And.Contain("Line3=third");
+        var xdd = ValidCanOpenModelBuilder.CreateValidEds();
+        xdd.Comments = eds.Comments;
+        var xddAct = () => CanOpenFile.Xdd.WriteToString(xdd, CanOpenWriteOptions.Validated);
+        xddAct.Should().NotThrow();
+    }
+
+    [Fact]
+    public void WriteToString_TopLevelContiguousOrKeptEmptyCommentLines_ValidatedWriteSucceeds()
+    {
+        var stale = ValidCanOpenModelBuilder.CreateValidEds();
+        stale.Comments = new Comments { Lines = 9 };
+        stale.Comments.CommentLines[1] = "one";
+        stale.Comments.CommentLines[2] = "two";
+
+        var read = CanOpenFile.Eds.ReadString(
+            EdsHeader +
+            "[Comments]\nLines=3\nLine1=a\nLine2=\nLine3=c\n");
+
+        var staleAct = () => CanOpenFile.Eds.WriteToString(stale, CanOpenWriteOptions.Validated);
+        var readAct = () => CanOpenFile.Eds.WriteToString(read, CanOpenWriteOptions.Validated);
+
+        staleAct.Should().NotThrow();
+        readAct.Should().NotThrow();
+    }
 }

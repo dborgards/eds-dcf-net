@@ -350,7 +350,32 @@ internal static class IniWriteRules
     }
 
     private static void ApplyComments(Comments? comments, List<ValidationIssue> issues)
-        => ApplyCommentLines(comments, "Comments", MaxCommentLineLength, "Table 9", issues);
+    {
+        ApplyCommentLines(comments, "Comments", MaxCommentLineLength, "Table 9", issues);
+        if (comments == null)
+            return;
+
+        // The writer emits Lines as the highest line number, so a gap would leave a Line<n> missing
+        // inside Lines. An empty Line<n> the reader kept in RemainingEntries fills its gap.
+        var highest = comments.CommentLines.Count == 0 ? 0 : comments.CommentLines.Keys.Max();
+        for (var n = 1; n < highest; n++)
+        {
+            if (comments.CommentLines.ContainsKey(n)
+                || comments.RemainingEntries.ContainsKey(string.Format(CultureInfo.InvariantCulture, "Line{0}", n)))
+            {
+                continue;
+            }
+
+            issues.Add(new ValidationIssue(
+                "Comments.CommentLines",
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Comment line {0} is missing between line 1 and line {1}. The line numbers must be contiguous from 1, because Lines counts them (CiA 306-1 Table 9).",
+                    n,
+                    highest)));
+            return;
+        }
+    }
 
     private static void ApplyCommentLines(
         Comments? comments,
