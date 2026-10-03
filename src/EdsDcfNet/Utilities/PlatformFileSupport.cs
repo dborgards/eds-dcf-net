@@ -105,14 +105,27 @@ internal static class PlatformFileSupport
         File.SetUnixFileMode(tempPath, mode);
         return mode;
 #else
-        if (IsWindows || SetUnixFileModeMethod == null || !File.Exists(filePath))
-            return null;
+        var mode = CaptureUnixFileMode(filePath);
+        if (mode != null)
+            InvokeStatic(SetUnixFileModeMethod!, tempPath, mode);
 
-        var mode = InvokeStatic(GetUnixFileModeMethod!, filePath);
-        InvokeStatic(SetUnixFileModeMethod, tempPath, mode);
         return mode;
 #endif
     }
+
+#if !NET10_0_OR_GREATER
+    /// <summary>
+    /// Boxed <c>UnixFileMode</c> of the existing file (following a link), or <see langword="null"/>
+    /// on Windows, without <c>File.SetUnixFileMode</c>, or when the file does not exist.
+    /// </summary>
+    private static object? CaptureUnixFileMode(string filePath)
+    {
+        if (IsWindows || SetUnixFileModeMethod == null || !File.Exists(filePath))
+            return null;
+
+        return InvokeStatic(GetUnixFileModeMethod!, filePath);
+    }
+#endif
 
     /// <summary>
     /// Applies the captured mode again after the content is written and flushed, immediately
@@ -178,9 +191,12 @@ internal static class PlatformFileSupport
         using var buffer = new MemoryStream();
         write(buffer);
 
+        // Writing clears set-user-ID/set-group-ID without CAP_FSETID; restore the captured mode.
+        var mode = CaptureUnixFileMode(filePath);
         using var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 4096);
         buffer.WriteTo(stream);
         stream.Flush(flushToDisk: true);
+        ReapplyUnixFileMode(filePath, mode);
     }
 
     private static async Task WriteInPlaceAsync(string filePath, Func<Stream, Task> write, CancellationToken cancellationToken)
@@ -189,6 +205,7 @@ internal static class PlatformFileSupport
         await write(buffer).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var mode = CaptureUnixFileMode(filePath);
         using var stream = new FileStream(
             filePath,
             FileMode.Create,
@@ -200,6 +217,7 @@ internal static class PlatformFileSupport
         await buffer.CopyToAsync(stream, 4096, cancellationToken).ConfigureAwait(false);
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
         stream.Flush(flushToDisk: true);
+        ReapplyUnixFileMode(filePath, mode);
     }
 #endif
 }
