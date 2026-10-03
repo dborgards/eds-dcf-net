@@ -50,19 +50,15 @@ public class XdcWriter : XddWriter
     {
         ThrowIfNull(dcf, nameof(dcf));
 
-        try
-        {
-            var doc = BuildOutputDocument(dcf);
-            TextFileIo.WriteFileAtomic(filePath, stream => SerializeOutput(doc, stream));
-        }
-        catch (XdcWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new XdcWriteException($"Failed to write XDC file to {filePath}", ex);
-        }
+        WriteEntryPoints.ToFile(
+            filePath,
+            "XDC",
+            () =>
+            {
+                var doc = BuildOutputDocument(dcf);
+                TextFileIo.WriteFileAtomic(filePath, stream => SerializeOutput(doc, stream));
+            },
+            (message, inner) => new XdcWriteException(message, inner));
     }
 
     /// <summary>
@@ -78,19 +74,14 @@ public class XdcWriter : XddWriter
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            var doc = BuildOutputDocument(dcf);
-            SerializeOutput(doc, stream);
-        }
-        catch (XdcWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new XdcWriteException("Failed to write XDC content to stream.", ex);
-        }
+        WriteEntryPoints.ToStream(
+            "XDC",
+            () =>
+            {
+                var doc = BuildOutputDocument(dcf);
+                SerializeOutput(doc, stream);
+            },
+            (message, inner) => new XdcWriteException(message, inner));
     }
 
     /// <summary>
@@ -113,27 +104,19 @@ public class XdcWriter : XddWriter
     {
         ThrowIfNull(dcf, nameof(dcf));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var doc = BuildOutputDocument(dcf);
-            await TextFileIo.WriteFileAtomicAsync(
-                filePath,
-                stream => SerializeOutputAsync(doc, stream, cancellationToken),
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (XdcWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new XdcWriteException($"Failed to write XDC file to {filePath}", ex);
-        }
+        await WriteEntryPoints.ToFileAsync(
+            filePath,
+            "XDC",
+            async () =>
+            {
+                var doc = BuildOutputDocument(dcf);
+                await TextFileIo.WriteFileAtomicAsync(
+                    filePath,
+                    stream => SerializeOutputAsync(doc, stream, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new XdcWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -153,24 +136,15 @@ public class XdcWriter : XddWriter
         if (!stream.CanWrite)
             throw new ArgumentException("Stream must be writable.", nameof(stream));
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var doc = BuildOutputDocument(dcf);
-            await SerializeOutputAsync(doc, stream, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (XdcWriteException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new XdcWriteException("Failed to write XDC content to stream.", ex);
-        }
+        await WriteEntryPoints.ToStreamAsync(
+            "XDC",
+            async () =>
+            {
+                var doc = BuildOutputDocument(dcf);
+                await SerializeOutputAsync(doc, stream, cancellationToken).ConfigureAwait(false);
+            },
+            (message, inner) => new XdcWriteException(message, inner),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
