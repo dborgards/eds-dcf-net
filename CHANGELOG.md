@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.20](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.19...v1.15.0-beta.20) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **xdd:** order enum values and nested parameter groups as the schema requires ([#621](https://github.com/dborgards/eds-dcf-net/issues/621)) ([0be4f85](https://github.com/dborgards/eds-dcf-net/commit/0be4f85fe1762b66b37659733cf91886de161fb4)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
 ## [1.15.0-beta.19](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.18...v1.15.0-beta.19) (2026-10-03)
 
 ### 🐛 Bug Fixes
