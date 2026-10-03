@@ -1001,7 +1001,7 @@ public abstract class IniWriterBase
         IniRoundTripText.WriteSectionHeader(
             sb,
             string.Format(CultureInfo.InvariantCulture, "M{0}Comments", module.ModuleNumber));
-        WriteKeyValue(sb, "Lines", CommentLineCount(comments).ToString(CultureInfo.InvariantCulture));
+        WriteKeyValue(sb, "Lines", comments.WrittenLineCount().ToString(CultureInfo.InvariantCulture));
 
         foreach (var line in comments.CommentLines.OrderBy(entry => entry.Key))
         {
@@ -1010,37 +1010,6 @@ public abstract class IniWriterBase
 
         WriteCommentsRemainingEntries(sb, comments);
         sb.AppendLine();
-    }
-
-    /// <summary>
-    /// The <c>Lines</c> value that matches what the writer emits (CiA 306-1 Table 9: the number of
-    /// comment lines). <see cref="Comments.Lines"/> is not maintained when a caller adds or removes
-    /// <see cref="Comments.CommentLines"/>, and a reader loads only <c>Line1</c>..<c>Line&lt;Lines&gt;</c>.
-    /// The count is <see cref="Comments.CommentLines"/> raised to the highest line number, so a gap in
-    /// the numbering never hides a line, and to an empty <c>Line&lt;n&gt;</c> the reader kept inside the
-    /// file's own count (<see cref="Comments.RemainingEntries"/>), so such a file keeps its <c>Lines</c>.
-    /// </summary>
-    private static ushort CommentLineCount(Comments comments)
-    {
-        var count = comments.CommentLines.Count;
-        foreach (var number in comments.CommentLines.Keys)
-        {
-            if (number > count)
-                count = number;
-        }
-
-        foreach (var entry in comments.RemainingEntries)
-        {
-            if (entry.Key.StartsWith("Line", StringComparison.OrdinalIgnoreCase)
-                && int.TryParse(entry.Key[4..], NumberStyles.None, CultureInfo.InvariantCulture, out var number)
-                && number <= comments.Lines
-                && number > count)
-            {
-                count = number;
-            }
-        }
-
-        return (ushort)Math.Min(count, ushort.MaxValue);
     }
 
     /// <summary>
@@ -1309,7 +1278,7 @@ public abstract class IniWriterBase
     protected static void WriteComments(StringBuilder sb, Comments comments)
     {
         IniRoundTripText.WriteSectionHeader(sb, "Comments");
-        WriteKeyValue(sb, "Lines", CommentLineCount(comments).ToString(CultureInfo.InvariantCulture));
+        WriteKeyValue(sb, "Lines", comments.WrittenLineCount().ToString(CultureInfo.InvariantCulture));
 
         foreach (var line in comments.CommentLines.OrderBy(l => l.Key))
         {

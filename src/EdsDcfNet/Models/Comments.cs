@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Models;
 
+using System.Globalization;
+
 /// <summary>
 /// Represents the [Comments] section of an EDS/DCF file.
 /// Contains additional textual comments.
@@ -15,6 +17,35 @@ public class Comments
     /// when lines were added or removed after reading.
     /// </remarks>
     public ushort Lines { get; set; }
+
+    /// <summary>
+    /// The <c>Lines</c> value the EDS/DCF writers emit for these comments: the number of
+    /// <see cref="CommentLines"/>, raised to the highest line number so a gap never hides a line, and
+    /// to an empty <c>Line&lt;n&gt;</c> the reader kept inside the file's own count
+    /// (<see cref="RemainingEntries"/>), so such a file keeps its <c>Lines</c>.
+    /// </summary>
+    internal ushort WrittenLineCount()
+    {
+        var count = CommentLines.Count;
+        foreach (var number in CommentLines.Keys)
+        {
+            if (number > count)
+                count = number;
+        }
+
+        foreach (var entry in RemainingEntries)
+        {
+            if (entry.Key.StartsWith("Line", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(entry.Key[4..], NumberStyles.None, CultureInfo.InvariantCulture, out var number)
+                && number <= Lines
+                && number > count)
+            {
+                count = number;
+            }
+        }
+
+        return (ushort)Math.Min(count, ushort.MaxValue);
+    }
 
     /// <summary>
     /// List of comment lines (max 249 characters each).

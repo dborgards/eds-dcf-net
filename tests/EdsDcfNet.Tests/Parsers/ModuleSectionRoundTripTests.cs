@@ -689,7 +689,7 @@ public class ModuleSectionRoundTripTests
     }
 
     [Fact]
-    public void Validate_ModuleCommentsLinesMismatch_ReturnsIssue()
+    public void Validate_ModuleCommentsLinesMismatch_IsAssessedAsWritten()
     {
         // Arrange
         var eds = ValidModuleEds();
@@ -699,11 +699,8 @@ public class ModuleSectionRoundTripTests
         // Act
         var issues = CanOpenModelValidator.Validate(eds);
 
-        // Assert
-        issues.Should().Contain(issue =>
-            issue.Path == "SupportedModules[0].Comments.Lines" &&
-            issue.Message.Contains("2", StringComparison.Ordinal) &&
-            issue.Message.Contains("1", StringComparison.Ordinal));
+        // Assert — the writer emits Lines=1 for the one stored line, so the stale 2 is not a finding.
+        issues.Should().NotContain(issue => issue.Path == "SupportedModules[0].Comments.Lines");
     }
 
     [Fact]
@@ -721,7 +718,7 @@ public class ModuleSectionRoundTripTests
         // Assert
         issues.Should().Contain(issue =>
             issue.Path == "SupportedModules[0].Comments.Lines" &&
-            issue.Message.Contains("1..1", StringComparison.Ordinal));
+            issue.Message.Contains("1..2", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -892,7 +889,7 @@ public class ModuleSectionRoundTripTests
     }
 
     [Fact]
-    public void WriteToString_ValidatedLinesMismatch_ThrowsModelValidationException()
+    public void WriteToString_ValidatedStaleLines_WritesTheStoredLineCount()
     {
         // Arrange
         var eds = ValidModuleEds();
@@ -901,10 +898,10 @@ public class ModuleSectionRoundTripTests
         eds.SupportedModules[0].Comments = comments;
 
         // Act
-        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+        var written = CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
 
-        // Assert
-        act.Should().Throw<ModelValidationException>();
+        // Assert — Lines is not written as stored, so the stale 3 is not rejected.
+        written.Should().Contain("Lines=1");
     }
 
     [Fact]

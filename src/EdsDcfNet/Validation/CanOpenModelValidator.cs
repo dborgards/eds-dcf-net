@@ -494,14 +494,16 @@ public static class CanOpenModelValidator
         if (module.Comments == null)
             return;
 
-        if (!ModuleCommentKeysCoverLines(module.Comments))
+        // Lines is not written as stored; assess the count and keys the writer emits.
+        var writtenLines = module.Comments.WrittenLineCount();
+        if (!ModuleCommentKeysCoverLines(module.Comments, writtenLines))
         {
             issues.Add(new ValidationIssue(
                 path + ".Comments.Lines",
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "Lines is {0} but comment line keys are not exactly 1..{0} (CiA 306-1 §8.3).",
-                    module.Comments.Lines)));
+                    "Comment line keys are not exactly 1..{0}, the Lines value written (CiA 306-1 §8.3).",
+                    writtenLines)));
         }
     }
 
@@ -681,17 +683,16 @@ public static class CanOpenModelValidator
     }
 
     /// <summary>
-    /// <c>Line1</c>..<c>LineN</c> must be present for <c>N = Lines</c>. A matching
-    /// count with a gap or an offset (for example <c>Lines = 1</c> and only
-    /// <c>Line2</c>) would be written and then dropped, because the parser reads
-    /// only keys <c>1..Lines</c>.
+    /// <c>Line1</c>..<c>LineN</c> must be present for <c>N</c> = the <c>Lines</c> value the writer emits.
+    /// A gap or an offset (for example only <c>Line2</c>) would leave the file incomplete, because the
+    /// parser reads only keys <c>1..Lines</c>.
     /// </summary>
-    private static bool ModuleCommentKeysCoverLines(Comments comments)
+    private static bool ModuleCommentKeysCoverLines(Comments comments, int writtenLines)
     {
-        if (comments.CommentLines.Count != comments.Lines)
+        if (comments.CommentLines.Count != writtenLines)
             return false;
 
-        for (var n = 1; n <= comments.Lines; n++)
+        for (var n = 1; n <= writtenLines; n++)
         {
             if (!comments.CommentLines.ContainsKey(n))
                 return false;

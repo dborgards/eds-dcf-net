@@ -649,4 +649,31 @@ public class Cia306ListRangeObjFlagsAndLengthTests
         written.Should().Contain("[M1Comments]").And.Contain("Lines=2");
         reread.SupportedModules[0].Comments!.CommentLines.Should().Equal(module.Comments.CommentLines);
     }
+
+    // ---------------------------------------------------------------- comments as written
+
+    private static ModuleInfo ModuleWithComments(Comments comments) => new()
+    {
+        ModuleNumber = 1,
+        ProductName = "M",
+        OrderCode = "O",
+        Comments = comments,
+    };
+
+    [Fact]
+    public void Validate_ModuleCommentsStaleLines_AssessesTheCountTheWriterEmits()
+    {
+        // Lines is not written as stored, so a stale value is not a finding.
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        var comments = new Comments { Lines = 7 };
+        comments.CommentLines[1] = "one";
+        comments.CommentLines[2] = "two";
+        eds.SupportedModules.Add(ModuleWithComments(comments));
+
+        var issues = CanOpenModelValidator.Validate(eds);
+        var written = CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        issues.Should().NotContain(i => i.Path == "SupportedModules[0].Comments.Lines");
+        written.Should().Contain("[M1Comments]").And.Contain("Lines=2");
+    }
 }
