@@ -264,25 +264,60 @@ internal static class CanOpenSectionParsers
     }
 
     /// <summary>
-    /// Keeps the entries of a counted list section (count key plus <c>1..count</c>) that the
-    /// list parser does not read, including numbered entries above the count.
+    /// Keeps the entries of a counted list section that the list parser does not load: every
+    /// key except the count key and the numbered slots <c>1..count</c> whose value was loaded.
+    /// This includes numbered entries above the count and slots inside the count that lenient
+    /// parsing skips because the value is empty or invalid.
     /// </summary>
+    /// <param name="sections">Parsed INI sections.</param>
+    /// <param name="sectionName">The list section.</param>
+    /// <param name="countKey">The count key of the list.</param>
+    /// <param name="store">Destination, keyed by <paramref name="sectionName"/>.</param>
+    /// <param name="isLoadedValue">
+    /// <see langword="true"/> when the list parser loads a slot with this value. The default
+    /// mirrors <see cref="LenientIniNumber.AppendIndexes"/>: a non-empty object index.
+    /// </param>
     internal static void CaptureCountedListEntries(
         Dictionary<string, Dictionary<string, string>> sections,
         string sectionName,
         string countKey,
-        Dictionary<string, OrderedStringDictionary> store)
+        Dictionary<string, OrderedStringDictionary> store,
+        Func<string, bool>? isLoadedValue = null)
     {
-        if (!sections.ContainsKey(sectionName))
+        if (!sections.TryGetValue(sectionName, out var section))
             return;
 
+        var isLoaded = isLoadedValue ?? IsLoadableIndexValue;
         var count = ListCountOrZero(sections, sectionName, countKey);
         CaptureUnmappedEntries(
             sections,
             sectionName,
             sectionName,
-            key => SectionEntryKeys.IsCountedListKey(key, countKey, count),
+            key => string.Equals(key, countKey, StringComparison.OrdinalIgnoreCase)
+                   || (SectionEntryKeys.IsCountedListKey(key, countKey, count)
+                       && section.TryGetValue(key, out var value)
+                       && isLoaded(value)),
             store);
+    }
+
+    /// <summary>
+    /// <see langword="true"/> when <see cref="LenientIniNumber.AppendIndexes"/> loads a slot with
+    /// <paramref name="value"/>: not empty and a valid UNSIGNED16 index.
+    /// </summary>
+    private static bool IsLoadableIndexValue(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return false;
+
+        try
+        {
+            _ = ValueConverter.ParseUInt16(value);
+            return true;
+        }
+        catch (EdsParseException)
+        {
+            return false;
+        }
     }
 
     /// <summary>

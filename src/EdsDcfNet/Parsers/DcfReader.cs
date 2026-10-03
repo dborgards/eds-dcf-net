@@ -326,7 +326,11 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         Dictionary<string, OrderedStringDictionary> store)
     {
         CanOpenSectionParsers.CaptureCountedListEntries(
-            sections, "ConnectedModules", SectionEntryKeys.NrOfEntriesKey, store);
+            sections,
+            "ConnectedModules",
+            SectionEntryKeys.NrOfEntriesKey,
+            store,
+            static value => TryParseConnectedModule(value, out _));
 
         var modules = new List<int>();
         var count = ValueConverter.ParseUInt16(IniParser.GetValue(sections, "ConnectedModules", "NrOfEntries", "0"));
@@ -334,13 +338,21 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         for (int i = 1; i <= count; i++)
         {
             var moduleStr = IniParser.GetValue(sections, "ConnectedModules", i.ToString(CultureInfo.InvariantCulture));
-            if (!string.IsNullOrEmpty(moduleStr) && int.TryParse(moduleStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var moduleNumber))
+            if (TryParseConnectedModule(moduleStr, out var moduleNumber))
             {
                 modules.Add(moduleNumber);
             }
         }
 
         return modules;
+    }
+
+    /// <summary>A <c>[ConnectedModules]</c> slot is loaded only when it holds a decimal module number.</summary>
+    private static bool TryParseConnectedModule(string value, out int moduleNumber)
+    {
+        moduleNumber = 0;
+        return !string.IsNullOrEmpty(value)
+               && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out moduleNumber);
     }
 
     #endregion
