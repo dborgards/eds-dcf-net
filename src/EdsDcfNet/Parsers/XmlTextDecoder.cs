@@ -47,7 +47,7 @@ internal static class XmlTextDecoder
     {
         var explicitEncoding = FileEncodingScope.CurrentRead;
         if (explicitEncoding != null)
-            return IniTextDecoder.DecodeExplicit(bytes, explicitEncoding);
+            return IniTextDecoder.DecodeExplicit(bytes, explicitEncoding, formatName);
 
         if (TryDetectWide(bytes, out var wideEncoding, out var wideOffset))
             return DecodeStrict(wideEncoding, bytes, wideOffset, formatName, wideEncoding.WebName);
@@ -106,24 +106,7 @@ internal static class XmlTextDecoder
         int index,
         string formatName,
         string displayName)
-    {
-        var decoding = (Encoding)encoding.Clone();
-        decoding.DecoderFallback = DecoderFallback.ExceptionFallback;
-        try
-        {
-            return decoding.GetString(bytes, index, bytes.Length - index);
-        }
-        catch (Exception ex) when (ex is DecoderFallbackException or ArgumentException)
-        {
-            throw new EdsParseException(
-                string.Format(
-                    CultureInfo.InvariantCulture,
-                    "{0} content could not be decoded with encoding '{1}'.",
-                    formatName,
-                    displayName),
-                ex);
-        }
-    }
+        => IniTextDecoder.DecodeStrict(encoding, bytes, index, formatName, displayName);
 
     /// <summary>
     /// BOM, then the no-BOM wide signatures from the XML specification.

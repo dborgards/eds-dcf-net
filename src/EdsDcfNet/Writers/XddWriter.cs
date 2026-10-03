@@ -28,6 +28,11 @@ public class XddWriter
     /// replaced over the target. On failure the target is left untouched and the temporary file
     /// is removed. Whether the final replace is atomic depends on the file system (for example,
     /// network shares may not guarantee it).
+    /// A symbolic link is followed: its final target is replaced and the link is kept. The
+    /// netstandard2.0 build cannot resolve links; it serializes the content completely and then
+    /// overwrites the link target in place, which is not atomic.
+    /// On Unix the new file keeps the permission bits of the file it replaces; the netstandard2.0
+    /// build on a runtime older than .NET 7 overwrites an existing file in place instead.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="eds"/> is <see langword="null"/>.</exception>
     public void WriteFile(ElectronicDataSheet eds, string filePath)
@@ -79,6 +84,11 @@ public class XddWriter
     /// replaced over the target. On failure or cancellation the target is left untouched and the
     /// temporary file is removed. Whether the final replace is atomic depends on the file system
     /// (for example, network shares may not guarantee it).
+    /// A symbolic link is followed: its final target is replaced and the link is kept. The
+    /// netstandard2.0 build cannot resolve links; it serializes the content completely and then
+    /// overwrites the link target in place, which is not atomic.
+    /// On Unix the new file keeps the permission bits of the file it replaces; the netstandard2.0
+    /// build on a runtime older than .NET 7 overwrites an existing file in place instead.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="eds"/> is <see langword="null"/>.</exception>
     public async Task WriteFileAsync(

@@ -67,14 +67,50 @@ internal static class TextFileIo
     /// with <see cref="File.Move(string, string)"/> (target absent) or
     /// <see cref="File.Replace(string, string, string?)"/> (target present). The previous target
     /// is never deleted before the new content is complete; on any failure the temporary file is
-    /// removed and the target stays untouched. There is no fallback to in-place overwriting.
+    /// removed and the target stays untouched. There is no fallback to in-place overwriting,
+    /// with one exception on <c>netstandard2.0</c> described below.
     /// </summary>
+    /// <remarks>
+    /// A symbolic link is followed: the final target (through any chain of links, also a
+    /// dangling one) is replaced and the link stays a link. The temporary file is created in the
+    /// final target's directory. On <c>netstandard2.0</c> the link target cannot be resolved;
+    /// a path that is a reparse point (symbolic link, junction, and other reparse points on
+    /// Windows) is therefore written in place through the link: the content is first
+    /// serialized completely into memory, so a serialization failure leaves the target
+    /// untouched, but an I/O failure while writing can leave it truncated.
+    /// On Unix the replacing file receives the permission bits of the file it replaces. The
+    /// netstandard2.0 build reads them through <c>File.GetUnixFileMode</c> when the runtime
+    /// provides it (.NET 7 and later); on older Unix runtimes it writes an existing file in place
+    /// in the same way, which keeps its mode.
+    /// </remarks>
     internal static void WriteFileAtomic(string filePath, Action<Stream> write)
+        => PlatformFileSupport.Write(ResolveWriteTarget(filePath), write, ReplaceThroughTempFile);
+
+    /// <summary>Asynchronous variant of <see cref="WriteFileAtomic"/>; cancellation before the commit removes the temporary file.</summary>
+    internal static async Task WriteFileAtomicAsync(
+        string filePath,
+        Func<Stream, Task> write,
+        CancellationToken cancellationToken = default)
     {
-        filePath = Path.GetFullPath(filePath);
+        cancellationToken.ThrowIfCancellationRequested();
+        await PlatformFileSupport.WriteAsync(ResolveWriteTarget(filePath), write, ReplaceThroughTempFileAsync, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Absolute path of the file that receives the content; a symbolic link is resolved to its
+    /// final target (net10.0), so the commit replaces that file and not the link.
+    /// </summary>
+    private static string ResolveWriteTarget(string filePath)
+        => PlatformFileSupport.ResolveLinkTarget(Path.GetFullPath(filePath));
+
+    /// <summary>The platform-neutral commit sequence of <see cref="WriteFileAtomic"/>.</summary>
+    private static void ReplaceThroughTempFile(string filePath, Action<Stream> write)
+    {
         var tempPath = CreateTempPath(filePath);
         try
         {
+            object? mode;
             using (var stream = new FileStream(
                 tempPath,
                 FileMode.CreateNew,
@@ -82,10 +118,12 @@ internal static class TextFileIo
                 FileShare.None,
                 bufferSize: 4096))
             {
+                mode = PlatformFileSupport.CopyUnixFileMode(filePath, tempPath);
                 write(stream);
                 stream.Flush(flushToDisk: true);
             }
 
+            PlatformFileSupport.ReapplyUnixFileMode(tempPath, mode);
             Commit(tempPath, filePath);
         }
         catch
@@ -95,17 +133,16 @@ internal static class TextFileIo
         }
     }
 
-    /// <summary>Asynchronous variant of <see cref="WriteFileAtomic"/>; cancellation before the commit removes the temporary file.</summary>
-    internal static async Task WriteFileAtomicAsync(
+    /// <summary>The platform-neutral commit sequence of <see cref="WriteFileAtomicAsync"/>.</summary>
+    private static async Task ReplaceThroughTempFileAsync(
         string filePath,
         Func<Stream, Task> write,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        filePath = Path.GetFullPath(filePath);
         var tempPath = CreateTempPath(filePath);
         try
         {
+            object? mode;
             using (var stream = new FileStream(
                 tempPath,
                 FileMode.CreateNew,
@@ -114,12 +151,14 @@ internal static class TextFileIo
                 bufferSize: 4096,
                 options: FileOptions.Asynchronous))
             {
+                mode = PlatformFileSupport.CopyUnixFileMode(filePath, tempPath);
                 await write(stream).ConfigureAwait(false);
                 await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 stream.Flush(flushToDisk: true);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+            PlatformFileSupport.ReapplyUnixFileMode(tempPath, mode);
             Commit(tempPath, filePath);
         }
         catch

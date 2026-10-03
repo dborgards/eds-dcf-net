@@ -103,7 +103,9 @@ public class FileEncodingOptionTests
             stream,
             new CanOpenFileOptions { Encoding = StrictUtf8 });
 
-        act.Should().Throw<DecoderFallbackException>();
+        var exception = act.Should().Throw<EdsParseException>().Which;
+        exception.Code.Should().Be(ParseDiagnosticCodes.InvalidEncodedBytes);
+        exception.InnerException.Should().BeOfType<DecoderFallbackException>();
     }
 
     [Fact]

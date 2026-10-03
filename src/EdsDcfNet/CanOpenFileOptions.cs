@@ -207,6 +207,12 @@ public sealed class CanOpenFileOptions
     /// An explicit value is used as supplied and does not fall back to ISO-8859-1. On XDD and
     /// XDC it overrides the XML declaration. A byte-order mark for that encoding is still
     /// removed, including when the encoding instance was constructed not to emit a preamble.
+    /// Invalid byte sequences are not replaced with U+FFFD, even when the instance carries a
+    /// replacement fallback (as <see cref="System.Text.Encoding.UTF8"/> does): the bytes are
+    /// decoded with a copy that uses <see cref="DecoderFallback.ExceptionFallback"/>, and the read
+    /// fails with <see cref="Exceptions.EdsParseException"/> carrying
+    /// <see cref="Diagnostics.ParseDiagnosticCodes.InvalidEncodedBytes"/> in both lenient and
+    /// strict mode. The supplied instance is not modified.
     /// String overloads are already decoded text and ignore this property.
     /// </para>
     /// </remarks>
