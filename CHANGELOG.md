@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.22](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.21...v1.15.0-beta.22) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **cpj:** read Nodes and reject reserved NodeXPresent values ([#623](https://github.com/dborgards/eds-dcf-net/issues/623)) ([dc70372](https://github.com/dborgards/eds-dcf-net/commit/dc703725ced558f0a8313b6227020d8b124dcffc))
+
 ## [1.15.0-beta.21](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.20...v1.15.0-beta.21) (2026-10-03)
 
 ### ✨ Features
