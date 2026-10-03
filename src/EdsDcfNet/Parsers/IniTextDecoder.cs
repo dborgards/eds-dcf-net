@@ -1,7 +1,9 @@
 namespace EdsDcfNet.Parsers;
 
+using System.Globalization;
 using System.Text;
 using EdsDcfNet.Diagnostics;
+using EdsDcfNet.Exceptions;
 
 /// <summary>
 /// Decodes buffered INI bytes once, twice when automatic UTF-8 fails.
@@ -57,14 +59,47 @@ internal static class IniTextDecoder
     /// <summary>
     /// Decodes <paramref name="bytes"/> with <paramref name="encoding"/> and drops a leading
     /// byte-order mark for that encoding. XDD/XDC explicit overrides use the same rules.
+    /// Invalid byte sequences fail the read even when the supplied instance (for example
+    /// <see cref="Encoding.UTF8"/>) carries a replacement fallback; see <see cref="DecodeStrict"/>.
     /// </summary>
-    internal static string DecodeExplicit(byte[] bytes, Encoding encoding)
+    internal static string DecodeExplicit(byte[] bytes, Encoding encoding, string formatName = "INI")
     {
         var bomLength = MatchingBomLength(bytes, encoding);
-        if (bomLength > 0)
-            return encoding.GetString(bytes, bomLength, bytes.Length - bomLength);
+        return DecodeStrict(encoding, bytes, bomLength, formatName, encoding.WebName);
+    }
 
-        return encoding.GetString(bytes);
+    /// <summary>
+    /// Decodes from <paramref name="index"/> with a clone of <paramref name="encoding"/> that uses
+    /// <see cref="DecoderFallback.ExceptionFallback"/>, so invalid bytes are never replaced with
+    /// U+FFFD. The caller's instance is not modified. A decoding failure becomes an
+    /// <see cref="EdsParseException"/> with <see cref="ParseDiagnosticCodes.InvalidEncodedBytes"/>.
+    /// </summary>
+    internal static string DecodeStrict(
+        Encoding encoding,
+        byte[] bytes,
+        int index,
+        string formatName,
+        string displayName)
+    {
+        var decoding = (Encoding)encoding.Clone();
+        decoding.DecoderFallback = DecoderFallback.ExceptionFallback;
+        try
+        {
+            return decoding.GetString(bytes, index, bytes.Length - index);
+        }
+        catch (Exception ex) when (ex is DecoderFallbackException or ArgumentException)
+        {
+            throw new EdsParseException(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} content could not be decoded with encoding '{1}'.",
+                    formatName,
+                    displayName),
+                ex)
+            {
+                Code = ParseDiagnosticCodes.InvalidEncodedBytes
+            };
+        }
     }
 
     /// <summary>

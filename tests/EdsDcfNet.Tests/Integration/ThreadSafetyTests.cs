@@ -204,7 +204,7 @@ public class ThreadSafetyTests
                 else
                 {
                     FluentActions.Invoking(() => CanOpenFile.Eds.ReadStream(stream, options))
-                        .Should().Throw<DecoderFallbackException>(
+                        .Should().Throw<EdsParseException>(
                             "strict UTF-8 must reject the Latin-1 bytes — a leaked automatic scope would repair them");
                 }
             }
@@ -251,7 +251,7 @@ public class ThreadSafetyTests
             else
             {
                 await FluentActions.Awaiting(() => CanOpenFile.Eds.ReadStreamAsync(stream, options))
-                    .Should().ThrowAsync<DecoderFallbackException>();
+                    .Should().ThrowAsync<EdsParseException>();
             }
         })).ToArray();
 

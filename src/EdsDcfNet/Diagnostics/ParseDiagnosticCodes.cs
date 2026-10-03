@@ -32,6 +32,15 @@ public static class ParseDiagnosticCodes
     /// </summary>
     public const string IniDecodedAsIso88591 = "INI_DECODED_AS_ISO_8859_1";
 
+    /// <summary>
+    /// The bytes are not valid in the encoding used to decode them: an explicit
+    /// <see cref="CanOpenFileOptions.Encoding"/> (all formats), or for XDD/XDC the encoding
+    /// selected by the byte-order mark or the XML declaration. Invalid sequences are never
+    /// replaced with U+FFFD, so the read fails with <see cref="Exceptions.EdsParseException"/>
+    /// carrying this code in both lenient and strict mode.
+    /// </summary>
+    public const string InvalidEncodedBytes = "INVALID_ENCODED_BYTES";
+
     /// <summary>Invalid <c>DummyUsage</c> key in an INI file; the entry is ignored.</summary>
     public const string IniInvalidDummyUsageKey = "INI_INVALID_DUMMY_USAGE_KEY";
 
