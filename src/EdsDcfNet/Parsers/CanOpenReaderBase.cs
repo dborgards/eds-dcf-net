@@ -289,7 +289,7 @@ public abstract class CanOpenReaderBase
 
         internal HashSet<int> ParsedModuleNumbers { get; }
 
-        internal HashSet<string> ReportedModules { get; } = new(StringComparer.Ordinal);
+        internal HashSet<int> ReportedModules { get; } = new();
 
         internal HashSet<ushort> ReportedCompanionIndexes { get; } = new();
 
@@ -322,9 +322,9 @@ public abstract class CanOpenReaderBase
         if (KnownSectionNames.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
             return false;
 
-        if (TryGetUnparsedModuleKey(sectionName, state.ParsedModuleNumbers, out var moduleKey))
+        if (TryGetUnparsedModuleNumber(sectionName, state.ParsedModuleNumbers, out var moduleNumber))
         {
-            if (state.ReportedModules.Add(moduleKey))
+            if (state.ReportedModules.Add(moduleNumber))
             {
                 ReportKeptSection(
                     Diagnostics.ParseDiagnosticCodes.IniUnlistedModuleSection,
@@ -332,7 +332,7 @@ public abstract class CanOpenReaderBase
                     string.Format(
                         CultureInfo.InvariantCulture,
                         "module {0} sections are not loaded: module {0} is not a parsed entry of [SupportedModules]",
-                        moduleKey));
+                        moduleNumber));
             }
 
             return KeepSection(model, sections, sectionName);
@@ -399,50 +399,13 @@ public abstract class CanOpenReaderBase
     }
 
     /// <summary>
-    /// <see langword="true"/> when <paramref name="sectionName"/> is a module section
-    /// (<c>[M{n}ModuleInfo]</c>, <c>[M{n}Comments]</c>, <c>[M{n}Fixed…]</c>, <c>[M{n}SubExt…]</c>)
-    /// whose module number is not in <paramref name="parsedModuleNumbers"/>.
-    /// <paramref name="moduleKey"/> is the module number, or its digits when they do not
-    /// form an <see cref="int"/> (no such module can be parsed).
+    /// <see langword="true"/> when <paramref name="sectionName"/> is a module section the module
+    /// parser would load (<see cref="CanOpenSectionParsers.TryClassifyModuleSection"/>) for a
+    /// module number that is not in <paramref name="parsedModuleNumbers"/>.
     /// </summary>
-    private static bool TryGetUnparsedModuleKey(string sectionName, HashSet<int> parsedModuleNumbers, out string moduleKey)
-    {
-        moduleKey = string.Empty;
-        if (!IsModuleSection(sectionName) && !IsModuleFixedObjectSection(sectionName))
-            return false;
-
-        var digitsEnd = 1;
-        while (char.IsDigit(sectionName[digitsEnd]))
-            digitsEnd++;
-
-        var digits = sectionName[1..digitsEnd];
-        if (!int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var moduleNumber))
-        {
-            moduleKey = digits;
-            return true;
-        }
-
-        moduleKey = moduleNumber.ToString(CultureInfo.InvariantCulture);
-        return !parsedModuleNumbers.Contains(moduleNumber);
-    }
-
-    /// <summary>
-    /// <see langword="true"/> for a <c>[MxFixedxxxx]</c> or <c>[MxFixedxxxxsubx]</c> name with a
-    /// hexadecimal index (and sub-index), which <see cref="IsModuleSection"/> leaves out. Other
-    /// <c>M{n}Fixed…</c> names, such as <c>[M5FixedVendor]</c>, stay ordinary additional sections.
-    /// </summary>
-    private static bool IsModuleFixedObjectSection(string sectionName)
-    {
-        if (!sectionName.StartsWith("M", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        var digitsEnd = 1;
-        while (digitsEnd < sectionName.Length && char.IsDigit(sectionName[digitsEnd]))
-            digitsEnd++;
-
-        return digitsEnd > 1
-               && CanOpenSectionParsers.TryParseFixedObjectSuffix(sectionName[digitsEnd..], out _, out _, out _);
-    }
+    private static bool TryGetUnparsedModuleNumber(string sectionName, HashSet<int> parsedModuleNumbers, out int moduleNumber)
+        => CanOpenSectionParsers.TryClassifyModuleSection(sectionName, out moduleNumber, out _)
+           && !parsedModuleNumbers.Contains(moduleNumber);
 
     /// <summary>
     /// Copies one INI section with a case-insensitive key comparer.
@@ -1233,33 +1196,18 @@ public abstract class CanOpenReaderBase
         => value.ToString("X", CultureInfo.InvariantCulture);
 
     /// <summary>
-    /// Checks if a section name matches a module section pattern: M{Digits}{KnownSuffix}.
+    /// Checks if a section name is a module section the module parser loads:
+    /// <c>[M{n}ModuleInfo]</c>, <c>[M{n}FixedObjects]</c>, <c>[M{n}SubExtends]</c>,
+    /// <c>[M{n}Comments]</c> (module number without leading zeros) or <c>[M{n}SubExtxxxx]</c>
+    /// (hexadecimal index). Other <c>M{digits}</c> names are ordinary additional sections.
     /// </summary>
+    /// <remarks>
+    /// <c>[MxFixedxxxx]</c> is intentionally not included: a body that was parsed onto a module
+    /// is excluded separately, and a body for a module that is not parsed is kept with a diagnostic.
+    /// </remarks>
     protected static bool IsModuleSection(string sectionName)
-    {
-        if (sectionName.Length < 2 ||
-            !sectionName.StartsWith("M", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        // Must have at least one digit after "M"
-        var i = 1;
-        while (i < sectionName.Length && char.IsDigit(sectionName[i]))
-            i++;
-
-        if (i == 1)
-            return false;
-
-        // The suffix after "M{digits}" must be a known module suffix.
-        // [MxFixedxxxx] is intentionally not listed here: a body that was parsed
-        // onto a module is excluded separately, and a body for a module that is
-        // not in SupportedModules stays in AdditionalSections.
-        var suffix = sectionName[i..];
-        return suffix.Equals("ModuleInfo", StringComparison.OrdinalIgnoreCase) ||
-               suffix.Equals("FixedObjects", StringComparison.OrdinalIgnoreCase) ||
-               suffix.StartsWith("SubExtend", StringComparison.OrdinalIgnoreCase) ||
-               suffix.StartsWith("SubExt", StringComparison.OrdinalIgnoreCase) ||
-               suffix.Equals("Comments", StringComparison.OrdinalIgnoreCase);
-    }
+        => CanOpenSectionParsers.TryClassifyModuleSection(sectionName, out _, out var kind)
+           && kind != ModuleSectionKind.FixedObject;
 
     #region Obsolete compatibility shims (kept for external subclasses; removal requires a major release)
 

@@ -788,17 +788,75 @@ internal static class CanOpenSectionParsers
     private static bool TryParseSubExtSection(string sectionName, int moduleNumber, out ushort index)
     {
         index = 0;
-        if (!TryParseModuleSuffix(sectionName, moduleNumber, out var suffix) ||
-            !suffix.StartsWith("SubExt", StringComparison.OrdinalIgnoreCase))
-        {
+        return TryParseModuleSuffix(sectionName, moduleNumber, out var suffix)
+               && TryParseSubExtSuffix(suffix, out index);
+    }
+
+    /// <summary>Parses <c>SubExtxxxx</c> (hexadecimal index), the <c>[MxSubExtxxxx]</c> suffix the module parser loads.</summary>
+    private static bool TryParseSubExtSuffix(string suffix, out ushort index)
+    {
+        index = 0;
+        if (!suffix.StartsWith("SubExt", StringComparison.OrdinalIgnoreCase))
             return false;
-        }
 
         var rest = suffix[6..];
         return rest.Length > 0 &&
                IsHexDigitsOnly(rest) &&
                ushort.TryParse(rest, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index);
     }
+
+    /// <summary>
+    /// Classifies <paramref name="sectionName"/> by exactly the module section syntax this parser
+    /// loads (CiA 306-1 § 8.3): <c>[M{n}ModuleInfo]</c>, <c>[M{n}FixedObjects]</c>,
+    /// <c>[M{n}SubExtends]</c> and <c>[M{n}Comments]</c> with the module number written without
+    /// leading zeros (they are looked up by that name), and <c>[M{n}SubExtxxxx]</c>,
+    /// <c>[M{n}Fixedxxxx]</c>, <c>[M{n}Fixedxxxxsubx]</c> with hexadecimal index and sub-index
+    /// (matched by module number, so leading zeros are accepted). Any other <c>M{digits}</c>
+    /// name is not a module section.
+    /// </summary>
+    internal static bool TryClassifyModuleSection(string sectionName, out int moduleNumber, out ModuleSectionKind kind)
+    {
+        kind = ModuleSectionKind.ModuleInfo;
+        if (!TrySplitModuleSectionName(sectionName, out moduleNumber, out var digits, out var suffix))
+            return false;
+
+        var isCanonicalNumber = string.Equals(
+            digits, moduleNumber.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        if (isCanonicalNumber && TryGetNamedModuleSectionKind(suffix, out kind))
+            return true;
+
+        if (TryParseSubExtSuffix(suffix, out _))
+        {
+            kind = ModuleSectionKind.SubExtension;
+            return true;
+        }
+
+        kind = ModuleSectionKind.FixedObject;
+        return TryParseFixedObjectSuffix(suffix, out _, out _, out _);
+    }
+
+    private static bool TryGetNamedModuleSectionKind(string suffix, out ModuleSectionKind kind)
+    {
+        foreach (var named in NamedModuleSections)
+        {
+            if (suffix.Equals(named.Suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                kind = named.Kind;
+                return true;
+            }
+        }
+
+        kind = ModuleSectionKind.ModuleInfo;
+        return false;
+    }
+
+    private static readonly (string Suffix, ModuleSectionKind Kind)[] NamedModuleSections =
+    {
+        ("ModuleInfo", ModuleSectionKind.ModuleInfo),
+        ("FixedObjects", ModuleSectionKind.FixedObjects),
+        ("SubExtends", ModuleSectionKind.SubExtends),
+        ("Comments", ModuleSectionKind.Comments)
+    };
 
     private static bool TryParseFixedObjectSection(
         string sectionName,
@@ -819,7 +877,7 @@ internal static class CanOpenSectionParsers
     /// Parses the part of a module section name after <c>M{n}</c> as <c>Fixedxxxx</c> or
     /// <c>Fixedxxxxsubx</c> (hexadecimal index and sub-index), the names the module parser loads.
     /// </summary>
-    internal static bool TryParseFixedObjectSuffix(
+    private static bool TryParseFixedObjectSuffix(
         string suffix,
         out ushort index,
         out byte subIndex,
@@ -862,7 +920,16 @@ internal static class CanOpenSectionParsers
     }
 
     private static bool TryParseModuleSuffix(string sectionName, int moduleNumber, out string suffix)
+        => TrySplitModuleSectionName(sectionName, out var parsed, out _, out suffix) && parsed == moduleNumber;
+
+    /// <summary>
+    /// Splits <c>M{digits}{suffix}</c> into the module number, its digits as written, and the
+    /// suffix. Fails when there are no digits or they do not form an <see cref="int"/>.
+    /// </summary>
+    private static bool TrySplitModuleSectionName(string sectionName, out int moduleNumber, out string digits, out string suffix)
     {
+        moduleNumber = 0;
+        digits = string.Empty;
         suffix = string.Empty;
         if (sectionName.Length < 2 ||
             !sectionName.StartsWith("M", StringComparison.OrdinalIgnoreCase))
@@ -874,9 +941,9 @@ internal static class CanOpenSectionParsers
         while (i < sectionName.Length && char.IsDigit(sectionName[i]))
             i++;
 
+        digits = sectionName[1..i];
         if (i == 1 ||
-            !int.TryParse(sectionName[1..i], NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) ||
-            parsed != moduleNumber)
+            !int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out moduleNumber))
         {
             return false;
         }
@@ -1019,4 +1086,26 @@ internal static class CanOpenSectionParsers
 
         return tools;
     }
+}
+
+/// <summary>The module section kinds <see cref="CanOpenSectionParsers.TryClassifyModuleSection"/> recognises.</summary>
+internal enum ModuleSectionKind
+{
+    /// <summary><c>[MxModuleInfo]</c>.</summary>
+    ModuleInfo,
+
+    /// <summary><c>[MxFixedObjects]</c>.</summary>
+    FixedObjects,
+
+    /// <summary><c>[MxSubExtends]</c>.</summary>
+    SubExtends,
+
+    /// <summary><c>[MxComments]</c>.</summary>
+    Comments,
+
+    /// <summary><c>[MxSubExtxxxx]</c>.</summary>
+    SubExtension,
+
+    /// <summary><c>[MxFixedxxxx]</c> or <c>[MxFixedxxxxsubx]</c>.</summary>
+    FixedObject
 }

@@ -2141,9 +2141,10 @@ PDOMapping=0
     }
 
     [Fact]
-    public void ReadString_ModuleSectionWithSubExtendSuffix_RecognizedAsKnown()
+    public void ReadString_ModuleSectionWithSubExtendSuffix_PreservedInAdditionalSections()
     {
-        // Arrange - "M1SubExtend1" has suffix "SubExtend1" which StartsWith("SubExtend")
+        // Arrange - "M1SubExtend1" is no section the module parser loads (it reads
+        // [MxSubExtends] and [MxSubExtxxxx] with a hexadecimal index), so it is kept.
         var content = @"
 [DeviceInfo]
 VendorName=Test
@@ -2167,8 +2168,8 @@ SomeKey=SomeValue
         // Act
         var result = _reader.ReadString(content);
 
-        // Assert - M1SubExtend1 is a known module section, NOT in AdditionalSections
-        result.AdditionalSections.Should().NotContainKey("M1SubExtend1");
+        // Assert - M1SubExtend1 is an ordinary additional section, not dropped as known
+        result.AdditionalSections["M1SubExtend1"]["SomeKey"].Should().Be("SomeValue");
     }
 
     [Fact]

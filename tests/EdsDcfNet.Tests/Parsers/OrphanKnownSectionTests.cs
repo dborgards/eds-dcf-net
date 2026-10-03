@@ -199,64 +199,89 @@ public class OrphanKnownSectionTests
             .Select(d => d.Path).Should().Equal("M3ModuleInfo", "M12Comments");
     }
 
-    [Fact]
-    public void ReadString_ModuleNumberBeyondInt32_PreservesSectionAndReportsDigits()
+    [Theory]
+    [InlineData("M5SubExtra")]
+    [InlineData("M5SubExtendedVendor")]
+    [InlineData("M5SubExtend")]
+    [InlineData("M5FixedVendor")]
+    [InlineData("M5Fixed")]
+    [InlineData("M5Fixed2000subZZ")]
+    [InlineData("M5Info")]
+    [InlineData("M5SubExt")]
+    [InlineData("M5SubExtZZ")]
+    [InlineData("M5SubExt6000sub1")]
+    [InlineData("M05ModuleInfo")]
+    [InlineData("M05Comments")]
+    [InlineData("M99999999999ModuleInfo")]
+    public void ReadString_NameOutsideModuleSectionSyntax_PreservedWithoutModuleDiagnostic(string sectionName)
     {
-        // Arrange
-        var content = Eds("""
-            [M99999999999ModuleInfo]
-            ProductName=Huge
-
-            """);
-
-        // Act
-        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
-
-        // Assert
-        result.Model.AdditionalSections["M99999999999ModuleInfo"]["ProductName"].Should().Be("Huge");
-        result.Diagnostics.Should().ContainSingle(d => d.Code == ParseDiagnosticCodes.IniUnlistedModuleSection)
-            .Which.Message.Should().Be(
-                "module 99999999999 sections are not loaded: module 99999999999 is not a parsed entry of [SupportedModules]");
-    }
-
-    [Fact]
-    public void ReadString_ModuleFixedNameWithoutHexIndex_PreservedWithoutModuleDiagnostic()
-    {
-        // Arrange — the module parser never loads [M5FixedVendor]; it is an ordinary section.
-        var content = Eds("""
-            [M5FixedVendor]
-            VendorKey=kept
-
-            """);
+        // Arrange — the module parser never loads these names; they are ordinary sections.
+        var content = Eds("[" + sectionName + "]" + Environment.NewLine + "VendorKey=kept" + Environment.NewLine);
 
         // Act
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
         var strict = () => CanOpenFile.Eds.ReadString(content, Strict);
 
         // Assert
-        result.Model.AdditionalSections["M5FixedVendor"]["VendorKey"].Should().Be("kept");
+        result.Model.AdditionalSections[sectionName]["VendorKey"].Should().Be("kept");
         result.Diagnostics.Should().NotContain(d => d.Code == ParseDiagnosticCodes.IniUnlistedModuleSection);
         strict.Should().NotThrow();
     }
 
     [Theory]
+    [InlineData("M5ModuleInfo")]
+    [InlineData("M5FixedObjects")]
+    [InlineData("M5SubExtends")]
+    [InlineData("M5Comments")]
+    [InlineData("m5moduleinfo")]
+    [InlineData("M5SubExt6000")]
+    [InlineData("M05SubExt6000")]
     [InlineData("M5Fixed2000")]
     [InlineData("M5Fixed2000sub1")]
-    public void ReadString_ModuleFixedObjectOfUnparsedModule_ReportsModuleDiagnostic(string sectionName)
+    [InlineData("M05Fixed2000")]
+    public void ReadString_ModuleSectionOfUnparsedModule_ReportsModuleDiagnostic(string sectionName)
     {
         // Arrange
-        var content = Eds("[" + sectionName + "]" + Environment.NewLine + "ParameterName=Fixed" + Environment.NewLine);
+        var content = Eds("[" + sectionName + "]" + Environment.NewLine + "ParameterName=Kept" + Environment.NewLine);
 
         // Act
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
         var strict = () => CanOpenFile.Eds.ReadString(content, Strict);
 
         // Assert
-        result.Model.AdditionalSections[sectionName]["ParameterName"].Should().Be("Fixed");
+        result.Model.AdditionalSections[sectionName]["ParameterName"].Should().Be("Kept");
         result.Diagnostics.Should().ContainSingle(d => d.Code == ParseDiagnosticCodes.IniUnlistedModuleSection)
-            .Which.Path.Should().Be(sectionName);
+            .Which.Should().Match<ParseDiagnostic>(d =>
+                d.Path == sectionName &&
+                d.Message == "module 5 sections are not loaded: module 5 is not a parsed entry of [SupportedModules]");
         strict.Should().Throw<EdsParseException>()
             .Which.Code.Should().Be(ParseDiagnosticCodes.IniUnlistedModuleSection);
+    }
+
+    [Fact]
+    public void ReadString_LeadingZeroSubExtOfParsedModule_LoadedAndNotCopied()
+    {
+        // Arrange — [M01SubExt6000] is loaded for module 1, like the parser always did.
+        var content = Eds("""
+            [SupportedModules]
+            NrOfEntries=1
+            1=0x0001
+
+            [M1ModuleInfo]
+            ProductName=First
+
+            [M01SubExt6000]
+            ParameterName=Ext
+
+            """);
+
+        // Act
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+
+        // Assert
+        result.Model.SupportedModules[0].SubExtensionDefinitions[0x6000].ParameterName.Should().Be("Ext");
+        result.Model.AdditionalSections.Should().NotContainKey("M01SubExt6000");
+        result.Diagnostics.Should().NotContain(d => d.Code == ParseDiagnosticCodes.IniUnlistedModuleSection);
     }
 
     [Fact]
