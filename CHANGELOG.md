@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.15.0-beta.21](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.20...v1.15.0-beta.21) (2026-10-03)
+
+### ✨ Features
+
+* **validation:** add CiA 306-1 list-range, ObjFlags and length rules ([#619](https://github.com/dborgards/eds-dcf-net/issues/619)) ([5908178](https://github.com/dborgards/eds-dcf-net/commit/590817882e07c1cecdf50659ba24e4eb71cd368e)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+### 📚 Documentation
+
+* fix tech-stack canvas, technical-debt list and detail drifts ([#622](https://github.com/dborgards/eds-dcf-net/issues/622)) ([d6413d1](https://github.com/dborgards/eds-dcf-net/commit/d6413d117046fdf74f33c3182032f5566dac8c5b))
+* state CiA 306/311 support as documented subset ([#620](https://github.com/dborgards/eds-dcf-net/issues/620)) ([9cb8bc8](https://github.com/dborgards/eds-dcf-net/commit/9cb8bc8d88cc46c6bfa5f97401eeb635e3a8b638))
+
 ## [1.15.0-beta.20](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.19...v1.15.0-beta.20) (2026-10-03)
 
 ### 🐛 Bug Fixes
