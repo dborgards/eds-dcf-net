@@ -483,6 +483,48 @@ public class ObjectTypeKeyMatrixTests
     }
 
     [Fact]
+    public void ReadStringWithDiagnostics_SubObjectWithSubNumberAndCompactSubObj_ReportsAndDropsKeys()
+    {
+        // Arrange: SubNumber and CompactSubObj are "n" for a VAR sub-object; ObjFlags is optional.
+        var content = Eds(
+            "[2000]",
+            "SubNumber=2",
+            "ParameterName=Record",
+            "ObjectType=0x9",
+            "[2000sub0]",
+            "ParameterName=Count",
+            "DataType=0x0005",
+            "AccessType=ro",
+            "DefaultValue=1",
+            "[2000sub1]",
+            "ParameterName=Value",
+            "ObjectType=0x7",
+            "DataType=0x0007",
+            "AccessType=rw",
+            "SubNumber=1",
+            "CompactSubObj=2",
+            "ObjFlags=1");
+
+        // Act
+        var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
+        var written = CanOpenFile.Eds.WriteToString(result.Model);
+        var strict = () => CanOpenFile.Eds.ReadStringWithDiagnostics(content, Strict);
+
+        // Assert
+        result.Diagnostics.Should().OnlyContain(d => d.Code == ParseDiagnosticCodes.IniObjectKeyNotSupported);
+        result.Diagnostics.Select(d => d.Path).Should().Equal("2000sub1.SubNumber", "2000sub1.CompactSubObj");
+        result.Diagnostics[0].Line.Should().Be(SourceLine(content, "SubNumber=1"));
+        var sub = result.Model.ObjectDictionary.Objects[0x2000].SubObjects[1];
+        sub.RemainingEntries.Keys.Should().Equal("ObjFlags");
+        var keys = SectionKeys(written, "2000sub1");
+        keys.Should().NotContain(new[] { "SubNumber", "CompactSubObj" });
+        keys.Should().Contain("ObjFlags");
+        var ex = strict.Should().Throw<EdsParseException>().Which;
+        ex.Code.Should().Be(ParseDiagnosticCodes.IniObjectKeyNotSupported);
+        ex.SectionName.Should().Be("2000sub1");
+    }
+
+    [Fact]
     public void ReadStringWithDiagnostics_CompactArrayWithSubNumber_DoesNotReport()
     {
         // Arrange: S18 — "nc" (Table 7, footnote c); the writer keeps SubNumber for expanded

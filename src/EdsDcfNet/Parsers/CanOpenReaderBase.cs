@@ -789,16 +789,22 @@ public abstract class CanOpenReaderBase
         subObj.SetAccessTypeFromProfile(
             ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")));
 
-        // Only keys mapped onto the sub-object: other Table 7 keys in a sub-index section
-        // (SubNumber, CompactSubObj, ObjFlags) are kept as remaining entries and written back.
+        // Every Table 7 key counts, including SubNumber and CompactSubObj, which CanOpenSubObject
+        // does not map. A reported key is not kept as a remaining entry, so it is not written
+        // back. ObjFlags is optional in a sub-index section and stays a remaining entry.
         ReportNotSupportedKeys(
             sections,
             sectionName,
             subObj.ObjectType,
             hasCompactSubObj: false,
-            SectionEntryKeys.IsEdsSubObjectKey);
+            static _ => true);
 
-        CaptureRemainingEntries(sections, sectionName, IsKnownSubObjectEntryKey, subObj.RemainingEntries);
+        CaptureRemainingEntries(
+            sections,
+            sectionName,
+            key => IsKnownSubObjectEntryKey(key) ||
+                   ObjectTypeKeyMatrix.IsNotSupported(subObj.ObjectType, hasCompactSubObj: false, key),
+            subObj.RemainingEntries);
 
         return subObj;
     }
