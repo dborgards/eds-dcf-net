@@ -406,11 +406,7 @@ public static class CanOpenFile
 
     #region EDS Write
 
-        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFile(ElectronicDataSheet, string)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFile(ElectronicDataSheet, string)"/>
     [Obsolete("Use CanOpenFile.Eds.WriteFile instead.")]
     public static void WriteEds(ElectronicDataSheet eds, string filePath)
         => Eds.WriteFile(eds, filePath, options: null);
@@ -420,11 +416,7 @@ public static class CanOpenFile
     public static void WriteEds(ElectronicDataSheet eds, string filePath, CanOpenWriteOptions? options)
         => Eds.WriteFile(eds, filePath, options);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStream(ElectronicDataSheet, Stream)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStream(ElectronicDataSheet, Stream)"/>
     [Obsolete("Use CanOpenFile.Eds.WriteStream instead.")]
     public static void WriteEds(ElectronicDataSheet eds, Stream stream)
         => Eds.WriteStream(eds, stream);
@@ -434,11 +426,7 @@ public static class CanOpenFile
     public static void WriteEds(ElectronicDataSheet eds, Stream stream, CanOpenWriteOptions? options)
         => Eds.WriteStream(eds, stream, options);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFileAsync(ElectronicDataSheet, string, CancellationToken)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFileAsync(ElectronicDataSheet, string, CancellationToken)"/>
     [Obsolete("Use CanOpenFile.Eds.WriteFileAsync instead.")]
     public static Task WriteEdsAsync(
         ElectronicDataSheet eds,
@@ -455,11 +443,7 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Eds.WriteFileAsync(eds, filePath, options, cancellationToken);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStreamAsync(ElectronicDataSheet, Stream, CancellationToken)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStreamAsync(ElectronicDataSheet, Stream, CancellationToken)"/>
     [Obsolete("Use CanOpenFile.Eds.WriteStreamAsync instead.")]
     public static Task WriteEdsAsync(
         ElectronicDataSheet eds,
@@ -476,11 +460,7 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Eds.WriteStreamAsync(eds, stream, options, cancellationToken);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteToString(ElectronicDataSheet)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteToString(ElectronicDataSheet)"/>
     [Obsolete("Use CanOpenFile.Eds.WriteToString instead.")]
     public static string WriteEdsToString(ElectronicDataSheet eds)
         => Eds.WriteToString(eds, options: null);
@@ -581,11 +561,7 @@ public static class CanOpenFile
 
     #region DCF Write
 
-        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFile(DeviceConfigurationFile, string)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFile(DeviceConfigurationFile, string)"/>
     [Obsolete("Use CanOpenFile.Dcf.WriteFile instead.")]
     public static void WriteDcf(DeviceConfigurationFile dcf, string filePath)
         => Dcf.WriteFile(dcf, filePath, options: null);
@@ -595,11 +571,7 @@ public static class CanOpenFile
     public static void WriteDcf(DeviceConfigurationFile dcf, string filePath, CanOpenWriteOptions? options)
         => Dcf.WriteFile(dcf, filePath, options);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStream(DeviceConfigurationFile, Stream)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStream(DeviceConfigurationFile, Stream)"/>
     [Obsolete("Use CanOpenFile.Dcf.WriteStream instead.")]
     public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream)
         => Dcf.WriteStream(dcf, stream);
@@ -609,11 +581,7 @@ public static class CanOpenFile
     public static void WriteDcf(DeviceConfigurationFile dcf, Stream stream, CanOpenWriteOptions? options)
         => Dcf.WriteStream(dcf, stream, options);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFileAsync(DeviceConfigurationFile, string, CancellationToken)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFileAsync(DeviceConfigurationFile, string, CancellationToken)"/>
     [Obsolete("Use CanOpenFile.Dcf.WriteFileAsync instead.")]
     public static Task WriteDcfAsync(
         DeviceConfigurationFile dcf,
@@ -630,11 +598,7 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Dcf.WriteFileAsync(dcf, filePath, options, cancellationToken);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStreamAsync(DeviceConfigurationFile, Stream, CancellationToken)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStreamAsync(DeviceConfigurationFile, Stream, CancellationToken)"/>
     [Obsolete("Use CanOpenFile.Dcf.WriteStreamAsync instead.")]
     public static Task WriteDcfAsync(
         DeviceConfigurationFile dcf,
@@ -651,11 +615,7 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Dcf.WriteStreamAsync(dcf, stream, options, cancellationToken);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteToString(DeviceConfigurationFile)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteToString(DeviceConfigurationFile)"/>
     [Obsolete("Use CanOpenFile.Dcf.WriteToString instead.")]
     public static string WriteDcfToString(DeviceConfigurationFile dcf)
         => Dcf.WriteToString(dcf, options: null);
@@ -756,11 +716,7 @@ public static class CanOpenFile
 
     #region CPJ Write
 
-        /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteFile(NodelistProject, string)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteFile(NodelistProject, string)"/>
     [Obsolete("Use CanOpenFile.Cpj.WriteFile instead.")]
     public static void WriteCpj(NodelistProject cpj, string filePath)
         => Cpj.WriteFile(cpj, filePath, options: null);
@@ -770,11 +726,7 @@ public static class CanOpenFile
     public static void WriteCpj(NodelistProject cpj, string filePath, CanOpenWriteOptions? options)
         => Cpj.WriteFile(cpj, filePath, options);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteStream(NodelistProject, Stream)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteStream(NodelistProject, Stream)"/>
     [Obsolete("Use CanOpenFile.Cpj.WriteStream instead.")]
     public static void WriteCpj(NodelistProject cpj, Stream stream)
         => Cpj.WriteStream(cpj, stream);
@@ -784,11 +736,7 @@ public static class CanOpenFile
     public static void WriteCpj(NodelistProject cpj, Stream stream, CanOpenWriteOptions? options)
         => Cpj.WriteStream(cpj, stream, options);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteFileAsync(NodelistProject, string, CancellationToken)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteFileAsync(NodelistProject, string, CancellationToken)"/>
     [Obsolete("Use CanOpenFile.Cpj.WriteFileAsync instead.")]
     public static Task WriteCpjAsync(
         NodelistProject cpj,
@@ -805,11 +753,7 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Cpj.WriteFileAsync(cpj, filePath, options, cancellationToken);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteStreamAsync(NodelistProject, Stream, CancellationToken)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteStreamAsync(NodelistProject, Stream, CancellationToken)"/>
     [Obsolete("Use CanOpenFile.Cpj.WriteStreamAsync instead.")]
     public static Task WriteCpjAsync(
         NodelistProject cpj,
@@ -826,11 +770,7 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Cpj.WriteStreamAsync(cpj, stream, options, cancellationToken);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteToString(NodelistProject)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{NodelistProject}.WriteToString(NodelistProject)"/>
     [Obsolete("Use CanOpenFile.Cpj.WriteToString instead.")]
     public static string WriteCpjToString(NodelistProject cpj)
         => Cpj.WriteToString(cpj, options: null);
@@ -931,11 +871,7 @@ public static class CanOpenFile
 
     #region XDD Write
 
-        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFile(ElectronicDataSheet, string)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFile(ElectronicDataSheet, string)"/>
     [Obsolete("Use CanOpenFile.Xdd.WriteFile instead.")]
     public static void WriteXdd(ElectronicDataSheet xdd, string filePath)
         => Xdd.WriteFile(xdd, filePath, options: null);
@@ -945,11 +881,7 @@ public static class CanOpenFile
     public static void WriteXdd(ElectronicDataSheet xdd, string filePath, CanOpenWriteOptions? options)
         => Xdd.WriteFile(xdd, filePath, options);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStream(ElectronicDataSheet, Stream)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStream(ElectronicDataSheet, Stream)"/>
     [Obsolete("Use CanOpenFile.Xdd.WriteStream instead.")]
     public static void WriteXdd(ElectronicDataSheet xdd, Stream stream)
         => Xdd.WriteStream(xdd, stream);
@@ -959,11 +891,7 @@ public static class CanOpenFile
     public static void WriteXdd(ElectronicDataSheet xdd, Stream stream, CanOpenWriteOptions? options)
         => Xdd.WriteStream(xdd, stream, options);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFileAsync(ElectronicDataSheet, string, CancellationToken)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteFileAsync(ElectronicDataSheet, string, CancellationToken)"/>
     [Obsolete("Use CanOpenFile.Xdd.WriteFileAsync instead.")]
     public static Task WriteXddAsync(
         ElectronicDataSheet xdd,
@@ -980,11 +908,7 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Xdd.WriteFileAsync(xdd, filePath, options, cancellationToken);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStreamAsync(ElectronicDataSheet, Stream, CancellationToken)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteStreamAsync(ElectronicDataSheet, Stream, CancellationToken)"/>
     [Obsolete("Use CanOpenFile.Xdd.WriteStreamAsync instead.")]
     public static Task WriteXddAsync(
         ElectronicDataSheet xdd,
@@ -1001,11 +925,7 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Xdd.WriteStreamAsync(xdd, stream, options, cancellationToken);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteToString(ElectronicDataSheet)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{ElectronicDataSheet}.WriteToString(ElectronicDataSheet)"/>
     [Obsolete("Use CanOpenFile.Xdd.WriteToString instead.")]
     public static string WriteXddToString(ElectronicDataSheet xdd)
         => Xdd.WriteToString(xdd, options: null);
@@ -1106,11 +1026,7 @@ public static class CanOpenFile
 
     #region XDC Write
 
-        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFile(DeviceConfigurationFile, string)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFile(DeviceConfigurationFile, string)"/>
     [Obsolete("Use CanOpenFile.Xdc.WriteFile instead.")]
     public static void WriteXdc(DeviceConfigurationFile xdc, string filePath)
         => Xdc.WriteFile(xdc, filePath, options: null);
@@ -1120,11 +1036,7 @@ public static class CanOpenFile
     public static void WriteXdc(DeviceConfigurationFile xdc, string filePath, CanOpenWriteOptions? options)
         => Xdc.WriteFile(xdc, filePath, options);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStream(DeviceConfigurationFile, Stream)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStream(DeviceConfigurationFile, Stream)"/>
     [Obsolete("Use CanOpenFile.Xdc.WriteStream instead.")]
     public static void WriteXdc(DeviceConfigurationFile xdc, Stream stream)
         => Xdc.WriteStream(xdc, stream);
@@ -1134,11 +1046,7 @@ public static class CanOpenFile
     public static void WriteXdc(DeviceConfigurationFile xdc, Stream stream, CanOpenWriteOptions? options)
         => Xdc.WriteStream(xdc, stream, options);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFileAsync(DeviceConfigurationFile, string, CancellationToken)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteFileAsync(DeviceConfigurationFile, string, CancellationToken)"/>
     [Obsolete("Use CanOpenFile.Xdc.WriteFileAsync instead.")]
     public static Task WriteXdcAsync(
         DeviceConfigurationFile xdc,
@@ -1155,11 +1063,7 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Xdc.WriteFileAsync(xdc, filePath, options, cancellationToken);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStreamAsync(DeviceConfigurationFile, Stream, CancellationToken)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteStreamAsync(DeviceConfigurationFile, Stream, CancellationToken)"/>
     [Obsolete("Use CanOpenFile.Xdc.WriteStreamAsync instead.")]
     public static Task WriteXdcAsync(
         DeviceConfigurationFile xdc,
@@ -1176,11 +1080,7 @@ public static class CanOpenFile
         CancellationToken cancellationToken = default)
         => Xdc.WriteStreamAsync(xdc, stream, options, cancellationToken);
 
-        /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteToString(DeviceConfigurationFile)"/>
-
-
-
-
+    /// <inheritdoc cref="FormatCanOpenOperations{DeviceConfigurationFile}.WriteToString(DeviceConfigurationFile)"/>
     [Obsolete("Use CanOpenFile.Xdc.WriteToString instead.")]
     public static string WriteXdcToString(DeviceConfigurationFile xdc)
         => Xdc.WriteToString(xdc, options: null);

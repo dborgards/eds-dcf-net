@@ -119,7 +119,7 @@ public class FormatCanOpenOperations<TModel>
         Func<TModel, string> writeToString,
         Func<TModel, CanOpenWriteOptions?, CancellationToken, Task>? ensureValidForWriteAsync)
     {
-        // Direkte Zuweisung - kein Wrapping, keine NullReferenceException
+        // Direct assignment - no wrapping, no NullReferenceException
         _ensureValidForWrite = ensureValidForWrite;
         _ensureValidForWriteAsync = ensureValidForWriteAsync;
         _readFile = readFile;
@@ -329,7 +329,7 @@ public class FormatCanOpenOperations<TModel>
 
     /// <summary>
     /// Writes to disk asynchronously. When <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/>
-    /// is enabled, validation also runs asynchronously and honors <paramref name="cancellationToken"/>. 
+    /// is enabled, validation also runs asynchronously and honors <paramref name="cancellationToken"/>.
     /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
@@ -357,7 +357,7 @@ public class FormatCanOpenOperations<TModel>
     /// <summary>
     /// Writes to a stream asynchronously. The stream is not disposed. When
     /// <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled, validation also
-    /// runs asynchronously and honors <paramref name="cancellationToken"/>. 
+    /// runs asynchronously and honors <paramref name="cancellationToken"/>.
     /// </summary>
     /// <exception cref="ModelValidationException">
     /// Thrown when <see cref="CanOpenWriteOptions.ValidateBeforeWrite"/> is enabled and the model has validation issues.
@@ -378,12 +378,12 @@ public class FormatCanOpenOperations<TModel>
         CanOpenWriteOptions? options,
         CancellationToken cancellationToken)
     {
-        // Immer den Delegate aufrufen (wie in 1.9.x) – dieser entscheidet selbst,
-        // ob validiert wird (z. B. via CanOpenWriteGuard.ShouldValidateBeforeWrite).
+        // Always call the delegate (as in 1.9.x) - it decides on its own
+        // whether to validate (e.g. via CanOpenWriteGuard.ShouldValidateBeforeWrite).
         if (_ensureValidForWriteAsync != null)
             return _ensureValidForWriteAsync(model, options, cancellationToken);
 
-        // Fallback: synchronen Delegate asynchron ausführen
+        // Fallback: run the synchronous delegate asynchronously
         cancellationToken.ThrowIfCancellationRequested();
         _ensureValidForWrite(model, options);
         return Task.CompletedTask;

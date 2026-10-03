@@ -88,7 +88,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
             {
                 NodeId = nodeId,
                 Baudrate = baudrate,
-                NodeName = nodeName ?? $"{eds.DeviceInfo.ProductName}_Node{nodeId}",
+                NodeName = nodeName ?? eds.DeviceInfo.ProductName + "_Node" + nodeId.ToString(CultureInfo.InvariantCulture),
                 NetNumber = 1,
                 NetworkName = "CANopen Network",
                 CANopenManager = false
