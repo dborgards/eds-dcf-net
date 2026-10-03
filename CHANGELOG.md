@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.15.0-beta.9](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.8...v1.15.0-beta.9) (2026-10-03)
+
+### ✨ Features
+
+* **eds:** preserve unknown keys of every known section on round-trip ([#608](https://github.com/dborgards/eds-dcf-net/issues/608)) ([7e29c92](https://github.com/dborgards/eds-dcf-net/commit/7e29c925f4a419e31abcfabfa20158cc61c63fc1)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
+### 📚 Documentation
+
+* **plan:** record merged work packages of waves 1-5 in the status table ([#607](https://github.com/dborgards/eds-dcf-net/issues/607)) ([61e7424](https://github.com/dborgards/eds-dcf-net/commit/61e742400cb06206e907589e3e8b858342beb8e4))
+
 ## [1.15.0-beta.8](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.7...v1.15.0-beta.8) (2026-10-03)
 
 ### 🐛 Bug Fixes
