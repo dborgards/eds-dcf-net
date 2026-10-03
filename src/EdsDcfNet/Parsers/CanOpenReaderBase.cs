@@ -486,6 +486,22 @@ public abstract class CanOpenReaderBase
     private const string MissingEdsVersion = "3.0";
 
     /// <summary>
+    /// CiA 306-1 Table 7: a DOMAIN object whose raw <c>DataType</c> or <c>AccessType</c> entry is
+    /// absent or empty gets the replacement values DOMAIN (0x000F) and <c>rw</c>. A malformed,
+    /// non-empty entry is not replaced.
+    /// </summary>
+    internal static void ApplyDomainDefaults(CanOpenObject obj, string rawDataType, string rawAccessType)
+    {
+        if (obj.ObjectType != CanOpenObjectType.Domain)
+            return;
+
+        if (string.IsNullOrEmpty(rawDataType))
+            obj.DataType = CanOpenDataType.Domain;
+        if (string.IsNullOrEmpty(rawAccessType))
+            obj.SetAccessTypeFromProfile(AccessType.ReadWrite);
+    }
+
+    /// <summary>
     /// Raw <c>ObjectType</c> text of a section. CiA 306-1 Table 7 NOTE 1: a missing key and an
     /// empty value both equal VAR (0x7), so an empty value must not reach the integer parser,
     /// which reads it as 0x0.
@@ -540,14 +556,7 @@ public abstract class CanOpenReaderBase
             obj.SetAccessTypeFromProfile(ValueConverter.ParseAccessType(accessTypeStr));
         }
 
-        if (obj.ObjectType == CanOpenObjectType.Domain)
-        {
-            // CiA 306-1 Table 7: DOMAIN replacement values when the entry is missing.
-            if (string.IsNullOrEmpty(dataTypeStr))
-                obj.DataType = CanOpenDataType.Domain;
-            if (string.IsNullOrEmpty(accessTypeStr))
-                obj.SetAccessTypeFromProfile(AccessType.ReadWrite);
-        }
+        ApplyDomainDefaults(obj, dataTypeStr, accessTypeStr);
 
         obj.DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue");
         obj.LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit");

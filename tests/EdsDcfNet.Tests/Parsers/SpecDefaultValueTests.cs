@@ -334,6 +334,27 @@ public class SpecDefaultValueTests
     }
 
     [Fact]
+    public void ReadString_ModuleFixedDomainWithoutAccessTypeAndDataType_AppliesTableSevenDefaults()
+    {
+        // Arrange
+        var content = string.Join(
+            "\n",
+            "[DeviceInfo]", "VendorName=Test",
+            "[SupportedModules]", "NrOfEntries=1",
+            "[M1ModuleInfo]", "ProductName=Module",
+            "[M1FixedObjects]", "NrOfEntries=1", "1=0x2000",
+            "[M1Fixed2000]", "ParameterName=D", "ObjectType=0x2");
+
+        // Act
+        var eds = CanOpenFile.Eds.ReadString(content);
+
+        // Assert
+        var domain = eds.SupportedModules[0].FixedObjectDefinitions[0x2000];
+        domain.AccessType.Should().Be(AccessType.ReadWrite);
+        domain.DataType.Should().Be(0x000F);
+    }
+
+    [Fact]
     public void ReadString_VarWithoutAccessTypeAndDataType_KeepsReadOnlyAndNoDataType()
     {
         // Arrange: the DOMAIN replacement values do not apply to VAR (AccessType and DataType are "m").
