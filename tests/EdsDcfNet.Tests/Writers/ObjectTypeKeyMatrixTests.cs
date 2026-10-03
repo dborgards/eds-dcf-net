@@ -805,6 +805,49 @@ public class ObjectTypeKeyMatrixTests
     }
 
     [Fact]
+    public void WriteToString_SubObjectRemainingEntryNotSupported_IsDroppedAndNotValidated()
+    {
+        // Arrange: SubNumber is "n" for a VAR sub-object; the leading space would fail the INI
+        // text check if the entry were written.
+        var record = StructuredObject(CanOpenObjectType.Record);
+        record.DefaultValue = string.Empty;
+        record.SubObjects[1].RemainingEntries.Add("SubNumber", " 1");
+        record.SubObjects[1].RemainingEntries.Add("Group", "Vendor");
+        record.SubObjects[1].RemainingEntries.Add("ParameterName", " Shadow");
+        var eds = EdsWith(record);
+
+        // Act
+        var written = CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        var keys = SectionKeys(written, "2000sub1");
+        keys.Should().NotContain("SubNumber");
+        keys.Should().Contain("Group");
+    }
+
+    [Fact]
+    public void WriteToString_ModuleFixedSubObjectRemainingEntry_ValidatedWriteStillChecksIt()
+    {
+        // Arrange: module fixed objects are written without the key matrix, so their kept
+        // sub-object entries are checked as before.
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        var fixedObject = StructuredObject(CanOpenObjectType.Record);
+        fixedObject.SubObjects[1].RemainingEntries.Add("Group", " Vendor");
+        var module = new ModuleInfo { ModuleNumber = 1, ProductName = "Module" };
+        module.FixedObjects.Add(0x2000);
+        module.FixedObjectDefinitions[0x2000] = fixedObject;
+        eds.SupportedModules.Add(module);
+
+        // Act
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        // Assert
+        act.Should().Throw<ModelValidationException>().Which.Issues.Should().Contain(issue =>
+            issue.Path.EndsWith(".RemainingEntries[Group]", StringComparison.Ordinal) &&
+            issue.Code == ValidationIssueCodes.IniTextNotRoundTrippable);
+    }
+
+    [Fact]
     public void WriteToString_VarWithLeadingSpaceDefaultValue_ValidatedWriteRejects()
     {
         // Arrange

@@ -300,9 +300,11 @@ internal static class IniWriteRules
             CheckIfPresent(subObj.ParamRefd, IniTextSlot.Value, subPath + ".ParamRefd", issues);
         }
 
+        Func<string, bool> isDedicatedKey = includeDcfFields ? SectionEntryKeys.IsDcfSubObjectKey : SectionEntryKeys.IsEdsSubObjectKey;
         ApplyRemaining(
             subObj.RemainingEntries,
-            includeDcfFields ? SectionEntryKeys.IsDcfSubObjectKey : SectionEntryKeys.IsEdsSubObjectKey,
+            key => isDedicatedKey(key) ||
+                   (appliesKeyMatrix && !Writers.IniWriterBase.IsSubObjectKeyWritten(subObj, key)),
             subPath,
             issues);
     }

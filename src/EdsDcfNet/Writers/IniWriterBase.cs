@@ -598,7 +598,14 @@ public abstract class IniWriterBase
         }
 
         WriteSubObjectExtension(sb, subObj);
-        WriteRemainingEntries(sb, subObj.RemainingEntries, IsDedicatedSubObjectEntryKey);
+
+        // A kept key that Table 7 marks "n" for the sub-object type (for example SubNumber on a
+        // VAR) is dropped like the dedicated "n" keys above. Object sections need no such filter:
+        // every Table 7 key is a dedicated object key.
+        WriteRemainingEntries(
+            sb,
+            subObj.RemainingEntries,
+            key => IsDedicatedSubObjectEntryKey(key) || !IsSubObjectKeyWritten(subObj, key));
 
         sb.AppendLine();
     }
