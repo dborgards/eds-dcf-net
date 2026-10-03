@@ -88,12 +88,12 @@ public sealed class CanOpenFileOptions
     /// and unknown XML boolean tokens in <c>ParseXmlBool</c> (default: <see langword="false"/>)
     /// </description></item>
     /// <item><description>
-    /// EDS/DCF <c>[FileInfo] FileVersion</c> / <c>FileRevision</c> and XDD/XDC <c>fileVersion</c>
-    /// major/minor tooling forms such as <c>1.0</c> / <c>1,0</c> (default: accept major component;
-    /// strict: require a plain <c>Unsigned8</c> integer). Malformed EDS/DCF tokens throw with
-    /// section/key attribution in both modes. The XDD/XDC <c>fileVersion</c> is a free <c>xsd:string</c>: other
-    /// text is kept in <see cref="Models.EdsFileInfo.FileVersionText"/> and reported as a diagnostic in both
-    /// modes, without throwing.
+    /// EDS/DCF <c>[FileInfo] FileVersion</c> / <c>FileRevision</c> major/minor tooling forms such as
+    /// <c>1.0</c> / <c>1,0</c> (default: accept major component; strict: require a plain
+    /// <c>Unsigned8</c> integer). Malformed EDS/DCF tokens throw with section/key attribution in both modes.
+    /// The XDD/XDC <c>fileVersion</c> is a free <c>xsd:string</c> and never rejected: the major/minor form uses
+    /// the major component and other text leaves <c>FileVersion</c> at its default, in both modes; the original
+    /// text is kept in <see cref="Models.EdsFileInfo.FileVersionText"/> and reported as a diagnostic.
     /// Zero-padded values such as <c>010</c> parse as decimal <c>10</c> (aligned across EDS/DCF/XDD).
     /// </description></item>
     /// <item><description>

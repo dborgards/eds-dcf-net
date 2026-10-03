@@ -1412,17 +1412,16 @@ public class XddReaderTests
     [Theory]
     [InlineData("7.3")]
     [InlineData("1,0")]
-    public void FileInfo_FileVersionMajorMinor_StrictParsing_ThrowsEdsParseException(string fileVersion)
+    public void FileInfo_FileVersionMajorMinor_StrictParsing_UsesMajorAndKeepsText(string fileVersion)
     {
         var xdd = MinimalXdd.Replace(
             @"fileVersion=""1""",
             $@"fileVersion=""{fileVersion}""");
 
-        var act = () => CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
+        var result = CanOpenFile.Xdd.ReadString(xdd, new CanOpenFileOptions { StrictParsing = true });
 
-        var ex = act.Should().Throw<EdsParseException>().Which;
-        ex.Message.Should().Contain("fileVersion");
-        ex.Message.Should().Contain(fileVersion);
+        result.FileInfo.FileVersion.Should().Be(byte.Parse(fileVersion.Substring(0, 1)));
+        result.FileInfo.FileVersionText.Should().Be(fileVersion);
     }
 
     [Theory]

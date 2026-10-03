@@ -20,8 +20,8 @@ internal static class XddDeviceProfileParser
         // fileVersion is an xsd:string (CiA 311 Annex A.1.2), FileVersion an Unsigned8. A plain decimal
         // number (zero-padded "010" stays decimal 10, never CiA octal) sets the property. Anything
         // else is kept as text in FileVersionText: the lenient major/minor tooling form ("1.0",
-        // "1,0") also sets the major component, other text leaves the default and is reported, in
-        // both modes. StrictParsing rejects major/minor only. Whitespace-only matches a missing
+        // "1,0") also sets the major component, other text leaves the default and is reported. Both
+        // are valid xsd:string input, so StrictParsing does not reject them. Whitespace-only matches a missing
         // attribute and keeps the model default (1).
         var fileVersionText = profileBody.Attribute("fileVersion")?.Value ?? string.Empty;
         var fileVersionStr = fileVersionText.Trim();
@@ -81,18 +81,6 @@ internal static class XddDeviceProfileParser
         byte version;
         if (ValueConverter.TrySplitMajorMinorDecimal(trimmed, out var major))
         {
-            if (StrictParsingScope.IsEnabled)
-            {
-                throw new EdsParseException(
-                    string.Format(
-                        CultureInfo.InvariantCulture,
-                        "ProfileBody fileVersion: Invalid byte value: '{0}'.",
-                        trimmed))
-                {
-                    Code = Diagnostics.ParseDiagnosticCodes.XddFileVersionMajorMinor
-                };
-            }
-
             // Leading-zero majors stay decimal (e.g. "012.5" → 12).
             if (byte.TryParse(major, NumberStyles.None, CultureInfo.InvariantCulture, out version))
             {

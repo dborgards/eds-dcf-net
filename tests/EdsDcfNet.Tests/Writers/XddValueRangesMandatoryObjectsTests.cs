@@ -346,16 +346,25 @@ public class XddValueRangesMandatoryObjectsTests
             expected.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
-    [Fact]
-    public void ReadString_XddMajorMinorFileVersion_StrictStillThrowsAndLenientUsesMajor()
+    [Theory]
+    [InlineData("1.0", (byte)1)]
+    [InlineData("2,1", (byte)2)]
+    public void WriteToString_XddMajorMinorFileVersion_StrictAndLenientUseMajorAndRoundTripCharacterExact(
+        string text, byte major)
     {
         // Act
-        var act = () => CanOpenFile.Xdd.ReadString(Document(fileVersion: "1.0"), Strict);
-        var lenient = CanOpenFile.Xdd.ReadString(Document(fileVersion: "2.1"));
+        var strict = CanOpenFile.Xdd.ReadString(Document(fileVersion: text), Strict);
+        var lenient = CanOpenFile.Xdd.ReadString(Document(fileVersion: text));
+        var written = CanOpenFile.Xdd.WriteToString(strict, CanOpenWriteOptions.Validated);
 
         // Assert
-        act.Should().Throw<EdsParseException>().Which.Code.Should().Be(ParseDiagnosticCodes.XddFileVersionMajorMinor);
-        lenient.FileInfo.FileVersion.Should().Be(2);
+        foreach (var eds in new[] { strict, lenient })
+        {
+            eds.FileInfo.FileVersion.Should().Be(major);
+            eds.FileInfo.FileVersionText.Should().Be(text);
+        }
+
+        Attributes(written, "fileVersion").Should().Equal(text, text);
     }
 
     // ── X9: 1018h is a mandatory object ──────────────────────────────────────

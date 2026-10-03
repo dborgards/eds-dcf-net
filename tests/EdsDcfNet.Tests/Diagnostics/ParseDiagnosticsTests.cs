@@ -389,7 +389,7 @@ public class ParseDiagnosticsTests
     }
 
     [Fact]
-    public void MajorMinorFileVersion_Xdd_LenientReports_StrictThrowsSameCode()
+    public void MajorMinorFileVersion_Xdd_ReportsInBothModesWithoutThrowing()
     {
         var content = MinimalXdd.Replace("fileVersion=\"1\"", "fileVersion=\"1.0\"");
 
@@ -399,7 +399,10 @@ public class ParseDiagnosticsTests
             d.Code == ParseDiagnosticCodes.XddFileVersionMajorMinor &&
             d.CoercedTo == "1");
 
-        AssertStrictThrowsWithCode(content, ParseDiagnosticCodes.XddFileVersionMajorMinor, xdd: true);
+        var strict = CanOpenFile.Xdd.ReadStringWithDiagnostics(content, new CanOpenFileOptions { StrictParsing = true });
+        strict.Diagnostics.Should().ContainSingle(d =>
+            d.Code == ParseDiagnosticCodes.XddFileVersionMajorMinor &&
+            d.CoercedTo == "1");
     }
 
     [Fact]
