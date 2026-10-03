@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.15](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.14...v1.15.0-beta.15) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** apply the CiA 306-1 Tab. 7 key matrix when reading and writing objects ([#613](https://github.com/dborgards/eds-dcf-net/issues/613)) ([147c06a](https://github.com/dborgards/eds-dcf-net/commit/147c06ab82fb2243e6802b3f8f39ec9b0f306057)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
 ## [1.15.0-beta.14](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.13...v1.15.0-beta.14) (2026-10-03)
 
 ### ✨ Features
