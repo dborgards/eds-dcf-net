@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.16](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.15...v1.15.0-beta.16) (2026-10-03)
+
+### ✨ Features
+
+* **xdd:** round-trip order numbers, versions, comments and CANopen feature flags ([#615](https://github.com/dborgards/eds-dcf-net/issues/615)) ([b91ccd1](https://github.com/dborgards/eds-dcf-net/commit/b91ccd16cee0f008d0910f1c25a5ec4bd7335e5a))
+
 ## [1.15.0-beta.15](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.14...v1.15.0-beta.15) (2026-10-03)
 
 ### 🐛 Bug Fixes
