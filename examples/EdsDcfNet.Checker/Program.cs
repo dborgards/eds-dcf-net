@@ -9,9 +9,11 @@ using System.Text.Json.Serialization;
 /// </summary>
 /// <remarks>
 /// Exit codes: 0 = no errors, 1 = errors found (or warnings with --warnings-as-errors),
-/// 2 = usage or I/O problem, including when every given file is skipped.
+/// 2 = usage or I/O problem, including when every given file is skipped. An unreadable file
+/// does not stop the run: the remaining files are still checked and exit code 2 is returned
+/// at the end (it takes precedence over 1, because the result is incomplete).
 /// </remarks>
-internal static class Program
+public static class Program
 {
     private const string Usage =
         """
@@ -24,16 +26,17 @@ internal static class Program
 
         Options:
           --json                 Print findings as JSON instead of text.
-          -q, --quiet            Only print errors (hide warnings and infos).
+          -q, --quiet            Only print errors (hide warnings).
           --warnings-as-errors   Exit with code 1 when warnings are found.
           --no-library           Skip the EdsDcfNet reader/model validation pass.
           -h, --help             Show this help.
 
         Exit codes: 0 = valid, 1 = errors found, 2 = usage or I/O problem.
+        An unreadable file or directory is reported and skipped; the rest is still checked.
         Exit code 2 is also used when every given file is skipped (not .eds/.dcf).
         """;
 
-    private static int Main(string[] args)
+    public static int Main(string[] args)
     {
         var json = false;
         var quiet = false;
@@ -72,22 +75,17 @@ internal static class Program
         }
 
         var files = new List<string>();
+        var unreadable = 0;
         foreach (var input in inputs)
         {
             if (Directory.Exists(input))
             {
-                try
+                var errors = new List<string>();
+                WalkDirectory(input, Directory.EnumerateFiles, Directory.EnumerateDirectories, files, errors);
+                foreach (var error in errors)
                 {
-                    // EnumerateFiles is lazy; AddRange is what walks the tree, so I/O failures
-                    // surface here rather than inside the per-file read handler below.
-                    files.AddRange(Directory.EnumerateFiles(input, "*.*", SearchOption.AllDirectories)
-                        .Where(f => IsEds(f) || IsDcf(f))
-                        .OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    Console.Error.WriteLine("Cannot read '" + input + "': " + ex.Message);
-                    return 2;
+                    Console.Error.WriteLine("Cannot read " + error);
+                    unreadable++;
                 }
             }
             else if (File.Exists(input))
@@ -116,27 +114,23 @@ internal static class Program
             {
                 results.Add((file, CheckFile(file, runLibrary)));
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                // Keep sweeping: one unreadable file must not hide the findings of the others.
                 Console.Error.WriteLine("Cannot read '" + file + "': " + ex.Message);
-                return 2;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                Console.Error.WriteLine("Cannot read '" + file + "': " + ex.Message);
-                return 2;
+                unreadable++;
             }
         }
 
         // A wrong-type path must not look like a clean pass to CI. Directories that
         // simply contain no EDS/DCF files are unchanged (zero files checked, exit 0).
-        if (results.Count == 0 && skipped > 0)
+        if (results.Count == 0 && skipped > 0 && unreadable == 0)
         {
             Console.Error.WriteLine("No .eds or .dcf files were checked.");
             return 2;
         }
 
-        var minimum = quiet ? Severity.Error : Severity.Info;
+        var minimum = quiet ? Severity.Error : Severity.Warning;
         if (json)
         {
             PrintJson(results, minimum);
@@ -149,7 +143,90 @@ internal static class Program
         var all = results.SelectMany(r => r.Findings).ToList();
         var failed = all.Any(f => f.Severity == Severity.Error) ||
                      (warningsAsErrors && all.Any(f => f.Severity == Severity.Warning));
+        if (unreadable > 0)
+        {
+            Console.Error.WriteLine(unreadable.ToString(CultureInfo.InvariantCulture) + " file or directory input(s) could not be read.");
+            return 2;
+        }
+
         return failed ? 1 : 0;
+    }
+
+    /// <summary>
+    /// Adds the EDS/DCF files of a (lazy) enumeration to <paramref name="files"/>, sorted. When the
+    /// enumeration throws an I/O error midway, the files yielded before it are kept and
+    /// <see langword="false"/> is returned.
+    /// </summary>
+    public static bool CollectSweepFiles(IEnumerable<string> enumeration, List<string> files, out string? error)
+    {
+        var found = new List<string>();
+        error = null;
+        try
+        {
+            foreach (var f in enumeration)
+            {
+                if (IsEds(f) || IsDcf(f))
+                {
+                    found.Add(f);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            error = ex.Message;
+        }
+
+        found.Sort(StringComparer.OrdinalIgnoreCase);
+        files.AddRange(found);
+        return error is null;
+    }
+
+    /// <summary>
+    /// Walks <paramref name="root"/> recursively and adds its EDS/DCF files to <paramref name="files"/>.
+    /// A directory that cannot be listed is described in <paramref name="errors"/> and its siblings
+    /// are still visited, so an inaccessible subtree never makes the sweep look complete.
+    /// </summary>
+    public static void WalkDirectory(
+        string root,
+        Func<string, IEnumerable<string>> listFiles,
+        Func<string, IEnumerable<string>> listDirectories,
+        List<string> files,
+        List<string> errors)
+    {
+        var start = files.Count;
+        var pending = new Stack<string>();
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            var dir = pending.Pop();
+            if (!CollectSweepFiles(Defer(() => listFiles(dir)), files, out var fileError))
+            {
+                errors.Add("'" + dir + "': " + fileError);
+            }
+
+            try
+            {
+                foreach (var sub in listDirectories(dir))
+                {
+                    pending.Push(sub);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                errors.Add("'" + dir + "': " + ex.Message);
+            }
+        }
+
+        files.Sort(start, files.Count - start, StringComparer.OrdinalIgnoreCase);
+
+        static IEnumerable<string> Defer(Func<IEnumerable<string>> source)
+        {
+            // Lets CollectSweepFiles catch a failure raised by the listing call itself.
+            foreach (var item in source())
+            {
+                yield return item;
+            }
+        }
     }
 
     public static List<Finding> CheckFile(string file, bool runLibrary)
