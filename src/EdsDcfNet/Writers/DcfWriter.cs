@@ -227,7 +227,13 @@ public class DcfWriter : IniWriterBase
         int compactMax,
         HashSet<byte> expandedSubIndexes,
         Action<string, Action> writeSection)
-        => WriteCompactValueAndDenotationSections(sb, obj, compactMax, expandedSubIndexes, writeSection, sectionEntries: null);
+        => WriteCompactValueAndDenotationSections(
+            sb,
+            obj,
+            compactMax,
+            expandedSubIndexes,
+            writeSection,
+            CurrentObjectSectionEntries);
 
     /// <inheritdoc/>
     /// <remarks>

@@ -256,13 +256,27 @@ public abstract class IniWriterBase
             WriteCompactNameSection(sb, obj, compactMax, expandedSubIndexes, writeSection, sectionEntries);
         }
 
-        WriteCompactValueAndDenotationSections(
-            sb,
-            obj,
-            useCompact ? compactMax : 0,
-            expandedSubIndexes,
-            writeSection,
-            sectionEntries);
+        if (useCompact)
+        {
+            // Keep dispatching through the protected virtual hook so subclass overrides still
+            // run. The kept section entries reach the built-in DCF override through an
+            // AsyncLocal scope, because the hook has no parameter for them and EdsWriter /
+            // DcfWriter share one writer instance across concurrent calls.
+            var previous = CurrentSectionEntries.Value;
+            CurrentSectionEntries.Value = sectionEntries;
+            try
+            {
+                WriteCompactValueAndDenotationSections(sb, obj, compactMax, expandedSubIndexes, writeSection);
+            }
+            finally
+            {
+                CurrentSectionEntries.Value = previous;
+            }
+        }
+        else
+        {
+            WriteCompactValueAndDenotationSections(sb, obj, 0, expandedSubIndexes, writeSection, sectionEntries);
+        }
 
         var linkSectionName = string.Format(CultureInfo.InvariantCulture, "{0:X}ObjectLinks", obj.Index);
         var keptLinkEntries = GetSectionEntries(sectionEntries, linkSectionName);
@@ -293,11 +307,24 @@ public abstract class IniWriterBase
     }
 
     /// <summary>
-    /// Writes the compact value lists and, when <paramref name="sectionEntries"/> keeps entries
-    /// for them, their kept entries. <paramref name="compactMax"/> is <c>0</c> for an object
-    /// without CompactSubObj storage. The default calls
+    /// Kept section entries of the object currently written through
+    /// <see cref="WriteCompactValueAndDenotationSections(StringBuilder, CanOpenObject, int, HashSet{byte}, Action{string, Action})"/>,
+    /// scoped to the current call.
+    /// </summary>
+    private static readonly AsyncLocal<Dictionary<string, OrderedStringDictionary>?> CurrentSectionEntries = new();
+
+    /// <summary>
+    /// The kept section entries (<c>SectionRemainingEntries</c>) of the model being written,
+    /// available inside the compact-list hook; <see langword="null"/> outside a model write.
+    /// </summary>
+    private protected static Dictionary<string, OrderedStringDictionary>? CurrentObjectSectionEntries
+        => CurrentSectionEntries.Value;
+
+    /// <summary>
+    /// Writes compact value lists from kept entries. For a compact object the writer calls
     /// <see cref="WriteCompactValueAndDenotationSections(StringBuilder, CanOpenObject, int, HashSet{byte}, Action{string, Action})"/>
-    /// for compact objects only.
+    /// instead; this overload is used for an object without CompactSubObj storage
+    /// (<paramref name="compactMax"/> <c>0</c>). EDS: no-op.
     /// </summary>
     private protected virtual void WriteCompactValueAndDenotationSections(
         StringBuilder sb,
@@ -307,8 +334,6 @@ public abstract class IniWriterBase
         Action<string, Action> writeSection,
         Dictionary<string, OrderedStringDictionary>? sectionEntries)
     {
-        if (compactMax > 0)
-            WriteCompactValueAndDenotationSections(sb, obj, compactMax, expandedSubIndexes, writeSection);
     }
 
     /// <summary>
