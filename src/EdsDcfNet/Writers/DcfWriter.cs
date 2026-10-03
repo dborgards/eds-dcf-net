@@ -24,6 +24,9 @@ public class DcfWriter : IniWriterBase
     /// replaced over the target. On failure the target is left untouched and the temporary file
     /// is removed. Whether the final replace is atomic depends on the file system (for example,
     /// network shares may not guarantee it).
+    /// A symbolic link is followed: its final target is replaced and the link is kept. The
+    /// netstandard2.0 build cannot resolve links; it serializes the content completely and then
+    /// overwrites the link target in place, which is not atomic.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="dcf"/> is <see langword="null"/>.</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]
@@ -76,6 +79,9 @@ public class DcfWriter : IniWriterBase
     /// replaced over the target. On failure or cancellation the target is left untouched and the temporary file
     /// is removed. Whether the final replace is atomic depends on the file system (for example,
     /// network shares may not guarantee it).
+    /// A symbolic link is followed: its final target is replaced and the link is kept. The
+    /// netstandard2.0 build cannot resolve links; it serializes the content completely and then
+    /// overwrites the link target in place, which is not atomic.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="dcf"/> is <see langword="null"/>.</exception>
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public API — changing to static would be a breaking change for callers using instance syntax.")]

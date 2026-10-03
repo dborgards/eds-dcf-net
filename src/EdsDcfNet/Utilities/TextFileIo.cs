@@ -67,11 +67,29 @@ internal static class TextFileIo
     /// with <see cref="File.Move(string, string)"/> (target absent) or
     /// <see cref="File.Replace(string, string, string?)"/> (target present). The previous target
     /// is never deleted before the new content is complete; on any failure the temporary file is
-    /// removed and the target stays untouched. There is no fallback to in-place overwriting.
+    /// removed and the target stays untouched. There is no fallback to in-place overwriting,
+    /// with one exception on <c>netstandard2.0</c> described below.
     /// </summary>
+    /// <remarks>
+    /// A symbolic link is followed: the final target (through any chain of links, also a
+    /// dangling one) is replaced and the link stays a link. The temporary file is created in the
+    /// final target's directory. On <c>netstandard2.0</c> the link target cannot be resolved;
+    /// a path that is a reparse point (symbolic link, junction, and other reparse points on
+    /// Windows) is therefore written in place through the link: the content is first
+    /// serialized completely into memory, so a serialization failure leaves the target
+    /// untouched, but an I/O failure while writing can leave it truncated.
+    /// </remarks>
     internal static void WriteFileAtomic(string filePath, Action<Stream> write)
     {
-        filePath = Path.GetFullPath(filePath);
+        filePath = ResolveWriteTarget(filePath);
+#if !NET10_0_OR_GREATER
+        if (MustWriteInPlace(filePath))
+        {
+            WriteInPlace(filePath, write);
+            return;
+        }
+#endif
+
         var tempPath = CreateTempPath(filePath);
         try
         {
@@ -102,7 +120,15 @@ internal static class TextFileIo
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        filePath = Path.GetFullPath(filePath);
+        filePath = ResolveWriteTarget(filePath);
+#if !NET10_0_OR_GREATER
+        if (MustWriteInPlace(filePath))
+        {
+            await WriteInPlaceAsync(filePath, write, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+#endif
+
         var tempPath = CreateTempPath(filePath);
         try
         {
@@ -128,6 +154,78 @@ internal static class TextFileIo
             throw;
         }
     }
+
+    /// <summary>
+    /// Absolute path of the file that receives the content. On net10.0 a symbolic link is
+    /// resolved to its final target, so the commit replaces that file and not the link.
+    /// </summary>
+    private static string ResolveWriteTarget(string filePath)
+    {
+        filePath = Path.GetFullPath(filePath);
+#if NET10_0_OR_GREATER
+        var info = new FileInfo(filePath);
+        if (info.LinkTarget == null)
+            return filePath;
+
+        return info.ResolveLinkTarget(returnFinalTarget: true)!.FullName;
+#else
+        return filePath;
+#endif
+    }
+
+#if !NET10_0_OR_GREATER
+    /// <summary>
+    /// netstandard2.0 cannot resolve a link target, so a reparse point is written in place
+    /// through the link instead of being replaced.
+    /// </summary>
+    private static bool MustWriteInPlace(string filePath)
+        => IsReparsePoint(filePath);
+
+    private static bool IsReparsePoint(string filePath)
+    {
+        try
+        {
+            return (File.GetAttributes(filePath) & FileAttributes.ReparsePoint) != 0;
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// netstandard2.0 fallback: serializes into memory first, then overwrites the file the path
+    /// refers to (following a link) in place. See <see cref="WriteFileAtomic"/>.
+    /// </summary>
+    private static void WriteInPlace(string filePath, Action<Stream> write)
+    {
+        using var buffer = new MemoryStream();
+        write(buffer);
+
+        using var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 4096);
+        buffer.WriteTo(stream);
+        stream.Flush(flushToDisk: true);
+    }
+
+    private static async Task WriteInPlaceAsync(string filePath, Func<Stream, Task> write, CancellationToken cancellationToken)
+    {
+        using var buffer = new MemoryStream();
+        await write(buffer).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var stream = new FileStream(
+            filePath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 4096,
+            options: FileOptions.Asynchronous);
+        buffer.Position = 0;
+        await buffer.CopyToAsync(stream, 4096, cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        stream.Flush(flushToDisk: true);
+    }
+#endif
 
     private static string CreateTempPath(string filePath)
     {
