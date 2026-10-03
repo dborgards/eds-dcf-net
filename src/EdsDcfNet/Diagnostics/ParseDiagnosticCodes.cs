@@ -44,6 +44,33 @@ public static class ParseDiagnosticCodes
     public const string IniUnlistedObjectSection = "INI_UNLISTED_OBJECT_SECTION";
 
     /// <summary>
+    /// EDS/DCF module section (<c>[MxModuleInfo]</c>, <c>[MxFixedObjects]</c>, <c>[MxFixedxxxx]</c>,
+    /// <c>[MxSubExtends]</c>, <c>[MxSubExtxxxx]</c>, <c>[MxComments]</c>) of a module that is not
+    /// parsed: its number is outside <c>[SupportedModules]</c> <c>NrOfEntries</c>, or the module
+    /// has no <c>[MxModuleInfo]</c>. Reported once per module number. Lenient mode keeps the
+    /// original sections in <c>AdditionalSections</c>; strict mode throws.
+    /// </summary>
+    public const string IniUnlistedModuleSection = "INI_UNLISTED_MODULE_SECTION";
+
+    /// <summary>
+    /// EDS/DCF companion section (<c>[xxxxsubN]</c>, <c>[xxxxName]</c>, <c>[xxxxObjectLinks]</c>,
+    /// DCF <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c>, or a differently spelled body) of an
+    /// object index that an object list cites, but that has no <c>[xxxx]</c> section, so no
+    /// object is loaded. Reported once per object index. Lenient mode keeps the original
+    /// sections in <c>AdditionalSections</c>; strict mode throws.
+    /// </summary>
+    public const string IniOrphanCompanionSection = "INI_ORPHAN_COMPANION_SECTION";
+
+    /// <summary>
+    /// EDS/DCF <c>[xxxxsubN]</c> section of a loaded object that is not loaded as a sub-object:
+    /// the object has no <c>SubNumber</c> or <c>CompactSubObj</c> and is not a RECORD/ARRAY,
+    /// or the section name is not the spelling the reader looks up. Reported once per object
+    /// index. Lenient mode keeps the original sections in <c>AdditionalSections</c>; strict
+    /// mode throws.
+    /// </summary>
+    public const string IniOrphanSubObjectSection = "INI_ORPHAN_SUB_OBJECT_SECTION";
+
+    /// <summary>
     /// EDS/DCF <c>FileVersion</c>/<c>FileRevision</c> in major/minor tooling form
     /// (for example <c>1.0</c>); lenient mode uses the major component.
     /// </summary>

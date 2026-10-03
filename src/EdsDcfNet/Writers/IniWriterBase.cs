@@ -1380,6 +1380,28 @@ public abstract class IniWriterBase
     protected static void WriteAdditionalSection(StringBuilder sb, string sectionName, Dictionary<string, string> entries)
         => WriteAdditionalSection(sb, sectionName, (IEnumerable<KeyValuePair<string, string>>)entries);
 
+    /// <summary>
+    /// The section headers already written to <paramref name="sb"/>, as <c>[name]</c> lines
+    /// (case-insensitive). An additional section with one of these names is skipped: the
+    /// generated section wins, as a generated key wins over a kept key with the same name.
+    /// </summary>
+    /// <remarks>
+    /// A written line is never a header unless the writer emitted it as one: keys and values
+    /// cannot contain line breaks (<c>IniWriteRules.TryReject</c>) and every key line
+    /// contains <c>=</c>.
+    /// </remarks>
+    private protected static HashSet<string> GetGeneratedSectionHeaders(StringBuilder sb)
+        => new(
+            sb.ToString().Split('\n').Select(line => line.TrimEnd('\r')),
+            StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// <see langword="true"/> when <paramref name="generatedHeaders"/> (from
+    /// <see cref="GetGeneratedSectionHeaders"/>) contains the header of <paramref name="sectionName"/>.
+    /// </summary>
+    private protected static bool IsGeneratedSection(HashSet<string> generatedHeaders, string sectionName)
+        => generatedHeaders.Contains(string.Concat("[", sectionName, "]"));
+
     private protected static void WriteAdditionalSection(
         StringBuilder sb,
         string sectionName,

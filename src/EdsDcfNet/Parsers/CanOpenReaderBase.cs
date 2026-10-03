@@ -57,7 +57,8 @@ public abstract class CanOpenReaderBase
         // Preserve unknown sections for round-trip fidelity. A hexadecimal name is an
         // object index: listed indexes are parsed as objects, and an index that is in
         // no object list is kept here (with its sub-object and companion sections)
-        // instead of being dropped.
+        // instead of being dropped. Module, companion and sub-object sections that look
+        // known but that no parser loaded are kept as well (TryPreserveUnloadedSection).
         var listedIndexes = new HashSet<ushort>(model.ObjectDictionary.MandatoryObjects);
         listedIndexes.UnionWith(model.ObjectDictionary.OptionalObjects);
         listedIndexes.UnionWith(model.ObjectDictionary.ManufacturerObjects);
@@ -69,6 +70,7 @@ public abstract class CanOpenReaderBase
         }
 
         var reportedUnlistedIndexes = new HashSet<ushort>();
+        var unloaded = new UnloadedSectionState(model.SupportedModules);
         foreach (var sectionName in sections.Keys)
         {
             if (CanOpenSectionParsers.IsParsedToolSection(sections, sectionName) ||
@@ -79,7 +81,8 @@ public abstract class CanOpenReaderBase
             }
 
             if (TryPreserveUnlistedObjectSection(
-                    model, sections, sectionName, listedIndexes, bodyIndexes, reportedUnlistedIndexes))
+                    model, sections, sectionName, listedIndexes, bodyIndexes, reportedUnlistedIndexes) ||
+                TryPreserveUnloadedSection(model, sections, sectionName, unloaded))
             {
                 continue;
             }
@@ -241,15 +244,23 @@ public abstract class CanOpenReaderBase
     /// Strict mode throws <see cref="EdsParseException"/> with the same code and message.
     /// </summary>
     private static void ReportUnlistedObjectSection(string sectionName, ushort index)
-    {
-        var message = string.Format(
-            CultureInfo.InvariantCulture,
-            "object section 0x{0:X4} not listed in any object list",
-            index);
+        => ReportKeptSection(
+            Diagnostics.ParseDiagnosticCodes.IniUnlistedObjectSection,
+            sectionName,
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "object section 0x{0:X4} not listed in any object list",
+                index));
 
+    /// <summary>
+    /// Reports a section that is kept in <c>AdditionalSections</c> instead of being loaded.
+    /// Strict mode throws <see cref="EdsParseException"/> with the same code and message.
+    /// </summary>
+    private static void ReportKeptSection(string code, string sectionName, string message)
+    {
         Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
             Diagnostics.ParseSeverity.Warning,
-            Diagnostics.ParseDiagnosticCodes.IniUnlistedObjectSection,
+            code,
             path: sectionName,
             message: message,
             rawValue: sectionName));
@@ -258,10 +269,177 @@ public abstract class CanOpenReaderBase
         {
             throw new EdsParseException(message)
             {
-                Code = Diagnostics.ParseDiagnosticCodes.IniUnlistedObjectSection,
+                Code = code,
                 SectionName = sectionName
             };
         }
+    }
+
+    /// <summary>
+    /// What <see cref="TryPreserveUnloadedSection"/> needs across all sections of one file:
+    /// the parsed module numbers and the modules and objects already reported, so the
+    /// classification stays linear in the number of sections.
+    /// </summary>
+    private sealed class UnloadedSectionState
+    {
+        internal UnloadedSectionState(IEnumerable<ModuleInfo> parsedModules)
+        {
+            ParsedModuleNumbers = new HashSet<int>(parsedModules.Select(m => m.ModuleNumber));
+        }
+
+        internal HashSet<int> ParsedModuleNumbers { get; }
+
+        internal HashSet<string> ReportedModules { get; } = new(StringComparer.Ordinal);
+
+        internal HashSet<ushort> ReportedCompanionIndexes { get; } = new();
+
+        internal HashSet<ushort> ReportedSubObjectIndexes { get; } = new();
+    }
+
+    /// <summary>
+    /// Keeps a section that <see cref="IsKnownSection"/> treats as known, but that no parser
+    /// loads, so it would otherwise be dropped (CiA 306-1 § 6.2 round-trip fidelity):
+    /// <list type="bullet">
+    /// <item>a module section of a module that is not parsed from <c>[SupportedModules]</c>
+    /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniUnlistedModuleSection"/>, once per module);</item>
+    /// <item>a companion section, or a differently spelled body, of a listed object index that
+    /// has no <c>[xxxx]</c> section
+    /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniOrphanCompanionSection"/>, once per index);</item>
+    /// <item>a <c>[xxxxsubN]</c> section of a loaded object that was not loaded as a sub-object
+    /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniOrphanSubObjectSection"/>, once per index).</item>
+    /// </list>
+    /// Nothing is loaded into the model. Lenient mode stores the original entries in
+    /// <c>AdditionalSections</c>; strict mode throws on the first reported section. Runs after
+    /// <see cref="TryPreserveUnlistedObjectSection"/>, so every object index seen here is listed.
+    /// </summary>
+    /// <returns><see langword="true"/> when the section has been preserved.</returns>
+    private bool TryPreserveUnloadedSection(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        UnloadedSectionState state)
+    {
+        if (KnownSectionNames.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
+            return false;
+
+        if (TryGetUnparsedModuleKey(sectionName, state.ParsedModuleNumbers, out var moduleKey))
+        {
+            if (state.ReportedModules.Add(moduleKey))
+            {
+                ReportKeptSection(
+                    Diagnostics.ParseDiagnosticCodes.IniUnlistedModuleSection,
+                    sectionName,
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "module {0} sections are not loaded: module {0} is not a parsed entry of [SupportedModules]",
+                        moduleKey));
+            }
+
+            return KeepSection(model, sections, sectionName);
+        }
+
+        var isObjectBody = TryParseObjectIndexSectionName(sectionName, out var index);
+        if (!isObjectBody && !TryParseObjectCompanionSectionName(sectionName, out index))
+            return false;
+
+        if (!model.ObjectDictionary.Objects.TryGetValue(index, out var obj))
+        {
+            if (state.ReportedCompanionIndexes.Add(index))
+            {
+                ReportKeptSection(
+                    Diagnostics.ParseDiagnosticCodes.IniOrphanCompanionSection,
+                    sectionName,
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "object 0x{0:X4} is listed, but has no [{1}] section; its companion sections are not loaded",
+                        index,
+                        ToHexInvariant(index)));
+            }
+
+            return KeepSection(model, sections, sectionName);
+        }
+
+        if (isObjectBody || !TryParseSubObjectSectionName(sectionName, out _, out var subIndex))
+            return false;
+
+        var expectedName = string.Concat(ToHexInvariant(index), "sub", ToHexInvariant(subIndex));
+        var isExpectedName = string.Equals(sectionName, expectedName, StringComparison.OrdinalIgnoreCase);
+        if (isExpectedName && obj.SubObjects.ContainsKey(subIndex))
+            return false;
+
+        if (state.ReportedSubObjectIndexes.Add(index))
+        {
+            ReportKeptSection(
+                Diagnostics.ParseDiagnosticCodes.IniOrphanSubObjectSection,
+                sectionName,
+                isExpectedName
+                    ? string.Format(
+                        CultureInfo.InvariantCulture,
+                        "sub-object sections of object 0x{0:X4} are not loaded: the object has no SubNumber or CompactSubObj",
+                        index)
+                    : string.Format(
+                        CultureInfo.InvariantCulture,
+                        "sub-object section [{0}] of object 0x{1:X4} is not loaded: the reader expects [{2}]",
+                        sectionName,
+                        index,
+                        expectedName));
+        }
+
+        return KeepSection(model, sections, sectionName);
+    }
+
+    /// <summary>Copies <paramref name="sectionName"/> into <c>AdditionalSections</c>; always <see langword="true"/>.</summary>
+    private static bool KeepSection(
+        ICanOpenFileModel model,
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName)
+    {
+        model.AdditionalSections[sectionName] = CopySectionEntries(sections[sectionName]);
+        return true;
+    }
+
+    /// <summary>
+    /// <see langword="true"/> when <paramref name="sectionName"/> is a module section
+    /// (<c>[M{n}ModuleInfo]</c>, <c>[M{n}Comments]</c>, <c>[M{n}Fixed…]</c>, <c>[M{n}SubExt…]</c>)
+    /// whose module number is not in <paramref name="parsedModuleNumbers"/>.
+    /// <paramref name="moduleKey"/> is the module number, or its digits when they do not
+    /// form an <see cref="int"/> (no such module can be parsed).
+    /// </summary>
+    private static bool TryGetUnparsedModuleKey(string sectionName, HashSet<int> parsedModuleNumbers, out string moduleKey)
+    {
+        moduleKey = string.Empty;
+        if (!IsModuleSection(sectionName) && !IsModuleFixedObjectSection(sectionName))
+            return false;
+
+        var digitsEnd = 1;
+        while (char.IsDigit(sectionName[digitsEnd]))
+            digitsEnd++;
+
+        var digits = sectionName[1..digitsEnd];
+        if (!int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var moduleNumber))
+        {
+            moduleKey = digits;
+            return true;
+        }
+
+        moduleKey = moduleNumber.ToString(CultureInfo.InvariantCulture);
+        return !parsedModuleNumbers.Contains(moduleNumber);
+    }
+
+    /// <summary>
+    /// <see langword="true"/> for <c>M{digits}Fixed…</c>: a <c>[MxFixedxxxx]</c> or
+    /// <c>[MxFixedxxxxsubx]</c> name, which <see cref="IsModuleSection"/> leaves out.
+    /// </summary>
+    private static bool IsModuleFixedObjectSection(string sectionName)
+    {
+        if (!sectionName.StartsWith("M", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var digitsEnd = 1;
+        while (digitsEnd < sectionName.Length && char.IsDigit(sectionName[digitsEnd]))
+            digitsEnd++;
+
+        return digitsEnd > 1 && sectionName[digitsEnd..].StartsWith("Fixed", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -959,8 +1137,16 @@ public abstract class CanOpenReaderBase
     /// index. Accepts exactly the names <see cref="IsSubObjectSection"/> accepts.
     /// </summary>
     private static bool TryParseSubObjectSectionName(string sectionName, out ushort index)
+        => TryParseSubObjectSectionName(sectionName, out index, out _);
+
+    /// <summary>
+    /// Like <see cref="TryParseSubObjectSectionName(string, out ushort)"/>, and also returns
+    /// the sub-index.
+    /// </summary>
+    private static bool TryParseSubObjectSectionName(string sectionName, out ushort index, out byte subIndex)
     {
         index = 0;
+        subIndex = 0;
 
         var subPos = sectionName.IndexOf("sub", StringComparison.OrdinalIgnoreCase);
         if (subPos < 1)
@@ -980,7 +1166,7 @@ public abstract class CanOpenReaderBase
         return ushort.TryParse(prefix, NumberStyles.AllowHexSpecifier,
                    CultureInfo.InvariantCulture, out index)
                && byte.TryParse(suffix, NumberStyles.AllowHexSpecifier,
-                   CultureInfo.InvariantCulture, out _);
+                   CultureInfo.InvariantCulture, out subIndex);
     }
 
     /// <summary>

@@ -1963,9 +1963,11 @@ VendorKey=VendorData
         // Assert - custom hex-prefixed "sub*" names must round-trip via AdditionalSections
         result.AdditionalSections.Should().ContainKey("1000subExtra");
         result.AdditionalSections["1000subExtra"]["VendorKey"].Should().Be("VendorData");
-        // Valid [1000sub0] remains known (not dumped into AdditionalSections)
-        result.AdditionalSections.Should().NotContainKey("1000sub0");
+        // [1000sub0] of a VAR without SubNumber is not loaded as a sub-object; it is kept
+        // unchanged instead of being dropped (INI_ORPHAN_SUB_OBJECT_SECTION).
+        result.AdditionalSections["1000sub0"]["ParameterName"].Should().Be("Highest sub-index");
         result.ObjectDictionary.Objects.Should().ContainKey((ushort)0x1000);
+        result.ObjectDictionary.Objects[0x1000].SubObjects.Should().BeEmpty();
     }
 
     [Fact]

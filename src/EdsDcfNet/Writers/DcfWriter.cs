@@ -414,9 +414,13 @@ public class DcfWriter : IniWriterBase
             WriteSection("Comments", () => WriteComments(sb, dcf.Comments!));
         }
 
+        // Collected before the first additional section is written, and only when there is one.
+        HashSet<string>? generatedHeaders = null;
         foreach (var section in dcf.AdditionalSectionOrder.Sections(dcf.AdditionalSections))
         {
-            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary))
+            generatedHeaders ??= GetGeneratedSectionHeaders(sb);
+            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary) ||
+                IsGeneratedSection(generatedHeaders, section.Key))
             {
                 continue;
             }
