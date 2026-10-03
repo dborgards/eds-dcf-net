@@ -166,15 +166,15 @@ public class MalformedNumericObjectKeyTests
     }
 
     [Fact]
-    public void ReadStringWithDiagnostics_EmptyObjectType_StaysZeroWithoutDiagnostic()
+    public void ReadStringWithDiagnostics_EmptyObjectType_IsVarWithoutDiagnostic()
     {
-        // A present empty key is 0 (NULL), the same as ValueConverter.ParseByte(""), not the omitted-key VAR default.
+        // CiA 306-1 Table 7 NOTE 1: an empty ObjectType equals VAR, like the omitted key.
         var content = ObjectSection("ParameterName=Empty\nObjectType=\nDataType=0x0007\nAccessType=ro\n");
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
         result.HasDiagnostics.Should().BeFalse();
-        result.Model.ObjectDictionary.Objects[0x2005].ObjectType.Should().Be(0);
+        result.Model.ObjectDictionary.Objects[0x2005].ObjectType.Should().Be(CanOpenObjectType.Var);
     }
 
     [Fact]

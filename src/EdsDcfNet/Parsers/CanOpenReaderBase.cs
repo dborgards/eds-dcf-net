@@ -323,7 +323,7 @@ public abstract class CanOpenReaderBase
     /// </remarks>
     protected virtual EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
-        var fileInfo = new EdsFileInfo();
+        var fileInfo = new EdsFileInfo { EdsVersion = MissingEdsVersion };
 
         // [FileInfo] is optional — return defaults when the section is absent.
         if (!IniParser.HasSection(sections, "FileInfo"))
@@ -344,7 +344,7 @@ public abstract class CanOpenReaderBase
             "FileRevision",
             IniParser.GetValue(sections, "FileInfo", "FileRevision", "0"),
             allowMajorMinorVersionForm: true);
-        fileInfo.EdsVersion = IniParser.GetValue(sections, "FileInfo", "EDSVersion", "4.0");
+        fileInfo.EdsVersion = IniParser.GetValue(sections, "FileInfo", "EDSVersion", MissingEdsVersion);
         fileInfo.Description = IniParser.GetValue(sections, "FileInfo", "Description");
         fileInfo.CreationTime = IniParser.GetValue(sections, "FileInfo", "CreationTime");
         fileInfo.CreationDate = IniParser.GetValue(sections, "FileInfo", "CreationDate");
@@ -480,6 +480,39 @@ public abstract class CanOpenReaderBase
         => section is IniSectionDictionary ordered ? ordered.EntriesInOrder() : section;
 
     /// <summary>
+    /// CiA 306-1 v1.4.0 Table 1 footnote a: a missing <c>EDSVersion</c> is equal to "3.0".
+    /// The model default for newly created files stays "4.0".
+    /// </summary>
+    private const string MissingEdsVersion = "3.0";
+
+    /// <summary>
+    /// CiA 306-1 Table 7: a DOMAIN object whose raw <c>DataType</c> or <c>AccessType</c> entry is
+    /// absent or empty gets the replacement values DOMAIN (0x000F) and <c>rw</c>. A malformed,
+    /// non-empty entry is not replaced.
+    /// </summary>
+    internal static void ApplyDomainDefaults(CanOpenObject obj, string rawDataType, string rawAccessType)
+    {
+        if (obj.ObjectType != CanOpenObjectType.Domain)
+            return;
+
+        if (string.IsNullOrEmpty(rawDataType))
+            obj.DataType = CanOpenDataType.Domain;
+        if (string.IsNullOrEmpty(rawAccessType))
+            obj.SetAccessTypeFromProfile(AccessType.ReadWrite);
+    }
+
+    /// <summary>
+    /// Raw <c>ObjectType</c> text of a section. CiA 306-1 Table 7 NOTE 1: a missing key and an
+    /// empty value both equal VAR (0x7), so an empty value must not reach the integer parser,
+    /// which reads it as 0x0.
+    /// </summary>
+    private static string ObjectTypeText(Dictionary<string, Dictionary<string, string>> sections, string sectionName)
+    {
+        var text = IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral);
+        return string.IsNullOrWhiteSpace(text) ? CanOpenObjectType.VarLiteral : text;
+    }
+
+    /// <summary>
     /// Parses a single CANopen object at the given <paramref name="index"/> from the INI sections.
     /// Returns <see langword="null"/> if no section exists for that index.
     /// Derived classes may override this to read additional format-specific fields.
@@ -498,7 +531,7 @@ public abstract class CanOpenReaderBase
                 sections,
                 sectionName,
                 "ObjectType",
-                IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral),
+                ObjectTypeText(sections, sectionName),
                 fallback: CanOpenObjectType.Var,
                 code: Diagnostics.ParseDiagnosticCodes.InvalidObjectType,
                 coercedTo: CanOpenObjectType.VarLiteral,
@@ -522,6 +555,8 @@ public abstract class CanOpenReaderBase
         {
             obj.SetAccessTypeFromProfile(ValueConverter.ParseAccessType(accessTypeStr));
         }
+
+        ApplyDomainDefaults(obj, dataTypeStr, accessTypeStr);
 
         obj.DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue");
         obj.LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit");
@@ -764,7 +799,7 @@ public abstract class CanOpenReaderBase
                 sections,
                 sectionName,
                 "ObjectType",
-                IniParser.GetValue(sections, sectionName, "ObjectType", CanOpenObjectType.VarLiteral),
+                ObjectTypeText(sections, sectionName),
                 fallback: CanOpenObjectType.Var,
                 code: Diagnostics.ParseDiagnosticCodes.InvalidObjectType,
                 coercedTo: CanOpenObjectType.VarLiteral,

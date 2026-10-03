@@ -712,6 +712,11 @@ internal static class CanOpenSectionParsers
                 LenientIniNumber.LeaveUnset);
         }
 
+        CanOpenReaderBase.ApplyDomainDefaults(
+            obj,
+            dataType,
+            IniParser.GetValue(sections, sectionName, "AccessType"));
+
         var subNumber = IniParser.GetValue(sections, sectionName, "SubNumber");
         if (!string.IsNullOrEmpty(subNumber))
         {

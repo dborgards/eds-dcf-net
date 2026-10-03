@@ -524,7 +524,7 @@ public class EdsWriterTests
     }
 
     [Fact]
-    public void GenerateString_OnlySubObjectZeroWithoutSubNumber_EmitsSubNumberZero()
+    public void GenerateString_OnlySubObjectZeroWithoutSubNumber_EmitsSubNumberOne()
     {
         var eds = CreateMinimalEds();
         var obj = new CanOpenObject
@@ -544,7 +544,8 @@ public class EdsWriterTests
 
         var result = _writer.GenerateString(eds);
 
-        result.Should().Contain("SubNumber=0");
+        // CiA 306-1 Table 6 / 6.6.3.2: SubNumber counts the sub-indexes including 00h.
+        result.Should().Contain("SubNumber=1");
         result.Should().Contain("[2001sub0]");
     }
 

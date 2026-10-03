@@ -186,12 +186,15 @@ public abstract class IniWriterBase
         // E10: reject only on validated writes, see IniWriteRules).
         var subNumberToWrite = ResolveSubNumberForWrite(obj, compactMax, useCompact);
         var keepsSubNumberForSubObjects = !IsWritten("SubNumber") && obj.SubObjects.Count > 0;
-        if (keepsSubNumberForSubObjects)
+        if (obj.SubObjects.Count > 0 &&
+            !useCompact &&
+            subNumberToWrite == 0 &&
+            !CanOpenObjectType.HasSubObjects(obj.ObjectType))
         {
-            // The reader loads sub-objects of these types only for SubNumber > 0, so the E10 path
-            // writes the sub-object count (at least 1), not the highest sub-index: a lone
-            // sub-index 0 must not become SubNumber=0. The general S11 correction is WP-11.
-            subNumberToWrite = Math.Max((byte)1, DescribedSubIndexCount(obj));
+            // The reader scans sub-sections of a non-composite object only for SubNumber > 0.
+            // FFh is not counted, so a lone FFh sub-object would otherwise write SubNumber=0 and
+            // be lost on re-read (VAR, DEFTYPE, DOMAIN, NULL and unknown object types alike).
+            subNumberToWrite = 1;
         }
 
         if ((subNumberToWrite > 0 || (!useCompact && obj.SubObjects.Count > 0)) &&
@@ -389,8 +392,9 @@ public abstract class IniWriterBase
     /// Chooses the SubNumber to emit. Under compact storage this is usually omitted,
     /// except when expanded sub-objects above the compact range must remain reachable.
     /// When not using compact storage and <see cref="CanOpenObject.SubNumber"/> is
-    /// unset or zero, falls back to the highest present sub-index so CiA 306
-    /// <c>SubNumber</c> is still emitted for ARRAY/RECORD objects.
+    /// unset or zero, falls back to the number of described sub-indexes (including 00h,
+    /// excluding FFh; CiA 306-1 Table 6) so <c>SubNumber</c> is still emitted for
+    /// ARRAY/RECORD objects and for VAR-like objects that carry sub-objects.
     /// </summary>
     private static byte ResolveSubNumberForWrite(CanOpenObject obj, int compactMax, bool useCompact)
     {
@@ -400,14 +404,7 @@ public abstract class IniWriterBase
             if (fromModel > 0)
                 return fromModel;
 
-            byte maxSubIndex = 0;
-            foreach (var key in obj.SubObjects.Keys)
-            {
-                if (key > maxSubIndex)
-                    maxSubIndex = key;
-            }
-
-            return maxSubIndex;
+            return DescribedSubIndexCount(obj);
         }
 
         byte maxExpandedBeyondCompact = 0;

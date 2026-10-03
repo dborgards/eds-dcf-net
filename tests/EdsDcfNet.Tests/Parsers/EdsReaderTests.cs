@@ -176,7 +176,7 @@ SupportedObjects=0
         result.FileInfo.Should().NotBeNull();
         result.FileInfo.FileVersion.Should().Be(1);
         result.FileInfo.FileRevision.Should().Be(0);
-        result.FileInfo.EdsVersion.Should().Be("4.0");
+        result.FileInfo.EdsVersion.Should().Be("3.0");
     }
 
     #endregion
