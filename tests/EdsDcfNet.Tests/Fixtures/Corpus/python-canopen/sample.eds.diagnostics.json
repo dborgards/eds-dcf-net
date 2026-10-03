@@ -1,1 +1,310 @@
-[]
+[
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1400",
+    "rawValue": "1400",
+    "message": "object section 0x1400 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1401",
+    "rawValue": "1401",
+    "message": "object section 0x1401 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1402",
+    "rawValue": "1402",
+    "message": "object section 0x1402 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1403",
+    "rawValue": "1403",
+    "message": "object section 0x1403 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1600",
+    "rawValue": "1600",
+    "message": "object section 0x1600 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1601",
+    "rawValue": "1601",
+    "message": "object section 0x1601 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1602",
+    "rawValue": "1602",
+    "message": "object section 0x1602 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1603",
+    "rawValue": "1603",
+    "message": "object section 0x1603 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1800",
+    "rawValue": "1800",
+    "message": "object section 0x1800 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1801",
+    "rawValue": "1801",
+    "message": "object section 0x1801 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1802",
+    "rawValue": "1802",
+    "message": "object section 0x1802 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1803",
+    "rawValue": "1803",
+    "message": "object section 0x1803 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1a00",
+    "rawValue": "1a00",
+    "message": "object section 0x1A00 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1a01",
+    "rawValue": "1a01",
+    "message": "object section 0x1A01 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1a02",
+    "rawValue": "1a02",
+    "message": "object section 0x1A02 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "1a03",
+    "rawValue": "1a03",
+    "message": "object section 0x1A03 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "2000",
+    "rawValue": "2000",
+    "message": "object section 0x2000 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "2001",
+    "rawValue": "2001",
+    "message": "object section 0x2001 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "2002",
+    "rawValue": "2002",
+    "message": "object section 0x2002 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "2003",
+    "rawValue": "2003",
+    "message": "object section 0x2003 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "2004",
+    "rawValue": "2004",
+    "message": "object section 0x2004 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "2005",
+    "rawValue": "2005",
+    "message": "object section 0x2005 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "2006",
+    "rawValue": "2006",
+    "message": "object section 0x2006 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "2020",
+    "rawValue": "2020",
+    "message": "object section 0x2020 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3002",
+    "rawValue": "3002",
+    "message": "object section 0x3002 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3003",
+    "rawValue": "3003",
+    "message": "object section 0x3003 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3004",
+    "rawValue": "3004",
+    "message": "object section 0x3004 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3006",
+    "rawValue": "3006",
+    "message": "object section 0x3006 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3010",
+    "rawValue": "3010",
+    "message": "object section 0x3010 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3020",
+    "rawValue": "3020",
+    "message": "object section 0x3020 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3021",
+    "rawValue": "3021",
+    "message": "object section 0x3021 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3022",
+    "rawValue": "3022",
+    "message": "object section 0x3022 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3023",
+    "rawValue": "3023",
+    "message": "object section 0x3023 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3030",
+    "rawValue": "3030",
+    "message": "object section 0x3030 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3031",
+    "rawValue": "3031",
+    "message": "object section 0x3031 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3032",
+    "rawValue": "3032",
+    "message": "object section 0x3032 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3033",
+    "rawValue": "3033",
+    "message": "object section 0x3033 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3034",
+    "rawValue": "3034",
+    "message": "object section 0x3034 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3040",
+    "rawValue": "3040",
+    "message": "object section 0x3040 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3050",
+    "rawValue": "3050",
+    "message": "object section 0x3050 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3061",
+    "rawValue": "3061",
+    "message": "object section 0x3061 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3062",
+    "rawValue": "3062",
+    "message": "object section 0x3062 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3063",
+    "rawValue": "3063",
+    "message": "object section 0x3063 not listed in any object list"
+  },
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "3064",
+    "rawValue": "3064",
+    "message": "object section 0x3064 not listed in any object list"
+  }
+]

@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "severity": "Warning",
+    "code": "INI_UNLISTED_OBJECT_SECTION",
+    "path": "2FFF",
+    "rawValue": "2FFF",
+    "message": "object section 0x2FFF not listed in any object list"
+  }
+]

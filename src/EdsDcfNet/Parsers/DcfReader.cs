@@ -150,6 +150,12 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
            || ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(sectionName, model.ObjectDictionary);
 
     /// <inheritdoc/>
+    private protected override bool TryParseObjectCompanionSectionName(string sectionName, out ushort index)
+        => base.TryParseObjectCompanionSectionName(sectionName, out index)
+           || TryParseCompanionSuffixSection(sectionName, "Value", out index)
+           || TryParseCompanionSuffixSection(sectionName, "Denotation", out index);
+
+    /// <inheritdoc/>
     protected override EdsFileInfo ParseFileInfo(Dictionary<string, Dictionary<string, string>> sections)
     {
         var fileInfo = base.ParseFileInfo(sections);
@@ -230,11 +236,13 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
         if (base.IsKnownSection(sectionName))
             return true;
 
-        // Check for compact value/denotation sections (hex index + "Value" or "Denotation")
+        // Check for compact value/denotation sections (hex index + "Value" or "Denotation").
+        // The prefix must be pure hex digits: "[2000 Value]" is never probed by
+        // ApplyCompactListSection and stays in AdditionalSections like "[1000sub 1]".
         // Note: ObjectLinks sections are intentionally NOT marked as known here.
         // This allows orphaned ObjectLinks (for non-existent objects) to be preserved in AdditionalSections.
-        if (IsHexPrefixedSection(sectionName, "Value") ||
-            IsHexPrefixedSection(sectionName, "Denotation"))
+        if (TryParseCompanionSuffixSection(sectionName, "Value", out _) ||
+            TryParseCompanionSuffixSection(sectionName, "Denotation", out _))
             return true;
 
         return false;
