@@ -1399,7 +1399,7 @@ public abstract class IniWriterBase
     /// <see langword="true"/> when <paramref name="generatedHeaders"/> (from
     /// <see cref="GetGeneratedSectionHeaders"/>) contains the header of <paramref name="sectionName"/>.
     /// </summary>
-    private protected static bool IsGeneratedSection(HashSet<string> generatedHeaders, string sectionName)
+    internal static bool IsGeneratedSection(HashSet<string> generatedHeaders, string sectionName)
         => generatedHeaders.Contains(string.Concat("[", sectionName, "]"));
 
     private protected static void WriteAdditionalSection(

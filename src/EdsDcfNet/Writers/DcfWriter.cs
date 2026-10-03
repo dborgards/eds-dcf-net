@@ -369,6 +369,50 @@ public class DcfWriter : IniWriterBase
     private static string GenerateDcfContent(DeviceConfigurationFile dcf)
     {
         var sb = new StringBuilder();
+        WriteGeneratedSections(sb, dcf);
+
+        // Collected before the first additional section is written, and only when there is one.
+        HashSet<string>? generatedHeaders = null;
+        foreach (var section in dcf.AdditionalSectionOrder.Sections(dcf.AdditionalSections))
+        {
+            generatedHeaders ??= GetGeneratedSectionHeaders(sb);
+            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary) ||
+                IsGeneratedSection(generatedHeaders, section.Key))
+            {
+                continue;
+            }
+
+            // The reader keeps the second of two commissioning spellings here. A stale copy of the
+            // generated name would duplicate the section: the generated one wins.
+            if (DeviceCommissioningSemantics.IsDiscardedAdditionalSection(section.Key, dcf.DeviceCommissioning))
+            {
+                continue;
+            }
+
+            WriteSection(
+                section.Key,
+                () => WriteAdditionalSection(
+                    sb, section.Key, dcf.AdditionalSectionOrder.Entries(section.Key, section.Value)));
+        }
+
+        return TextFileIo.ApplyOutputNewLine(sb.ToString());
+    }
+
+    /// <summary>
+    /// The section headers this writer generates from the model, before the additional
+    /// sections. Validated writes use it to check only the additional sections that are
+    /// written (<see cref="IniWriterBase.GetGeneratedSectionHeaders(StringBuilder)"/>).
+    /// </summary>
+    internal static HashSet<string> CollectGeneratedSectionHeaders(DeviceConfigurationFile dcf)
+    {
+        var sb = new StringBuilder();
+        WriteGeneratedSections(sb, dcf);
+        return GetGeneratedSectionHeaders(sb);
+    }
+
+    /// <summary>Writes every section generated from the model; additional sections follow.</summary>
+    private static void WriteGeneratedSections(StringBuilder sb, DeviceConfigurationFile dcf)
+    {
         var sectionEntries = dcf.SectionRemainingEntries;
 
         WriteSection("FileInfo", () => WriteDcfFileInfo(sb, dcf.FileInfo));
@@ -413,32 +457,6 @@ public class DcfWriter : IniWriterBase
         {
             WriteSection("Comments", () => WriteComments(sb, dcf.Comments!));
         }
-
-        // Collected before the first additional section is written, and only when there is one.
-        HashSet<string>? generatedHeaders = null;
-        foreach (var section in dcf.AdditionalSectionOrder.Sections(dcf.AdditionalSections))
-        {
-            generatedHeaders ??= GetGeneratedSectionHeaders(sb);
-            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary) ||
-                IsGeneratedSection(generatedHeaders, section.Key))
-            {
-                continue;
-            }
-
-            // The reader keeps the second of two commissioning spellings here. A stale copy of the
-            // generated name would duplicate the section: the generated one wins.
-            if (DeviceCommissioningSemantics.IsDiscardedAdditionalSection(section.Key, dcf.DeviceCommissioning))
-            {
-                continue;
-            }
-
-            WriteSection(
-                section.Key,
-                () => WriteAdditionalSection(
-                    sb, section.Key, dcf.AdditionalSectionOrder.Entries(section.Key, section.Value)));
-        }
-
-        return TextFileIo.ApplyOutputNewLine(sb.ToString());
     }
 
     private static void WriteObjects(

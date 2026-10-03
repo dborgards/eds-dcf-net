@@ -154,7 +154,27 @@ internal static class IniWriteRules
             model.AdditionalSections,
             issues,
             model.ObjectDictionary,
-            (model as DeviceConfigurationFile)?.DeviceCommissioning);
+            (model as DeviceConfigurationFile)?.DeviceCommissioning,
+            model.AdditionalSections.Count == 0 ? null : TryCollectGeneratedSectionHeaders(model));
+    }
+
+    /// <summary>
+    /// The section headers the EDS/DCF writer generates for <paramref name="model"/>; it skips an
+    /// additional section with one of these names. <see langword="null"/> when the writer rejects
+    /// the generated part: the write fails anyway, and every additional section is checked.
+    /// </summary>
+    private static HashSet<string>? TryCollectGeneratedSectionHeaders(ICanOpenFileModel model)
+    {
+        try
+        {
+            return model is DeviceConfigurationFile dcf
+                ? DcfWriter.CollectGeneratedSectionHeaders(dcf)
+                : EdsWriter.CollectGeneratedSectionHeaders((ElectronicDataSheet)model);
+        }
+        catch (Exceptions.WriteException)
+        {
+            return null;
+        }
     }
 
     private static void ApplyFileInfo(EdsFileInfo fileInfo, bool includeLastEds, List<ValidationIssue> issues)
@@ -582,10 +602,15 @@ internal static class IniWriteRules
         Dictionary<string, Dictionary<string, string>> sections,
         List<ValidationIssue> issues,
         ObjectDictionary? objectDictionary = null,
-        DeviceCommissioning? commissioning = null)
+        DeviceCommissioning? commissioning = null,
+        HashSet<string>? generatedHeaders = null)
     {
         foreach (var section in sections)
         {
+            // The EDS/DCF writer skips an additional section whose header it already generated.
+            if (generatedHeaders != null && IniWriterBase.IsGeneratedSection(generatedHeaders, section.Key))
+                continue;
+
             // The DCF writer drops this entry in favour of the generated section.
             if (commissioning != null
                 && DeviceCommissioningSemantics.IsDiscardedAdditionalSection(section.Key, commissioning))
