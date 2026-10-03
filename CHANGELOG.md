@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.7](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.6...v1.15.0-beta.7) (2026-10-03)
+
+### ✨ Features
+
+* **xdd:** read, keep and write all schema-defined dynamicChannel attributes ([#603](https://github.com/dborgards/eds-dcf-net/issues/603)) ([7b0d68a](https://github.com/dborgards/eds-dcf-net/commit/7b0d68a15df836fcce4bdca8750c2489e0d9c13a))
+
 ## [1.15.0-beta.6](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.5...v1.15.0-beta.6) (2026-10-03)
 
 ### 🐛 Bug Fixes
