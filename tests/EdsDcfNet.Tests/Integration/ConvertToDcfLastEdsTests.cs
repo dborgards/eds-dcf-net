@@ -31,6 +31,23 @@ public class ConvertToDcfLastEdsTests
     }
 
     [Fact]
+    public void ConvertToDcf_NoFileNameAndEmptyKeptLastEds_KeepsEmptyEntry()
+    {
+        // Arrange
+        var eds = CanOpenFile.Eds.ReadString(Fixture("LastEDS="));
+
+        // Act
+        var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 5, timestamp: Timestamp);
+        AvoidTrailingSpaceInGeneratedDescription(dcf);
+        var written = CanOpenFile.Dcf.WriteToString(dcf, CanOpenWriteOptions.Validated);
+
+        // Assert — an empty value is no LastEds, so the kept entry is written back as it was.
+        dcf.FileInfo.LastEds.Should().BeEmpty();
+        dcf.FileInfo.RemainingEntries["LastEDS"].Should().BeEmpty();
+        CountLines(written, "LastEDS=").Should().Be(1);
+    }
+
+    [Fact]
     public void ConvertToDcf_FileNameAndKeptLastEds_FileNameWins()
     {
         // Arrange

@@ -386,7 +386,7 @@ public class DcfWriter : IniWriterBase
             WriteKeyValue(sb, "LastEDS", fileInfo.LastEds);
         }
 
-        WriteRemainingEntries(sb, fileInfo.RemainingEntries, SectionEntryKeys.IsDcfFileInfoKey);
+        WriteRemainingEntries(sb, fileInfo.RemainingEntries, key => SectionEntryKeys.IsWrittenDcfFileInfoKey(key, fileInfo.LastEds));
         sb.AppendLine();
     }
 

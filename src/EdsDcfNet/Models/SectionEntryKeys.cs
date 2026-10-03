@@ -174,6 +174,15 @@ internal static class SectionEntryKeys
         => IsEdsFileInfoKey(key) || string.Equals(key, "LastEDS", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Writer side of <see cref="IsDcfFileInfoKey"/>: a kept key the DCF writer suppresses
+    /// because it writes the key itself. <c>LastEDS</c> is written only from a non-empty
+    /// <paramref name="lastEds"/>, so a kept <c>LastEDS</c> is suppressed only then.
+    /// </summary>
+    internal static bool IsWrittenDcfFileInfoKey(string key, string? lastEds)
+        => IsEdsFileInfoKey(key)
+           || (!string.IsNullOrEmpty(lastEds) && string.Equals(key, "LastEDS", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// <c>[DeviceInfo]</c> keys mapped onto <see cref="DeviceInfo"/> (§ 6.5, Table 2). The
     /// entries § 6.5 reserves for compatibility are not mapped and are not in this set.
     /// </summary>

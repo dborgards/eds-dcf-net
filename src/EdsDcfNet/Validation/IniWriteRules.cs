@@ -150,7 +150,9 @@ internal static class IniWriteRules
 
         ApplyRemaining(
             fileInfo.RemainingEntries,
-            includeLastEds ? SectionEntryKeys.IsDcfFileInfoKey : SectionEntryKeys.IsEdsFileInfoKey,
+            includeLastEds
+                ? key => SectionEntryKeys.IsWrittenDcfFileInfoKey(key, fileInfo.LastEds)
+                : SectionEntryKeys.IsEdsFileInfoKey,
             "FileInfo",
             issues);
     }

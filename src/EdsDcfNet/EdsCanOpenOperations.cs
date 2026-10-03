@@ -110,10 +110,12 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
         // which the conversion sets from the source file name.
         ModelCloner.CopyFileInfoRemainingEntries(eds.FileInfo, dcf.FileInfo);
 
-        // Without a source file name there is no derived LastEDS. A kept LastEDS entry of the
-        // EDS then becomes the property; otherwise the DCF writer would skip it as a DCF keyword.
+        // Without a source file name there is no derived LastEDS. A kept, non-empty LastEDS
+        // entry of the EDS then becomes the property. An empty one stays a kept entry, which
+        // the DCF writer outputs while the property is empty.
         if (string.IsNullOrEmpty(dcf.FileInfo.LastEds)
-            && dcf.FileInfo.RemainingEntries.TryGetValue("LastEDS", out var retainedLastEds))
+            && dcf.FileInfo.RemainingEntries.TryGetValue("LastEDS", out var retainedLastEds)
+            && !string.IsNullOrEmpty(retainedLastEds))
         {
             dcf.FileInfo.LastEds = retainedLastEds;
             dcf.FileInfo.RemainingEntries.Remove("LastEDS");
