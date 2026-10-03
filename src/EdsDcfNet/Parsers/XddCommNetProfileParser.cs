@@ -883,13 +883,16 @@ internal static class XddCommNetProfileParser
         var nodeIdStr = dcElem.Attribute("nodeID")?.Value ?? string.Empty;
         if (!string.IsNullOrEmpty(nodeIdStr))
         {
+            // xsd:unsignedByte: surrounding whitespace and a leading sign belong to the lexical space.
+            // The 0x hex spelling is not schema-valid and stays accepted as a lenient tolerance.
+            var nodeIdText = nodeIdStr.Trim();
             byte nodeIdValue;
             bool parsed;
-            if (nodeIdStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                parsed = byte.TryParse(nodeIdStr[2..], NumberStyles.HexNumber,
+            if (nodeIdText.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                parsed = byte.TryParse(nodeIdText[2..], NumberStyles.HexNumber,
                     CultureInfo.InvariantCulture, out nodeIdValue);
             else
-                parsed = byte.TryParse(nodeIdStr, NumberStyles.None,
+                parsed = byte.TryParse(nodeIdText, UnsignedXsdIntegerStyles,
                     CultureInfo.InvariantCulture, out nodeIdValue);
 
             if (parsed)

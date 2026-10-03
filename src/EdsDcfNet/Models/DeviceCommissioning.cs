@@ -19,7 +19,7 @@ public class DeviceCommissioning
 
     /// <summary>
     /// Device's baudrate in kbit/s (Unsigned16).
-    /// Common values: 10, 20, 50, 125, 250, 500, 800, 1000
+    /// Common values: 10, 20, 50, 100, 125, 250, 500, 800, 1000
     /// </summary>
     /// <remarks>
     /// The XDC <c>actualBaudRate</c> attribute is a free string. A read value that is not one of

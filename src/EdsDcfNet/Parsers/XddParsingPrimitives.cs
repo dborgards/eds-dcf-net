@@ -336,9 +336,6 @@ internal static class XddParsingPrimitives
         if (TryParseKnownBaudRate(value, out var known))
             return known;
 
-        if (value.Equals("100 Kbps", StringComparison.OrdinalIgnoreCase))
-            return 100;
-
         if (StrictParsingScope.IsEnabled)
         {
             throw new EdsParseException(
@@ -375,6 +372,7 @@ internal static class XddParsingPrimitives
         if (value.Equals("10 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 10;
         else if (value.Equals("20 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 20;
         else if (value.Equals("50 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 50;
+        else if (value.Equals("100 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 100;
         else if (value.Equals("125 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 125;
         else if (value.Equals("250 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 250;
         else if (value.Equals("500 Kbps", StringComparison.OrdinalIgnoreCase)) kbps = 500;
