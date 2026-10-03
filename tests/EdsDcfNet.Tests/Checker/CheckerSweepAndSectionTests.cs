@@ -168,6 +168,21 @@ public class CheckerSweepAndSectionTests
         findings.Should().Contain(f => f.Code == "DCF002" && f.Section == "DeviceComissioning");
     }
 
+    [Theory]
+    [InlineData("100", false)]
+    [InlineData("99", true)]
+    public void Check_DcfBaudrate_HundredKbitIsAllowedAndUnlistedValueIsMnd003(string baudrate, bool expectFinding)
+    {
+        // Arrange
+        var content = "[DeviceComissioning]\r\nNodeID=5\r\nBaudrate=" + baudrate + "\r\n";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        (findings.Any(f => f.Code == "MND003")).Should().Be(expectFinding);
+    }
+
     [Fact]
     public void Parse_HashLineWithEquals_IsAKeyLikeInIniParser()
     {
