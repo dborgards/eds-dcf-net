@@ -466,10 +466,13 @@ public class MalformedNumericObjectKeyTests
     }
 
     [Theory]
-    [InlineData("0", 0u)]
-    [InlineData("4294967295", 4294967295u)]
-    [InlineData("0xFFFFFFFF", 4294967295u)]
-    public void ReadStringWithDiagnostics_ObjFlagsAtValidRange_ParsesWithoutMalformedDiagnostic(string raw, uint expected)
+    [InlineData("0", 0u, false)]
+    [InlineData("4294967295", 4294967295u, true)]
+    [InlineData("0xFFFFFFFF", 4294967295u, true)]
+    public void ReadStringWithDiagnostics_ObjFlagsAtValidRange_ParsesWithoutMalformedDiagnostic(
+        string raw,
+        uint expected,
+        bool expectReservedBits)
     {
         var content = ObjectSection(
             "ParameterName=Edges\nObjectType=0x7\nObjFlags=" + raw + "\nAccessType=ro\n");
@@ -477,7 +480,10 @@ public class MalformedNumericObjectKeyTests
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
         // Reserved bits 2..31 are reported separately (IniObjFlagsReservedBits); the value is not malformed.
-        result.Diagnostics.Should().OnlyContain(d => d.Code == ParseDiagnosticCodes.IniObjFlagsReservedBits);
+        if (expectReservedBits)
+            result.Diagnostics.Should().ContainSingle(d => d.Code == ParseDiagnosticCodes.IniObjFlagsReservedBits);
+        else
+            result.HasDiagnostics.Should().BeFalse();
         result.Model.ObjectDictionary.Objects[0x2005].ObjFlags.Should().Be(expected);
     }
 
