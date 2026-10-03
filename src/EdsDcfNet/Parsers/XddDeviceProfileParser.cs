@@ -100,6 +100,18 @@ internal static class XddDeviceProfileParser
             }
         }
 
+        // Deliberate deviation from the plan: the one numeric FW version this library writes for
+        // RevisionNumber is read back, so EDS -> XDD -> EDS keeps the revision. The list stays
+        // authoritative for the XDD/XDC output.
+        var firmware = deviceInfo.Versions.Where(v => v.Type == DeviceVersionType.Firmware).ToList();
+        if (firmware.Count == 1 &&
+            firmware[0].Value.Length > 0 &&
+            firmware[0].Value.All(c => c >= '0' && c <= '9') &&
+            uint.TryParse(firmware[0].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var revision))
+        {
+            deviceInfo.RevisionNumber = revision;
+        }
+
         return deviceInfo;
     }
 

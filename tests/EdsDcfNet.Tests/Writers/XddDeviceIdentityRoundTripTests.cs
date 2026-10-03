@@ -113,14 +113,51 @@ public class XddDeviceIdentityRoundTripTests
         Versions(written).Should().Equal(("SW", "2.0", "false"), ("HW", "C", null));
     }
 
-    [Fact]
-    public void ReadString_XddWithVersions_DoesNotDeriveRevisionNumber()
+    [Theory]
+    [InlineData("<version versionType=\"FW\">1.2.3</version>", 0u)]
+    [InlineData("<version versionType=\"FW\">12</version>", 12u)]
+    [InlineData("<version versionType=\"FW\">4294967295</version>", 4294967295u)]
+    [InlineData("<version versionType=\"FW\">4294967296</version>", 0u)]
+    [InlineData("<version versionType=\"FW\"></version>", 0u)]
+    [InlineData("<version versionType=\"FW\">+5</version>", 0u)]
+    [InlineData("<version versionType=\"SW\">12</version>", 0u)]
+    [InlineData("<version versionType=\"FW\">1</version><version versionType=\"FW\">2</version>", 0u)]
+    [InlineData("<version versionType=\"SW\">9</version><version versionType=\"FW\">7</version>", 7u)]
+    public void ReadString_XddWithVersions_DerivesRevisionNumberOnlyFromSingleNumericFirmware(string versions, uint expected)
     {
         // Act
-        var eds = CanOpenFile.Xdd.ReadString(Xdd(identity: "<version versionType=\"FW\">12</version>"));
+        var eds = CanOpenFile.Xdd.ReadString(Xdd(identity: versions));
 
         // Assert
-        eds.DeviceInfo.RevisionNumber.Should().Be(0);
+        eds.DeviceInfo.RevisionNumber.Should().Be(expected);
+    }
+
+    [Fact]
+    public void WriteToString_EdsRevisionNumberThroughXdd_SurvivesEdsToXddToEds()
+    {
+        // Arrange
+        var eds = CanOpenFile.Eds.ReadFile("Fixtures/sample_device.eds");
+        eds.DeviceInfo.RevisionNumber = 3;
+
+        // Act
+        var xdd = CanOpenFile.Xdd.WriteToString(eds);
+        var back = CanOpenFile.Eds.ReadString(CanOpenFile.Eds.WriteToString(CanOpenFile.Xdd.ReadString(xdd, Strict)));
+
+        // Assert
+        back.DeviceInfo.RevisionNumber.Should().Be(3);
+    }
+
+    [Fact]
+    public void WriteToString_RevisionNumberZeroWithoutVersions_WritesNoVersion()
+    {
+        // Arrange
+        var eds = ValidXmlEds();
+
+        // Act
+        var written = CanOpenFile.Xdd.WriteToString(eds);
+
+        // Assert
+        Versions(written).Should().BeEmpty();
     }
 
     [Fact]

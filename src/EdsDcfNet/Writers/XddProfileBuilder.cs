@@ -95,7 +95,7 @@ internal static class XddProfileBuilder
     /// <see cref="DeviceInfo.OrderNumbers"/> and <see cref="DeviceInfo.Versions"/> are authoritative: a
     /// non-empty list is written as it is. Only an empty list falls back to
     /// <see cref="DeviceInfo.OrderCode"/> (when not empty) and <see cref="DeviceInfo.RevisionNumber"/>
-    /// (as a firmware version). The schema order is <c>orderNumber</c> before <c>version</c>.
+    /// (as a firmware version, unless it is 0). The schema order is <c>orderNumber</c> before <c>version</c>.
     /// </remarks>
     internal static XElement BuildDeviceIdentity(DeviceInfo deviceInfo)
     {
@@ -114,7 +114,8 @@ internal static class XddProfileBuilder
         foreach (var orderNumber in orderNumbers)
             identity.Add(BuildReadOnlyText(name, "orderNumber", orderNumber.Value, orderNumber.ReadOnly));
 
-        var versions = deviceInfo.Versions.Count > 0
+        // A revision of 0 carries no information, so it is not written as a version.
+        var versions = deviceInfo.Versions.Count > 0 || deviceInfo.RevisionNumber == 0
             ? deviceInfo.Versions
             : new List<DeviceVersion>
             {

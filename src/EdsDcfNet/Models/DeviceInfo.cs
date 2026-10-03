@@ -31,11 +31,13 @@ public class DeviceInfo
     /// </summary>
     /// <remarks>
     /// For XDD and XDC the typed <see cref="Versions"/> list is authoritative. While that list is not
-    /// empty the XDD/XDC writer writes exactly the list and this property has no effect on the output;
-    /// the XDD/XDC reader does not derive it from the versions. Only when <see cref="Versions"/> is
-    /// empty (a model read from EDS or DCF) the writer outputs this number as one <c>version</c>
-    /// element of type <see cref="DeviceVersionType.Firmware"/> (<c>FW</c>), in decimal. EDS and DCF
-    /// always write this property.
+    /// empty the XDD/XDC writer writes exactly the list and this property has no effect on the output.
+    /// Only when <see cref="Versions"/> is empty (a model read from EDS or DCF) and this number is not 0
+    /// the writer outputs it as one <c>version</c> element of type <see cref="DeviceVersionType.Firmware"/>
+    /// (<c>FW</c>), in decimal. The XDD/XDC reader sets this property from <see cref="Versions"/> only
+    /// when there is exactly one <c>FW</c> entry whose value is a plain decimal number in the
+    /// <see cref="uint"/> range (the form the writer produces); otherwise it keeps the default. EDS and
+    /// DCF always write this property.
     /// </remarks>
     public uint RevisionNumber { get; set; }
 
