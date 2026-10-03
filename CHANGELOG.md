@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.29](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.28...v1.15.0-beta.29) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **eds:** parse the remaining counter and version keys leniently ([#640](https://github.com/dborgards/eds-dcf-net/issues/640)) ([efe5ff7](https://github.com/dborgards/eds-dcf-net/commit/efe5ff71150dc77bd95774b934fad0b9bfb2efce)), closes [#581](https://github.com/dborgards/eds-dcf-net/issues/581)
+
 ## [1.15.0-beta.28](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.27...v1.15.0-beta.28) (2026-10-03)
 
 ### 🐛 Bug Fixes
