@@ -134,6 +134,25 @@ public class Cia311SchemaValidationTests
     }
 
     [Fact]
+    public void Validate_WriterOutputWithHundredKbpsAndAutoBaudRate_ReportsNoBaudRateProblem()
+    {
+        // Arrange — the document as a whole is still a known gap; only the baudRate subtree is pinned here.
+        var eds = new XddReader().ReadFile(CorpusXdd);
+        eds.DeviceInfo.SupportedBaudRates.BaudRate100 = true;
+        eds.DeviceInfo.SupportedBaudRates.AutoBaudRate = true;
+        var xml = new XddWriter().GenerateString(eds);
+
+        // Act
+        var problems = Cia311Schema.Validate(xml);
+        var probe = Cia311Schema.Validate(Mutate(xml, ("value=\"100 Kbps\"", "value=\"77 Kbps\"")));
+
+        // Assert
+        xml.Should().Contain("value=\"100 Kbps\"").And.Contain("value=\"auto-baudRate\"");
+        problems.Should().NotContain(problem => problem.Contains("Kbps", StringComparison.Ordinal) || problem.Contains("auto-baudRate", StringComparison.Ordinal));
+        probe.Should().Contain(problem => problem.Contains("77 Kbps", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ValidateFile_CorpusBasicDeviceXdd_ReportsNoProblems()
     {
         // Act

@@ -64,8 +64,7 @@ internal static class XddProfileBuilder
         if (XddFormatHelper.TryConvertFileTimeToXsd(fileInfo.CreationTime, out var creationTime))
             profileBody.Add(new XAttribute("fileCreationTime", creationTime));
 
-        profileBody.Add(new XAttribute("fileVersion",
-            fileInfo.FileVersion.ToString(CultureInfo.InvariantCulture)));
+        profileBody.Add(new XAttribute("fileVersion", FileVersionAttribute(fileInfo)));
 
         if (XddFormatHelper.TryFormatFileDate(fileInfo.ModificationDate, fileInfo.ModificationDateLexical, out var modificationDate))
             profileBody.Add(new XAttribute("fileModificationDate", modificationDate));
@@ -75,6 +74,18 @@ internal static class XddProfileBuilder
 
         if (!string.IsNullOrEmpty(fileInfo.ModifiedBy))
             profileBody.Add(new XAttribute("fileModifiedBy", fileInfo.ModifiedBy));
+    }
+
+    // The read text stays while the number is unchanged since the read; a text without a baseline was
+    // assigned by the caller. fileVersion is a free xsd:string.
+    private static string FileVersionAttribute(EdsFileInfo fileInfo)
+    {
+        var number = fileInfo.FileVersion.ToString(CultureInfo.InvariantCulture);
+        if (fileInfo.FileVersionText == null)
+            return number;
+
+        var baseline = fileInfo.FileVersionTextBaseline;
+        return baseline.HasValue && baseline.Value != fileInfo.FileVersion ? number : fileInfo.FileVersionText;
     }
 
     // ── DeviceIdentity ────────────────────────────────────────────────────────

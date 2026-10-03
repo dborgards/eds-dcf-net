@@ -14,6 +14,7 @@ internal static class XddCommNetProfileParser
             [10] = br => br.BaudRate10 = true,
             [20] = br => br.BaudRate20 = true,
             [50] = br => br.BaudRate50 = true,
+            [100] = br => br.BaudRate100 = true,
             [125] = br => br.BaudRate125 = true,
             [250] = br => br.BaudRate250 = true,
             [500] = br => br.BaudRate500 = true,
@@ -459,8 +460,8 @@ internal static class XddCommNetProfileParser
         ObjectDictionary dict, ushort index,
         HashSet<ushort> seenMandatory, HashSet<ushort> seenOptional, HashSet<ushort> seenManufacturer)
     {
-        // Mandatory objects: 1000h and 1001h
-        if (index == 0x1000 || index == 0x1001)
+        // Mandatory objects: 1000h, 1001h and 1018h (CiA 306-1 Table 4, as CanOpenModelValidator requires)
+        if (index == 0x1000 || index == 0x1001 || index == 0x1018)
         {
             if (seenMandatory.Add(index))
                 dict.MandatoryObjects.Add(index);
@@ -758,19 +759,34 @@ internal static class XddCommNetProfileParser
         if (baudRate == null)
             return;
 
-        // defaultValue is not mapped into DeviceInfo (write-only on emit), but under
-        // StrictParsing it must still match the CiA 311 baud vocabulary.
+        // defaultValue must match the CiA 311 baud vocabulary under StrictParsing. A known value is
+        // kept in its canonical spelling so the writer can emit it again (it is not derivable from
+        // the flags); an empty or unknown one leaves the default to be derived.
         var defaultValue = baudRate.Attribute("defaultValue")?.Value ?? string.Empty;
+        string? keptDefault = null;
         if (defaultValue.Length > 0)
-            ParseBaudRateString(defaultValue);
+        {
+            var defaultKbps = ParseBaudRateString(defaultValue, out var defaultIsAuto);
+            if (defaultIsAuto)
+                keptDefault = "auto-baudRate";
+            else if (defaultKbps != 0)
+                keptDefault = string.Format(CultureInfo.InvariantCulture, "{0} Kbps", defaultKbps);
+        }
 
+        var baudRates = deviceInfo.SupportedBaudRates;
         foreach (var supported in baudRate.Elements()
             .Where(e => e.Name.LocalName == "supportedBaudRate"))
         {
             var val = supported.Attribute("value")?.Value ?? string.Empty;
-            var kbps = ParseBaudRateString(val);
-            SetBaudRate(deviceInfo.SupportedBaudRates, kbps);
+            var kbps = ParseBaudRateString(val, out var isAuto);
+            if (isAuto)
+                baudRates.AutoBaudRate = true;
+            else
+                SetBaudRate(baudRates, kbps);
         }
+
+        baudRates.DefaultValueLexical = keptDefault;
+        baudRates.DefaultValueFlagsBaseline = baudRates.FlagMask();
     }
 
     private static void ParseNetworkManagement(XElement networkMgmt, DeviceInfo deviceInfo)

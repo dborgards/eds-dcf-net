@@ -109,6 +109,7 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
         // Unmapped [FileInfo] entries travel with the file; the DCF writer skips LastEDS,
         // which the conversion sets from the source file name.
         ModelCloner.CopyFileInfoRemainingEntries(eds.FileInfo, dcf.FileInfo);
+        ModelCloner.CopyFileVersionText(eds.FileInfo, dcf.FileInfo);
 
         // Without a source file name there is no derived LastEDS. A kept, non-empty LastEDS
         // entry of the EDS then becomes the property. An empty one stays a kept entry, which
