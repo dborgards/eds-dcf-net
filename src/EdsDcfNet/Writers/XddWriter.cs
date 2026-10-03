@@ -692,15 +692,26 @@ public class XddWriter
         }
     }
 
-    private static XmlWriterSettings CreateWriterSettings(bool async) => new()
+    private static XmlWriterSettings CreateWriterSettings(bool async)
     {
-        Indent = true,
-        IndentChars = "  ",
-        Encoding = TextFileIo.GetOutputEncoding(),
-        OmitXmlDeclaration = false,
-        CloseOutput = false,
-        Async = async
-    };
+        var settings = new XmlWriterSettings
+        {
+            Indent = true,
+            IndentChars = "  ",
+            Encoding = TextFileIo.GetOutputEncoding(),
+            OmitXmlDeclaration = false,
+            CloseOutput = false,
+            Async = async
+        };
+
+        // Only an explicit CanOpenWriteOptions.NewLine (validated to "\n" or "\r\n") changes the
+        // line ending; otherwise XmlWriterSettings keeps the platform default as before.
+        var newLine = FileEncodingScope.CurrentWriteNewLine;
+        if (newLine != null)
+            settings.NewLineChars = newLine;
+
+        return settings;
+    }
 
     /// <summary>String route (<see cref="GenerateString(ElectronicDataSheet)"/>): the declaration follows <see cref="TextFileIo.GetOutputEncoding"/>.</summary>
     private static string SerializeDocument(XDocument doc)

@@ -55,6 +55,48 @@ public sealed class CanOpenWriteOptions
     /// </remarks>
     public Encoding? Encoding { get; init; }
 
+    private string? _newLine;
+
+    /// <summary>
+    /// Gets the line ending of the written output of every format (EDS, DCF, CPJ, XDD, and XDC).
+    /// Only <c>"\n"</c> and <c>"\r\n"</c> are accepted. The default is
+    /// <see cref="Environment.NewLine"/>, which keeps the output of previous releases unchanged.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Any other value, including <see langword="null"/>, an empty string, a lone <c>"\r"</c>,
+    /// and arbitrary text, is rejected with an <see cref="ArgumentException"/> when the property
+    /// is set, not when writing. A free-form string would let a caller inject INI sections after
+    /// every line or produce XML that is not well-formed.
+    /// </para>
+    /// <para>
+    /// EDS, DCF, and CPJ output contains only the chosen line ending. For XDD and XDC the chosen
+    /// value is the line ending of the indentation between elements, and line breaks inside text
+    /// content are written as the chosen value too (an XML parser reads either form back as a
+    /// line feed). Line breaks inside attribute values stay character references, so they are
+    /// preserved exactly. <c>WriteToString</c>, <c>WriteFile</c>, and <c>WriteStream</c>
+    /// (synchronous and asynchronous) all apply the option.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">The value is neither <c>"\n"</c> nor <c>"\r\n"</c>.</exception>
+    public string NewLine
+    {
+        get => _newLine ?? Environment.NewLine;
+        init
+        {
+            if (value != "\n" && value != "\r\n")
+                throw new ArgumentException(
+                    "NewLine must be \"\\n\" or \"\\r\\n\".",
+                    nameof(value));
+
+            _newLine = value;
+        }
+    }
+
     internal static Encoding? ResolveEncoding(CanOpenWriteOptions? options)
         => options?.Encoding;
+
+    /// <summary>The explicitly chosen line ending, or <see langword="null"/> when the default applies.</summary>
+    internal static string? ResolveNewLine(CanOpenWriteOptions? options)
+        => options?._newLine;
 }

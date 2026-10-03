@@ -460,7 +460,7 @@ public class DcfWriter : IniWriterBase
                     sb, section.Key, dcf.AdditionalSectionOrder.Entries(section.Key, section.Value)));
         }
 
-        return sb.ToString();
+        return TextFileIo.ApplyOutputNewLine(sb.ToString());
     }
 
     private static void WriteObjects(

@@ -411,7 +411,9 @@ public class FormatCanOpenOperations<TModel>
     public virtual string WriteToString(TModel model, CanOpenWriteOptions? options)
     {
         _ensureValidForWrite(model, options);
-        return _writeToString(model);
+        // Only the line ending applies to a string: the encoding is a byte-output concern.
+        using (Parsers.FileEncodingScope.EnterWriteNewLine(CanOpenWriteOptions.ResolveNewLine(options)))
+            return _writeToString(model);
     }
 
     private static ReadScopes EnterRead(CanOpenFileOptions? options) => new(options);
@@ -439,11 +441,19 @@ public class FormatCanOpenOperations<TModel>
     private sealed class WriteScope : IDisposable
     {
         private readonly IDisposable _encoding;
+        private readonly IDisposable _newLine;
 
         internal WriteScope(CanOpenWriteOptions? options)
-            => _encoding = Parsers.FileEncodingScope.EnterWrite(CanOpenWriteOptions.ResolveEncoding(options));
+        {
+            _encoding = Parsers.FileEncodingScope.EnterWrite(CanOpenWriteOptions.ResolveEncoding(options));
+            _newLine = Parsers.FileEncodingScope.EnterWriteNewLine(CanOpenWriteOptions.ResolveNewLine(options));
+        }
 
-        public void Dispose() => _encoding.Dispose();
+        public void Dispose()
+        {
+            _newLine.Dispose();
+            _encoding.Dispose();
+        }
     }
 }
 #pragma warning restore CA1822

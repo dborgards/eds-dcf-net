@@ -315,6 +315,28 @@ var text = CanOpenFile.Dcf.WriteToString(dcf);
 File.WriteAllText("device_ascii.dcf", text, asciiStrict);
 ```
 
+### Line endings (`CanOpenWriteOptions.NewLine`)
+
+By default the output uses `Environment.NewLine`, so the same model produces CRLF on Windows
+and LF on Linux/macOS. For byte-identical output across platforms, set `NewLine` on the write
+options of any format (`WriteFile`, `WriteStream`, `WriteToString`, sync and async):
+
+```csharp
+using EdsDcfNet;
+
+var options = new CanOpenWriteOptions { NewLine = "\n" };   // or "\r\n"
+CanOpenFile.Eds.WriteFile(eds, "device.eds", options);
+CanOpenFile.Xdd.WriteFile(xdd, "device.xdd", options);
+```
+
+- Only `"\n"` and `"\r\n"` are accepted. Any other value (`null`, empty, a lone `"\r"`, any
+  text) throws `ArgumentException` when the property is set, not when writing: a free-form
+  string could inject INI sections or break XML well-formedness.
+- EDS, DCF, and CPJ output contains only the chosen line ending.
+- XDD and XDC use it for the indentation between elements and for line breaks inside text
+  content (an XML parser reads either form back as a line feed). Line breaks inside attribute
+  values are written as character references and are preserved exactly.
+
 ### Reading an XDD File (CiA 311 XML)
 
 ```csharp
