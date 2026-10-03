@@ -509,10 +509,17 @@ of a `BREAKING CHANGE:` footer.
 Both branches are protected by repository rulesets (verify with
 `gh api repos/dborgards/eds-dcf-net/rules/branches/develop`, likewise `main`):
 
-| Branch | Require PR | Required status checks | Allowed merge methods |
+| Branch | Require PR | Require status checks | Restrict direct push |
 |---|---|---|---|
-| `main` | Yes | `build`; `codecov/patch` (Codecov app) | merge commit only |
-| `develop` | Yes | `build`; `coverage/threshold` (GitHub Actions) | squash, rebase |
+| `main` | Yes | `build`; `codecov/patch` (Codecov app) | Yes |
+| `develop` | Yes | `build`; `coverage/threshold` (GitHub Actions) | Yes |
+
+Allowed merge methods per ruleset:
+
+| Branch | Allowed merge methods |
+|---|---|
+| `main` | merge commit only |
+| `develop` | squash, rebase |
 
 Both rulesets also block deletion and non-fast-forward pushes, require
 the branch to be up to date before merging (strict status checks), require all
