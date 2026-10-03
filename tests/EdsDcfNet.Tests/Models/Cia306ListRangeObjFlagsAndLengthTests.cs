@@ -762,4 +762,16 @@ public class Cia306ListRangeObjFlagsAndLengthTests
 
         act.Should().NotThrow();
     }
+
+    [Fact]
+    public void WriteToString_GapBelowKeptEmptyLine_ValidatedRejects()
+    {
+        // Lines=3 with only Line1 stored and an empty Line3 kept: the writer emits Lines=3, so Line2 is missing.
+        var eds = CanOpenFile.Eds.ReadString(EdsHeader + "[Comments]\nLines=3\nLine1=a\nLine3=\n");
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>().Which.Issues.Should().ContainSingle(i =>
+            i.Path == "Comments.CommentLines" && i.Message.Contains("2", StringComparison.Ordinal));
+    }
 }

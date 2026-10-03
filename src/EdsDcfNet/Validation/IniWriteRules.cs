@@ -357,7 +357,7 @@ internal static class IniWriteRules
 
         // The writer emits Lines as the highest line number, so a gap would leave a Line<n> missing
         // inside Lines. An empty Line<n> the reader kept in RemainingEntries fills its gap.
-        var highest = comments.CommentLines.Count == 0 ? 0 : comments.CommentLines.Keys.Max();
+        var highest = comments.WrittenLineCount();
         for (var n = 1; n < highest; n++)
         {
             if (comments.CommentLines.ContainsKey(n)
