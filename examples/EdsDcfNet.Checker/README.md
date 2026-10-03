@@ -30,7 +30,7 @@ dotnet run --project examples/EdsDcfNet.Checker -- --json device.dcf > report.js
 | `--warnings-as-errors` | Exit code 1 also for warnings |
 | `--no-library` | Skip the EdsDcfNet reader/validator pass |
 
-Exit codes: `0` valid, `1` errors found, `2` usage or I/O problem. Exit code `2` is also used when every given file is skipped because it is not `.eds` or `.dcf`. An unreadable file is reported on stderr and skipped; the remaining files are still checked, and exit code `2` is returned at the end (it takes precedence over `1`).
+Exit codes: `0` valid, `1` errors found, `2` usage or I/O problem. Exit code `2` is also used when every given file is skipped because it is not `.eds` or `.dcf`. An unreadable file or inaccessible directory is reported on stderr and skipped (never silently); the remaining files are still checked, and exit code `2` is returned at the end (it takes precedence over `1`).
 
 Example output:
 

@@ -32,7 +32,7 @@ public static class Program
           -h, --help             Show this help.
 
         Exit codes: 0 = valid, 1 = errors found, 2 = usage or I/O problem.
-        An unreadable file is reported and skipped; the other files are still checked.
+        An unreadable file or directory is reported and skipped; the rest is still checked.
         Exit code 2 is also used when every given file is skipped (not .eds/.dcf).
         """;
 
@@ -76,14 +76,15 @@ public static class Program
 
         var files = new List<string>();
         var unreadable = 0;
-        var enumeration = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true };
         foreach (var input in inputs)
         {
             if (Directory.Exists(input))
             {
-                if (!CollectSweepFiles(Directory.EnumerateFiles(input, "*.*", enumeration), files, out var error))
+                var errors = new List<string>();
+                WalkDirectory(input, Directory.EnumerateFiles, Directory.EnumerateDirectories, files, errors);
+                foreach (var error in errors)
                 {
-                    Console.Error.WriteLine("Cannot read '" + input + "': " + error);
+                    Console.Error.WriteLine("Cannot read " + error);
                     unreadable++;
                 }
             }
@@ -178,6 +179,54 @@ public static class Program
         found.Sort(StringComparer.OrdinalIgnoreCase);
         files.AddRange(found);
         return error is null;
+    }
+
+    /// <summary>
+    /// Walks <paramref name="root"/> recursively and adds its EDS/DCF files to <paramref name="files"/>.
+    /// A directory that cannot be listed is described in <paramref name="errors"/> and its siblings
+    /// are still visited, so an inaccessible subtree never makes the sweep look complete.
+    /// </summary>
+    public static void WalkDirectory(
+        string root,
+        Func<string, IEnumerable<string>> listFiles,
+        Func<string, IEnumerable<string>> listDirectories,
+        List<string> files,
+        List<string> errors)
+    {
+        var start = files.Count;
+        var pending = new Stack<string>();
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            var dir = pending.Pop();
+            if (!CollectSweepFiles(Defer(() => listFiles(dir)), files, out var fileError))
+            {
+                errors.Add("'" + dir + "': " + fileError);
+            }
+
+            try
+            {
+                foreach (var sub in listDirectories(dir).ToList())
+                {
+                    pending.Push(sub);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                errors.Add("'" + dir + "': " + ex.Message);
+            }
+        }
+
+        files.Sort(start, files.Count - start, StringComparer.OrdinalIgnoreCase);
+
+        static IEnumerable<string> Defer(Func<IEnumerable<string>> source)
+        {
+            // Lets CollectSweepFiles catch a failure raised by the listing call itself.
+            foreach (var item in source())
+            {
+                yield return item;
+            }
+        }
     }
 
     public static List<Finding> CheckFile(string file, bool runLibrary)

@@ -80,6 +80,37 @@ public class CheckerSweepAndSectionTests
         }
     }
 
+    [Fact]
+    public void WalkDirectory_InaccessibleSubdirectory_IsReportedAndSiblingsAreStillVisited()
+    {
+        // Arrange
+        var tree = new Dictionary<string, string[]>
+        {
+            ["root"] = new[] { "root/denied", "root/ok" },
+            ["root/ok"] = Array.Empty<string>(),
+            ["root/denied"] = Array.Empty<string>(),
+        };
+        var contents = new Dictionary<string, string[]>
+        {
+            ["root"] = new[] { "root/top.eds" },
+            ["root/ok"] = new[] { "root/ok/b.dcf" },
+        };
+        var files = new List<string>();
+        var errors = new List<string>();
+
+        // Act
+        Program.WalkDirectory(
+            "root",
+            d => d == "root/denied" ? throw new UnauthorizedAccessException("denied") : contents.GetValueOrDefault(d, Array.Empty<string>()),
+            d => d == "root/denied" ? throw new UnauthorizedAccessException("denied") : tree[d],
+            files,
+            errors);
+
+        // Assert
+        files.Should().Equal("root/ok/b.dcf", "root/top.eds");
+        errors.Should().HaveCount(2).And.OnlyContain(e => e.Contains("root/denied"));
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
