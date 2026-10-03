@@ -111,6 +111,32 @@ public class CheckerSweepAndSectionTests
         errors.Should().HaveCount(2).And.OnlyContain(e => e.Contains("root/denied"));
     }
 
+    [Fact]
+    public void WalkDirectory_DirectoryListingThrowsMidway_StillVisitsDirectoriesYieldedBefore()
+    {
+        // Arrange
+        var files = new List<string>();
+        var errors = new List<string>();
+
+        // Act
+        Program.WalkDirectory(
+            "root",
+            d => d == "root/ok" ? new[] { "root/ok/c.eds" } : Array.Empty<string>(),
+            d => d == "root" ? Throwing() : Array.Empty<string>(),
+            files,
+            errors);
+
+        // Assert
+        files.Should().Equal("root/ok/c.eds");
+        errors.Should().ContainSingle().Which.Should().Contain("gone");
+
+        static IEnumerable<string> Throwing()
+        {
+            yield return "root/ok";
+            throw new IOException("gone");
+        }
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

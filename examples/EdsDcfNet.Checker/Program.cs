@@ -206,7 +206,7 @@ public static class Program
 
             try
             {
-                foreach (var sub in listDirectories(dir).ToList())
+                foreach (var sub in listDirectories(dir))
                 {
                     pending.Push(sub);
                 }
