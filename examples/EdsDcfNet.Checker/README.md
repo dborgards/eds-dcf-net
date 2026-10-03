@@ -30,7 +30,7 @@ dotnet run --project examples/EdsDcfNet.Checker -- --json device.dcf > report.js
 | `--warnings-as-errors` | Exit code 1 also for warnings |
 | `--no-library` | Skip the EdsDcfNet reader/validator pass |
 
-Exit codes: `0` valid, `1` errors found, `2` usage or I/O problem. Exit code `2` is also used when every given file is skipped because it is not `.eds` or `.dcf`.
+Exit codes: `0` valid, `1` errors found, `2` usage or I/O problem. Exit code `2` is also used when every given file is skipped because it is not `.eds` or `.dcf`. An unreadable file or inaccessible directory is reported on stderr and skipped (never silently); the remaining files are still checked, and exit code `2` is returned at the end (it takes precedence over `1`).
 
 Example output:
 
@@ -93,4 +93,5 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | MND005 | error/warning | `VendorNumber`/`ProductNumber`/`RevisionNumber` differ from `[1018subN]` (`ParameterValue` on DCF, otherwise `DefaultValue`; padded names such as `[1018sub01]` count); more PDOs described than `NrOfRxPDO`/`NrOfTxPDO` |
 | DCF001 | warning | DCF without configured `NodeID` |
 | DCF002 | error | DCF `NodeID` outside 1..127 |
+| DCF003 | warning | DCF has both `[DeviceComissioning]` and `[DeviceCommissioning]`; the normative single-`m` section is read, the other is ignored (like `DcfReader`) |
 | LIB001–003 | | EdsDcfNet reader diagnostics / reader abort / model validator |

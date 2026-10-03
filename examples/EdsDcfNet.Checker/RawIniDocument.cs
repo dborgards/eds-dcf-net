@@ -42,6 +42,12 @@ public sealed class RawIniDocument
 
     public RawSection? Get(string name) => Sections.TryGetValue(name, out var section) ? section : null;
 
+    /// <summary>
+    /// Returns the DCF commissioning section the way <c>DcfReader</c> selects it: the normative
+    /// <c>[DeviceComissioning]</c> wins over <c>[DeviceCommissioning]</c> regardless of order.
+    /// </summary>
+    public RawSection? GetDeviceCommissioning() => Get("DeviceComissioning") ?? Get("DeviceCommissioning");
+
     public static RawIniDocument Parse(string filePath, List<Finding> findings)
     {
         var document = new RawIniDocument();
@@ -52,7 +58,7 @@ public sealed class RawIniDocument
         {
             lineNumber++;
             var line = rawLine.Trim();
-            if (line.Length == 0 || line[0] == ';' || line[0] == '#')
+            if (line.Length == 0 || line[0] == ';')
             {
                 continue;
             }
@@ -83,6 +89,13 @@ public sealed class RawIniDocument
             }
 
             var separator = line.IndexOf('=');
+
+            // Same as IniParser: a '#' line without '=' is ignored; "#Key=Value" stays a key.
+            if (separator < 0 && line[0] == '#')
+            {
+                continue;
+            }
+
             if (separator <= 0)
             {
                 findings.Add(new Finding(Severity.Error, "INI001", filePath, lineNumber, current?.Name, null, null,
