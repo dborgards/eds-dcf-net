@@ -111,6 +111,12 @@ public class ElectronicDataSheet : ICanOpenFileModel
     public ApplicationProcess? ApplicationProcess { get; set; }
 
     /// <summary>
+    /// XDD/XDC content the model does not represent, kept by the XDD/XDC reader for the XDD/XDC
+    /// writers. <see langword="null"/> for a model that was not read from XDD/XDC.
+    /// </summary>
+    internal XddPreservedContent? XddPreserved { get; set; }
+
+    /// <summary>
     /// Validates this model instance against common CANopen constraints.
     /// </summary>
     /// <returns>List of validation issues. Empty when model is valid.</returns>

@@ -96,7 +96,8 @@ public sealed class EdsCanOpenOperations : FormatCanOpenOperations<ElectronicDat
             ObjectDictionary = ModelCloner.CloneObjectDictionary(eds.ObjectDictionary),
             Comments = ModelCloner.CloneComments(eds.Comments),
             DynamicChannels = ModelCloner.CloneDynamicChannels(eds.DynamicChannels),
-            ApplicationProcess = ModelCloner.CloneApplicationProcess(eds.ApplicationProcess)
+            ApplicationProcess = ModelCloner.CloneApplicationProcess(eds.ApplicationProcess),
+            XddPreserved = ModelCloner.CloneXddPreserved(eds.XddPreserved)
         };
 
         dcf.SupportedModules.AddRange(ModelCloner.CloneSupportedModules(eds.SupportedModules));

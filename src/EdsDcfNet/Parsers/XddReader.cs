@@ -234,6 +234,9 @@ public class XddReader : IFileReader<ElectronicDataSheet>
         // Parse communication features and object dictionary from comm-net profile body
         XddCommNetProfileParser.ParseCommNetProfile(commNetProfileBody, eds, includeActualValues);
 
+        // Everything the model does not represent is kept for the XDD/XDC writers.
+        eds.XddPreserved = XddPreservedContentReader.Read(doc, deviceProfileBody, commNetProfileBody, eds, includeActualValues);
+
         return eds;
     }
 
