@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.15.0-beta.32](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.31...v1.15.0-beta.32) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* write through symlinks, keep Unix permissions and reject malformed bytes with explicit encodings ([#655](https://github.com/dborgards/eds-dcf-net/issues/655)) ([f309f99](https://github.com/dborgards/eds-dcf-net/commit/f309f99ee697fff2aa42080f1b8cf053fadaffbb))
+
+### 📚 Documentation
+
+* **plan:** record the follow-up packages from the tracking issue ([#643](https://github.com/dborgards/eds-dcf-net/issues/643)) ([82d8a28](https://github.com/dborgards/eds-dcf-net/commit/82d8a28a273a0fd3f18b57769912f3169d13ce96))
+
 ## [1.15.0-beta.31](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.30...v1.15.0-beta.31) (2026-10-03)
 
 ### ✨ Features
