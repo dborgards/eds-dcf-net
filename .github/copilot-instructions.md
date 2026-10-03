@@ -156,8 +156,17 @@ This project uses a **develop → main** integration model:
 
 ### CI Behaviour
 
-- **Push to a feature branch** → `build.yml` runs (build + test).
+- **Push to a feature branch** → no run on its own; the PR (`pull_request`)
+  runs `build.yml`, so a PR branch is not built twice. A branch without a PR
+  is not built (open a draft PR or use `workflow_dispatch`). A newer push to
+  a PR cancels that PR's run in progress.
 - **PR targeting `develop` or `main`** → `build.yml` runs (build + test as gate).
+- **Push to `develop`** → `build.yml` runs as well (alongside `semantic-release.yml`).
+- **Documentation-only PR into `develop`** (root `*.md`, `docs/**`,
+  `.github/*.md`, `LICENSE*`) → the `changes` job detects it; build, tests,
+  coverage and ApiCompat steps are skipped via `if:`, while `build` and
+  `coverage/threshold` still report success. No workflow-level `paths-ignore`
+  (it would leave required checks unreported). PRs into `main` always run in full.
 - **Merge to `develop`** → `semantic-release.yml` runs (build + test + beta pre-release).
 - **Merge to `main`** → `semantic-release.yml` runs (build + test + stable release).
 - **Test TFMs:** `EdsDcfNet.Tests` / `EdsDcfNet.TestHost` multi-target `net10.0`
