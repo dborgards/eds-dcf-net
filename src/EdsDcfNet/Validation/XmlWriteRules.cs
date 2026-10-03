@@ -2,6 +2,7 @@ namespace EdsDcfNet.Validation;
 
 using System.Globalization;
 using EdsDcfNet.Models;
+using EdsDcfNet.Utilities;
 using EdsDcfNet.Writers;
 
 /// <summary>
@@ -30,10 +31,12 @@ internal static class XmlWriteRules
         {
             case ElectronicDataSheet eds:
                 ApplyFileInfo(eds.FileInfo, issues);
+                ApplyComments(eds.Comments, issues);
                 ApplyDictionary(eds.ObjectDictionary, issues);
                 break;
             case DeviceConfigurationFile dcf:
                 ApplyFileInfo(dcf.FileInfo, issues);
+                ApplyComments(dcf.Comments, issues);
                 ApplyDictionary(dcf.ObjectDictionary, issues);
                 ApplyCommissioning(dcf.DeviceCommissioning, issues);
                 break;
@@ -65,6 +68,28 @@ internal static class XmlWriteRules
 
         CheckTime(fileInfo.CreationTime, "FileInfo.CreationTime", "fileCreationTime", issues);
         CheckTime(fileInfo.ModificationTime, "FileInfo.ModificationTime", "fileModificationTime", issues);
+    }
+
+    // Comments are written as XML comments before the root element (see XddRootComments). "--" and a
+    // trailing "-" are escaped there; what cannot be carried at all is reported here.
+    private static void ApplyComments(Comments? comments, List<ValidationIssue> issues)
+    {
+        if (comments == null)
+            return;
+
+        foreach (var line in comments.CommentLines)
+        {
+            if (XddRootComments.IsCarried(line.Key, line.Value))
+                continue;
+
+            issues.Add(new ValidationIssue(
+                string.Format(CultureInfo.InvariantCulture, "Comments.CommentLines[{0}]", line.Key),
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Comment line {0} cannot be written as an XML comment: the line number must be 1..65535 and the text may only hold characters that are valid in XML. The line is left out.",
+                    line.Key),
+                ValidationIssueCodes.XddCommentLineNotRepresentable));
+        }
     }
 
     private static ValidationIssue EmptyFileText(string path, string attribute) =>

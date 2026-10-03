@@ -831,6 +831,12 @@ internal static class XddCommNetProfileParser
             if (generalFeatures.Attribute("layerSettingServiceSlave")?.Value is string lssStr)
                 deviceInfo.LssSupported = ParseXmlBool(lssStr);
 
+            if (generalFeatures.Attribute("selfStartingDevice")?.Value is string selfStartingStr)
+                deviceInfo.SelfStartingDevice = ParseXmlBool(selfStartingStr);
+
+            if (generalFeatures.Attribute("SDORequestingDevice")?.Value is string sdoRequestingStr)
+                deviceInfo.SdoRequestingDevice = ParseXmlBool(sdoRequestingStr);
+
             var dynChanStr = GetTrimmedAttributeValue(generalFeatures, "dynamicChannels");
             if (!string.IsNullOrEmpty(dynChanStr))
             {
@@ -847,6 +853,18 @@ internal static class XddCommNetProfileParser
         {
             if (masterFeatures.Attribute("bootUpMaster")?.Value is string bootUpMasterStr)
                 deviceInfo.SimpleBootUpMaster = ParseXmlBool(bootUpMasterStr);
+
+            if (masterFeatures.Attribute("flyingMaster")?.Value is string flyingMasterStr)
+                deviceInfo.FlyingMaster = ParseXmlBool(flyingMasterStr);
+
+            if (masterFeatures.Attribute("SDOManager")?.Value is string sdoManagerStr)
+                deviceInfo.SdoManager = ParseXmlBool(sdoManagerStr);
+
+            if (masterFeatures.Attribute("configurationManager")?.Value is string configManagerStr)
+                deviceInfo.ConfigurationManager = ParseXmlBool(configManagerStr);
+
+            if (masterFeatures.Attribute("layerSettingServiceMaster")?.Value is string lssMasterStr)
+                deviceInfo.LayerSettingServiceMaster = ParseXmlBool(lssMasterStr);
         }
     }
 

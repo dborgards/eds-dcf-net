@@ -263,4 +263,10 @@ public static class ParseDiagnosticCodes
     /// CiA 311 schema. Lenient mode still applies a recognized value. Strict mode throws.
     /// </summary>
     public const string XddLegacyAttribute = "XDD_LEGACY_ATTRIBUTE";
+
+    /// <summary>
+    /// A <c>DeviceIdentity/version</c> has a missing or unknown <c>versionType</c> (CiA 311 allows
+    /// <c>SW</c>, <c>FW</c> and <c>HW</c>). Lenient mode ignores the element; strict mode throws.
+    /// </summary>
+    public const string XddUnknownVersionType = "XDD_UNKNOWN_VERSION_TYPE";
 }
