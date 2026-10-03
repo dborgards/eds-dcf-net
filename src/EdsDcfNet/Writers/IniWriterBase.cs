@@ -174,12 +174,15 @@ public abstract class IniWriterBase
             sb,
             string.Format(CultureInfo.InvariantCulture, "{0:X}", obj.Index));
 
+        // CiA 306-1 Table 7: keys marked "n" for the object type are not written.
+        bool IsWritten(string key) => !ObjectTypeKeyMatrix.IsNotSupported(obj.ObjectType, useCompact, key);
+
         // CiA 306: SubNumber is normally omitted under CompactSubObj. Keep/emit it when
-        // expanded sub-objects exist above the compact range so the reader can reach them.
-        // Also emit when expanded SubObjects exist even if the highest sub-index is 0
-        // (SubNumber=0), so the key is not silently dropped for that boundary case.
+        // expanded sub-objects exist above the compact range so the reader can reach them
+        // (S18, Table 7 "nc"). Also emit when expanded SubObjects exist even if the highest
+        // sub-index is 0 (SubNumber=0), so the key is not silently dropped for that boundary case.
         var subNumberToWrite = ResolveSubNumberForWrite(obj, compactMax, useCompact);
-        if (subNumberToWrite > 0 || (!useCompact && obj.SubObjects.Count > 0))
+        if ((subNumberToWrite > 0 || (!useCompact && obj.SubObjects.Count > 0)) && IsWritten("SubNumber"))
         {
             WriteKeyValue(sb, "SubNumber", subNumberToWrite.ToString(CultureInfo.InvariantCulture));
         }
@@ -187,29 +190,35 @@ public abstract class IniWriterBase
         WriteKeyValue(sb, "ParameterName", obj.ParameterName);
         WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(obj.ObjectType));
 
-        if (obj.DataType.HasValue)
+        if (obj.DataType.HasValue && IsWritten("DataType"))
         {
             WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(obj.DataType.Value));
         }
 
-        WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(obj.AccessType));
+        if (IsWritten("AccessType"))
+        {
+            WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(obj.AccessType));
+        }
 
-        if (!string.IsNullOrEmpty(obj.DefaultValue))
+        if (!string.IsNullOrEmpty(obj.DefaultValue) && IsWritten("DefaultValue"))
         {
             WriteKeyValue(sb, "DefaultValue", obj.DefaultValue);
         }
 
-        if (!string.IsNullOrEmpty(obj.LowLimit))
+        if (!string.IsNullOrEmpty(obj.LowLimit) && IsWritten("LowLimit"))
         {
             WriteKeyValue(sb, "LowLimit", obj.LowLimit);
         }
 
-        if (!string.IsNullOrEmpty(obj.HighLimit))
+        if (!string.IsNullOrEmpty(obj.HighLimit) && IsWritten("HighLimit"))
         {
             WriteKeyValue(sb, "HighLimit", obj.HighLimit);
         }
 
-        WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(obj.PdoMapping));
+        if (IsWritten("PDOMapping"))
+        {
+            WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(obj.PdoMapping));
+        }
 
         if (obj.SrdoMapping)
         {
@@ -335,11 +344,15 @@ public abstract class IniWriterBase
 
     /// <summary>
     /// Highest compact-listable sub-index for <paramref name="obj"/>, or 0 when
-    /// CompactSubObj is absent/zero. Caps at 254 per CiA 306.
+    /// CompactSubObj is absent/zero. Caps at 254 per CiA 306. Also 0 for VAR, DEFTYPE and
+    /// DOMAIN, for which CiA 306-1 Table 7 does not support <c>CompactSubObj</c>: their
+    /// sub-objects are written as expanded sections and the key is omitted.
     /// </summary>
     internal static int GetCompactMaxSubIndex(CanOpenObject obj)
     {
         if (!obj.CompactSubObj.HasValue || obj.CompactSubObj.Value == 0)
+            return 0;
+        if (ObjectTypeKeyMatrix.IsNotSupported(obj.ObjectType, hasCompactSubObj: true, "CompactSubObj"))
             return 0;
         return Math.Min((int)obj.CompactSubObj.Value, 254);
     }
@@ -509,27 +522,42 @@ public abstract class IniWriterBase
             sb,
             string.Format(CultureInfo.InvariantCulture, "{0:X}sub{1:X}", index, subObj.SubIndex));
 
+        // CiA 306-1 Table 7 applies to sub-index sections as well; a sub-object has no
+        // CompactSubObj of its own.
+        bool IsWritten(string key) => !ObjectTypeKeyMatrix.IsNotSupported(subObj.ObjectType, hasCompactSubObj: false, key);
+
         WriteKeyValue(sb, "ParameterName", subObj.ParameterName);
         WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(subObj.ObjectType));
-        WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(subObj.DataType));
-        WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(subObj.AccessType));
 
-        if (!string.IsNullOrEmpty(subObj.DefaultValue))
+        if (IsWritten("DataType"))
+        {
+            WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(subObj.DataType));
+        }
+
+        if (IsWritten("AccessType"))
+        {
+            WriteKeyValue(sb, "AccessType", ValueConverter.AccessTypeToString(subObj.AccessType));
+        }
+
+        if (!string.IsNullOrEmpty(subObj.DefaultValue) && IsWritten("DefaultValue"))
         {
             WriteKeyValue(sb, "DefaultValue", subObj.DefaultValue);
         }
 
-        if (!string.IsNullOrEmpty(subObj.LowLimit))
+        if (!string.IsNullOrEmpty(subObj.LowLimit) && IsWritten("LowLimit"))
         {
             WriteKeyValue(sb, "LowLimit", subObj.LowLimit);
         }
 
-        if (!string.IsNullOrEmpty(subObj.HighLimit))
+        if (!string.IsNullOrEmpty(subObj.HighLimit) && IsWritten("HighLimit"))
         {
             WriteKeyValue(sb, "HighLimit", subObj.HighLimit);
         }
 
-        WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(subObj.PdoMapping));
+        if (IsWritten("PDOMapping"))
+        {
+            WriteKeyValue(sb, "PDOMapping", ValueConverter.FormatBoolean(subObj.PdoMapping));
+        }
 
         if (subObj.SrdoMapping)
         {

@@ -463,13 +463,7 @@ public abstract class CanOpenReaderBase
         OrderedStringDictionary destination)
     {
         // Callers already confirmed the section exists (HasSection).
-        var section = sections[sectionName];
-
-        IEnumerable<KeyValuePair<string, string>> entries = section is IniSectionDictionary ordered
-            ? ordered.EntriesInOrder()
-            : section;
-
-        foreach (var entry in entries)
+        foreach (var entry in EntriesInFileOrder(sections[sectionName]))
         {
             if (isKnownKey(entry.Key))
                 continue;
@@ -477,6 +471,13 @@ public abstract class CanOpenReaderBase
             destination.Add(entry.Key, entry.Value);
         }
     }
+
+    /// <summary>
+    /// The entries of <paramref name="section"/> in file order when the INI parser built it,
+    /// otherwise in dictionary order.
+    /// </summary>
+    private static IEnumerable<KeyValuePair<string, string>> EntriesInFileOrder(Dictionary<string, string> section)
+        => section is IniSectionDictionary ordered ? ordered.EntriesInOrder() : section;
 
     /// <summary>
     /// Parses a single CANopen object at the given <paramref name="index"/> from the INI sections.
@@ -561,6 +562,13 @@ public abstract class CanOpenReaderBase
                 Diagnostics.ParseDiagnosticCodes.InvalidCompactSubObj,
                 LenientIniNumber.LeaveUnset);
         }
+
+        ReportNotSupportedKeys(
+            sections,
+            sectionName,
+            obj.ObjectType,
+            obj.CompactSubObj.GetValueOrDefault() > 0,
+            SectionEntryKeys.IsEdsObjectKey);
 
         // Parse sub-objects for composite types, CompactSubObj templates (CiA 306 §4.5.2.4.2),
         // or an explicit SubNumber. CompactSubObj may be non-zero while SubNumber is 0/absent.
@@ -781,9 +789,70 @@ public abstract class CanOpenReaderBase
         subObj.SetAccessTypeFromProfile(
             ValueConverter.ParseAccessType(IniParser.GetValue(sections, sectionName, "AccessType")));
 
+        // Only keys mapped onto the sub-object: other Table 7 keys in a sub-index section
+        // (SubNumber, CompactSubObj, ObjFlags) are kept as remaining entries and written back.
+        ReportNotSupportedKeys(
+            sections,
+            sectionName,
+            subObj.ObjectType,
+            hasCompactSubObj: false,
+            SectionEntryKeys.IsEdsSubObjectKey);
+
         CaptureRemainingEntries(sections, sectionName, IsKnownSubObjectEntryKey, subObj.RemainingEntries);
 
         return subObj;
+    }
+
+    /// <summary>
+    /// Reports every key of <paramref name="sectionName"/> that CiA 306-1 Table 7 marks as not
+    /// supported ("n") for <paramref name="objectType"/>
+    /// (<see cref="Diagnostics.ParseDiagnosticCodes.IniObjectKeyNotSupported"/>). The key is
+    /// checked on the raw section because the model cannot tell an omitted <c>AccessType</c> or
+    /// <c>PDOMapping</c> from its default. The value is still read; the INI writers omit the key.
+    /// Strict mode throws on the first such key.
+    /// </summary>
+    private static void ReportNotSupportedKeys(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        byte objectType,
+        bool hasCompactSubObj,
+        Func<string, bool> isMappedKey)
+    {
+        foreach (var entry in EntriesInFileOrder(sections[sectionName]))
+        {
+            if (!isMappedKey(entry.Key) ||
+                !ObjectTypeKeyMatrix.IsNotSupported(objectType, hasCompactSubObj, entry.Key))
+            {
+                continue;
+            }
+
+            var message = string.Format(
+                CultureInfo.InvariantCulture,
+                "Key '{0}' in section '{1}' is not supported for ObjectType 0x{2:X}{3} (CiA 306-1 Table 7).",
+                entry.Key,
+                sectionName,
+                objectType,
+                hasCompactSubObj ? " with CompactSubObj" : string.Empty);
+            var line = IniKeyLines.TryGetLine(sections, sectionName, entry.Key);
+
+            if (StrictParsingScope.IsEnabled)
+            {
+                throw new EdsParseException(message)
+                {
+                    Code = Diagnostics.ParseDiagnosticCodes.IniObjectKeyNotSupported,
+                    SectionName = sectionName,
+                    LineNumber = line
+                };
+            }
+
+            Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
+                Diagnostics.ParseSeverity.Warning,
+                Diagnostics.ParseDiagnosticCodes.IniObjectKeyNotSupported,
+                path: sectionName + "." + entry.Key,
+                line: line,
+                rawValue: entry.Value,
+                message: message + " The value is read, but not written back."));
+        }
     }
 
     /// <summary>

@@ -141,7 +141,7 @@ public class MalformedNumericObjectKeyTests
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
-        result.HasDiagnostics.Should().BeFalse();
+        result.Diagnostics.Should().NotContain(d => d.Code == ParseDiagnosticCodes.InvalidObjectType);
         result.Model.ObjectDictionary.Objects[0x2005].ObjectType.Should().Be(expected);
     }
 
@@ -421,7 +421,7 @@ public class MalformedNumericObjectKeyTests
     [Fact]
     public void ReadStringWithDiagnostics_CompactSubObjAboveMaxValue_LeavesUnset()
     {
-        var content = ObjectSection("ParameterName=Edges\nObjectType=0x7\nCompactSubObj=256\n");
+        var content = ObjectSection("ParameterName=Edges\nObjectType=0x8\nCompactSubObj=256\n");
 
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
@@ -832,7 +832,11 @@ public class MalformedNumericObjectKeyTests
             ParseDiagnosticCodes.UnknownAccessTypeToken,
             ParseDiagnosticCodes.InvalidObjFlags,
             ParseDiagnosticCodes.InvalidSubNumber,
-            ParseDiagnosticCodes.InvalidCompactSubObj);
+            ParseDiagnosticCodes.InvalidCompactSubObj,
+            // ObjectType is treated as VAR, for which CiA 306-1 Table 7 does not support
+            // SubNumber and CompactSubObj.
+            ParseDiagnosticCodes.IniObjectKeyNotSupported,
+            ParseDiagnosticCodes.IniObjectKeyNotSupported);
 
         var obj = result.Model.ObjectDictionary.Objects[0x2005];
         obj.ParameterName.Should().Be("Garbage");
