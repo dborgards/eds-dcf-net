@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.0-beta.18](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.17...v1.15.0-beta.18) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **writer:** keep insertion order of additional sections and keys ([#617](https://github.com/dborgards/eds-dcf-net/issues/617)) ([6d116c4](https://github.com/dborgards/eds-dcf-net/commit/6d116c42c3515c92aeb394d706aa84f2df28b2b6))
+
 ## [1.15.0-beta.17](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0-beta.16...v1.15.0-beta.17) (2026-10-03)
 
 ### 🐛 Bug Fixes

@@ -172,14 +172,14 @@ public class CpjWriter
             WriteSection(sectionName, () => WriteTopology(sb, cpj.Networks[i], sectionName));
         }
 
-        foreach (var section in cpj.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var section in cpj.AdditionalSectionOrder.Sections(cpj.AdditionalSections))
         {
             WriteSection(
                 section.Key,
                 () =>
                 {
                     IniRoundTripText.WriteSectionHeader(sb, section.Key);
-                    foreach (var entry in section.Value.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase))
+                    foreach (var entry in cpj.AdditionalSectionOrder.Entries(section.Key, section.Value))
                     {
                         IniRoundTripText.WriteKeyValue(sb, entry.Key, entry.Value);
                     }

@@ -440,7 +440,7 @@ public class DcfWriter : IniWriterBase
             WriteSection("Comments", () => WriteComments(sb, dcf.Comments!));
         }
 
-        foreach (var section in dcf.AdditionalSections.OrderBy(s => s.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var section in dcf.AdditionalSectionOrder.Sections(dcf.AdditionalSections))
         {
             if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary))
             {
@@ -454,7 +454,10 @@ public class DcfWriter : IniWriterBase
                 continue;
             }
 
-            WriteSection(section.Key, () => WriteAdditionalSection(sb, section.Key, section.Value));
+            WriteSection(
+                section.Key,
+                () => WriteAdditionalSection(
+                    sb, section.Key, dcf.AdditionalSectionOrder.Entries(section.Key, section.Value)));
         }
 
         return sb.ToString();

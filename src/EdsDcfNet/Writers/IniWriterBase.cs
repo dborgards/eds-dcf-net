@@ -1368,12 +1368,21 @@ public abstract class IniWriterBase
         => dynamicChannels != null
            && (dynamicChannels.Segments.Count > 0 || dynamicChannels.RemainingEntries.Count > 0);
 
-    /// <summary>Writes a non-standard additional section.</summary>
+    /// <summary>
+    /// Writes a non-standard additional section with its keys in enumeration order of
+    /// <paramref name="entries"/>.
+    /// </summary>
     protected static void WriteAdditionalSection(StringBuilder sb, string sectionName, Dictionary<string, string> entries)
+        => WriteAdditionalSection(sb, sectionName, (IEnumerable<KeyValuePair<string, string>>)entries);
+
+    private protected static void WriteAdditionalSection(
+        StringBuilder sb,
+        string sectionName,
+        IEnumerable<KeyValuePair<string, string>> entries)
     {
         IniRoundTripText.WriteSectionHeader(sb, sectionName);
 
-        foreach (var entry in entries.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var entry in entries)
         {
             WriteKeyValue(sb, entry.Key, entry.Value);
         }
