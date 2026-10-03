@@ -496,7 +496,7 @@ public static class CanOpenModelValidator
 
         // Lines is not written as stored; assess the count and keys the writer emits.
         var writtenLines = module.Comments.WrittenLineCount();
-        if (!ModuleCommentKeysCoverLines(module.Comments, writtenLines))
+        if (!ModuleCommentKeysCoverLines(module.Comments))
         {
             issues.Add(new ValidationIssue(
                 path + ".Comments.Lines",
@@ -687,19 +687,8 @@ public static class CanOpenModelValidator
     /// A gap or an offset (for example only <c>Line2</c>) would leave the file incomplete, because the
     /// parser reads only keys <c>1..Lines</c>.
     /// </summary>
-    private static bool ModuleCommentKeysCoverLines(Comments comments, int writtenLines)
-    {
-        if (comments.CommentLines.Count != writtenLines)
-            return false;
-
-        for (var n = 1; n <= writtenLines; n++)
-        {
-            if (!comments.CommentLines.ContainsKey(n))
-                return false;
-        }
-
-        return true;
-    }
+    private static bool ModuleCommentKeysCoverLines(Comments comments)
+        => !comments.CommentLines.Keys.Any(key => key < 1) && !comments.TryFindMissingLine(out _);
 
     /// <summary>
     /// CiA 306-1 §8.3 <c>Count</c> is <c>Unsigned8</c>, or <c>0;&lt;Unsigned8&gt;</c>

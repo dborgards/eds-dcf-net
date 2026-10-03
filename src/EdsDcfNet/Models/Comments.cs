@@ -21,6 +21,29 @@ public class Comments
     public ushort Lines { get; set; }
 
     /// <summary>
+    /// Finds the first line number in <c>1..WrittenLineCount()</c> that the writer would not emit: neither a
+    /// <see cref="CommentLines"/> entry nor a preserved <c>Line&lt;n&gt;</c> in <see cref="RemainingEntries"/>.
+    /// </summary>
+    internal bool TryFindMissingLine(out int number)
+    {
+        var written = WrittenLineCount();
+        for (var n = 1; n <= written; n++)
+        {
+            if (CommentLines.ContainsKey(n)
+                || RemainingEntries.ContainsKey(string.Format(CultureInfo.InvariantCulture, "Line{0}", n)))
+            {
+                continue;
+            }
+
+            number = n;
+            return true;
+        }
+
+        number = 0;
+        return false;
+    }
+
+    /// <summary>
     /// The <c>Lines</c> value the EDS/DCF writers emit for these comments: the number of
     /// <see cref="CommentLines"/>, raised to the highest line number so a gap never hides a line, and
     /// to an empty <c>Line&lt;n&gt;</c> the reader kept inside the file's own count

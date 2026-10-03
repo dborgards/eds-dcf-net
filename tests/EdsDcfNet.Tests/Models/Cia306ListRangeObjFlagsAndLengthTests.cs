@@ -796,4 +796,20 @@ public class Cia306ListRangeObjFlagsAndLengthTests
         moduleAct.Should().Throw<ModelValidationException>();
         CanOpenFile.Eds.WriteToString(eds).Should().Contain("Lines=1");
     }
+
+    [Fact]
+    public void WriteToString_ModulePreservedLineFillsGapBelowAddedLine_ValidatedWriteSucceeds()
+    {
+        // Line1 above Lines=0 is preserved and emitted; the caller adds Line2, so Lines=2 has no gap.
+        var content = EdsHeader +
+            "[SupportedModules]\nNrOfEntries=1\n" +
+            "[M1ModuleInfo]\nProductName=M\nProductVersion=1\nProductRevision=0\nOrderCode=O\n" +
+            "[M1Comments]\nLines=0\nLine1=kept\n";
+        var eds = CanOpenFile.Eds.ReadString(content);
+        eds.SupportedModules[0].Comments!.CommentLines[2] = "added";
+
+        var written = CanOpenFile.Eds.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        written.Should().Contain("Lines=2").And.Contain("Line1=kept").And.Contain("Line2=added");
+    }
 }
