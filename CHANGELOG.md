@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.1-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0...v1.15.1-beta.1) (2026-10-08)
+
+### 🐛 Bug Fixes
+
+* **tools:** confine the plan path of check-plan-order.py to the working directory ([#656](https://github.com/dborgards/eds-dcf-net/issues/656)) ([55f3893](https://github.com/dborgards/eds-dcf-net/commit/55f38935b5d0f4b647b51266cab674461de90c72))
+
 ## [1.15.0](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0...v1.15.0) (2026-10-03)
 
 ### ✨ Features
