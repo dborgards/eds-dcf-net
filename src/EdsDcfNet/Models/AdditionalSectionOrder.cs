@@ -12,12 +12,14 @@ using EdsDcfNet.Parsers;
 /// This is a list of names, not a change log: the public dictionaries have no change hook.
 /// Names the reader saw come first, in reader order, as far as they are still present.
 /// Everything else follows in dictionary enumeration order. An entry that was removed and
-/// re-added under the same name takes its reader position again.
+/// re-added under the same name takes its reader position again. The following source header is
+/// also recorded so the writer can restore positions between generated sections.
 /// </remarks>
 internal sealed class AdditionalSectionOrder
 {
     private readonly List<string> _sections = new();
     private readonly Dictionary<string, List<string>> _keys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string?> _followingSections = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Records the additional sections the reader placed in <paramref name="additionalSections"/>,
@@ -29,19 +31,23 @@ internal sealed class AdditionalSectionOrder
     {
         _sections.Clear();
         _keys.Clear();
+        _followingSections.Clear();
 
         // The parser's sections record their header order; enumeration order is not guaranteed.
         IEnumerable<string> names = fileSections is IniSectionsDictionary ordered
             ? ordered.NamesInOrder
             : fileSections.Keys;
+        var namesInOrder = names as IReadOnlyList<string> ?? names.ToList();
 
-        foreach (var name in names)
+        for (var i = 0; i < namesInOrder.Count; i++)
         {
+            var name = namesInOrder[i];
             if (!additionalSections.ContainsKey(name) || !fileSections.TryGetValue(name, out var section))
                 continue;
 
             _sections.Add(name);
             _keys[name] = KeysInFileOrder(section);
+            _followingSections[name] = i + 1 < namesInOrder.Count ? namesInOrder[i + 1] : null;
         }
     }
 
@@ -50,9 +56,27 @@ internal sealed class AdditionalSectionOrder
     {
         _sections.Clear();
         _keys.Clear();
+        _followingSections.Clear();
         _sections.AddRange(source._sections);
         foreach (var pair in source._keys)
             _keys[pair.Key] = new List<string>(pair.Value);
+        foreach (var pair in source._followingSections)
+            _followingSections[pair.Key] = pair.Value;
+    }
+
+    /// <summary>
+    /// First following non-additional section from the source file. Consecutive additional
+    /// sections share that insertion anchor, including when an intermediate section was removed.
+    /// </summary>
+    internal string? InsertionAnchor(string sectionName)
+    {
+        if (!_followingSections.TryGetValue(sectionName, out var anchor))
+            return null;
+
+        while (anchor != null && _followingSections.TryGetValue(anchor, out var following))
+            anchor = following;
+
+        return anchor;
     }
 
     /// <summary>The sections of <paramref name="additionalSections"/> in write order.</summary>

@@ -152,24 +152,16 @@ public class CpjWriter
 
         for (int i = 0; i < cpj.Networks.Count; i++)
         {
-            var sectionName = i == 0 ? "Topology" : string.Format(CultureInfo.InvariantCulture, "Topology{0}", i + 1);
+            var defaultName = i == 0 ? "Topology" : string.Format(CultureInfo.InvariantCulture, "Topology{0}", i + 1);
+            var sectionName = cpj.Networks[i]?.SourceSectionName ?? defaultName;
             WriteSection(sectionName, () => WriteTopology(sb, cpj.Networks[i], sectionName));
         }
 
-        foreach (var section in cpj.AdditionalSectionOrder.Sections(cpj.AdditionalSections))
-        {
-            WriteSection(
-                section.Key,
-                () =>
-                {
-                    IniRoundTripText.WriteSectionHeader(sb, section.Key);
-                    foreach (var entry in cpj.AdditionalSectionOrder.Entries(section.Key, section.Value))
-                    {
-                        IniRoundTripText.WriteKeyValue(sb, entry.Key, entry.Value);
-                    }
-                    sb.AppendLine();
-                });
-        }
+        IniWriterBase.WriteAdditionalSections(
+            sb,
+            cpj.AdditionalSections,
+            cpj.AdditionalSectionOrder,
+            WriteSection);
 
         return TextFileIo.ApplyOutputNewLine(sb.ToString());
     }

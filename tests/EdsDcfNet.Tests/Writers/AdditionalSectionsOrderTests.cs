@@ -189,6 +189,47 @@ public class AdditionalSectionsOrderTests
         Pos(written, "[2000]").Should().BeLessThan(Pos(written, "[Alpha]"));
     }
 
+    [Theory]
+    [InlineData("eds")]
+    [InlineData("dcf")]
+    public void Write_AdditionalSectionBetweenStandardSections_KeepsSourcePosition(string format)
+    {
+        var text = Join(
+            "[FileInfo]", "FileName=t." + format, "",
+            "[BeforeDevice]", "Key=kept", "",
+            "[DeviceInfo]", "VendorName=V", "",
+            "[DeviceComissioning]", "NodeID=1");
+        var written = format == "eds"
+            ? new EdsWriter().GenerateString(new EdsReader().ReadString(text))
+            : new DcfWriter().GenerateString(new DcfReader().ReadString(text));
+
+        Pos(written, "[FileInfo]").Should().BeLessThan(Pos(written, "[BeforeDevice]"));
+        Pos(written, "[BeforeDevice]").Should().BeLessThan(Pos(written, "[DeviceInfo]"));
+    }
+
+    [Fact]
+    public void Write_Cpj_AdditionalSectionBeforeTopology_KeepsSourcePosition()
+    {
+        var cpj = new CpjReader().ReadString(Join(
+            "[ProjectInfo]", "Name=Demo", "", "[Topology]", "Nodes=0x00"));
+
+        var written = new CpjWriter().GenerateString(cpj);
+
+        Pos(written, "[ProjectInfo]").Should().BeLessThan(Pos(written, "[Topology]"));
+    }
+
+    [Fact]
+    public void Write_Cpj_MissingInsertionAnchor_StillWritesAdditionalSection()
+    {
+        var cpj = new CpjReader().ReadString(Join(
+            "[ProjectInfo]", "Name=Demo", "", "[Topology]", "Nodes=0x00"));
+        cpj.Networks.Clear();
+
+        var written = new CpjWriter().GenerateString(cpj);
+
+        written.Should().Contain("[ProjectInfo]").And.Contain("Name=Demo");
+    }
+
     [Fact]
     public void Write_Dcf_SecondCommissioningSpellingKeepsFilePosition()
     {

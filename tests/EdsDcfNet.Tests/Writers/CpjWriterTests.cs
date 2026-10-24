@@ -99,6 +99,25 @@ EDSBaseName=/eds/
     }
 
     [Fact]
+    public void RoundTrip_TopologyNamesAndNumberingGaps_ArePreserved()
+    {
+        const string content = "[Topology]\nNetName=First\nNodes=0x00\n\n" +
+                               "[Topology4]\nNetName=Fourth\nNodes=0x00\n\n" +
+                               "[topologY9]\nNetName=Ninth\nNodes=0x00\n";
+        var project = _reader.ReadString(content);
+
+        var written = _writer.GenerateString(project);
+
+        written.Should().Contain("[Topology]");
+        written.Should().Contain("[Topology4]");
+        written.Should().Contain("[topologY9]");
+        written.Should().NotContain("[Topology2]");
+        written.Should().NotContain("[Topology3]");
+        _reader.ReadString(written).Networks.Select(n => n.NetName)
+            .Should().Equal("First", "Fourth", "Ninth");
+    }
+
+    [Fact]
     public void GenerateString_NodeNotPresent_WritesPresent0x00()
     {
         // Arrange
