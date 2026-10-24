@@ -205,7 +205,11 @@ internal static class PlatformFileSupport
     /// <see cref="CancellationToken.None"/>: a cancellation can no longer leave the target empty
     /// or partially written.
     /// </summary>
-    private static async Task WriteInPlaceAsync(string filePath, Func<Stream, Task> write, CancellationToken cancellationToken)
+    private static async Task WriteInPlaceAsync(
+        string filePath,
+        Func<Stream, Task> write,
+        CancellationToken cancellationToken,
+        Action? afterTruncation = null)
     {
         using var buffer = new MemoryStream();
         await write(buffer).ConfigureAwait(false);
@@ -220,6 +224,7 @@ internal static class PlatformFileSupport
             FileShare.None,
             bufferSize: 4096,
             options: FileOptions.Asynchronous);
+        afterTruncation?.Invoke();
         buffer.Position = 0;
         await buffer.CopyToAsync(stream, 4096, CancellationToken.None).ConfigureAwait(false);
         await stream.FlushAsync(CancellationToken.None).ConfigureAwait(false);

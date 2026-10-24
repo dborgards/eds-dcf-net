@@ -55,3 +55,23 @@ applicable. Mark unused dimensions `n/a` with a short reason.
 | API contract assertions | reflection or source-compat tests where refactors can silently change public overload shapes or parameter names | |
 
 </details>
+
+## Validation-rule checklist
+
+Required when this PR adds or changes a validation rule. Complete the
+[validation-rule checklist](https://github.com/dborgards/eds-dcf-net/blob/develop/CONTRIBUTING.md#validation-rule-checklist):
+null/empty model states, cancellation at user-controlled iteration boundaries,
+default/strict/opt-in behavior, downstream writers/converters/examples/checker,
+and a representative end-to-end acceptance test.
+
+- [ ] **n/a** — no validation rule changed
+- [ ] **Filled** — all applicable items completed and covered by tests
+
+## File-write contract
+
+Required when this PR changes the file-writing pipeline. Update the
+[file-write contract matrix](https://github.com/dborgards/eds-dcf-net/blob/develop/docs/file-write-contract.md)
+and record any required manual platform verification.
+
+- [ ] **n/a** — no file-writing pipeline change
+- [ ] **Filled** — matrix and verification updated

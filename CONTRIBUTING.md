@@ -177,6 +177,43 @@ Naming convention for boundary cases: suffix the scenario, e.g.
 | Representative fixtures | minimal EDS with `FileRevision = 255` | added |
 | API contract assertions | n/a | no public signature change |
 
+## Writer and validation-rule contracts
+
+### File-writer changes
+
+Every change to `TextFileIo`, `PlatformFileSupport`, symbolic-link resolution, or
+the public file-writing pipeline must update and satisfy the
+[file-write contract matrix](docs/file-write-contract.md). In particular, do not
+describe a `netstandard2.0` in-place fallback as atomic, and keep cancellation from
+interrupting the copy after a target has been truncated. Platform skips are not
+passing verification; use the documented repeatable steps when CI cannot establish
+the fixture.
+
+### Validation-rule checklist
+
+Complete this checklist for every new or changed validation rule. The PR template
+links here, and `ObjectListKeptEntriesValidationTests` plus
+`CheckerSweepAndSectionTests` provide the reference patterns.
+
+- [ ] **Supported model states:** test null, empty, missing, and partially populated
+      stores/objects that the public model permits. A null store means no entries;
+      it is not automatically a validation failure.
+- [ ] **Iteration boundaries and cancellation:** pass the public cancellation token
+      into every rule with a user-controlled loop. Check it at each user-controlled
+      iteration boundary, not only once before validation. Add direct boundary
+      coverage and a public `ValidateAsync` / `EnsureValidAsync` cancellation test.
+- [ ] **Modes and opt-in compatibility:** cover default, strict, and each affected
+      opt-in option. State explicitly whether `CanOpenWriteOptions.Validated`
+      changes; do not silently enable a new opt-in rule for existing validated writes.
+- [ ] **Downstream consumers:** identify and exercise every applicable writer,
+      EDS↔DCF / INI↔XML conversion path, example, and the bundled checker. Newly
+      accepted vocabulary or ranges must not make validated library output fail an
+      in-repository consumer.
+- [ ] **End-to-end contract:** for a representative newly accepted value, assert
+      that model validation accepts it, the validated writer emits it, and the
+      bundled checker reports no error for that value. Add focused checker and
+      writer tests when their rules are separate implementations.
+
 ## Real-world fixture corpus
 
 `tests/EdsDcfNet.Tests/Fixtures/Corpus/` holds **redistributable real-world**
