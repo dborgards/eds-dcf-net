@@ -358,17 +358,17 @@ public class AdditionalSectionsOrderTests
 
         IniWriterBase.WriteAdditionalSections(sb, additional, order, (_, write) => write());
 
-        sb.ToString().Should().StartWith("not-a-header[Anchor]\r\n[Extra]\nKey=kept")
+        sb.ToString().Should().StartWith("not-a-header[Anchor]\r\n[Extra]" + Environment.NewLine + "Key=kept")
             .And.EndWith("[Anchor]\r\n");
 
         var lf = new StringBuilder("[Anchor]suffix\n[Anchor]\n");
         IniWriterBase.WriteAdditionalSections(lf, additional, order, (_, write) => write());
-        lf.ToString().Should().StartWith("[Anchor]suffix\n[Extra]\nKey=kept")
+        lf.ToString().Should().StartWith("[Anchor]suffix\n[Extra]" + Environment.NewLine + "Key=kept")
             .And.EndWith("[Anchor]\n");
 
         var end = new StringBuilder("[Anchor]");
         IniWriterBase.WriteAdditionalSections(end, additional, order, (_, write) => write());
-        end.ToString().Should().StartWith("[Extra]\nKey=kept")
+        end.ToString().Should().StartWith("[Extra]" + Environment.NewLine + "Key=kept")
             .And.EndWith("[Anchor]");
     }
 
