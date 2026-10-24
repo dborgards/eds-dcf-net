@@ -104,7 +104,7 @@ internal static class XmlLexicalRules
             Check(parameter.UniqueId, XmlTypeCode.Id, path + ".UniqueId", issues);
             CheckEnum(parameter.Access, AccessValues, path + ".Access", issues);
             CheckAccessList(parameter.AccessList, path + ".AccessList", issues);
-            CheckEnum(parameter.Support, SupportValues, path + ".Support", issues);
+            CheckOptionalEnum(parameter.Support, SupportValues, path + ".Support", issues);
             Check(parameter.TemplateIdRef, XmlTypeCode.Idref, path + ".TemplateIdRef", issues);
             ApplyTypeRef(parameter.TypeRef, path + ".TypeRef", issues);
             ApplyLabels(parameter.LabelGroup, path + ".LabelGroup", issues);
@@ -158,7 +158,7 @@ internal static class XmlLexicalRules
             var path = Path("ApplicationProcess.DataTypeList.Enums", i);
             Check(enumeration.UniqueId, XmlTypeCode.Id, path + ".UniqueId", issues);
             ApplyLabels(enumeration.LabelGroup, path + ".LabelGroup", issues);
-            CheckEnum(enumeration.SimpleTypeName, SimpleTypeNames, path + ".SimpleTypeName", issues);
+            CheckOptionalEnum(enumeration.SimpleTypeName, SimpleTypeNames, path + ".SimpleTypeName", issues);
             for (var j = 0; j < enumeration.EnumValues.Count; j++)
                 ApplyLabels(enumeration.EnumValues[j].LabelGroup, Path(path + ".EnumValues", j) + ".LabelGroup", issues);
         }
@@ -210,7 +210,7 @@ internal static class XmlLexicalRules
             var instance = instances.FunctionInstances[i];
             var instancePath = Path(path + ".FunctionInstances", i);
             Check(instance.UniqueId, XmlTypeCode.Id, instancePath + ".UniqueId", issues);
-            Check(instance.TypeIdRef, XmlTypeCode.Idref, instancePath + ".TypeIdRef", issues);
+            Check(instance.TypeIdRef, XmlTypeCode.Idref, instancePath + ".TypeIdRef", issues, required: true);
             ApplyLabels(instance.LabelGroup, instancePath + ".LabelGroup", issues);
         }
     }
@@ -232,7 +232,7 @@ internal static class XmlLexicalRules
             Check(template.UniqueId, XmlTypeCode.Id, path + ".UniqueId", issues);
             CheckEnum(template.Access, AccessValues, path + ".Access", issues);
             CheckAccessList(template.AccessList, path + ".AccessList", issues);
-            CheckEnum(template.Support, SupportValues, path + ".Support", issues);
+            CheckOptionalEnum(template.Support, SupportValues, path + ".Support", issues);
             ApplyTypeRef(template.TypeRef, path + ".TypeRef", issues);
             ApplyLabels(template.LabelGroup, path + ".LabelGroup", issues);
             CheckIdRefs(template.ConditionalSupports, path + ".ConditionalSupports", issues);
@@ -257,7 +257,7 @@ internal static class XmlLexicalRules
     {
         if (type == null)
             return;
-        CheckEnum(type.SimpleTypeName, SimpleTypeNames, path + ".SimpleTypeName", issues);
+        CheckOptionalEnum(type.SimpleTypeName, SimpleTypeNames, path + ".SimpleTypeName", issues);
         Check(type.DataTypeIdRef, XmlTypeCode.Idref, path + ".DataTypeIdRef", issues);
     }
 
@@ -319,7 +319,7 @@ internal static class XmlLexicalRules
     private static void CheckIdRefs(List<string> values, string path, List<ValidationIssue> issues)
     {
         for (var i = 0; i < values.Count; i++)
-            Check(values[i], XmlTypeCode.Idref, Path(path, i), issues);
+            Check(values[i], XmlTypeCode.Idref, Path(path, i), issues, required: true);
     }
 
     private static void CheckAccessList(string? value, string path, List<ValidationIssue> issues)
@@ -333,15 +333,31 @@ internal static class XmlLexicalRules
         }
     }
 
+    private static void CheckOptionalEnum(string? value, HashSet<string> allowed, string path, List<ValidationIssue> issues)
+    {
+        if (!string.IsNullOrEmpty(value))
+            CheckEnum(value, allowed, path, issues);
+    }
+
     private static void CheckEnum(string? value, HashSet<string> allowed, string path, List<ValidationIssue> issues)
     {
-        if (value != null && !allowed.Contains(value))
+        if (value == null)
+            return;
+        var comparison = ReferenceEquals(allowed, SimpleTypeNames)
+            ? value
+            : string.Join(" ", value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        if (!allowed.Contains(comparison))
             AddIssue(path, value, "one of " + string.Join(", ", allowed), issues);
     }
 
-    private static void Check(string? value, XmlTypeCode type, string path, List<ValidationIssue> issues)
+    private static void Check(
+        string? value,
+        XmlTypeCode type,
+        string path,
+        List<ValidationIssue> issues,
+        bool required = false)
     {
-        if (value == null)
+        if (value == null || (!required && value.Length == 0 && (type == XmlTypeCode.Idref || type == XmlTypeCode.AnyUri)))
             return;
         try
         {

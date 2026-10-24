@@ -100,6 +100,68 @@ public class XmlLexicalWriteValidationTests
             });
     }
 
+    [Fact]
+    public void ValidatedWrite_OptionalEmptyValuesOmittedByWriter_AreAccepted()
+    {
+        var eds = ValidEds();
+        eds.ApplicationProcess = CompleteApplicationProcess();
+        eds.ObjectDictionary.Objects[0x2000].UniqueIdRef = string.Empty;
+        var parameter = eds.ApplicationProcess.ParameterList[0];
+        parameter.Support = string.Empty;
+        parameter.TemplateIdRef = string.Empty;
+        parameter.TypeRef = new ApTypeRef { DataTypeIdRef = string.Empty };
+        parameter.VariableRefs[0].VariableIdRef = string.Empty;
+        parameter.VariableRefs[0].MemberRef!.UniqueIdRef = string.Empty;
+        parameter.AllowedValues!.TemplateIdRef = string.Empty;
+        parameter.Unit!.UnitUri = string.Empty;
+        parameter.LabelGroup.Descriptions[0].Uri = string.Empty;
+        eds.ApplicationProcess.TemplateList!.ParameterTemplates[0].Support = string.Empty;
+        eds.ApplicationProcess.DataTypeList!.Enums[0].SimpleTypeName = string.Empty;
+
+        var issues = Validate(eds);
+
+        issues.Where(issue => issue.Code == ValidationIssueCodes.XddLexicalValueInvalid).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ValidatedWrite_NmTokenEnums_CollapseWhitespaceButSimpleTypeNamesRemainExact()
+    {
+        var eds = ValidEds();
+        eds.ApplicationProcess = CompleteApplicationProcess();
+        var parameter = eds.ApplicationProcess.ParameterList[0];
+        parameter.Access = " read ";
+        parameter.Support = " optional ";
+        eds.ApplicationProcess.TemplateList!.ParameterTemplates[0].Access = " readWrite ";
+        eds.ApplicationProcess.TemplateList.ParameterTemplates[0].Support = " mandatory ";
+        eds.ApplicationProcess.DataTypeList!.Derived[0].Count!.Access = " readWrite ";
+        eds.ApplicationProcess.DataTypeList.Enums[0].SimpleTypeName = " USINT ";
+
+        var issues = Validate(eds);
+
+        issues.Where(issue => issue.Code == ValidationIssueCodes.XddLexicalValueInvalid)
+            .Should().ContainSingle(issue => issue.Path == "ApplicationProcess.DataTypeList.Enums[0].SimpleTypeName");
+    }
+
+    [Fact]
+    public void ValidatedWrite_RequiredEmptyIdRefs_AreStillReported()
+    {
+        var eds = ValidEds();
+        eds.ApplicationProcess = CompleteApplicationProcess();
+        eds.ApplicationProcess.FunctionInstanceList!.FunctionInstances[0].TypeIdRef = string.Empty;
+        eds.ApplicationProcess.ParameterList[0].ConditionalSupports[0] = string.Empty;
+        eds.ApplicationProcess.ParameterList[0].Access = null!;
+
+        var issues = Validate(eds);
+
+        issues.Where(issue => issue.Code == ValidationIssueCodes.XddLexicalValueInvalid)
+            .Select(issue => issue.Path)
+            .Should().Contain(new[]
+            {
+                "ApplicationProcess.FunctionInstanceList.FunctionInstances[0].TypeIdRef",
+                "ApplicationProcess.ParameterList[0].ConditionalSupports[0]",
+            });
+    }
+
     private static List<ValidationIssue> Validate(ElectronicDataSheet eds)
     {
         var issues = new List<ValidationIssue>();
