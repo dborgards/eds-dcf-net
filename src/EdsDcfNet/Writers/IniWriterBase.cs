@@ -1509,4 +1509,77 @@ public abstract class IniWriterBase
 
         sb.AppendLine();
     }
+
+    /// <summary>
+    /// Writes additional sections at their recorded source positions. A section is inserted before
+    /// the next generated section from the source; sections without such an anchor follow the
+    /// generated content as before. Generated sections always win over same-named additional ones.
+    /// </summary>
+    internal static void WriteAdditionalSections(
+        StringBuilder sb,
+        Dictionary<string, Dictionary<string, string>> additionalSections,
+        AdditionalSectionOrder order,
+        Action<string, Action> writeSection,
+        Func<string, bool>? skipSection = null)
+    {
+        HashSet<string>? generatedHeaders = null;
+        foreach (var section in order.Sections(additionalSections))
+        {
+            generatedHeaders ??= GetGeneratedSectionHeaders(sb);
+            if (IsGeneratedSection(generatedHeaders, section.Key) ||
+                (skipSection != null && skipSection(section.Key)))
+            {
+                continue;
+            }
+
+            var content = new StringBuilder();
+            writeSection(
+                section.Key,
+                () => WriteAdditionalSection(
+                    content,
+                    section.Key,
+                    order.Entries(section.Key, section.Value)));
+
+            var anchor = order.InsertionAnchor(section.Key);
+            var insertionIndex = anchor == null ? -1 : FindSectionHeader(sb, anchor);
+            if (insertionIndex >= 0)
+                sb.Insert(insertionIndex, content);
+            else
+                sb.Append(content);
+        }
+    }
+
+    private static int FindSectionHeader(StringBuilder sb, string sectionName)
+    {
+        // CiA 306-1 writes commissioning with a single "m", while some sources use two.
+        if (sectionName.Equals("DeviceCommissioning", StringComparison.OrdinalIgnoreCase))
+            sectionName = "DeviceComissioning";
+
+        var header = string.Concat("[", sectionName, "]");
+        for (var offset = 0; offset + header.Length <= sb.Length; offset++)
+        {
+            if ((offset > 0 && sb[offset - 1] != '\n') ||
+                (offset + header.Length < sb.Length &&
+                 sb[offset + header.Length] != '\r' &&
+                 sb[offset + header.Length] != '\n'))
+            {
+                continue;
+            }
+
+            var matches = true;
+            for (var i = 0; i < header.Length; i++)
+            {
+                if (char.ToUpperInvariant(sb[offset + i]) == char.ToUpperInvariant(header[i]))
+                    continue;
+
+                matches = false;
+                break;
+            }
+
+            if (matches)
+                return offset;
+        }
+
+        return -1;
+    }
 }

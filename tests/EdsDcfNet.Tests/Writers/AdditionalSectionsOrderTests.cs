@@ -189,6 +189,47 @@ public class AdditionalSectionsOrderTests
         Pos(written, "[2000]").Should().BeLessThan(Pos(written, "[Alpha]"));
     }
 
+    [Theory]
+    [InlineData("eds")]
+    [InlineData("dcf")]
+    public void Write_AdditionalSectionBetweenStandardSections_KeepsSourcePosition(string format)
+    {
+        var text = Join(
+            "[FileInfo]", "FileName=t." + format, "",
+            "[BeforeDevice]", "Key=kept", "",
+            "[DeviceInfo]", "VendorName=V", "",
+            "[DeviceComissioning]", "NodeID=1");
+        var written = format == "eds"
+            ? new EdsWriter().GenerateString(new EdsReader().ReadString(text))
+            : new DcfWriter().GenerateString(new DcfReader().ReadString(text));
+
+        Pos(written, "[FileInfo]").Should().BeLessThan(Pos(written, "[BeforeDevice]"));
+        Pos(written, "[BeforeDevice]").Should().BeLessThan(Pos(written, "[DeviceInfo]"));
+    }
+
+    [Fact]
+    public void Write_Cpj_AdditionalSectionBeforeTopology_KeepsSourcePosition()
+    {
+        var cpj = new CpjReader().ReadString(Join(
+            "[ProjectInfo]", "Name=Demo", "", "[Topology]", "Nodes=0x00"));
+
+        var written = new CpjWriter().GenerateString(cpj);
+
+        Pos(written, "[ProjectInfo]").Should().BeLessThan(Pos(written, "[Topology]"));
+    }
+
+    [Fact]
+    public void Write_Cpj_MissingInsertionAnchor_StillWritesAdditionalSection()
+    {
+        var cpj = new CpjReader().ReadString(Join(
+            "[ProjectInfo]", "Name=Demo", "", "[Topology]", "Nodes=0x00"));
+        cpj.Networks.Clear();
+
+        var written = new CpjWriter().GenerateString(cpj);
+
+        written.Should().Contain("[ProjectInfo]").And.Contain("Name=Demo");
+    }
+
     [Fact]
     public void Write_Dcf_SecondCommissioningSpellingKeepsFilePosition()
     {
@@ -206,6 +247,41 @@ public class AdditionalSectionsOrderTests
 
         // Assert
         order.Should().Equal("Zeta", "DeviceCommissioning", "Alpha");
+    }
+
+    [Theory]
+    [InlineData("DeviceCommissioning")]
+    [InlineData("devicecommissioning")]
+    public void Write_Dcf_AdditionalBeforeAlternateCommissioningSpelling_KeepsSourcePosition(string sectionName)
+    {
+        var dcf = new DcfReader().ReadString(Join(
+            "[FileInfo]", "FileName=t.dcf", "[DeviceInfo]", "VendorName=V", "",
+            "[BeforeCommissioning]", "Key=kept", "",
+            "[" + sectionName + "]", "NodeID=1"));
+
+        var written = new DcfWriter().GenerateString(dcf);
+
+        Pos(written, "[BeforeCommissioning]").Should().BeLessThan(Pos(written, "[DeviceComissioning]"));
+        Pos(written, "Key=kept").Should().BeLessThan(Pos(written, "[DeviceComissioning]"));
+    }
+
+    [Fact]
+    public void Write_Dcf_StaleObjectLinksForExistingObjectWithoutLinks_AreSkipped()
+    {
+        var dcf = new DeviceConfigurationFile();
+        dcf.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly
+        };
+        dcf.AdditionalSections["1000ObjectLinks"] = new Dictionary<string, string> { ["ObjectLinks"] = "0" };
+
+        var written = new DcfWriter().GenerateString(dcf);
+
+        written.Should().NotContain("[1000ObjectLinks]");
     }
 
     [Fact]
