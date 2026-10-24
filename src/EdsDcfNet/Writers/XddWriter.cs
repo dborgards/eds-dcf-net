@@ -212,6 +212,11 @@ public class XddWriter
 
             container.Add(WriteContext("DeviceProfile", () => BuildDeviceProfile(eds)));
             container.Add(WriteContext("CommunicationNetworkProfile", () => BuildCommNetProfile(eds, commissioning)));
+            foreach (var profile in (eds.XddPreserved ?? new XddPreservedContent())
+                         .ElementsAt(XddPreservedContent.ProfileContainer))
+            {
+                container.Add(new XElement(profile));
+            }
 
             var doc = new XDocument(new XDeclaration("1.0", null, null));
 

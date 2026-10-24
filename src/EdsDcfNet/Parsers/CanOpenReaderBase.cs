@@ -160,6 +160,13 @@ public abstract class CanOpenReaderBase
     {
     }
 
+    /// <summary>
+    /// Returns whether a recognized companion section cannot be applied to the loaded object
+    /// and therefore has to be preserved in full rather than through per-entry remaining storage.
+    /// </summary>
+    private protected virtual bool IsObjectCompanionSectionUnloaded(string sectionName, CanOpenObject obj)
+        => false;
+
     private static readonly string[] ObjectListSectionNames =
     {
         "MandatoryObjects", "OptionalObjects", "ManufacturerObjects"
@@ -354,6 +361,22 @@ public abstract class CanOpenReaderBase
                         "object 0x{0:X4} is listed, but has no [{1}] section; its companion sections are not loaded",
                         index,
                         ToHexInvariant(index)));
+            }
+
+            return KeepSection(model, sections, sectionName);
+        }
+
+        if (!isObjectBody && IsObjectCompanionSectionUnloaded(sectionName, obj))
+        {
+            if (state.ReportedCompanionIndexes.Add(index))
+            {
+                ReportKeptSection(
+                    Diagnostics.ParseDiagnosticCodes.IniOrphanCompanionSection,
+                    sectionName,
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "compact-list sections of object 0x{0:X4} are not loaded: the object has no sub-objects",
+                        index));
             }
 
             return KeepSection(model, sections, sectionName);
