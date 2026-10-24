@@ -86,10 +86,16 @@ for workflow in "$build_workflow" "$release_workflow"; do
   if [[ $(grep -F -c 'disable_search: true' "$workflow") -ne 1 ]]; then
     fail "$(basename "$workflow") must keep disable_search so the upload does not search the checkout"
   fi
-  if [[ $(grep -F -c 'fail_ci_if_error: true' "$workflow") -ne 1 ]]; then
-    fail "$(basename "$workflow") must keep fail_ci_if_error"
-  fi
 done
+
+# PR/build upload failures remain blocking. A Codecov service outage must not
+# prevent an already tested release; the local coverage gate remains blocking.
+if [[ $(grep -F -c 'fail_ci_if_error: true' "$build_workflow") -ne 1 ]]; then
+  fail "build.yml must keep fail_ci_if_error: true"
+fi
+if [[ $(grep -F -c 'fail_ci_if_error: false' "$release_workflow") -ne 1 ]]; then
+  fail "semantic-release.yml must make the Codecov upload non-blocking"
+fi
 
 if grep -F -q 'codecov/patch' "$build_workflow" || grep -F -q 'codecov/patch' "$release_workflow"; then
   fail "workflows still post or wait on codecov/patch"

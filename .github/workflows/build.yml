@@ -2,8 +2,6 @@ name: Build and Test
 
 permissions:
   contents: read
-  statuses: write
-  checks: write
 
 env:
   COVERAGE_MIN_PERCENT: "95.0"
@@ -119,6 +117,9 @@ jobs:
 
   build:
     needs: changes
+    permissions:
+      contents: read
+      statuses: write
     # Skip workflow_run (relay-release-status owns that event) and skip a push
     # of the semantic-release commit. pull_request and workflow_dispatch still
     # run, including a develop→main PR whose HEAD is that commit.
@@ -316,6 +317,11 @@ jobs:
     - name: Check release-notes parserOpts note keywords
       run: bash tools/release-notes-parser-opts.test.sh
 
+    # With contents-only release permissions, success must not search for,
+    # comment on, label, or close issues and pull requests.
+    - name: Check GitHub release interactions are disabled
+      run: bash tools/release-github-config.test.sh
+
     # Release commits must not carry a skip directive, and the push-only job
     # guard must keep pull_request gates (including this job) scheduled.
     - name: Check release PRs still run PR gates
@@ -401,9 +407,10 @@ jobs:
 
     - name: Install ApiCompat tool
       if: needs.changes.outputs.docs_only != 'true'
-      # Pinned to the global.json SDK version so a new tool release can't silently
-      # change diagnostics or CLI flags underneath an unrelated PR.
-      run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool --version 10.0.400
+      # Keep diagnostics and CLI flags on the PR head's SDK version without a
+      # second version literal that drifts on SDK upgrades.
+      shell: bash
+      run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool --version "$(jq -r '.sdk.version' global.json)"
 
     # Differences are a failure by default. They are tolerated only when a PR
     # commit carries a signal that semantic-release itself (.releaserc.json)
@@ -537,6 +544,10 @@ jobs:
   relay-release-status:
     if: github.event_name == 'workflow_run'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+      checks: write
 
     steps:
     - name: Resolve release commit SHA

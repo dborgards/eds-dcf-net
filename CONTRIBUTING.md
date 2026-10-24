@@ -82,6 +82,28 @@ The merge method is enforced by the repository rulesets (see
   the PR is not blocked. There is deliberately no workflow-level
   `paths-ignore`: it would leave the required checks unreported.
 
+### Changed-lines coverage
+
+Use the shared Cobertura diff gate to check coverage of added source lines before
+opening a PR. Fetch the base ref, generate a fresh report, and pass its results
+directory to the script:
+
+```sh
+git fetch origin develop
+mkdir -p TestResults
+results="$(mktemp -d "TestResults/changed-lines.XXXXXX")"
+dotnet test tests/EdsDcfNet.Tests/EdsDcfNet.Tests.csproj \
+  --configuration Release --framework net10.0 \
+  --collect:"XPlat Code Coverage" --results-directory "$results"
+bash tools/changed-lines-coverage.sh "$results" origin/develop
+```
+
+The gate defaults to `src` and `COVERAGE_MIN_PERCENT=95.0`. Append paths to check
+another subtree, or set the environment variable for a different local threshold.
+It includes committed, staged, and unstaged changes since the merge base, merges
+multiple Cobertura reports by line, and ignores deleted or non-instrumentable
+lines. A changed line is covered when any report records at least one hit.
+
 ## Coding conventions
 
 Repository-wide formatting and baseline analyzer severities are defined in
@@ -483,6 +505,14 @@ Releases are fully automated via semantic-release:
 - **Stable release**: merge `develop` into `main` (open a PR from `develop` → `main`) → semantic-release publishes `X.Y.Z` to NuGet and creates a GitHub release.
 
 Maintainers decide when to promote `develop` → `main`.
+
+After the stable release workflow on `main` has **completed successfully**, merge `main`
+back into `develop` with a regular merge commit, not squash or rebase. This back-merge
+brings the generated `CHANGELOG.md` and package version forward and makes the stable tag
+reachable from `develop`. Waiting for completion is required: an earlier back-merge can
+make the develop verification inspect a stable release that is still being published.
+Do not open a new feature PR from the back-merge branch; merge it directly as release
+maintenance once its required checks pass.
 
 The release commit message is exactly `chore(release): <version>`
 (`.releaserc.json`). Generated notes go to `CHANGELOG.md` and the GitHub
