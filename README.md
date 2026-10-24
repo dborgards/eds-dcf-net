@@ -629,7 +629,7 @@ A dedicated BenchmarkDotNet project is available at:
 Run all benchmarks:
 
 ```bash
-dotnet run -c Release -p benchmarks/EdsDcfNet.Benchmarks -- --filter "*"
+dotnet run --configuration Release --project benchmarks/EdsDcfNet.Benchmarks -- --filter "*"
 ```
 
 Baseline scenario definitions and artifact locations are documented in:
