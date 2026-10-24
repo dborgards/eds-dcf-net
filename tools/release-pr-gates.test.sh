@@ -263,7 +263,7 @@ expected_group = (
     "github.event.head_commit.committer.name == 'semantic-release-bot') && "
     "format('semantic-release-noop-{0}', github.sha) || "
     "(github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && "
-    "'semantic-release-channels' || "
+    "format('semantic-release-{0}', github.ref_name) || "
     "format('semantic-release-{0}', github.ref)"
 )
 got_group = extract_concurrency_group(sr_workflow)
@@ -277,7 +277,7 @@ def concurrency_group(event, ref, sha, has_head, message, committer):
     if is_release_push(event, has_head, message, committer):
         return f"semantic-release-noop-{sha}"
     if ref in ("refs/heads/main", "refs/heads/develop"):
-        return "semantic-release-channels"
+        return f"semantic-release-{ref.removeprefix('refs/heads/')}"
     return f"semantic-release-{ref}"
 
 release_sha = "aaa111"
@@ -285,21 +285,23 @@ other_sha = "bbb222"
 group_cases = [
     ("push", "refs/heads/develop", release_sha, True, "chore(release): 1.2.3" + notes, "semantic-release-bot", f"semantic-release-noop-{release_sha}"),
     ("push", "refs/heads/main", release_sha, True, "chore(release): 1.2.3" + notes, "semantic-release-bot", f"semantic-release-noop-{release_sha}"),
-    ("push", "refs/heads/develop", other_sha, True, "Merge pull request #1 from org/develop", "GitHub", "semantic-release-channels"),
-    ("push", "refs/heads/main", other_sha, True, "feat: add a reader", "Jane Doe", "semantic-release-channels"),
-    ("push", "refs/heads/develop", other_sha, True, "chore(release): manual note", "Jane Doe", "semantic-release-channels"),
+    ("push", "refs/heads/develop", other_sha, True, "Merge pull request #1 from org/develop", "GitHub", "semantic-release-develop"),
+    ("push", "refs/heads/main", other_sha, True, "feat: add a reader", "Jane Doe", "semantic-release-main"),
+    ("push", "refs/heads/develop", other_sha, True, "chore(release): manual note", "Jane Doe", "semantic-release-develop"),
     ("push", "refs/heads/feature", other_sha, True, "feat: add a reader", "Jane Doe", "semantic-release-refs/heads/feature"),
-    ("workflow_dispatch", "refs/heads/develop", release_sha, True, "chore(release): 1.2.3" + notes, "semantic-release-bot", "semantic-release-channels"),
+    ("workflow_dispatch", "refs/heads/develop", release_sha, True, "chore(release): 1.2.3" + notes, "semantic-release-bot", "semantic-release-develop"),
     ("workflow_dispatch", "refs/heads/topic", release_sha, False, "", "", "semantic-release-refs/heads/topic"),
 ]
-channels = "semantic-release-channels"
+channel_groups = {"semantic-release-main", "semantic-release-develop"}
 for event, ref, sha, has_head, message, committer, want in group_cases:
     got = concurrency_group(event, ref, sha, has_head, message, committer)
     label = f"{event} {ref} committer={committer!r}"
     if got != want:
         fail(f"concurrency {label}: expected {want}, got {got}")
-    if is_release_push(event, has_head, message, committer) and got == channels:
-        fail(f"concurrency {label}: release-commit push joined {channels}")
+    if is_release_push(event, has_head, message, committer) and got in channel_groups:
+        fail(f"concurrency {label}: release-commit push joined {got}")
+if concurrency_group("push", "refs/heads/main", other_sha, True, "feat: stable", "Jane Doe") == concurrency_group("push", "refs/heads/develop", other_sha, True, "feat: beta", "Jane Doe"):
+    fail("main and develop must not evict each other's pending release")
 
 contributing = (root / "CONTRIBUTING.md").read_text()
 for snippet in (

@@ -484,6 +484,14 @@ Releases are fully automated via semantic-release:
 
 Maintainers decide when to promote `develop` → `main`.
 
+After the stable release workflow on `main` has **completed successfully**, merge `main`
+back into `develop` with a regular merge commit, not squash or rebase. This back-merge
+brings the generated `CHANGELOG.md` and package version forward and makes the stable tag
+reachable from `develop`. Waiting for completion is required: an earlier back-merge can
+make the develop verification inspect a stable release that is still being published.
+Do not open a new feature PR from the back-merge branch; merge it directly as release
+maintenance once its required checks pass.
+
 The release commit message is exactly `chore(release): <version>`
 (`.releaserc.json`). Generated notes go to `CHANGELOG.md` and the GitHub
 release; they must not appear in the git commit message. Do not interpolate
