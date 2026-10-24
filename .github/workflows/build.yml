@@ -317,6 +317,11 @@ jobs:
     - name: Check release-notes parserOpts note keywords
       run: bash tools/release-notes-parser-opts.test.sh
 
+    # With contents-only release permissions, success must not search for,
+    # comment on, label, or close issues and pull requests.
+    - name: Check GitHub release interactions are disabled
+      run: bash tools/release-github-config.test.sh
+
     # Release commits must not carry a skip directive, and the push-only job
     # guard must keep pull_request gates (including this job) scheduled.
     - name: Check release PRs still run PR gates

@@ -106,8 +106,8 @@
             "label": "SPDX SBOM (derived from CycloneDX)"
           }
         ],
-        "successComment": false,
-        "failComment": false,
+        "successCommentCondition": false,
+        "failCommentCondition": false,
         "releasedLabels": false
       }
     ]
