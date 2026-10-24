@@ -321,30 +321,21 @@ internal sealed class XddUniqueIdResolver
             return;
         }
 
-        if (parameter.VariableRefs.Count > 0)
+        if (parameter.VariableRefs.Count > 0 && variables.Errors.Count == 0)
         {
-            foreach (var variable in variables.Variables)
+            var candidate = new ParameterProjection();
+            DescribeTypeRef(variables.Variables[0].TypeRef, candidate);
+            if (candidate.DataTypeKind != DataTypeProjectionKind.None)
             {
-                var candidate = new ParameterProjection();
-                DescribeTypeRef(variable.TypeRef, candidate);
-                if (candidate.DataTypeKind == DataTypeProjectionKind.Resolved)
-                {
-                    if (projection.DataTypeKind == DataTypeProjectionKind.Resolved
-                        && projection.DataType != candidate.DataType)
-                    {
-                        AddIndirectError(projection, "variableRef", "packed variables resolve to different data types.");
-                        projection.DataType = null;
-                        projection.DataTypeKind = DataTypeProjectionKind.None;
-                        return;
-                    }
+                projection.DataType = candidate.DataType;
+                projection.DataTypeDetail = candidate.DataTypeDetail;
+                projection.DataTypeKind = candidate.DataTypeKind;
+            }
 
-                    projection.DataType = candidate.DataType;
-                    projection.DataTypeKind = DataTypeProjectionKind.Resolved;
-                }
-                else if (candidate.DataTypeKind != DataTypeProjectionKind.None)
-                {
-                    AddIndirectError(projection, "variableRef", "an interface variable has no resolvable scalar data type.");
-                }
+            if (candidate.DataTypeKind != DataTypeProjectionKind.Resolved
+                && candidate.DataTypeKind != DataTypeProjectionKind.None)
+            {
+                AddIndirectError(projection, "variableRef", "an interface variable has no resolvable scalar data type.");
             }
 
             return;
@@ -466,20 +457,13 @@ internal sealed class XddUniqueIdResolver
         VariableProjection variables,
         ParameterProjection projection)
     {
-        var variableDefaults = variables.Variables
-            .Where(variable => variable.DefaultValue != null)
-            .Select(variable => variable.DefaultValue!.Value)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        if (variableDefaults.Count > 1)
-        {
-            AddIndirectError(projection, "variableRef", "packed variables define different default values.");
-            return;
-        }
-
-        var value = variableDefaults.Count == 1
-            ? variableDefaults[0]
-            : parameter.DefaultValue?.Value ?? ResolveParameterTemplate(parameter.TemplateIdRef, projection)?.DefaultValue?.Value;
+        var variable = variables.Errors.Count == 0 && variables.Variables.Count == 1
+            ? variables.Variables[0]
+            : null;
+        var value = variable?.DefaultValue?.Value
+            ?? parameter.DefaultValue?.Value
+            ?? ResolveParameterTemplate(parameter.TemplateIdRef, projection)?.DefaultValue?.Value
+            ?? variable?.ComponentDefaultValue?.Value;
         if (value != null)
         {
             projection.HasDefault = true;
@@ -492,26 +476,14 @@ internal sealed class XddUniqueIdResolver
         VariableProjection variables,
         ParameterProjection projection)
     {
-        ApAllowedValues? allowed = null;
-        foreach (var variable in variables.Variables)
-        {
-            var candidate = ResolveAllowedValues(variable.AllowedValues, projection);
-            if (candidate == null)
-                continue;
-            if (allowed != null && !SameRange(allowed, candidate))
-            {
-                AddIndirectError(projection, "variableRef", "packed variables define different allowed ranges.");
-                return;
-            }
-
-            allowed = candidate;
-        }
-
-        allowed ??= parameter.AllowedValues != null
-            ? ResolveAllowedValues(parameter.AllowedValues, projection)
-            : ResolveParameterTemplate(parameter.TemplateIdRef, projection)?.AllowedValues;
-        if (allowed != null)
-            allowed = ResolveAllowedValues(allowed, projection);
+        var variable = variables.Errors.Count == 0 && variables.Variables.Count == 1
+            ? variables.Variables[0]
+            : null;
+        var allowed = variable?.AllowedValues
+            ?? parameter.AllowedValues
+            ?? ResolveParameterTemplate(parameter.TemplateIdRef, projection)?.AllowedValues
+            ?? variable?.ComponentAllowedValues;
+        allowed = ResolveAllowedValues(allowed, projection);
 
         if (TryUnambiguousRange(allowed, out var low, out var high))
         {
@@ -540,6 +512,14 @@ internal sealed class XddUniqueIdResolver
     private VariableProjection ResolveVariables(ApParameter parameter)
     {
         var result = new VariableProjection();
+        if (parameter.VariableRefs.Count > 1)
+        {
+            result.Errors.Add(new IndirectResolutionError(
+                "variableRef",
+                "packed variables have no scalar aggregate projection; component metadata was not projected."));
+            return result;
+        }
+
         foreach (var reference in parameter.VariableRefs)
         {
             if (TryResolveVariable(reference, out var variable, out var error))
@@ -601,9 +581,8 @@ internal sealed class XddUniqueIdResolver
 
         if (member.Index.HasValue)
         {
-            var arrayId = declaration.Type?.DataTypeIdRef;
-            if (arrayId == null || !_arrays.TryGetValue(arrayId, out var array)
-                || array.Subranges.Count != 1
+            if (!TryResolveCompositeType(declaration.Type, _arrays, out var array)
+                || array!.Subranges.Count != 1
                 || member.Index.Value < array.Subranges[0].LowerLimit
                 || member.Index.Value > array.Subranges[0].UpperLimit)
             {
@@ -612,19 +591,18 @@ internal sealed class XddUniqueIdResolver
                 return false;
             }
 
-            result = new ResolvedVariable(array.ElementType, null, null);
+            result = new ResolvedVariable(array.ElementType, declaration.DefaultValue, declaration.AllowedValues);
             return true;
         }
 
-        var structId = declaration.Type?.DataTypeIdRef;
-        if (structId == null || !_structs.TryGetValue(structId, out var structure))
+        if (!TryResolveCompositeType(declaration.Type, _structs, out var structure))
         {
             error = "memberRef does not identify a structure component.";
             result = null;
             return false;
         }
 
-        var members = structure.VarDeclarations.Where(item => item.UniqueId == member.UniqueIdRef).ToList();
+        var members = structure!.VarDeclarations.Where(item => item.UniqueId == member.UniqueIdRef).ToList();
         if (members.Count != 1)
         {
             error = string.Format(CultureInfo.InvariantCulture,
@@ -633,8 +611,38 @@ internal sealed class XddUniqueIdResolver
             return false;
         }
 
-        result = new ResolvedVariable(members[0].Type, members[0].DefaultValue, members[0].AllowedValues);
+        result = new ResolvedVariable(
+            members[0].Type,
+            declaration.DefaultValue,
+            declaration.AllowedValues,
+            members[0].DefaultValue,
+            members[0].AllowedValues);
         return true;
+    }
+
+    private bool TryResolveCompositeType<T>(
+        ApTypeRef? typeRef,
+        Dictionary<string, T> targets,
+        out T? result)
+        where T : class
+    {
+        result = null;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var current = typeRef;
+        while (current?.DataTypeIdRef is { Length: > 0 } id)
+        {
+            if (!seen.Add(id))
+                return false;
+
+            if (targets.TryGetValue(id, out result))
+                return true;
+
+            if (!_derived.TryGetValue(id, out var derived))
+                return false;
+            current = derived.BaseType;
+        }
+
+        return false;
     }
 
     private static IEnumerable<ApVarDeclaration> InterfaceVariables(ApInterfaceList interfaces) =>
@@ -691,13 +699,6 @@ internal sealed class XddUniqueIdResolver
         resolved.Values.AddRange(template!.Values);
         resolved.Ranges.AddRange(template.Ranges);
         return resolved;
-    }
-
-    private static bool SameRange(ApAllowedValues first, ApAllowedValues second)
-    {
-        var firstRange = TryUnambiguousRange(first, out var firstLow, out var firstHigh);
-        var secondRange = TryUnambiguousRange(second, out var secondLow, out var secondHigh);
-        return firstRange == secondRange && firstLow == secondLow && firstHigh == secondHigh;
     }
 
     private static void AddIndirectError(ParameterProjection projection, string kind, string detail)
@@ -790,11 +791,18 @@ internal sealed class XddUniqueIdResolver
 
     private sealed class ResolvedVariable
     {
-        internal ResolvedVariable(ApTypeRef? typeRef, ApParameterValue? defaultValue, ApAllowedValues? allowedValues)
+        internal ResolvedVariable(
+            ApTypeRef? typeRef,
+            ApParameterValue? defaultValue,
+            ApAllowedValues? allowedValues,
+            ApParameterValue? componentDefaultValue = null,
+            ApAllowedValues? componentAllowedValues = null)
         {
             TypeRef = typeRef;
             DefaultValue = defaultValue;
             AllowedValues = allowedValues;
+            ComponentDefaultValue = componentDefaultValue;
+            ComponentAllowedValues = componentAllowedValues;
         }
 
         internal ApTypeRef? TypeRef { get; }
@@ -802,6 +810,10 @@ internal sealed class XddUniqueIdResolver
         internal ApParameterValue? DefaultValue { get; }
 
         internal ApAllowedValues? AllowedValues { get; }
+
+        internal ApParameterValue? ComponentDefaultValue { get; }
+
+        internal ApAllowedValues? ComponentAllowedValues { get; }
     }
 
     private sealed class ParameterTemplateProjection
