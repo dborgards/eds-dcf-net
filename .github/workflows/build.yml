@@ -117,6 +117,9 @@ jobs:
 
   build:
     needs: changes
+    permissions:
+      contents: read
+      statuses: write
     # Skip workflow_run (relay-release-status owns that event) and skip a push
     # of the semantic-release commit. pull_request and workflow_dispatch still
     # run, including a develop→main PR whose HEAD is that commit.
