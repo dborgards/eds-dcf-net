@@ -125,6 +125,12 @@ public class XddIndirectUniqueIdRefTests
         var reference = result.Model.ApplicationProcess!.ParameterList[0].VariableRefs[0];
         reference.MemberRefs.Select(member => member.UniqueIdRef).Should().Equal("CHILD", "FIELD");
         reference.MemberRef.Should().BeSameAs(reference.MemberRefs[1]);
+        var converted = CanOpenFile.Eds.ConvertToDcf(result.Model, nodeId: 1,
+            timestamp: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var convertedReference = converted.ApplicationProcess!.ParameterList[0].VariableRefs[0];
+        convertedReference.MemberRef.Should().BeSameAs(convertedReference.MemberRefs[1]);
+        convertedReference.MemberRef!.UniqueIdRef = "FIELD_CHANGED";
+        CanOpenFile.Xdc.WriteToString(converted).Should().Contain("uniqueIDRef=\"FIELD_CHANGED\"");
 
         var written = CanOpenFile.Xdd.WriteToString(result.Model);
         var childPosition = written.IndexOf("uniqueIDRef=\"CHILD\"", StringComparison.Ordinal);
@@ -669,10 +675,17 @@ public class XddIndirectUniqueIdRefTests
         application.ParameterList.Add(parameter);
         var obj = new CanOpenObject { Index = 0x2000, UniqueIdRef = "P" };
 
-        EdsDcfNet.Parsers.XddUniqueIdResolver.Create(application).ApplyObject(obj, default);
+        var resolver = EdsDcfNet.Parsers.XddUniqueIdResolver.Create(application);
+        resolver.ApplyObject(obj, default);
 
         obj.DataType.Should().Be(CanOpenDataType.Unsigned8);
         obj.DefaultValue.Should().Be("8");
+
+        function.InterfaceList.InputVars[0].Size = "1";
+        reference.MemberRef = new ApMemberRef { Index = 0 };
+        var legacyMemberObj = new CanOpenObject { Index = 0x2001, UniqueIdRef = "P" };
+        resolver.ApplyObject(legacyMemberObj, default);
+        legacyMemberObj.DataType.Should().Be(CanOpenDataType.Unsigned8);
     }
 
     private static string Variable(string id) =>

@@ -583,7 +583,9 @@ internal sealed class XddUniqueIdResolver
             declaration.DefaultValue,
             declaration.AllowedValues,
             initialValue: declaration.InitialValue);
-        var memberRefs = reference.MemberRefs;
+        var memberRefs = reference.MemberRefs.Count > 0
+            ? reference.MemberRefs
+            : reference.MemberRef == null ? new List<ApMemberRef>() : new List<ApMemberRef> { reference.MemberRef };
         if (memberRefs.Count == 0)
         {
             if (IsAnonymousArray(declaration)

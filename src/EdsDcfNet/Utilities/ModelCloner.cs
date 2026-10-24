@@ -705,13 +705,6 @@ internal static class ModelCloner
         {
             Position = source.Position,
             VariableIdRef = source.VariableIdRef,
-            MemberRef = source.MemberRef == null
-                ? null
-                : new ApMemberRef
-                {
-                    UniqueIdRef = source.MemberRef.UniqueIdRef,
-                    Index = source.MemberRef.Index
-                }
         };
         clone.InstanceIdRefs.AddRange(source.InstanceIdRefs);
         foreach (var memberRef in source.MemberRefs)
@@ -721,6 +714,17 @@ internal static class ModelCloner
                 UniqueIdRef = memberRef.UniqueIdRef,
                 Index = memberRef.Index
             });
+        }
+        if (source.MemberRef != null)
+        {
+            clone.MemberRef = source.MemberRefs.Count > 0
+                && ReferenceEquals(source.MemberRef, source.MemberRefs[^1])
+                ? clone.MemberRefs[^1]
+                : new ApMemberRef
+                {
+                    UniqueIdRef = source.MemberRef.UniqueIdRef,
+                    Index = source.MemberRef.Index
+                };
         }
         return clone;
     }
