@@ -341,6 +341,38 @@ public class AdditionalSectionsOrderTests
     }
 
     [Fact]
+    public void WriteAdditionalSections_HeaderTextInsideLine_DoesNotCountAsInsertionAnchor()
+    {
+        var additional = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Extra"] = new Dictionary<string, string> { ["Key"] = "kept" }
+        };
+        var fileSections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Extra"] = additional["Extra"],
+            ["Anchor"] = new Dictionary<string, string>()
+        };
+        var order = new AdditionalSectionOrder();
+        order.Capture(additional, fileSections);
+        var sb = new StringBuilder("not-a-header[Anchor]\r\n[Anchor]\r\n");
+
+        IniWriterBase.WriteAdditionalSections(sb, additional, order, (_, write) => write());
+
+        sb.ToString().Should().StartWith("not-a-header[Anchor]\r\n[Extra]\nKey=kept")
+            .And.EndWith("[Anchor]\r\n");
+
+        var lf = new StringBuilder("[Anchor]suffix\n[Anchor]\n");
+        IniWriterBase.WriteAdditionalSections(lf, additional, order, (_, write) => write());
+        lf.ToString().Should().StartWith("[Anchor]suffix\n[Extra]\nKey=kept")
+            .And.EndWith("[Anchor]\n");
+
+        var end = new StringBuilder("[Anchor]");
+        IniWriterBase.WriteAdditionalSections(end, additional, order, (_, write) => write());
+        end.ToString().Should().StartWith("[Extra]\nKey=kept")
+            .And.EndWith("[Anchor]");
+    }
+
+    [Fact]
     public void CopyFrom_Order_IsIndependentCopy()
     {
         // Arrange
