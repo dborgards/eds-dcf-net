@@ -131,12 +131,30 @@ public class ApVariableRef
     /// <summary>Unique ID of the referenced interface variable of the function type (xsd:IDREF).</summary>
     public string VariableIdRef { get; set; } = string.Empty;
 
+    private ApMemberRef? _memberRef;
+
     /// <summary>
     /// Optional reference to a specific member when the variable is structured/array.
     /// For paths parsed from XDD/XDC, this retains the last segment for compatibility;
-    /// use <see cref="MemberRefs"/> to access the complete ordered path.
+    /// use <see cref="MemberRefs"/> to access the complete ordered path. Replacing this
+    /// property updates the last path segment; setting it to <see langword="null"/> clears the path.
     /// </summary>
-    public ApMemberRef? MemberRef { get; set; }
+    public ApMemberRef? MemberRef
+    {
+        get => _memberRef;
+        set
+        {
+            _memberRef = value;
+            if (MemberRefs.Count == 0)
+                return;
+            if (value == null)
+            {
+                MemberRefs.Clear();
+                return;
+            }
+            MemberRefs[^1] = value;
+        }
+    }
 
     /// <summary>
     /// Ordered path of structure members and array elements below the interface variable

@@ -143,6 +143,13 @@ public class XddIndirectUniqueIdRefTests
         second.Model.ObjectDictionary.Objects[0x2000].DefaultValue.Should().Be("7");
         CanOpenFile.Xdd.ReadString(written, Strict).ObjectDictionary.Objects[0x2000].DataType
             .Should().Be(CanOpenDataType.Integer16);
+
+        reference.MemberRef = new ApMemberRef { UniqueIdRef = "FIELD_REPLACED" };
+        reference.MemberRef.Should().BeSameAs(reference.MemberRefs[1]);
+        CanOpenFile.Xdd.WriteToString(result.Model).Should().Contain("uniqueIDRef=\"FIELD_REPLACED\"");
+        reference.MemberRef = null;
+        reference.MemberRefs.Should().BeEmpty();
+        CanOpenFile.Xdd.WriteToString(result.Model).Should().NotContain("FIELD_REPLACED");
     }
 
     [Fact]
