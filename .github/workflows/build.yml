@@ -280,7 +280,7 @@ jobs:
       with:
         # Keep in sync with semantic-release.yml — this job exists to reproduce
         # that workflow's install step.
-        node-version: '24.21.x'
+        node-version: '24.22.x'
 
     # Same command as semantic-release.yml. Fails on any package.json /
     # package-lock.json mismatch (npm error code EUSAGE).
