@@ -20,7 +20,7 @@ internal static class CanOpenWriteGuard
         if (!ShouldValidateBeforeWrite(options))
             return;
 
-        ValidateKnownModel(model, options?.ValidationOptions, formatRules);
+        ValidateKnownModel(model, options!.ValidationOptions, formatRules);
     }
 
     internal static Task EnsureValidForWriteAsync<T>(
@@ -38,7 +38,7 @@ internal static class CanOpenWriteGuard
         if (!ShouldValidateBeforeWrite(options))
             return Task.CompletedTask;
 
-        return ValidateKnownModelAsync(model, options?.ValidationOptions, formatRules, cancellationToken);
+        return ValidateKnownModelAsync(model, options!.ValidationOptions, formatRules, cancellationToken);
     }
 
     internal static void EnsureValidForXmlWrite<T>(
@@ -49,7 +49,7 @@ internal static class CanOpenWriteGuard
         if (!ShouldValidateBeforeWrite(options))
             return;
 
-        ValidateKnownModel(model, XmlValidationOptions(options?.ValidationOptions), formatRules);
+        ValidateKnownModel(model, XmlValidationOptions(options!.ValidationOptions), formatRules);
     }
 
     internal static Task EnsureValidForXmlWriteAsync<T>(
@@ -63,7 +63,7 @@ internal static class CanOpenWriteGuard
 
         return ValidateKnownModelAsync(
             model,
-            XmlValidationOptions(options?.ValidationOptions),
+            XmlValidationOptions(options!.ValidationOptions),
             formatRules,
             cancellationToken);
     }
