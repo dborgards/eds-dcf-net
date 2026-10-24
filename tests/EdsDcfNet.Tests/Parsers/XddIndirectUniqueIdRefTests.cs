@@ -349,6 +349,38 @@ public class XddIndirectUniqueIdRefTests
     }
 
     [Fact]
+    public void ReadString_WholeArrayStructureComponents_DoNotProjectElementType()
+    {
+        var application = @"
+          <dataTypeList>
+            <array name=""Bytes"" uniqueID=""ARR""><subrange lowerLimit=""0"" upperLimit=""2""/><USINT/></array>
+            <struct name=""Record"" uniqueID=""REC"">
+              <varDeclaration name=""Anonymous"" uniqueID=""MANON"" size=""3""><USINT/></varDeclaration>
+              <varDeclaration name=""Named"" uniqueID=""MNAMED""><dataTypeIDRef uniqueIDRef=""ARR""/></varDeclaration>
+              <varDeclaration name=""Scalar"" uniqueID=""MSCALAR""><USINT/></varDeclaration>
+            </struct>
+          </dataTypeList>"
+            + FunctionTypes(@"<inputVars><varDeclaration name=""Record"" uniqueID=""V""><dataTypeIDRef uniqueIDRef=""REC""/></varDeclaration></inputVars>") + @"
+          <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT_LEAF""/></functionInstanceList>
+          <parameterList>"
+            + Parameter("PANON", VariableRef("V", member: " uniqueIDRef=\"MANON\""))
+            + Parameter("PNAMED", VariableRef("V", member: " uniqueIDRef=\"MNAMED\""))
+            + Parameter("PSCALAR", VariableRef("V", member: " uniqueIDRef=\"MSCALAR\""))
+            + "</parameterList>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application,
+            Object("2000", "Anonymous", "PANON") + Object("2001", "Named", "PNAMED")
+            + Object("2002", "Scalar", "PSCALAR")));
+
+        result.Diagnostics.Should().HaveCount(2).And.OnlyContain(diagnostic =>
+            diagnostic.Code == ParseDiagnosticCodes.XddUnresolvedIndirectUniqueIdRef
+            && diagnostic.Message.Contains("whole-array structure component", StringComparison.Ordinal));
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().BeNull();
+        result.Model.ObjectDictionary.Objects[0x2001].DataType.Should().BeNull();
+        result.Model.ObjectDictionary.Objects[0x2002].DataType.Should().Be(CanOpenDataType.Unsigned8);
+    }
+
+    [Fact]
     public void ReadString_DeclarationInitialValues_ProjectAsDefaultFallbacks()
     {
         var application = @"

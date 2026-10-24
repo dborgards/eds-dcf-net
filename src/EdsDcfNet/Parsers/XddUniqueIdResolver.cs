@@ -629,6 +629,14 @@ internal sealed class XddUniqueIdResolver
             return false;
         }
 
+        if (IsAnonymousArray(members[0])
+            || TryResolveCompositeType(members[0].Type, _arrays, out _))
+        {
+            error = "a whole-array structure component has no scalar projection without an element selection.";
+            result = null;
+            return false;
+        }
+
         result = new ResolvedVariable(
             members[0].Type,
             declaration.DefaultValue,
