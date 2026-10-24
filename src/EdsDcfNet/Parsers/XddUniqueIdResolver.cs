@@ -605,6 +605,13 @@ internal sealed class XddUniqueIdResolver
                 return false;
             }
 
+            if (TryResolveCompositeType(elementType, _arrays, out _))
+            {
+                error = "memberRef index selects an array element, which has no scalar projection.";
+                result = null;
+                return false;
+            }
+
             // A composite initializer belongs to the array as a whole, not to a scalar element.
             result = new ResolvedVariable(
                 elementType,

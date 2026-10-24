@@ -349,6 +349,33 @@ public class XddIndirectUniqueIdRefTests
     }
 
     [Fact]
+    public void ReadString_NestedNamedArrayElement_DoesNotProjectInnerScalarType()
+    {
+        var application = @"
+          <dataTypeList>
+            <array name=""Inner"" uniqueID=""ARR_INNER""><subrange lowerLimit=""0"" upperLimit=""2""/><USINT/></array>
+            <array name=""Outer"" uniqueID=""ARR_OUTER""><subrange lowerLimit=""0"" upperLimit=""1""/><dataTypeIDRef uniqueIDRef=""ARR_INNER""/></array>
+            <array name=""Scalar"" uniqueID=""ARR_SCALAR""><subrange lowerLimit=""0"" upperLimit=""2""/><USINT/></array>
+          </dataTypeList>"
+            + FunctionTypes(@"<inputVars>
+              <varDeclaration name=""Nested"" uniqueID=""VNESTED""><dataTypeIDRef uniqueIDRef=""ARR_OUTER""/></varDeclaration>
+              <varDeclaration name=""Scalar"" uniqueID=""VSCALAR""><dataTypeIDRef uniqueIDRef=""ARR_SCALAR""/></varDeclaration>
+            </inputVars>") + @"
+          <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT_LEAF""/></functionInstanceList>
+          <parameterList>"
+            + Parameter("PNESTED", VariableRef("VNESTED", member: " index=\"1\""))
+            + Parameter("PSCALAR", VariableRef("VSCALAR", member: " index=\"1\""))
+            + "</parameterList>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application,
+            Object("2000", "Nested", "PNESTED") + Object("2001", "Scalar", "PSCALAR")));
+
+        result.Diagnostics.Should().ContainSingle(d => d.Message.Contains("selects an array element", StringComparison.Ordinal));
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().BeNull();
+        result.Model.ObjectDictionary.Objects[0x2001].DataType.Should().Be(CanOpenDataType.Unsigned8);
+    }
+
+    [Fact]
     public void ReadString_WholeArrayStructureComponents_DoNotProjectElementType()
     {
         var application = @"
