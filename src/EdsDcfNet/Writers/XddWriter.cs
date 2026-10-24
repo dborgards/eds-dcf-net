@@ -210,13 +210,16 @@ public class XddWriter
                 new XAttribute(XNamespace.Xmlns + XddNames.Prefix, XddNames.Namespace),
                 new XAttribute(XNamespace.Xmlns + "xsi", XddNames.Xsi));
 
-            container.Add(WriteContext("DeviceProfile", () => BuildDeviceProfile(eds)));
-            container.Add(WriteContext("CommunicationNetworkProfile", () => BuildCommNetProfile(eds, commissioning)));
+            // The reader selects the last profile of each kind. Write retained duplicates
+            // first so a repeated read still selects the generated, model-backed profile.
             foreach (var profile in (eds.XddPreserved ?? new XddPreservedContent())
                          .ElementsAt(XddPreservedContent.ProfileContainer))
             {
                 container.Add(new XElement(profile));
             }
+
+            container.Add(WriteContext("DeviceProfile", () => BuildDeviceProfile(eds)));
+            container.Add(WriteContext("CommunicationNetworkProfile", () => BuildCommNetProfile(eds, commissioning)));
 
             var doc = new XDocument(new XDeclaration("1.0", null, null));
 

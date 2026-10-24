@@ -82,8 +82,33 @@ public class XddPreservedContentEdgeTests
 
         var profiles = written.Root!.Elements(Co + "ISO15745Profile").ToList();
         profiles.Should().HaveCount(3);
-        profiles[2].Descendants("ProfileIdentification").First().Value.Should().Be("additional-profile");
-        XNode.DeepEquals(Comparable(profiles[2]), Comparable(extra)).Should().BeTrue();
+        var preserved = profiles.Single(p => p.Descendants("ProfileIdentification").First().Value == "additional-profile");
+        XNode.DeepEquals(Comparable(preserved), Comparable(extra)).Should().BeTrue();
+    }
+
+    [Fact]
+    public void WriteToString_DuplicateModelledProfiles_SecondReadKeepsSelectedModel()
+    {
+        var source = XDocument.Load(FixtureXdd);
+        var profiles = source.Root!.Elements(Co + "ISO15745Profile").ToList();
+        var staleDevice = new XElement(profiles[0]);
+        staleDevice.Descendants().Single(e => e.Name.LocalName == "productName").Value = "stale-device";
+        var staleNetwork = new XElement(profiles[1]);
+        staleNetwork.Descendants().Single(e => e.Name.LocalName == "CANopenObject"
+                && (string?)e.Attribute("index") == "1000")
+            .SetAttributeValue("defaultValue", "stale-network");
+        profiles[0].AddBeforeSelf(staleDevice);
+        profiles[1].AddBeforeSelf(staleNetwork);
+
+        var firstRead = CanOpenFile.Xdd.ReadString(source.ToString());
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(firstRead));
+        var secondRead = CanOpenFile.Xdd.ReadString(written.ToString());
+
+        written.Root!.Elements(Co + "ISO15745Profile")
+            .Select(p => p.Descendants("ProfileClassID").Single().Value)
+            .Should().Equal("Device", "CommunicationNetwork", "Device", "CommunicationNetwork");
+        secondRead.DeviceInfo.ProductName.Should().Be("IO-Module 8x8");
+        secondRead.ObjectDictionary.Objects[0x1000].DefaultValue.Should().Be("0x000F0191");
     }
 
     private static XElement Single(XDocument doc, string localName)
