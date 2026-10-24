@@ -148,6 +148,22 @@ eds.FileInfo.FileRevision++;
 await CanOpenFile.Eds.WriteFileAsync(eds, "device_updated.eds", cancellationToken: cts.Token);
 ```
 
+### File replacement and atomicity
+
+On `net10.0`, `WriteFile` and `WriteFileAsync` write to a temporary file beside the
+final target before replacing it. Existing targets therefore remain in place until
+the new content is complete. Symbolic links are followed and remain links.
+
+The `netstandard2.0` asset has an intentional **non-atomic in-place fallback** for
+Windows reparse points and for existing Unix files on hosts without managed
+Unix-permission APIs. Content is serialized before truncation, but an I/O failure
+during the subsequent copy can leave partial output. Async cancellation is observed
+before truncation; once truncation has occurred, copying and flushing finish before
+cancellation can surface again.
+
+Maintainers can find the platform/target matrix and repeatable verification steps in
+[the file-write contract](docs/file-write-contract.md).
+
 ### Stream-based I/O
 
 ```csharp

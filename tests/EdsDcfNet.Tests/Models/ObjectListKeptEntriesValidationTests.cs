@@ -10,6 +10,8 @@ using EdsDcfNet.Validation;
 /// reader keeps in <c>SectionRemainingEntries</c> is either written after the generated list,
 /// above <c>SupportedObjects</c> (CiA 306-1 Table 5), or replaced by a generated slot. The opt-in
 /// rule reports both; default validation and validated writes are unchanged.
+/// The null-store and cancellation cases implement the contributor checklist in
+/// CONTRIBUTING.md § “Validation-rule checklist”.
 /// </summary>
 public class ObjectListKeptEntriesValidationTests
 {
