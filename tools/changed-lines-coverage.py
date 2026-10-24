@@ -57,12 +57,20 @@ def repo_relative(filename: str, root: Path) -> str | None:
         return normalized[len(root_normalized) + 1 :]
 
     # Coverlet can retain a Windows checkout path even when the report is read
-    # on another host. Recover at a known repository root directory, not by a
-    # basename-only match (which aliases same-named files in different folders).
+    # on another host. Consider every repository-directory anchor: a parent of
+    # the checkout may itself be named src, tests, examples, or benchmarks.
+    candidates: list[str] = []
     for anchor in ("/src/", "/tests/", "/examples/", "/benchmarks/"):
-        index = lower.find(anchor)
-        if index >= 0:
-            return normalized[index + 1 :]
+        start = 0
+        while (index := lower.find(anchor, start)) >= 0:
+            candidate = normalized[index + 1 :]
+            if candidate not in candidates:
+                candidates.append(candidate)
+            if (root / candidate).is_file():
+                return candidate
+            start = index + len(anchor)
+    if candidates:
+        return candidates[-1]
 
     # A genuinely relative Coverlet filename is already repository-relative.
     is_absolute = normalized.startswith("/") or (
@@ -201,6 +209,8 @@ def main() -> None:
 
     diff = git(
         root,
+        "-c",
+        "core.quotepath=false",
         "diff",
         "--unified=0",
         "--no-color",
