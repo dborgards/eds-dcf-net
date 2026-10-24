@@ -71,6 +71,31 @@ def repo_relative(filename: str, root: Path) -> str | None:
     return None if is_absolute else normalized
 
 
+def report_relative(filename: str, sources: list[str], root: Path) -> str | None:
+    """Resolve a class filename against Cobertura's report source roots."""
+    normalized = normalize(filename)
+    is_absolute = normalized.startswith("/") or (
+        len(normalized) >= 3 and normalized[1:3] == ":/"
+    )
+    if is_absolute or not sources:
+        return repo_relative(filename, root)
+
+    candidates: list[str] = []
+    for source in sources:
+        candidate = repo_relative(
+            posixpath.join(normalize(source), normalized), root
+        )
+        if candidate is not None and candidate not in candidates:
+            candidates.append(candidate)
+
+    # Prefer a source-root interpretation that names a real repository file.
+    # Cobertura permits multiple roots; their document order is the fallback.
+    for candidate in candidates:
+        if (root / candidate).is_file():
+            return candidate
+    return candidates[0] if candidates else repo_relative(filename, root)
+
+
 def load_coverage(results: Path, root: Path) -> dict[str, dict[int, bool]]:
     reports = (
         [results]
@@ -89,11 +114,16 @@ def load_coverage(results: Path, root: Path) -> dict[str, dict[int, bool]]:
         except (ET.ParseError, OSError) as error:
             fail(f"cannot read {report}: {error}")
 
+        sources = [
+            element.text.strip()
+            for element in document.findall(".//sources/source")
+            if element.text and element.text.strip()
+        ]
         for class_element in document.findall(".//class"):
             filename = class_element.get("filename")
             if not filename:
                 continue
-            relative = repo_relative(filename, root)
+            relative = report_relative(filename, sources, root)
             if relative is None:
                 continue
             lines = merged[relative]
@@ -174,6 +204,8 @@ def main() -> None:
         "diff",
         "--unified=0",
         "--no-color",
+        "--src-prefix=a/",
+        "--dst-prefix=b/",
         merge_base,
         "--",
         *roots,

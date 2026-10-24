@@ -90,7 +90,8 @@ directory to the script:
 
 ```sh
 git fetch origin develop
-results="TestResults/changed-lines"
+mkdir -p TestResults
+results="$(mktemp -d "TestResults/changed-lines.XXXXXX")"
 dotnet test tests/EdsDcfNet.Tests/EdsDcfNet.Tests.csproj \
   --configuration Release --framework net10.0 \
   --collect:"XPlat Code Coverage" --results-directory "$results"

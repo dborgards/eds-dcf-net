@@ -85,6 +85,37 @@ case "$dot_output" in
   *) echo "FAIL: dot path filter skipped coverage: $dot_output" >&2; failures=$((failures + 1)) ;;
 esac
 
+# Local Git prefix configuration must not change the machine-readable paths.
+git -C "$repo" config diff.mnemonicPrefix true
+run_gate 51
+check "mnemonic Git prefixes preserve changed paths" 1 "$status"
+case "$output" in
+  *"src/Demo.cs: uncovered added line(s) 3"*) echo "ok: forced diff prefixes are parsed" ;;
+  *) echo "FAIL: mnemonic diff prefixes skipped coverage: $output" >&2; failures=$((failures + 1)) ;;
+esac
+
+# A source-relative Cobertura filename must be resolved through <sources>.
+source_results="$work/source-results"
+mkdir -p "$source_results"
+cat > "$source_results/coverage.cobertura.xml" <<'XML'
+<?xml version="1.0"?>
+<coverage>
+  <sources><source>D:\a\demo\src</source></sources>
+  <packages><package><classes>
+    <class filename="Demo.cs"><lines>
+      <line number="2" hits="1" />
+      <line number="3" hits="0" />
+    </lines></class>
+  </classes></package></packages>
+</coverage>
+XML
+run_gate 51 "$source_results"
+check "Cobertura source roots resolve relative filenames" 1 "$status"
+case "$output" in
+  *"src/Demo.cs: uncovered added line(s) 3"*) echo "ok: source-rooted path is reported" ;;
+  *) echo "FAIL: Cobertura source root was ignored: $output" >&2; failures=$((failures + 1)) ;;
+esac
+
 # A second host report contributes coverage by line, not by overwriting the
 # first report's same-named class.
 second="$work/second"
