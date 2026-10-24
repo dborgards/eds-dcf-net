@@ -576,14 +576,15 @@ internal sealed class XddUniqueIdResolver
             return false;
         }
 
-        var declaration = variables[0];
+        var variableDeclaration = variables[0];
+        var declaration = variableDeclaration;
         result = new ResolvedVariable(
             declaration.Type,
             declaration.DefaultValue,
             declaration.AllowedValues,
             initialValue: declaration.InitialValue);
-        var member = reference.MemberRef;
-        if (member == null)
+        var memberRefs = reference.MemberRefs;
+        if (memberRefs.Count == 0)
         {
             if (IsAnonymousArray(declaration)
                 || TryResolveCompositeType(declaration.Type, _arrays, out _))
@@ -596,68 +597,76 @@ internal sealed class XddUniqueIdResolver
             return true;
         }
 
-        if (member.Index.HasValue)
+        for (var i = 0; i < memberRefs.Count; i++)
         {
-            if (!TryResolveArrayElement(declaration, member.Index.Value, out var elementType))
+            var member = memberRefs[i];
+            var isLeaf = i == memberRefs.Count - 1;
+            if (member.Index.HasValue)
             {
-                error = "memberRef index does not identify an element of a one-dimensional array.";
+                if (!TryResolveArrayElement(declaration, member.Index.Value, out var elementType))
+                {
+                    error = "memberRef index does not identify an element of a one-dimensional array.";
+                    result = null;
+                    return false;
+                }
+
+                if (isLeaf && TryResolveCompositeType(elementType, _arrays, out _))
+                {
+                    error = "memberRef index selects an array element, which has no scalar projection.";
+                    result = null;
+                    return false;
+                }
+
+                declaration = new ApVarDeclaration { Type = elementType };
+                // A composite initializer belongs to the array as a whole, not to a scalar element.
+                result = new ResolvedVariable(
+                    elementType,
+                    variableDeclaration.DefaultValue,
+                    variableDeclaration.AllowedValues);
+                continue;
+            }
+
+            if (IsAnonymousArray(declaration))
+            {
+                error = "memberRef does not select an element of the enclosing array.";
                 result = null;
                 return false;
             }
 
-            if (TryResolveCompositeType(elementType, _arrays, out _))
+            if (!TryResolveCompositeType(declaration.Type, _structs, out var structure))
             {
-                error = "memberRef index selects an array element, which has no scalar projection.";
+                error = "memberRef does not identify a structure component.";
                 result = null;
                 return false;
             }
 
-            // A composite initializer belongs to the array as a whole, not to a scalar element.
+            var members = structure!.VarDeclarations.Where(item => item.UniqueId == member.UniqueIdRef).ToList();
+            if (members.Count != 1)
+            {
+                error = string.Format(CultureInfo.InvariantCulture,
+                    "memberRef '{0}' identifies {1} structure components.", member.UniqueIdRef, members.Count);
+                result = null;
+                return false;
+            }
+
+            declaration = members[0];
+            if (isLeaf && (IsAnonymousArray(declaration)
+                || TryResolveCompositeType(declaration.Type, _arrays, out _)))
+            {
+                error = "a whole-array structure component has no scalar projection without an element selection.";
+                result = null;
+                return false;
+            }
+
             result = new ResolvedVariable(
-                elementType,
+                declaration.Type,
+                variableDeclaration.DefaultValue,
+                variableDeclaration.AllowedValues,
                 declaration.DefaultValue,
-                declaration.AllowedValues);
-            return true;
+                declaration.AllowedValues,
+                componentInitialValue: declaration.InitialValue);
         }
 
-        if (IsAnonymousArray(declaration))
-        {
-            error = "memberRef does not select an element of the enclosing array.";
-            result = null;
-            return false;
-        }
-
-        if (!TryResolveCompositeType(declaration.Type, _structs, out var structure))
-        {
-            error = "memberRef does not identify a structure component.";
-            result = null;
-            return false;
-        }
-
-        var members = structure!.VarDeclarations.Where(item => item.UniqueId == member.UniqueIdRef).ToList();
-        if (members.Count != 1)
-        {
-            error = string.Format(CultureInfo.InvariantCulture,
-                "memberRef '{0}' identifies {1} structure components.", member.UniqueIdRef, members.Count);
-            result = null;
-            return false;
-        }
-
-        if (IsAnonymousArray(members[0])
-            || TryResolveCompositeType(members[0].Type, _arrays, out _))
-        {
-            error = "a whole-array structure component has no scalar projection without an element selection.";
-            result = null;
-            return false;
-        }
-
-        result = new ResolvedVariable(
-            members[0].Type,
-            declaration.DefaultValue,
-            declaration.AllowedValues,
-            members[0].DefaultValue,
-            members[0].AllowedValues,
-            componentInitialValue: members[0].InitialValue);
         return true;
     }
 
@@ -670,7 +679,7 @@ internal sealed class XddUniqueIdResolver
         {
             elementType = declaration.Type;
             return int.TryParse(declaration.Start ?? "0", NumberStyles.Integer, CultureInfo.InvariantCulture, out var start)
-                && int.TryParse(declaration.Size ?? "1", NumberStyles.Integer, CultureInfo.InvariantCulture, out var size)
+                && int.TryParse(declaration.Size!, NumberStyles.Integer, CultureInfo.InvariantCulture, out var size)
                 && size > 0
                 && index >= start
                 && (long)index < (long)start + size;

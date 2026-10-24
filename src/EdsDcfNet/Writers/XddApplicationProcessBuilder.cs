@@ -438,14 +438,17 @@ internal static class XddApplicationProcessBuilder
             elem.Add(XddNames.Element(elem.Name, "variableIDRef",
                 new XAttribute("uniqueIDRef", vr.VariableIdRef)));
 
-        if (vr.MemberRef != null)
+        var memberRefs = vr.MemberRefs.Count > 0
+            ? vr.MemberRefs
+            : vr.MemberRef == null ? new List<ApMemberRef>() : new List<ApMemberRef> { vr.MemberRef };
+        foreach (var memberRef in memberRefs)
         {
             var mrElem = XddNames.Element(elem.Name, "memberRef");
-            if (!string.IsNullOrEmpty(vr.MemberRef.UniqueIdRef))
-                mrElem.Add(new XAttribute("uniqueIDRef", vr.MemberRef.UniqueIdRef));
-            if (vr.MemberRef.Index.HasValue)
+            if (!string.IsNullOrEmpty(memberRef.UniqueIdRef))
+                mrElem.Add(new XAttribute("uniqueIDRef", memberRef.UniqueIdRef));
+            if (memberRef.Index.HasValue)
                 mrElem.Add(new XAttribute("index",
-                    vr.MemberRef.Index.Value.ToString(CultureInfo.InvariantCulture)));
+                    memberRef.Index.Value.ToString(CultureInfo.InvariantCulture)));
             elem.Add(mrElem);
         }
 

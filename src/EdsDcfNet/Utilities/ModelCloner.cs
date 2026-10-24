@@ -714,6 +714,14 @@ internal static class ModelCloner
                 }
         };
         clone.InstanceIdRefs.AddRange(source.InstanceIdRefs);
+        foreach (var memberRef in source.MemberRefs)
+        {
+            clone.MemberRefs.Add(new ApMemberRef
+            {
+                UniqueIdRef = memberRef.UniqueIdRef,
+                Index = memberRef.Index
+            });
+        }
         return clone;
     }
 

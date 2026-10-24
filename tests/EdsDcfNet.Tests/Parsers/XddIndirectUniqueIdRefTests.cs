@@ -95,6 +95,72 @@ public class XddIndirectUniqueIdRefTests
     }
 
     [Fact]
+    public void ReadString_NestedStructMemberRefs_ResolveLeafAndRoundTripCompletePath()
+    {
+        var application = @"
+          <dataTypeList>
+            <struct name=""Inner"" uniqueID=""INNER""><varDeclaration name=""Field"" uniqueID=""FIELD""><INT/><defaultValue value=""7""/></varDeclaration></struct>
+            <struct name=""Outer"" uniqueID=""OUTER""><varDeclaration name=""Child"" uniqueID=""CHILD""><dataTypeIDRef uniqueIDRef=""INNER""/></varDeclaration></struct>
+          </dataTypeList>"
+            + FunctionTypes(@"<inputVars>
+              <varDeclaration name=""Record"" uniqueID=""VS""><dataTypeIDRef uniqueIDRef=""OUTER""/></varDeclaration>
+              <varDeclaration name=""Defaulted"" uniqueID=""VDEF""><dataTypeIDRef uniqueIDRef=""OUTER""/><defaultValue value=""4""/></varDeclaration>
+              <varDeclaration name=""EmptyDefault"" uniqueID=""VEMPTY""><dataTypeIDRef uniqueIDRef=""OUTER""/><defaultValue/></varDeclaration>
+            </inputVars>") + @"
+          <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT_LEAF""/></functionInstanceList>
+          <parameterList>
+            <parameter uniqueID=""P""><label lang=""en"">P</label><variableRef><instanceIDRef uniqueIDRef=""I""/><variableIDRef uniqueIDRef=""VS""/><memberRef uniqueIDRef=""CHILD""/><memberRef uniqueIDRef=""FIELD""/></variableRef></parameter>
+            <parameter uniqueID=""PDEF""><label lang=""en"">D</label><variableRef><instanceIDRef uniqueIDRef=""I""/><variableIDRef uniqueIDRef=""VDEF""/><memberRef uniqueIDRef=""CHILD""/><memberRef uniqueIDRef=""FIELD""/></variableRef></parameter>
+            <parameter uniqueID=""PEMPTY""><label lang=""en"">E</label><variableRef><instanceIDRef uniqueIDRef=""I""/><variableIDRef uniqueIDRef=""VEMPTY""/><memberRef uniqueIDRef=""CHILD""/><memberRef uniqueIDRef=""FIELD""/></variableRef><defaultValue/></parameter>
+          </parameterList>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application,
+            Object("2000", "Nested") + Object("2001", "Default", "PDEF") + Object("2002", "Empty", "PEMPTY")));
+
+        result.Diagnostics.Should().BeEmpty();
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().Be(CanOpenDataType.Integer16);
+        result.Model.ObjectDictionary.Objects[0x2000].DefaultValue.Should().Be("7");
+        result.Model.ObjectDictionary.Objects[0x2001].DefaultValue.Should().Be("4");
+        result.Model.ObjectDictionary.Objects[0x2002].DefaultValue.Should().BeEmpty();
+        var reference = result.Model.ApplicationProcess!.ParameterList[0].VariableRefs[0];
+        reference.MemberRefs.Select(member => member.UniqueIdRef).Should().Equal("CHILD", "FIELD");
+        reference.MemberRef.Should().BeSameAs(reference.MemberRefs[1]);
+
+        var written = CanOpenFile.Xdd.WriteToString(result.Model);
+        var childPosition = written.IndexOf("uniqueIDRef=\"CHILD\"", StringComparison.Ordinal);
+        var fieldPosition = written.IndexOf("uniqueIDRef=\"FIELD\"", StringComparison.Ordinal);
+        childPosition.Should().BeGreaterThanOrEqualTo(0);
+        fieldPosition.Should().BeGreaterThan(childPosition);
+        var second = CanOpenFile.Xdd.ReadStringWithDiagnostics(written);
+        second.Diagnostics.Should().BeEmpty();
+        second.Model.ObjectDictionary.Objects[0x2000].DataType.Should().Be(CanOpenDataType.Integer16);
+        second.Model.ObjectDictionary.Objects[0x2000].DefaultValue.Should().Be("7");
+        CanOpenFile.Xdd.ReadString(written, Strict).ObjectDictionary.Objects[0x2000].DataType
+            .Should().Be(CanOpenDataType.Integer16);
+    }
+
+    [Fact]
+    public void ReadString_AnonymousArrayDefaultStartAndMissingType_AreHandled()
+    {
+        var application = FunctionTypes(@"<inputVars>
+          <varDeclaration name=""Bytes"" uniqueID=""V"" size=""3""><USINT/></varDeclaration>
+          <varDeclaration name=""Missing"" uniqueID=""VNOTYPE"" size=""3""/>
+        </inputVars>") + @"
+          <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT_LEAF""/></functionInstanceList>
+          <parameterList>"
+            + Parameter("P", VariableRef("V", member: " index=\"0\""))
+            + Parameter("PNOTYPE", VariableRef("VNOTYPE"))
+            + "</parameterList>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application,
+            Object("2000", "Bytes") + Object("2001", "Missing", "PNOTYPE")));
+
+        result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Message.Contains("whole-array", StringComparison.Ordinal));
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().Be(CanOpenDataType.Unsigned8);
+        result.Model.ObjectDictionary.Objects[0x2001].DataType.Should().BeNull();
+    }
+
+    [Fact]
     public void ReadString_PackedVariablesWithSameComponents_DoNotProjectComponentMetadata()
     {
         var application = @"
@@ -558,6 +624,55 @@ public class XddIndirectUniqueIdRefTests
         var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml);
         result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().Be(CanOpenDataType.Unsigned32);
         result.Diagnostics.Should().ContainSingle(d => d.Message.Contains("cycle", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Resolver_NullDefaultValues_FallBackToVariableInitialValue()
+    {
+        var application = new ApplicationProcess
+        {
+            FunctionInstanceList = new ApFunctionInstanceList(),
+            TemplateList = new ApTemplateList(),
+        };
+        application.TemplateList.ParameterTemplates.Add(new ApParameterTemplate
+        {
+            UniqueId = "T",
+            DefaultValue = new ApParameterValue { Value = null! },
+        });
+        var function = new ApFunctionType
+        {
+            UniqueId = "FT",
+            InterfaceList = new ApInterfaceList(),
+        };
+        function.InterfaceList.InputVars.Add(new ApVarDeclaration
+        {
+            UniqueId = "V",
+            Type = new ApTypeRef { SimpleTypeName = "USINT" },
+            DefaultValue = new ApParameterValue { Value = null! },
+            InitialValue = "8",
+        });
+        application.FunctionTypeList.Add(function);
+        application.FunctionInstanceList.FunctionInstances.Add(new ApFunctionInstance
+        {
+            UniqueId = "I",
+            TypeIdRef = "FT",
+        });
+        var parameter = new ApParameter
+        {
+            UniqueId = "P",
+            TemplateIdRef = "T",
+            DefaultValue = new ApParameterValue { Value = null! },
+        };
+        var reference = new ApVariableRef { VariableIdRef = "V" };
+        reference.InstanceIdRefs.Add("I");
+        parameter.VariableRefs.Add(reference);
+        application.ParameterList.Add(parameter);
+        var obj = new CanOpenObject { Index = 0x2000, UniqueIdRef = "P" };
+
+        EdsDcfNet.Parsers.XddUniqueIdResolver.Create(application).ApplyObject(obj, default);
+
+        obj.DataType.Should().Be(CanOpenDataType.Unsigned8);
+        obj.DefaultValue.Should().Be("8");
     }
 
     private static string Variable(string id) =>
