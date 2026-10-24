@@ -2,6 +2,7 @@ namespace EdsDcfNet.Tests.Checker;
 
 using AwesomeAssertions;
 using EdsDcfNet.Checker;
+using EdsDcfNet.Tests.Utilities;
 using Xunit;
 
 [CollectionDefinition("CheckerConsole", DisableParallelization = true)]
@@ -181,6 +182,34 @@ public class CheckerSweepAndSectionTests
 
         // Assert
         (findings.Any(f => f.Code == "MND003")).Should().Be(expectFinding);
+    }
+
+    [Fact]
+    public void CheckFile_ValidatedDcfWithHundredKbit_IsAcceptedByValidatorWriterAndChecker()
+    {
+        // Arrange — reference integration pattern for the validation-rule checklist:
+        // a value accepted by model validation must survive all downstream consumers.
+        var path = Path.Combine(Path.GetTempPath(), "edsdcf-check-" + Guid.NewGuid().ToString("N") + ".dcf");
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
+        dcf.DeviceCommissioning.Baudrate = 100;
+
+        try
+        {
+            // Act
+            var issues = CanOpenFile.Validate(dcf);
+            CanOpenFile.Dcf.WriteFile(dcf, path, CanOpenWriteOptions.Validated);
+            var findings = Program.CheckFile(path, runLibrary: true);
+
+            // Assert
+            issues.Should().BeEmpty();
+            findings.Should().NotContain(finding => finding.Code == "MND003");
+            findings.Should().NotContain(finding =>
+                finding.Severity == Severity.Error && finding.Section == "DeviceComissioning");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     [Fact]
