@@ -1,7 +1,6 @@
 #if NETFRAMEWORK
 namespace EdsDcfNet.Tests.Writers;
 
-using System.Diagnostics;
 using System.Reflection;
 using EdsDcfNet.Utilities;
 
@@ -48,46 +47,42 @@ public sealed class AtomicFileWriteNetStandardFallbackTests : IDisposable
     [Fact]
     public async Task WriteInPlaceAsync_CancelledAfterTruncation_FinishesCompleteContent()
     {
-        // Arrange — the payload keeps the asynchronous copy active long enough to
-        // observe FileMode.Create truncating the target before cancelling.
+        // Arrange
         var target = Path.Combine(_dir, "after.eds");
         File.WriteAllText(target, "old");
-        var payload = new byte[16 * 1024 * 1024];
-        new Random(42).NextBytes(payload);
+        var payload = new byte[] { 1, 2, 3 };
         using var cancellation = new CancellationTokenSource();
+        var observedTruncation = false;
 
-        // Act
+        // Act — the callback runs after FileMode.Create truncates the target and
+        // before the serialized content is copied, independently of machine speed.
         var write = InvokeWriteInPlaceAsync(
             target,
             stream => stream.WriteAsync(payload, 0, payload.Length),
-            cancellation.Token);
-        var observedTruncation = false;
-        var timeout = Stopwatch.StartNew();
-        while (!write.IsCompleted && timeout.ElapsedMilliseconds < 10_000)
-        {
-            if (new FileInfo(target).Length == 0)
+            cancellation.Token,
+            () =>
             {
                 observedTruncation = true;
                 cancellation.Cancel();
-                break;
-            }
-
-            await Task.Yield();
-        }
+            });
 
         // Assert
-        observedTruncation.Should().BeTrue("the test must cancel after, not before, the destructive operation");
         await write;
+        observedTruncation.Should().BeTrue("the test must cancel after, not before, the destructive operation");
         File.ReadAllBytes(target).Should().Equal(payload);
     }
 
-    private static Task InvokeWriteInPlaceAsync(string target, Func<Stream, Task> write, CancellationToken cancellationToken)
+    private static Task InvokeWriteInPlaceAsync(
+        string target,
+        Func<Stream, Task> write,
+        CancellationToken cancellationToken,
+        Action? afterTruncation = null)
     {
         var method = typeof(PlatformFileSupport).GetMethod(
             "WriteInPlaceAsync",
             BindingFlags.NonPublic | BindingFlags.Static);
         method.Should().NotBeNull("the netstandard2.0 fallback is part of the write contract");
-        return (Task)method!.Invoke(null, new object[] { target, write, cancellationToken })!;
+        return (Task)method!.Invoke(null, new object[] { target, write, cancellationToken, afterTruncation! })!;
     }
 }
 #endif
