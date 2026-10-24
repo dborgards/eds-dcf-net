@@ -213,145 +213,27 @@ var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 2, baudrate: 500);
 CanOpenFile.Dcf.WriteFile(dcf, "device_node2.dcf", CanOpenWriteOptions.Validated);
 ```
 
-## Migration Guide
+## Migration
 
-If your code still calls the legacy `CanOpenFile.Read*` / `Write*` / `EdsToDcf` static
-methods, move to the format entry points in the table above. **All** legacy
-`Read*` / `Write*` facade overloads are marked `[Obsolete]` (advisory)—not only
-default-parameter variants—and remain available until a future major release.
+The format entry points above replace the legacy static `Read*` / `Write*` / `EdsToDcf`
+methods. The legacy facade remains available but is marked `[Obsolete]` and will be
+removed in a future major release. See the [migration guide](docs/migration.md) for the
+complete method mapping, input-option and conversion examples, and strong-naming notes.
 
-### Facade → format entry point
+## Write options
 
-Each format uses the same method names on its entry point (`Eds`, `Dcf`, `Cpj`, `Xdd`,
-`Xdc`). Replace the legacy facade prefix with the matching entry point:
-
-| Legacy facade method | Canonical replacement |
-|----------------------|------------------------|
-| `ReadEds(...)`, `ReadDcf(...)`, … | `Eds.ReadFile(...)`, `Dcf.ReadFile(...)`, … |
-| `ReadEdsFromString(...)`, … | `Eds.ReadString(...)`, `Dcf.ReadString(...)`, … |
-| `ReadEds(stream, ...)`, … | `Eds.ReadStream(stream, ...)`, `Dcf.ReadStream(stream, ...)`, … |
-| `ReadEdsAsync(path, ...)`, … | `Eds.ReadFileAsync(path, ...)`, `Dcf.ReadFileAsync(path, ...)`, … |
-| `ReadEdsAsync(stream, ...)`, … | `Eds.ReadStreamAsync(stream, ...)`, … |
-| `WriteEds(...)`, … | `Eds.WriteFile(...)`, `Dcf.WriteFile(...)`, … |
-| `WriteEds(model, stream)`, … | `Eds.WriteStream(model, stream)`, … |
-| `WriteEdsAsync(...)`, … | `Eds.WriteFileAsync(...)`, `Eds.WriteStreamAsync(...)`, … |
-| `WriteEdsToString(...)`, … | `Eds.WriteToString(...)`, `Dcf.WriteToString(...)`, … |
-| `EdsToDcf(...)` (no timestamp) | `Eds.ConvertToDcf(...)` — obsolete |
-| `EdsToDcf(..., DateTime timestamp, ...)` | Prefer `Eds.ConvertToDcf(..., timestamp, ...)`; facade overload kept (not obsolete) |
-
-### Non-obsolete facade members
-
-These `CanOpenFile` static members are **not** marked `[Obsolete]`:
-
-| Member | Notes |
-|--------|--------|
-| `Validate(...)` / `ValidateAsync(...)` | Unchanged validation entry points |
-| `EnsureValid(...)` / `EnsureValidAsync(...)` | Throw-on-invalid helpers for EDS/DCF/CPJ |
-| `EdsToDcf(..., DateTime timestamp, ...)` | Intentional retained shim; prefer `Eds.ConvertToDcf` for new code |
-| Format entry points (`Eds`, `Dcf`, `Cpj`, `Xdd`, `Xdc`) | Canonical API |
-
-### Input size limits
-
-Pass `CanOpenFileOptions` instead of a bare `maxInputSize` parameter:
+All formats write **UTF-8 without BOM** by default. `CanOpenWriteOptions.Encoding` selects
+another byte encoding, and `NewLine` selects `"\n"` or `"\r\n"` instead of the platform
+default:
 
 ```csharp
-// Before
-var xdd = CanOpenFile.ReadXdd("device.xdd", maxInputSize: 50L * 1024 * 1024);
-
-// After
-var xdd = CanOpenFile.Xdd.ReadFile(
-    "device.xdd",
-    new CanOpenFileOptions { MaxInputSize = 50L * 1024 * 1024 });
-```
-
-### Pre-write validation
-
-Use `CanOpenWriteOptions.Validated` on the format entry point write methods (see
-[Validating models before write operations](#validating-models-before-write-operations)).
-
-### EDS-to-DCF conversion
-
-```csharp
-// Before
-var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 2, baudrate: 500);
-
-// After
-var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 2, baudrate: 500);
-```
-
-For deterministic generated timestamps (recommended in tests and reproducible builds),
-pass an explicit `DateTime` to `ConvertToDcf`:
-
-```csharp
-var dcf = CanOpenFile.Eds.ConvertToDcf(
-    eds, nodeId: 2, timestamp: DateTime.UtcNow, baudrate: 500);
-```
-
-### Example migration
-
-```csharp
-// Before
-var eds = CanOpenFile.ReadEds("device.eds");
-var dcf = CanOpenFile.EdsToDcf(eds, nodeId: 2, baudrate: 500);
-CanOpenFile.WriteDcf(dcf, "device_node2.dcf");
-
-// After
-var eds = CanOpenFile.Eds.ReadFile("device.eds");
-var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 2, baudrate: 500);
-CanOpenFile.Dcf.WriteFile(dcf, "device_node2.dcf");
-```
-
-## Output Encoding Policy
-
-All writer APIs that persist text (`CanOpenFile.Eds`, `.Dcf`, `.Cpj`, `.Xdd`, and `.Xdc`
-write methods) write **UTF-8 without BOM** by default for file and stream output.
-
-This is an intentional interoperability choice:
-- CiA DS 306 is historically ASCII-oriented.
-- UTF-8 keeps full ASCII compatibility for 7-bit content.
-- UTF-8 also preserves non-ASCII characters in names/comments instead of replacing them.
-
-### Guidance for strict ASCII toolchains
-
-If a downstream tool only accepts strict ASCII, keep model text in 7-bit ASCII characters,
-or transcode explicitly to strict ASCII at your boundary and fail fast on non-ASCII content.
-
-```csharp
-using EdsDcfNet;
-using System.IO;
-using System.Text;
-
-var asciiStrict = Encoding.GetEncoding(
-    "us-ascii",
-    EncoderFallback.ExceptionFallback,
-    DecoderFallback.ExceptionFallback);
-
-var dcf = CanOpenFile.Dcf.ReadFile("device.dcf");
-var text = CanOpenFile.Dcf.WriteToString(dcf);
-File.WriteAllText("device_ascii.dcf", text, asciiStrict);
-```
-
-### Line endings (`CanOpenWriteOptions.NewLine`)
-
-By default the output uses `Environment.NewLine`, so the same model produces CRLF on Windows
-and LF on Linux/macOS. For byte-identical output across platforms, set `NewLine` on the write
-options of any format (`WriteFile`, `WriteStream`, `WriteToString`, sync and async):
-
-```csharp
-using EdsDcfNet;
-
-var options = new CanOpenWriteOptions { NewLine = "\n" };   // or "\r\n"
+var options = new CanOpenWriteOptions { NewLine = "\n" };
 CanOpenFile.Eds.WriteFile(eds, "device.eds", options);
 CanOpenFile.Xdd.WriteFile(xdd, "device.xdd", options);
 ```
 
-- Only `"\n"` and `"\r\n"` are accepted. Any other value (`null`, empty, a lone `"\r"`, any
-  text) throws `ArgumentException` when the property is set, not when writing: a free-form
-  string could inject INI sections or break XML well-formedness.
-- EDS, DCF, and CPJ output contains only the chosen line ending.
-- XDD and XDC use it for the indentation between elements and for line breaks inside text
-  content (an XML parser reads either form back as a line feed). Line breaks inside attribute
-  values are written as character references and are preserved exactly.
+See [read, write, and validation options](docs/options.md) for encoding behavior,
+validated writes, and all option details.
 
 ### Reading an XDD File (CiA 311 XML)
 
@@ -433,119 +315,24 @@ var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 2, baudrate: 500, nodeName: 
 CanOpenFile.Dcf.WriteFile(dcf, "device_node2.dcf");
 ```
 
-### Validating models before write operations
+### Validation
 
-Use the validation API to detect invalid commissioning values and inconsistent
-object-list definitions before serializing files.
+Use `CanOpenFile.Validate(...)` to inspect path-based `ValidationIssue` entries, or
+`CanOpenWriteOptions.Validated` to reject an invalid model before writing:
 
 ```csharp
-using EdsDcfNet;
 using EdsDcfNet.Validation;
-
-var dcf = CanOpenFile.Dcf.ReadFile("configured_device.dcf");
 
 IReadOnlyList<ValidationIssue> issues = CanOpenFile.Validate(dcf);
-if (issues.Count > 0)
-{
-    foreach (var issue in issues)
-        Console.WriteLine(issue);
-}
-```
-
-`CanOpenFile.Validate(...)` is the recommended entry point and routes to the
-full model validator, returning path-based `ValidationIssue` entries.
-Current checks include:
-
-- commissioning constraints (Node-ID range `1..127` for commissioned nodes; `NodeId == 0` is accepted only when commissioning is omitted, baudrate range with `0` accepted for that omitted state, key string limits)
-- device info constraints (name/order-code length, granularity limit)
-- object dictionary consistency (list membership, duplicates, missing entries)
-- object-level constraints (object type validity, parameter-name length, SubNumber mismatch)
-
-Stricter CiA 306 conformance checks are opt-in via `CanOpenValidationOptions`, so
-existing `Validate` calls and `CanOpenWriteOptions.Validated` writes keep their
-behavior:
-
-| Option | Checks |
-|---|---|
-| `CheckSubNumberCount` | `SubNumber` equals the number of described sub-indexes including sub-index 00h (CiA 306-1 §6.6.3.2) |
-| `CheckValueRanges` | `DefaultValue`, `LowLimit`, `HighLimit`, `ParameterValue` fit the integer/BOOLEAN/REAL `DataType` (e.g. `1000` is rejected for UNSIGNED8); `LowLimit <= HighLimit`; default/parameter values within the limits. `$NODEID` formulas use the DCF node-ID, or node-IDs 1 and 127 in an EDS |
-| `RequireMandatoryEntries` | objects 1000h/1001h/1018h, non-empty `ParameterName`, `DataType` for VAR entries, `FileName`/`VendorName`/`ProductName`, configured DCF commissioning |
-| `CheckObjectListRanges` | `OptionalObjects` indexes lie in 1000h-1FFFh or 6000h-9FFFh and `ManufacturerObjects` indexes in 2000h-5FFFh (CiA 306-1 Table 4) |
-| `RequireIso646` | EDS/DCF text uses 7-bit ISO/IEC 646 characters only (CiA 306-1 clause 6.2). This library writes UTF-8, a documented deviation, so the rule is opt-in |
-| `CheckLineLength` | no EDS/DCF line is longer than 255 characters (CiA 306-1 clause 6.2) |
-| `CheckObjectListEntries` | no numbered `[MandatoryObjects]`/`[OptionalObjects]`/`[ManufacturerObjects]` entry is kept in `SectionRemainingEntries` (the reader keeps entries it does not load): it would be written above `SupportedObjects` (CiA 306-1 Table 5) or replaced by a generated entry |
-
-```csharp
-// every opt-in rule set
-var strictIssues = CanOpenFile.Validate(dcf, CanOpenValidationOptions.Strict);
-
-// or pick individual rule sets
-var rangeIssues = CanOpenFile.Validate(dcf, new CanOpenValidationOptions { CheckValueRanges = true });
-```
-
-The CiA 306 Node-ID range used by these checks is exposed publicly via
-`CanOpenNodeId`, so consumers can validate or document node IDs without
-duplicating the `1..127` literals:
-
-```csharp
-using EdsDcfNet;
-
-bool valid = CanOpenNodeId.IsInRange(nodeId);          // true for 1..127
-byte min = CanOpenNodeId.MinValue;                     // 1
-byte max = CanOpenNodeId.MaxValue;                     // 127
-string range = CanOpenNodeId.RangeDescription;         // "1..127"
-```
-
-To validate automatically before writing, pass `CanOpenWriteOptions.Validated` to the
-format-specific entry points:
-
-```csharp
-using EdsDcfNet;
-
-var dcf = CanOpenFile.Dcf.ReadFile("configured_device.dcf");
-
-// Throws ModelValidationException when the model has validation issues.
 CanOpenFile.Dcf.WriteFile(dcf, "updated.dcf", CanOpenWriteOptions.Validated);
+
+// Opt in to stricter CiA 306 conformance checks explicitly.
+var strictIssues = CanOpenFile.Validate(dcf, CanOpenValidationOptions.Strict);
 ```
 
-The same option works on `CanOpenFile.Eds`, `.Cpj`, `.Xdd`, and `.Xdc` write methods.
-Legacy `CanOpenFile.WriteDcf(...)` overloads delegate to these entry points.
-
-A validated EDS or DCF write also applies rules that only the INI formats have: `ObjFlags`
-bits 2..31 are reserved (CiA 306-1 Table 8; XDD/XDC also define bit 2), comment lines are at
-most 249 characters (248 in a module's `[MxComments]`), and `ParamRefd`, `UploadFile` and
-`DownloadFile` of a DCF are at most 249, 244 and 242 characters. The EDS/DCF writers always
-write `Lines` as the number of comment lines.
-
-#### Async validation
-
-For very large models, use the async validation API so validation runs on a
-thread-pool thread with cooperative cancellation instead of blocking the caller:
-
-```csharp
-using EdsDcfNet;
-using EdsDcfNet.Validation;
-
-IReadOnlyList<ValidationIssue> issues = await CanOpenFile.ValidateAsync(dcf, cancellationToken);
-
-// Or throw ModelValidationException on issues:
-await CanOpenFile.EnsureValidAsync(dcf, cancellationToken);
-```
-
-`ValidateAsync` / `EnsureValidAsync` exist for EDS, DCF, and CPJ models. The
-cancellation token is observed at iteration boundaries (per object-dictionary
-entry, per network node), so validation of large models can be cancelled
-mid-run.
-
-Async write methods with `CanOpenWriteOptions.Validated` use this path
-automatically — validation is awaited and honors the write call's
-`CancellationToken`:
-
-```csharp
-await CanOpenFile.Dcf.WriteFileAsync(dcf, "updated.dcf", CanOpenWriteOptions.Validated, cancellationToken);
-```
-
-Synchronous write methods keep the existing synchronous validation behavior.
+Validated writes work for every format. Async validation and async validated writes
+support cooperative cancellation. The [options guide](docs/options.md#validation-options)
+lists all default and opt-in rules.
 
 ### Working with Nodelist Projects (CPJ)
 
@@ -655,76 +442,23 @@ and are all marked `[Obsolete]` (advisory). The no-timestamp `EdsToDcf` overload
 obsolete; `EdsToDcf(..., DateTime timestamp, ...)` is retained without `[Obsolete]`
 as a thin shim (prefer `Eds.ConvertToDcf`). `Validate*` is unchanged.
 
-### Input Size Limits and Tuning
+### Read options
 
-All read APIs apply a safe default input-size limit of **10 MiB**
-(`IniParser.DefaultMaxInputSize`) to reduce denial-of-service risk from
-unexpectedly large payloads.
-
-You can override this limit per operation when you need to process larger files:
+Reads are limited to **10 MiB** by default. `CanOpenFileOptions` lets trusted callers
+raise `MaxInputSize` or enable `StrictParsing` to throw on malformed tokens instead of
+coercing them:
 
 ```csharp
-var xdd = CanOpenFile.Xdd.ReadFile(
-    "large-device.xdd",
-    new CanOpenFileOptions { MaxInputSize = 50L * 1024 * 1024 });
+var options = new CanOpenFileOptions
+{
+    MaxInputSize = 50L * 1024 * 1024,
+    StrictParsing = true
+};
+var xdd = CanOpenFile.Xdd.ReadFile("large-device.xdd", options);
 ```
 
-### Strict parsing (opt-in)
-
-Set `CanOpenFileOptions.StrictParsing = true` so silent read coercions fail with
-`EdsParseException` instead of mapping to defaults. Default remains lenient.
-This applies to reads through the `CanOpenFile` format entry points (and legacy
-facade overloads that accept options). Direct `*Reader` APIs without options
-stay lenient (no public way to enable StrictParsing on those readers).
-
-Today this covers:
-
-- Duplicate keys within an INI section
-- Unknown XDD/XDC baud-rate strings (`supportedBaudRate`,
-  `baudRate/@defaultValue`). `deviceCommissioning/@actualBaudRate` is a free
-  string: an unlisted text is reported and preserved, not rejected
-- Unknown boolean tokens (`ValueConverter.ParseBoolean`) and CPJ present-flag
-  tokens (`ValueConverter.ParsePresentFlag`)
-- Unknown access-type tokens (`ValueConverter.ParseAccessType` and XDD
-  `ParseXddAccessType`) and unknown XDD XML bools (`ParseXmlBool`)
-- Malformed EDS/DCF numeric object keys (`ObjectType` → VAR / `0x7`, object
-  `DataType` left unset, sub-object `DataType` → `0`, `SubNumber` and
-  `CompactSubObj` left unset, `ObjFlags` → `0`). Object-list counts
-  (`SupportedObjects`, `ObjectLinks`, module `NrOfEntries`) → `0`; a bad
-  index entry is skipped. The object is kept and the rest of the file is read.
-- EDS/DCF `FileVersion` / `FileRevision` and XDD/XDC `fileVersion` major/minor
-  tooling forms (`1.0` / `1,0`); zero-padded values such as `010` parse as
-  decimal `10` across EDS/DCF/XDD
-  XDD/XDC `fileVersion` is a free `xsd:string`, so a spelling that is not a
-  plain decimal number (for example `vendor-r7`, `1.0`, `256` or an empty
-  value) is kept in `EdsFileInfo.FileVersionText` and written back while
-  `FileVersion` is unchanged; `FileVersion` then holds the best-effort major
-  component (or `1` when no number can be derived). A plain decimal such as
-  `010` sets only `FileVersion` and is written back normalised (`10`). EDS and
-  DCF writers always use `FileVersion`
-- Missing XDD/XDC `index` on `CANopenObject`, and missing or invalid
-  `objectType` (schema-valid unsignedByte forms such as `+9` / `-0` are
-  accepted after trim; missing `CANopenSubObject` `subIndex` stays lenient)
-- Malformed XDD/XDC unsigned numeric attributes (`subNumber`,
-  `pDOmappingIndex`, general-feature counts, `networkNumber`; optional
-  leading sign accepted after trim)
-- XDD/XDC `objFlags` (`xsd:hexBinary`, CiA 311 Annex A.1.4): hexadecimal
-  digits only. A leading sign or `0x` prefix is rejected (lenient: ignore;
-  strict: `EdsParseException`). An odd number of hex digits is accepted in
-  lenient mode and rejected in strict mode
-
-```csharp
-var eds = CanOpenFile.Eds.ReadFile(
-    "device.eds",
-    new CanOpenFileOptions { StrictParsing = true });
-```
-
-Guidance:
-- Keep the default whenever possible.
-- Enable StrictParsing for trusted inputs when you want malformed tokens to fail
-  fast instead of coercing.
-- Increase `MaxInputSize` only for trusted sources and known use cases.
-- Set the limit just high enough for your expected maximum file size.
+See the [options guide](docs/options.md#read-options) for the complete strict-parsing
+scope and guidance.
 
 ### Parse diagnostics (report repairs, keep the model)
 
@@ -930,11 +664,8 @@ eds-dcf-net/
 - Any .NET implementation compatible with .NET Standard 2.0
   (e.g., .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5+, Unity, Xamarin)
 
-**Strong naming:** `EdsDcfNet.dll` is strong-named as of **1.13.0**. The key
-(`src/EdsDcfNet/EdsDcfNet.snk`) is committed and public — it provides assembly
-identity only, not authenticity. On .NET (Core) 5+ nothing changes; .NET
-Framework consumers that referenced the previously unsigned assembly must
-**rebuild** against 1.13.0 (no source changes required).
+The assembly is strong-named. .NET Framework consumers upgrading from the previously
+unsigned assembly should see the [1.13.0 migration note](docs/migration.md#strong-naming-since-1130).
 
 **For building this repository (library, tests, examples):**
 
