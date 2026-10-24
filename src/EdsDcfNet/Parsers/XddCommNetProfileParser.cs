@@ -71,6 +71,7 @@ internal static class XddCommNetProfileParser
             "TransportLayers",
             "NetworkManagement"
         };
+        var fileSections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var child in profileBody.Elements())
         {
             if (knownNames.Contains(child.Name.LocalName))
@@ -79,7 +80,10 @@ internal static class XddCommNetProfileParser
             foreach (var attr in child.Attributes())
                 section[attr.Name.LocalName] = attr.Value;
             eds.AdditionalSections[child.Name.LocalName] = section;
+            fileSections[child.Name.LocalName] = section;
         }
+
+        eds.AdditionalSectionOrder.Capture(eds.AdditionalSections, fileSections);
     }
 
     private static void ParseObjectDictionary(XElement objList, ElectronicDataSheet eds, bool includeActualValues)

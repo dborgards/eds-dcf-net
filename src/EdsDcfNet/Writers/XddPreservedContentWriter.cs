@@ -71,6 +71,27 @@ internal static class XddPreservedContentWriter
     }
 
     /// <summary>
+    /// Restores comments and processing instructions before their original following element.
+    /// A node whose anchor no longer exists is appended rather than dropped.
+    /// </summary>
+    internal static void MergeNonElementNodes(XElement parent, IEnumerable<XddPreservedNode> kept)
+    {
+        foreach (var preserved in kept)
+        {
+            var copy = preserved.Clone().Node;
+            var anchor = preserved.FollowingElementName == null
+                ? null
+                : parent.Elements()
+                    .Where(element => element.Name.LocalName == preserved.FollowingElementName)
+                    .ElementAtOrDefault(preserved.FollowingElementOccurrence);
+            if (anchor == null)
+                parent.Add(copy);
+            else
+                anchor.AddBeforeSelf(copy);
+        }
+    }
+
+    /// <summary>
     /// Adds copies of <paramref name="kept"/> to <paramref name="element"/>. An attribute the writer
     /// already generated wins (rule 13).
     /// </summary>

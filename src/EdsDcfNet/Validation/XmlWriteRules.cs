@@ -33,12 +33,15 @@ internal static class XmlWriteRules
                 ApplyFileInfo(eds.FileInfo, issues);
                 ApplyComments(eds.Comments, issues);
                 ApplyDictionary(eds.ObjectDictionary, issues);
+                XmlLexicalRules.Apply(eds.ApplicationProcess, eds.ObjectDictionary, issues);
                 break;
             case DeviceConfigurationFile dcf:
                 ApplyFileInfo(dcf.FileInfo, issues);
                 ApplyComments(dcf.Comments, issues);
                 ApplyDictionary(dcf.ObjectDictionary, issues);
                 ApplyCommissioning(dcf.DeviceCommissioning, issues);
+                XmlLexicalRules.Apply(dcf.ApplicationProcess, dcf.ObjectDictionary, issues);
+                XmlLexicalRules.CheckPreservedNetworkNumber(dcf.DeviceCommissioning, issues);
                 break;
         }
     }
