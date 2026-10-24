@@ -79,9 +79,11 @@ internal static class XddPreservedContentReader
         KeepProfileSiblings(content, XddPreservedContent.NetworkProfile, networkProfileBody, profileName, qualify);
         ReadNetworkProfileBody(content, networkProfileBody, includeActualValues, qualify);
 
-        foreach (var profile in doc.Root!.Elements()
-                     .Where(element => element.Name.LocalName == profileName.LocalName))
+        foreach (var profile in doc.Root!.Elements())
         {
+            if (profile.Name.LocalName != profileName.LocalName)
+                continue;
+
             if (profile != deviceProfileBody?.Parent && profile != networkProfileBody.Parent)
             {
                 content.AddElement(

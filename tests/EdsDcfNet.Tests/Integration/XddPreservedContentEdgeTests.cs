@@ -78,6 +78,7 @@ public class XddPreservedContentEdgeTests
         body.SetAttributeValue(XNamespace.Xmlns + "vendor", "urn:vendor");
         body.SetAttributeValue(Xsi + "type", "vendor:AdditionalProfile");
         source.Root.Add(extra);
+        source.Root.Add(new XElement(Co + "VendorRootExtension"));
 
         var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(source.ToString())));
 
