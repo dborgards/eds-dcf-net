@@ -135,6 +135,21 @@ EDSBaseName=/eds/
     }
 
     [Fact]
+    public void GenerateString_DuplicatePreservedNames_AreAllocatedUniqueNames()
+    {
+        var project = _reader.ReadString("[Topology]\nNetName=First\nNodes=0x00\n");
+        var second = _reader.ReadString("[topologY]\nNetName=Second\nNodes=0x00\n");
+        project.Networks.Add(second.Networks[0]);
+        project.Networks.Add(new NetworkTopology { NetName = "Third" });
+
+        var written = _writer.GenerateString(project);
+        var reparsed = _reader.ReadString(written);
+
+        written.Should().Contain("[Topology2]").And.Contain("[Topology3]");
+        reparsed.Networks.Select(network => network.NetName).Should().Equal("First", "Second", "Third");
+    }
+
+    [Fact]
     public void GenerateString_NodeNotPresent_WritesPresent0x00()
     {
         // Arrange

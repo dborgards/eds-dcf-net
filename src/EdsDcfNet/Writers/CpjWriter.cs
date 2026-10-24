@@ -154,12 +154,14 @@ public class CpjWriter
                 .Where(network => network?.SourceSectionName != null)
                 .Select(network => network!.SourceSectionName!),
             StringComparer.OrdinalIgnoreCase);
+        var emittedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var nextTopologyNumber = 1;
 
         for (int i = 0; i < cpj.Networks.Count; i++)
         {
-            var sectionName = cpj.Networks[i]?.SourceSectionName;
-            if (sectionName == null)
+            var sourceName = cpj.Networks[i]?.SourceSectionName;
+            var sectionName = sourceName ?? string.Empty;
+            if (sourceName == null || !emittedNames.Add(sourceName))
             {
                 do
                 {
@@ -169,6 +171,7 @@ public class CpjWriter
                     nextTopologyNumber++;
                 }
                 while (!usedNames.Add(sectionName));
+                emittedNames.Add(sectionName);
             }
 
             WriteSection(sectionName, () => WriteTopology(sb, cpj.Networks[i], sectionName));
