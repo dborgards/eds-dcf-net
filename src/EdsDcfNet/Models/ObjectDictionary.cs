@@ -376,6 +376,17 @@ public class CanOpenSubObject
     public string? HighLimit { get; set; }
 
     /// <summary>
+    /// Special behavior flags (Unsigned32). Bit 0 refuses writes on download;
+    /// bit 1 refuses reads on scan. Zero matches a missing <c>ObjFlags</c> entry.
+    /// </summary>
+    public uint ObjFlags { get; set; }
+
+    /// <summary>Original out-of-range XDD/XDC flags text and its model-value baseline.</summary>
+    internal string? ObjFlagsLexical { get; set; }
+
+    internal uint ObjFlagsLexicalBaseline { get; set; }
+
+    /// <summary>
     /// CiA 311 <c>uniqueIDRef</c> of the application-process <c>parameter</c> this
     /// sub-object refers to, or <see langword="null"/> when the attribute is absent.
     /// </summary>
@@ -452,7 +463,7 @@ public class CanOpenSubObject
 
     /// <summary>
     /// Attributes of the XDD/XDC <c>CANopenSubObject</c> that the reader does not map onto a
-    /// property (for example <c>objFlags</c> or <c>rangeSelector</c>), as read; see
+    /// property (for example <c>rangeSelector</c>), as read; see
     /// <see cref="CanOpenObject.XddPreservedAttributes"/>.
     /// </summary>
     internal List<System.Xml.Linq.XAttribute>? XddPreservedAttributes { get; set; }

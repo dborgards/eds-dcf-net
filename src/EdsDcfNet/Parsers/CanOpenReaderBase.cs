@@ -962,6 +962,10 @@ public abstract class CanOpenReaderBase
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
             HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
+            ObjFlags = LenientIniNumber.ParseObjFlags(
+                sections,
+                sectionName,
+                IniParser.GetValue(sections, sectionName, "ObjFlags", "0")),
             PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping"),
             SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping"),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
@@ -972,8 +976,7 @@ public abstract class CanOpenReaderBase
 
         // Every Table 7 key counts; SubNumber and CompactSubObj are not supported in any
         // sub-index section (CanOpenSubObject has neither). A reported key is not kept as a
-        // remaining entry, so it is not written back. ObjFlags is optional in a sub-index
-        // section and stays a remaining entry.
+        // remaining entry, so it is not written back.
         bool IsNotSupportedKey(string key) => ObjectTypeKeyMatrix.IsNotSupportedInSubObject(subObj.ObjectType, key);
         ReportNotSupportedSubObjectKeys(sections, sectionName, subObj.ObjectType);
 

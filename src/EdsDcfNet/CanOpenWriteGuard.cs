@@ -20,7 +20,7 @@ internal static class CanOpenWriteGuard
         if (!ShouldValidateBeforeWrite(options))
             return;
 
-        ValidateKnownModel(model, formatRules);
+        ValidateKnownModel(model, options!.ValidationOptions, formatRules);
     }
 
     internal static Task EnsureValidForWriteAsync<T>(
@@ -38,49 +38,93 @@ internal static class CanOpenWriteGuard
         if (!ShouldValidateBeforeWrite(options))
             return Task.CompletedTask;
 
-        return ValidateKnownModelAsync(model, formatRules, cancellationToken);
+        return ValidateKnownModelAsync(model, options!.ValidationOptions, formatRules, cancellationToken);
+    }
+
+    internal static void EnsureValidForXmlWrite<T>(
+        T model,
+        CanOpenWriteOptions? options,
+        Action<object, List<ValidationIssue>>? formatRules)
+    {
+        if (!ShouldValidateBeforeWrite(options))
+            return;
+
+        ValidateKnownModel(model, XmlValidationOptions(options!.ValidationOptions), formatRules);
+    }
+
+    internal static Task EnsureValidForXmlWriteAsync<T>(
+        T model,
+        CanOpenWriteOptions? options,
+        Action<object, List<ValidationIssue>>? formatRules,
+        CancellationToken cancellationToken)
+    {
+        if (!ShouldValidateBeforeWrite(options))
+            return Task.CompletedTask;
+
+        return ValidateKnownModelAsync(
+            model,
+            XmlValidationOptions(options!.ValidationOptions),
+            formatRules,
+            cancellationToken);
     }
 
     internal static bool ShouldValidateBeforeWrite(CanOpenWriteOptions? options) =>
         options?.ValidateBeforeWrite == true;
 
+    private static CanOpenValidationOptions? XmlValidationOptions(CanOpenValidationOptions? options)
+    {
+        if (options is null)
+            return null;
+
+        return new CanOpenValidationOptions
+        {
+            CheckSubNumberCount = options.CheckSubNumberCount,
+            CheckValueRanges = options.CheckValueRanges,
+            RequireMandatoryEntries = options.RequireMandatoryEntries,
+            CheckObjectListRanges = options.CheckObjectListRanges,
+        };
+    }
+
     private static void ValidateKnownModel<T>(
         T model,
+        CanOpenValidationOptions? validationOptions,
         Action<object, List<ValidationIssue>>? formatRules)
     {
         ThrowIfNull(model, nameof(model));
 
-        var shared = ValidateShared(model!);
+        var shared = ValidateShared(model!, validationOptions);
         ApplyFormatRules(model!, shared, formatRules);
     }
 
     private static Task ValidateKnownModelAsync<T>(
         T model,
+        CanOpenValidationOptions? validationOptions,
         Action<object, List<ValidationIssue>>? formatRules,
         CancellationToken cancellationToken)
     {
         ThrowIfNull(model, nameof(model));
         EnsureSupportedModel(model);
 
-        return ValidateAndApplyAsync(model, formatRules, cancellationToken);
+        return ValidateAndApplyAsync(model, validationOptions, formatRules, cancellationToken);
     }
 
     private static async Task ValidateAndApplyAsync<T>(
         T model,
+        CanOpenValidationOptions? validationOptions,
         Action<object, List<ValidationIssue>>? formatRules,
         CancellationToken cancellationToken)
     {
-        var shared = await ValidateSharedAsync(model!, cancellationToken).ConfigureAwait(false);
+        var shared = await ValidateSharedAsync(model!, validationOptions, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         ApplyFormatRules(model!, shared, formatRules);
     }
 
-    private static IReadOnlyList<ValidationIssue> ValidateShared<T>(T model)
+    private static IReadOnlyList<ValidationIssue> ValidateShared<T>(T model, CanOpenValidationOptions? options)
     {
         return model switch
         {
-            ElectronicDataSheet eds => CanOpenFile.Validate(eds),
-            DeviceConfigurationFile dcf => CanOpenFile.Validate(dcf),
+            ElectronicDataSheet eds => CanOpenFile.Validate(eds, options),
+            DeviceConfigurationFile dcf => CanOpenFile.Validate(dcf, options),
             NodelistProject cpj => CanOpenFile.Validate(cpj),
             _ => throw new ArgumentException(
                 "Unsupported model type: " + model!.GetType().Name,
@@ -90,12 +134,13 @@ internal static class CanOpenWriteGuard
 
     private static Task<IReadOnlyList<ValidationIssue>> ValidateSharedAsync(
         object model,
+        CanOpenValidationOptions? options,
         CancellationToken cancellationToken)
     {
         return model switch
         {
-            ElectronicDataSheet eds => CanOpenFile.ValidateAsync(eds, cancellationToken),
-            DeviceConfigurationFile dcf => CanOpenFile.ValidateAsync(dcf, cancellationToken),
+            ElectronicDataSheet eds => CanOpenFile.ValidateAsync(eds, options, cancellationToken),
+            DeviceConfigurationFile dcf => CanOpenFile.ValidateAsync(dcf, options, cancellationToken),
             NodelistProject cpj => CanOpenFile.ValidateAsync(cpj, cancellationToken),
             _ => throw new ArgumentException(
                 "Unsupported model type: " + model.GetType().Name,
