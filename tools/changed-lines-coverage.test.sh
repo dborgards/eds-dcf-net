@@ -73,6 +73,18 @@ case "$output" in
   *) echo "FAIL: missing uncovered-line diagnostic: $output" >&2; failures=$((failures + 1)) ;;
 esac
 
+# The Git pathspec '.' selects the whole repository; it must not silently skip
+# every changed file and turn an uncovered change into a successful no-op.
+set +e
+dot_output=$(cd "$repo" && COVERAGE_MIN_PERCENT=51 "$script" "$results" base . 2>&1)
+dot_status=$?
+set -e
+check "dot path filter includes changed files" 1 "$dot_status"
+case "$dot_output" in
+  *"Changed-lines coverage: 50.00% (1/2"*) echo "ok: dot path filter calculates coverage" ;;
+  *) echo "FAIL: dot path filter skipped coverage: $dot_output" >&2; failures=$((failures + 1)) ;;
+esac
+
 # A second host report contributes coverage by line, not by overwriting the
 # first report's same-named class.
 second="$work/second"

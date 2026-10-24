@@ -147,7 +147,9 @@ def parse_diff(diff: str) -> dict[str, set[int]]:
 def selected(path: str, roots: list[str]) -> bool:
     normalized = normalize(path)
     return any(
-        normalized == root or normalized.startswith(root.rstrip("/") + "/")
+        root == "."
+        or normalized == root
+        or normalized.startswith(root.rstrip("/") + "/")
         for root in roots
     )
 
