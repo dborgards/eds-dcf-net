@@ -79,7 +79,8 @@ internal static class XddPreservedContentReader
         KeepProfileSiblings(content, XddPreservedContent.NetworkProfile, networkProfileBody, profileName, qualify);
         ReadNetworkProfileBody(content, networkProfileBody, includeActualValues, qualify);
 
-        foreach (var profile in doc.Root!.Elements(profileName))
+        foreach (var profile in doc.Root!.Elements()
+                     .Where(element => element.Name.LocalName == profileName.LocalName))
         {
             if (profile != deviceProfileBody?.Parent && profile != networkProfileBody.Parent)
             {
@@ -147,19 +148,14 @@ internal static class XddPreservedContentReader
 
         var identity = First(body, "DeviceIdentity");
         var applicationProcess = First(body, "ApplicationProcess");
-        var firstDeviceFunction = true;
         foreach (var child in body.Elements())
         {
             if (child == identity || child == applicationProcess)
                 continue;
 
             var copy = Copy(child, local => XddNames.ChildOfTypeOrUnqualified(XddNames.DeviceProfileBodyType, local), qualify);
-            if (child.Name.LocalName == "DeviceFunction" && firstDeviceFunction)
-            {
-                firstDeviceFunction = false;
-                if (IsDerivedDeviceFunction(copy, deviceInfo))
-                    continue;
-            }
+            if (child.Name.LocalName == "DeviceFunction" && IsDerivedDeviceFunction(copy, deviceInfo))
+                continue;
 
             content.AddElement(XddPreservedContent.DeviceProfileBody, copy);
         }
@@ -180,6 +176,8 @@ internal static class XddPreservedContentReader
 
         var normalized = new XElement(function);
         normalized.DescendantNodes().OfType<XText>().Where(text => text.Value.Trim().Length == 0).Remove();
+        foreach (var element in normalized.DescendantsAndSelf())
+            element.Attributes().Where(attribute => attribute.IsNamespaceDeclaration).Remove();
         return XNode.DeepEquals(normalized, XddProfileBuilder.BuildDefaultDeviceFunction(deviceInfo));
     }
 

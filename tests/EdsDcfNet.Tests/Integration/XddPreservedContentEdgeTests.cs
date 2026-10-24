@@ -3,6 +3,7 @@ namespace EdsDcfNet.Tests.Integration;
 using System.Xml.Linq;
 using EdsDcfNet;
 using EdsDcfNet.Models;
+using EdsDcfNet.Writers;
 
 /// <summary>Regression tests for the remaining WP-43 fragment-preservation boundaries.</summary>
 public class XddPreservedContentEdgeTests
@@ -109,6 +110,41 @@ public class XddPreservedContentEdgeTests
             .Should().Equal("Device", "CommunicationNetwork", "Device", "CommunicationNetwork");
         secondRead.DeviceInfo.ProductName.Should().Be("IO-Module 8x8");
         secondRead.ObjectDictionary.Objects[0x1000].DefaultValue.Should().Be("0x000F0191");
+    }
+
+    [Fact]
+    public void WriteToString_DuplicateGeneratedDeviceFunctions_RegeneratesFromChangedModel()
+    {
+        var initial = CanOpenFile.Xdd.ReadFile(FixtureXdd);
+        var generated = XDocument.Parse(CanOpenFile.Xdd.WriteToString(initial));
+        var function = Single(generated, "DeviceFunction");
+        function.ReplaceWith(XddProfileBuilder.BuildDefaultDeviceFunction(initial.DeviceInfo));
+        function = Single(generated, "DeviceFunction");
+        function.AddAfterSelf(new XElement(function));
+        var model = CanOpenFile.Xdd.ReadString(generated.ToString());
+        model.DeviceInfo.ProductName.Should().Be("IO-Module 8x8");
+        model.DeviceInfo.ProductName = "Changed product";
+
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(model));
+
+        written.Descendants(Co + "DeviceFunction").Should().ContainSingle();
+        Single(written, "characteristicContent").Element("label")!.Value.Should().Be("Changed product");
+    }
+
+    [Fact]
+    public void WriteToString_NamespacelessAdditionalProfile_IsPreserved()
+    {
+        var source = XDocument.Parse(WithoutNamespaces(XDocument.Load(FixtureXdd)));
+        var extra = new XElement(source.Root!.Elements().First());
+        extra.Descendants("ProfileIdentification").First().Value = "namespaceless-additional";
+        extra.Descendants("ProfileBody").Single().SetAttributeValue(Xsi + "type", "AdditionalProfile");
+        source.Root.Add(extra);
+
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(source.ToString())));
+
+        written.Root!.Elements(Co + "ISO15745Profile").Should().HaveCount(3);
+        written.Descendants("ProfileIdentification").Select(element => element.Value)
+            .Should().Contain("namespaceless-additional");
     }
 
     private static XElement Single(XDocument doc, string localName)
