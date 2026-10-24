@@ -461,9 +461,11 @@ internal sealed class XddUniqueIdResolver
             ? variables.Variables[0]
             : null;
         var value = variable?.DefaultValue?.Value
+            ?? variable?.InitialValue
             ?? parameter.DefaultValue?.Value
             ?? ResolveParameterTemplate(parameter.TemplateIdRef, projection)?.DefaultValue?.Value
-            ?? variable?.ComponentDefaultValue?.Value;
+            ?? variable?.ComponentDefaultValue?.Value
+            ?? variable?.ComponentInitialValue;
         if (value != null)
         {
             projection.HasDefault = true;
@@ -574,10 +576,24 @@ internal sealed class XddUniqueIdResolver
         }
 
         var declaration = variables[0];
-        result = new ResolvedVariable(declaration.Type, declaration.DefaultValue, declaration.AllowedValues);
+        result = new ResolvedVariable(
+            declaration.Type,
+            declaration.DefaultValue,
+            declaration.AllowedValues,
+            initialValue: declaration.InitialValue);
         var member = reference.MemberRef;
         if (member == null)
+        {
+            if (IsAnonymousArray(declaration)
+                || TryResolveCompositeType(declaration.Type, _arrays, out _))
+            {
+                error = "a whole-array variable has no scalar projection without a memberRef.";
+                result = null;
+                return false;
+            }
+
             return true;
+        }
 
         if (member.Index.HasValue)
         {
@@ -591,7 +607,11 @@ internal sealed class XddUniqueIdResolver
                 return false;
             }
 
-            result = new ResolvedVariable(array.ElementType, declaration.DefaultValue, declaration.AllowedValues);
+            result = new ResolvedVariable(
+                array.ElementType,
+                declaration.DefaultValue,
+                declaration.AllowedValues,
+                initialValue: declaration.InitialValue);
             return true;
         }
 
@@ -616,7 +636,9 @@ internal sealed class XddUniqueIdResolver
             declaration.DefaultValue,
             declaration.AllowedValues,
             members[0].DefaultValue,
-            members[0].AllowedValues);
+            members[0].AllowedValues,
+            declaration.InitialValue,
+            members[0].InitialValue);
         return true;
     }
 
@@ -644,6 +666,10 @@ internal sealed class XddUniqueIdResolver
 
         return false;
     }
+
+    private static bool IsAnonymousArray(ApVarDeclaration declaration) =>
+        !string.IsNullOrEmpty(declaration.Size)
+        && declaration.Type?.SimpleTypeName is not ("STRING" or "WSTRING" or "BITSTRING");
 
     private static IEnumerable<ApVarDeclaration> InterfaceVariables(ApInterfaceList interfaces) =>
         interfaces.InputVars.Concat(interfaces.OutputVars).Concat(interfaces.ConfigVars);
@@ -796,13 +822,17 @@ internal sealed class XddUniqueIdResolver
             ApParameterValue? defaultValue,
             ApAllowedValues? allowedValues,
             ApParameterValue? componentDefaultValue = null,
-            ApAllowedValues? componentAllowedValues = null)
+            ApAllowedValues? componentAllowedValues = null,
+            string? initialValue = null,
+            string? componentInitialValue = null)
         {
             TypeRef = typeRef;
             DefaultValue = defaultValue;
             AllowedValues = allowedValues;
             ComponentDefaultValue = componentDefaultValue;
             ComponentAllowedValues = componentAllowedValues;
+            InitialValue = initialValue;
+            ComponentInitialValue = componentInitialValue;
         }
 
         internal ApTypeRef? TypeRef { get; }
@@ -814,6 +844,10 @@ internal sealed class XddUniqueIdResolver
         internal ApParameterValue? ComponentDefaultValue { get; }
 
         internal ApAllowedValues? ComponentAllowedValues { get; }
+
+        internal string? InitialValue { get; }
+
+        internal string? ComponentInitialValue { get; }
     }
 
     private sealed class ParameterTemplateProjection

@@ -196,7 +196,7 @@ public class XddIndirectUniqueIdRefTests
           <parameterList>"
             + Parameter("PLOCAL", VariableRef("VS", member: " uniqueIDRef=\"M\"")
                 + "<defaultValue value=\"6\"/><allowedValues><range><minValue value=\"5\"/><maxValue value=\"6\"/></range></allowedValues>")
-            + Parameter("PTEMPLATE", VariableRef("VS", member: " uniqueIDRef=\"M\"")).Replace("uniqueID=\"PTEMPLATE\"", "uniqueID=\"PTEMPLATE\" templateIDRef=\"T\"", StringComparison.Ordinal)
+            + Parameter("PTEMPLATE", VariableRef("VS", member: " uniqueIDRef=\"M\"")).Replace("uniqueID=\"PTEMPLATE\"", "uniqueID=\"PTEMPLATE\" templateIDRef=\"T\"")
             + Parameter("PCOMPONENT", VariableRef("VS", member: " uniqueIDRef=\"M\""))
             + "</parameterList>";
 
@@ -275,7 +275,7 @@ public class XddIndirectUniqueIdRefTests
           <parameterList>"
             + Parameter("PSTRUCT", VariableRef("VSTRUCT"))
             + Parameter("PNOTYPE", VariableRef("VNOTYPE"))
-            + Parameter("PBADTYPE", VariableRef("VSCALAR").Replace("instanceIDRef uniqueIDRef=\"I\"", "instanceIDRef uniqueIDRef=\"IBAD\"", StringComparison.Ordinal))
+            + Parameter("PBADTYPE", VariableRef("VSCALAR").Replace("instanceIDRef uniqueIDRef=\"I\"", "instanceIDRef uniqueIDRef=\"IBAD\""))
             + Parameter("PNOTARRAY", VariableRef("VSCALAR", member: " index=\"1\""))
             + Parameter("PCYCLE", VariableRef("VCYCLE", member: " uniqueIDRef=\"M\""))
             + "</parameterList>";
@@ -288,6 +288,69 @@ public class XddIndirectUniqueIdRefTests
         result.Diagnostics.Should().HaveCount(4).And.OnlyContain(diagnostic =>
             diagnostic.Code == ParseDiagnosticCodes.XddUnresolvedIndirectUniqueIdRef);
         result.Model.ObjectDictionary.Objects.Values.Should().OnlyContain(obj => obj.DataType == null);
+    }
+
+    [Fact]
+    public void ReadString_WholeArrayVariableRefs_DoNotProjectElementType()
+    {
+        var application = @"
+          <dataTypeList><array name=""Bytes"" uniqueID=""ARR""><subrange lowerLimit=""0"" upperLimit=""2""/><USINT/></array></dataTypeList>
+          <functionTypeList><functionType name=""F"" uniqueID=""FT""><versionInfo organization=""O"" version=""1"" author=""A"" date=""2026-01-01""/>
+            <interfaceList><inputVars>
+              <varDeclaration name=""Named"" uniqueID=""VNAMED""><dataTypeIDRef uniqueIDRef=""ARR""/></varDeclaration>
+              <varDeclaration name=""Anonymous"" uniqueID=""VANON"" size=""3""><USINT/></varDeclaration>
+              <varDeclaration name=""Text"" uniqueID=""VTEXT"" size=""3""><STRING/></varDeclaration>
+            </inputVars></interfaceList>
+          </functionType></functionTypeList>
+          <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT""/></functionInstanceList>
+          <parameterList>"
+            + Parameter("PNAMED", VariableRef("VNAMED"))
+            + Parameter("PANON", VariableRef("VANON"))
+            + Parameter("PTEXT", VariableRef("VTEXT"))
+            + "</parameterList>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application,
+            Object("2000", "Named", "PNAMED") + Object("2001", "Anonymous", "PANON")
+            + Object("2002", "Text", "PTEXT")));
+
+        result.Diagnostics.Should().HaveCount(2).And.OnlyContain(diagnostic =>
+            diagnostic.Code == ParseDiagnosticCodes.XddUnresolvedIndirectUniqueIdRef
+            && diagnostic.Message.Contains("whole-array", StringComparison.Ordinal));
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().BeNull();
+        result.Model.ObjectDictionary.Objects[0x2001].DataType.Should().BeNull();
+        result.Model.ObjectDictionary.Objects[0x2002].DataType.Should().Be(CanOpenDataType.VisibleString);
+    }
+
+    [Fact]
+    public void ReadString_DeclarationInitialValues_ProjectAsDefaultFallbacks()
+    {
+        var application = @"
+          <templateList><parameterTemplate uniqueID=""T""><defaultValue value=""4""/></parameterTemplate></templateList>
+          <dataTypeList><struct name=""Record"" uniqueID=""REC"">
+            <varDeclaration name=""Field"" uniqueID=""M"" initialValue=""8""><INT/></varDeclaration>
+          </struct></dataTypeList>
+          <functionTypeList><functionType name=""F"" uniqueID=""FT""><versionInfo organization=""O"" version=""1"" author=""A"" date=""2026-01-01""/>
+            <interfaceList><inputVars>
+              <varDeclaration name=""Value"" uniqueID=""V"" initialValue=""7""><USINT/></varDeclaration>
+              <varDeclaration name=""Struct"" uniqueID=""VS""><dataTypeIDRef uniqueIDRef=""REC""/></varDeclaration>
+            </inputVars></interfaceList>
+          </functionType></functionTypeList>
+          <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT""/></functionInstanceList>
+          <parameterList>"
+            + Parameter("PDIRECT", VariableRef("V") + "<defaultValue value=\"6\"/>")
+            + Parameter("PMEMBER", VariableRef("VS", member: " uniqueIDRef=\"M\""))
+            + Parameter("POVERRIDE", VariableRef("VS", member: " uniqueIDRef=\"M\"") + "<defaultValue value=\"5\"/>")
+                .Replace("uniqueID=\"POVERRIDE\"", "uniqueID=\"POVERRIDE\" templateIDRef=\"T\"")
+            + "</parameterList>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application,
+            Object("2000", "Direct", "PDIRECT") + Object("2001", "Member", "PMEMBER")
+            + Object("2002", "Override", "POVERRIDE")));
+
+        result.Diagnostics.Should().BeEmpty();
+        result.Model.ObjectDictionary.Objects[0x2000].DefaultValue.Should().Be("7");
+        result.Model.ObjectDictionary.Objects[0x2001].DefaultValue.Should().Be("8");
+        result.Model.ObjectDictionary.Objects[0x2002].DefaultValue.Should().Be("5");
     }
 
     [Fact]
