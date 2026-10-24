@@ -492,6 +492,12 @@ public class XddWriter
         AddStringUnlessSupplied(elem, "highLimit", subObject.HighLimit, projection, projection?.HasUnambiguousRange == true, projection?.HighLimit);
 
         elem.Add(new XAttribute("PDOmapping", ToXddPdoMappingAttribute(subObject.PdoMappingMode)));
+
+        if (subObject.ObjFlagsLexical != null && subObject.ObjFlags == subObject.ObjFlagsLexicalBaseline)
+            elem.Add(new XAttribute("objFlags", subObject.ObjFlagsLexical));
+        else if (subObject.ObjFlags > 0)
+            elem.Add(new XAttribute("objFlags", FormatObjFlags(subObject.ObjFlags)));
+
         AddUniqueIdRefAttribute(elem, subObject.UniqueIdRef, projection);
 
         AddCanOpenSubObjectXdcAttributes(elem, subObject);

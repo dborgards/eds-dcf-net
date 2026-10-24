@@ -43,7 +43,7 @@ internal static class XddPreservedContentReader
     private static readonly HashSet<string> ModelledSubObjectAttributes = new(StringComparer.Ordinal)
     {
         "subIndex", "name", "objectType", "dataType", "accessType", "defaultValue", "lowLimit",
-        "highLimit", "PDOmapping", "uniqueIDRef",
+        "highLimit", "PDOmapping", "objFlags", "uniqueIDRef",
     };
 
     /// <summary>

@@ -749,7 +749,7 @@ public class WriteValidationGuardTests
             BindingFlags.NonPublic | BindingFlags.Static)
             ?? throw new InvalidOperationException("ValidateSharedAsync method not found.");
 
-        var act = () => validateSharedAsync.Invoke(null, new object[] { "unsupported", CancellationToken.None });
+        var act = () => validateSharedAsync.Invoke(null, new object?[] { "unsupported", null, CancellationToken.None });
 
         var exception = act.Should().Throw<TargetInvocationException>().Which.InnerException;
         exception.Should().BeOfType<ArgumentException>()
@@ -778,6 +778,96 @@ public class WriteValidationGuardTests
         await InvokeEnsureValidForWriteAsync(ValidCanOpenModelBuilder.CreateValidEds());
         await InvokeEnsureValidForWriteAsync(ValidCanOpenModelBuilder.CreateValidDcf());
         await InvokeEnsureValidForWriteAsync(ValidCanOpenModelBuilder.CreateValidCpj());
+    }
+
+    [Theory]
+    [InlineData("Eds")]
+    [InlineData("Dcf")]
+    [InlineData("Xdd")]
+    [InlineData("Xdc")]
+    public void WriteToString_WithValidationOptions_AppliesOptInObjectListRangeRule(string format)
+    {
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.ObjectDictionary.MandatoryObjects.Clear();
+        eds.ObjectDictionary.Objects.Clear();
+        eds.ObjectDictionary.OptionalObjects.Add(0x2000);
+        eds.ObjectDictionary.Objects[0x2000] = new CanOpenObject
+        {
+            Index = 0x2000,
+            ParameterName = "Wrong list",
+            ObjectType = CanOpenObjectType.Var,
+            DataType = CanOpenDataType.Unsigned8,
+            AccessType = AccessType.ReadWrite,
+        };
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
+        dcf.ObjectDictionary.MandatoryObjects.Clear();
+        dcf.ObjectDictionary.Objects.Clear();
+        dcf.ObjectDictionary.OptionalObjects.Add(0x2000);
+        dcf.ObjectDictionary.Objects[0x2000] = eds.ObjectDictionary.Objects[0x2000];
+        var options = new CanOpenWriteOptions
+        {
+            ValidateBeforeWrite = true,
+            ValidationOptions = new Validation.CanOpenValidationOptions { CheckObjectListRanges = true },
+        };
+
+        var act = () => format switch
+        {
+            "Eds" => CanOpenFile.Eds.WriteToString(eds, options),
+            "Dcf" => CanOpenFile.Dcf.WriteToString(dcf, options),
+            "Xdd" => CanOpenFile.Xdd.WriteToString(eds, options),
+            "Xdc" => CanOpenFile.Xdc.WriteToString(dcf, options),
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, null),
+        };
+
+        var issues = act.Should().Throw<ModelValidationException>().Which.Issues;
+        issues.Should().Contain(issue =>
+            issue.Code == Validation.ValidationIssueCodes.ObjectListIndexOutOfRange &&
+            issue.Path == "ObjectDictionary.OptionalObjects");
+    }
+
+    [Fact]
+    public async Task WriteDcfAsync_WithValidationOptions_AppliesOptInObjectListRangeRule()
+    {
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
+        dcf.ObjectDictionary.OptionalObjects.Add(0x2000);
+        var options = new CanOpenWriteOptions
+        {
+            ValidateBeforeWrite = true,
+            ValidationOptions = new Validation.CanOpenValidationOptions { CheckObjectListRanges = true },
+        };
+        using var stream = new MemoryStream();
+
+        var act = () => CanOpenFile.Dcf.WriteStreamAsync(dcf, stream, options);
+
+        var issues = (await act.Should().ThrowAsync<ModelValidationException>()).Which.Issues;
+        issues.Should().Contain(issue => issue.Code == Validation.ValidationIssueCodes.ObjectListIndexOutOfRange);
+    }
+
+    [Fact]
+    public void WriteEdsToString_WithValidationOptions_AppliesTextRulesAndMarksThemAsWarnings()
+    {
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.ObjectDictionary.Objects[0x1000].ParameterName = "Gerät";
+        eds.FileInfo.Description = new string('a', 300);
+        var options = new CanOpenWriteOptions
+        {
+            ValidateBeforeWrite = true,
+            ValidationOptions = new Validation.CanOpenValidationOptions
+            {
+                RequireIso646 = true,
+                CheckLineLength = true,
+            },
+        };
+
+        var act = () => CanOpenFile.Eds.WriteToString(eds, options);
+
+        var issues = act.Should().Throw<ModelValidationException>().Which.Issues;
+        issues.Should().Contain(issue =>
+            issue.Code == Validation.ValidationIssueCodes.Iso646CharacterNotAllowed &&
+            issue.Severity == Validation.ValidationSeverity.Warning);
+        issues.Should().Contain(issue =>
+            issue.Code == Validation.ValidationIssueCodes.LineTooLong &&
+            issue.Severity == Validation.ValidationSeverity.Warning);
     }
 
     private static async Task InvokeEnsureValidForWriteAsync<T>(T model)

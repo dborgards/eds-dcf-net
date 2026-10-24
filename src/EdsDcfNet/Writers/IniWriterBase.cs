@@ -493,6 +493,7 @@ public abstract class IniWriterBase
 
     private static bool HasNonCompactExclusiveFields(CanOpenSubObject subObj)
         => subObj.SrdoMapping
+           || subObj.ObjFlags > 0
            || !string.IsNullOrEmpty(subObj.InvertedSrad)
            || !string.IsNullOrEmpty(subObj.ParamRefd)
            || subObj.RemainingEntries.Count > 0;
@@ -607,6 +608,11 @@ public abstract class IniWriterBase
         if (!string.IsNullOrEmpty(subObj.InvertedSrad))
         {
             WriteKeyValue(sb, "InvertedSRAD", subObj.InvertedSrad);
+        }
+
+        if (subObj.ObjFlags > 0)
+        {
+            WriteKeyValue(sb, "ObjFlags", ValueConverter.FormatInteger(subObj.ObjFlags));
         }
 
         WriteSubObjectExtension(sb, subObj);
