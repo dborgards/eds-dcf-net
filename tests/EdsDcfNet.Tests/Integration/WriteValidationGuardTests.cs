@@ -870,6 +870,101 @@ public class WriteValidationGuardTests
             issue.Severity == Validation.ValidationSeverity.Warning);
     }
 
+    [Theory]
+    [InlineData("Xdd")]
+    [InlineData("Xdc")]
+    public void WriteXmlToString_WithStrictOptions_IgnoresIniOnlyRules(string format)
+    {
+        ICanOpenFileModel model = format == "Xdd"
+            ? ValidCanOpenModelBuilder.CreateValidEds()
+            : ValidCanOpenModelBuilder.CreateValidDcf();
+        AddStrictMandatoryObjects(model);
+        model.ObjectDictionary.Objects[0x1000].ParameterName = "Gerät";
+        model.FileInfo.Description = new string('a', 300);
+        model.SectionRemainingEntries["OptionalObjects"] = new OrderedStringDictionary { { "1", "0x1001" } };
+        var options = new CanOpenWriteOptions
+        {
+            ValidateBeforeWrite = true,
+            ValidationOptions = Validation.CanOpenValidationOptions.Strict,
+        };
+
+        var act = () => format == "Xdd"
+            ? CanOpenFile.Xdd.WriteToString((ElectronicDataSheet)model, options)
+            : CanOpenFile.Xdc.WriteToString((DeviceConfigurationFile)model, options);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task WriteXddAsync_WithStrictOptions_IgnoresIniOnlyRules()
+    {
+        var xdd = ValidCanOpenModelBuilder.CreateValidEds();
+        AddStrictMandatoryObjects(xdd);
+        xdd.ObjectDictionary.Objects[0x1000].ParameterName = "Gerät";
+        xdd.FileInfo.Description = new string('a', 300);
+        xdd.SectionRemainingEntries["OptionalObjects"] = new OrderedStringDictionary { { "1", "0x1001" } };
+        var options = new CanOpenWriteOptions
+        {
+            ValidateBeforeWrite = true,
+            ValidationOptions = Validation.CanOpenValidationOptions.Strict,
+        };
+        using var stream = new MemoryStream();
+
+        var act = () => CanOpenFile.Xdd.WriteStreamAsync(xdd, stream, options);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Theory]
+    [InlineData("Xdd")]
+    [InlineData("Xdc")]
+    public void WriteXmlToString_WithStrictOptions_AppliesSharedObjectListRangeRule(string format)
+    {
+        ICanOpenFileModel model = format == "Xdd"
+            ? ValidCanOpenModelBuilder.CreateValidEds()
+            : ValidCanOpenModelBuilder.CreateValidDcf();
+        AddStrictMandatoryObjects(model);
+        model.ObjectDictionary.OptionalObjects.Add(0x2000);
+        model.ObjectDictionary.Objects[0x2000] = new CanOpenObject
+        {
+            Index = 0x2000,
+            ParameterName = "Wrong list",
+            ObjectType = CanOpenObjectType.Var,
+            DataType = CanOpenDataType.Unsigned8,
+            AccessType = AccessType.ReadWrite,
+        };
+        var options = new CanOpenWriteOptions
+        {
+            ValidateBeforeWrite = true,
+            ValidationOptions = Validation.CanOpenValidationOptions.Strict,
+        };
+
+        var act = () => format == "Xdd"
+            ? CanOpenFile.Xdd.WriteToString((ElectronicDataSheet)model, options)
+            : CanOpenFile.Xdc.WriteToString((DeviceConfigurationFile)model, options);
+
+        var issues = act.Should().Throw<ModelValidationException>().Which.Issues;
+        issues.Should().Contain(issue => issue.Code == Validation.ValidationIssueCodes.ObjectListIndexOutOfRange);
+    }
+
+    private static void AddStrictMandatoryObjects(ICanOpenFileModel model)
+    {
+        model.DeviceInfo.VendorName = "Test Vendor";
+        model.DeviceInfo.ProductName = "Test Product";
+        foreach (var index in new ushort[] { 0x1001, 0x1018 })
+        {
+            model.ObjectDictionary.MandatoryObjects.Add(index);
+            model.ObjectDictionary.Objects[index] = new CanOpenObject
+            {
+                Index = index,
+                ParameterName = $"Mandatory {index:X4}",
+                ObjectType = CanOpenObjectType.Var,
+                DataType = CanOpenDataType.Unsigned32,
+                AccessType = AccessType.ReadOnly,
+            };
+        }
+    }
+
     private static async Task InvokeEnsureValidForWriteAsync<T>(T model)
     {
         var ensureValidForWriteAsync = GetEnsureValidForWriteAsyncMethod(typeof(T));

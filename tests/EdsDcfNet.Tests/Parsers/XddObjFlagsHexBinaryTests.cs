@@ -423,7 +423,7 @@ public class XddObjFlagsHexBinaryTests
             ? CanOpenFile.Xdd.WriteToString((ElectronicDataSheet)model)
             : CanOpenFile.Xdc.WriteToString((DeviceConfigurationFile)model);
         preserved.Should().Contain("objFlags=\"0100000000\"");
-        preserved.Split("objFlags=\"0100000000\"").Length.Should().Be(2);
+        preserved.Split(new[] { "objFlags=\"0100000000\"" }, StringSplitOptions.None).Length.Should().Be(2);
 
         subObject.ObjFlags = 4;
         var replaced = format == "Xdd"

@@ -1237,6 +1237,11 @@ public abstract class IniWriterBase
             WriteKeyValue(sb, "InvertedSRAD", subObj.InvertedSrad);
         }
 
+        if (subObj.ObjFlags > 0)
+        {
+            WriteKeyValue(sb, "ObjFlags", ValueConverter.FormatInteger(subObj.ObjFlags));
+        }
+
         if (!string.IsNullOrEmpty(subObj.ParameterValue))
         {
             WriteKeyValue(sb, "ParameterValue", subObj.ParameterValue);

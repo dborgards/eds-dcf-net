@@ -91,6 +91,7 @@ public class ModuleSectionRoundTripTests
         AccessType=ro
         DefaultValue=1
         PDOMapping=1
+        ObjFlags=0x8
 
         [M1SubExtends]
         NrOfEntries=2
@@ -141,6 +142,7 @@ public class ModuleSectionRoundTripTests
         fixedObject.DataType.Should().Be((ushort)0x0006);
         fixedObject.SubObjects.Should().ContainKey(1);
         fixedObject.SubObjects[1].ParameterName.Should().Be("First channel");
+        fixedObject.SubObjects[1].ObjFlags.Should().Be(8u);
 
         module.SubExtends.Should().Equal((ushort)0x6000, (ushort)0x00A0);
         module.SubExtensionDefinitions.Should().ContainKeys((ushort)0x6000, (ushort)0x00A0);
@@ -980,6 +982,8 @@ public class ModuleSectionRoundTripTests
                         expectedObject.SubObjects[subIndex].ParameterName);
                     actualObject.SubObjects[subIndex].DataType.Should().Be(
                         expectedObject.SubObjects[subIndex].DataType);
+                    actualObject.SubObjects[subIndex].ObjFlags.Should().Be(
+                        expectedObject.SubObjects[subIndex].ObjFlags);
                 }
             }
 
