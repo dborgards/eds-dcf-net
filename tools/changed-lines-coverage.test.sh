@@ -135,6 +135,49 @@ case "$output" in
   *) echo "FAIL: parent src directory bypassed coverage: $output" >&2; failures=$((failures + 1)) ;;
 esac
 
+# Consecutive anchors share a slash. Advancing by the complete first anchor
+# skips the inner match that resolves to this actual repository file.
+printf 'consecutive anchor\n' > "$repo/src/Consecutive.cs"
+git -C "$repo" add src/Consecutive.cs
+consecutive_results="$work/consecutive-results"
+mkdir -p "$consecutive_results"
+cat > "$consecutive_results/coverage.cobertura.xml" <<'XML'
+<?xml version="1.0"?>
+<coverage><packages><package><classes>
+  <class filename="C:\Users\dev\src\src\src\Consecutive.cs"><lines>
+    <line number="1" hits="0" />
+  </lines></class>
+</classes></package></packages></coverage>
+XML
+run_gate 1 "$consecutive_results"
+check "consecutive checkout anchors select the repository file" 1 "$status"
+case "$output" in
+  *"src/Consecutive.cs: uncovered added line(s) 1"*) echo "ok: overlapping anchor is evaluated" ;;
+  *) echo "FAIL: consecutive anchors bypassed coverage: $output" >&2; failures=$((failures + 1)) ;;
+esac
+
+# An added C# pre-increment statement at column zero produces a +++ diff line.
+# It is hunk content, not the next file header, and must not hide later lines.
+printf '++ counter;\nSystem.Console.WriteLine(counter);\n' > "$repo/src/Prefix.cs"
+git -C "$repo" add src/Prefix.cs
+prefix_results="$work/prefix-results"
+mkdir -p "$prefix_results"
+cat > "$prefix_results/coverage.cobertura.xml" <<'XML'
+<?xml version="1.0"?>
+<coverage><packages><package><classes>
+  <class filename="src/Prefix.cs"><lines>
+    <line number="1" hits="0" />
+    <line number="2" hits="0" />
+  </lines></class>
+</classes></package></packages></coverage>
+XML
+run_gate 1 "$prefix_results"
+check "plus-prefixed source lines stay inside their diff hunk" 1 "$status"
+case "$output" in
+  *"src/Prefix.cs: uncovered added line(s) 1, 2"*) echo "ok: plus-prefixed source and following lines are measured" ;;
+  *) echo "FAIL: plus-prefixed source bypassed coverage: $output" >&2; failures=$((failures + 1)) ;;
+esac
+
 # core.quotepath=true must not turn UTF-8 filenames into unmatched C escapes.
 printf 'new covered\nnew uncovered\n' > "$repo/src/Démø.cs"
 git -C "$repo" add src/Démø.cs

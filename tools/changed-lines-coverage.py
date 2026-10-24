@@ -68,7 +68,9 @@ def repo_relative(filename: str, root: Path) -> str | None:
                 candidates.append(candidate)
             if (root / candidate).is_file():
                 return candidate
-            start = index + len(anchor)
+            # Adjacent anchors share a slash (for example /src/src/), so only
+            # advance past the current match's first character.
+            start = index + 1
     if candidates:
         return candidates[-1]
 
@@ -151,9 +153,15 @@ def parse_diff(diff: str) -> dict[str, set[int]]:
     changed: dict[str, set[int]] = defaultdict(set)
     current: str | None = None
     new_line: int | None = None
+    in_hunk = False
 
     for line in diff.splitlines():
-        if line.startswith("+++ "):
+        if line.startswith("diff --git "):
+            current = None
+            new_line = None
+            in_hunk = False
+            continue
+        if not in_hunk and line.startswith("+++ "):
             target = line[4:].strip()
             if target == "/dev/null":
                 current = None
@@ -162,7 +170,11 @@ def parse_diff(diff: str) -> dict[str, set[int]]:
                 changed.setdefault(current, set())
             new_line = None
             continue
-        if line.startswith("@@ ") and current is not None:
+        if line.startswith("@@ "):
+            in_hunk = current is not None
+            new_line = None
+            if current is None:
+                continue
             try:
                 added = line.split(" +", 1)[1].split(" ", 1)[0]
                 start = added.split(",", 1)[0]
@@ -170,7 +182,7 @@ def parse_diff(diff: str) -> dict[str, set[int]]:
             except (IndexError, ValueError):
                 fail(f"unsupported diff hunk header: {line}")
             continue
-        if new_line is None or current is None:
+        if not in_hunk or new_line is None or current is None:
             continue
         if line.startswith("+"):
             changed[current].add(new_line)
