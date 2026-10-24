@@ -143,13 +143,28 @@ public class XmlLexicalWriteValidationTests
     }
 
     [Fact]
+    public void ValidatedWrite_OmittedOptionalMembers_AreAccepted()
+    {
+        var eds = ValidEds();
+        eds.ApplicationProcess = CompleteApplicationProcess();
+        eds.ApplicationProcess.ParameterList[0].VariableRefs[0].MemberRef = null;
+        eds.ApplicationProcess.DataTypeList!.Derived[0].Count = null;
+
+        var issues = Validate(eds);
+
+        issues.Where(issue => issue.Code == ValidationIssueCodes.XddLexicalValueInvalid).Should().BeEmpty();
+    }
+
+    [Fact]
     public void ValidatedWrite_RequiredEmptyIdRefs_AreStillReported()
     {
         var eds = ValidEds();
         eds.ApplicationProcess = CompleteApplicationProcess();
         eds.ApplicationProcess.FunctionInstanceList!.FunctionInstances[0].TypeIdRef = string.Empty;
-        eds.ApplicationProcess.ParameterList[0].ConditionalSupports[0] = string.Empty;
-        eds.ApplicationProcess.ParameterList[0].Access = null!;
+        var parameter = eds.ApplicationProcess.ParameterList[0];
+        parameter.ConditionalSupports[0] = string.Empty;
+        parameter.VariableRefs[0].InstanceIdRefs[0] = string.Empty;
+        parameter.Access = null!;
 
         var issues = Validate(eds);
 
@@ -159,6 +174,7 @@ public class XmlLexicalWriteValidationTests
             {
                 "ApplicationProcess.FunctionInstanceList.FunctionInstances[0].TypeIdRef",
                 "ApplicationProcess.ParameterList[0].ConditionalSupports[0]",
+                "ApplicationProcess.ParameterList[0].VariableRefs[0].InstanceIdRefs[0]",
             });
     }
 

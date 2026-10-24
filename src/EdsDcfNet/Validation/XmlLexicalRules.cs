@@ -115,7 +115,7 @@ internal static class XmlLexicalRules
                 var reference = parameter.VariableRefs[j];
                 var referencePath = Path(path + ".VariableRefs", j);
                 for (var k = 0; k < reference.InstanceIdRefs.Count; k++)
-                    Check(reference.InstanceIdRefs[k], XmlTypeCode.Idref, Path(referencePath + ".InstanceIdRefs", k), issues);
+                    Check(reference.InstanceIdRefs[k], XmlTypeCode.Idref, Path(referencePath + ".InstanceIdRefs", k), issues, required: true);
                 Check(reference.VariableIdRef, XmlTypeCode.Idref, referencePath + ".VariableIdRef", issues);
                 Check(reference.MemberRef?.UniqueIdRef, XmlTypeCode.Idref, referencePath + ".MemberRef.UniqueIdRef", issues);
             }
