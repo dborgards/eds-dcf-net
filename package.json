@@ -17,13 +17,13 @@
   },
   "overrides": {
     "@actions/http-client": {
-      "undici": "8.11.2"
+      "undici": "8.12.3"
     },
     "@semantic-release/github": {
-      "undici": "8.11.2"
+      "undici": "8.12.3"
     },
     "node-gyp": {
-      "undici": "8.11.2"
+      "undici": "8.12.3"
     },
     "npm": "$eds-npm-cli-stub"
   },
@@ -34,7 +34,7 @@
     "@semantic-release/git": "^11.0.1",
     "@semantic-release/github": "^12.0.9",
     "@semantic-release/release-notes-generator": "^14.1.1",
-    "conventional-changelog-conventionalcommits": "^9.3.1",
+    "conventional-changelog-conventionalcommits": "^10.4.1",
     "eds-npm-cli-stub": "file:tools/npm-cli-stub",
     "semantic-release": "^25.0.8"
   }
