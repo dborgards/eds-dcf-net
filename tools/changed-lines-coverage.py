@@ -226,6 +226,7 @@ def main() -> None:
         "diff",
         "--unified=0",
         "--no-color",
+        "--no-ext-diff",
         "--src-prefix=a/",
         "--dst-prefix=b/",
         merge_base,

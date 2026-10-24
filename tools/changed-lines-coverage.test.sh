@@ -94,6 +94,17 @@ case "$output" in
   *) echo "FAIL: mnemonic diff prefixes skipped coverage: $output" >&2; failures=$((failures + 1)) ;;
 esac
 
+# External diff helpers must not replace the patch with non-diff output and
+# turn uncovered additions into a successful no-op.
+git -C "$repo" config diff.external echo
+run_gate 51
+check "external Git diff helpers cannot bypass coverage" 1 "$status"
+case "$output" in
+  *"src/Demo.cs: uncovered added line(s) 3"*) echo "ok: Git generates the parsed patch internally" ;;
+  *) echo "FAIL: external diff helper bypassed coverage: $output" >&2; failures=$((failures + 1)) ;;
+esac
+git -C "$repo" config --unset diff.external
+
 # A source-relative Cobertura filename must be resolved through <sources>.
 source_results="$work/source-results"
 mkdir -p "$source_results"
