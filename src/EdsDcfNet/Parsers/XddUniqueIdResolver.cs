@@ -620,6 +620,13 @@ internal sealed class XddUniqueIdResolver
             return true;
         }
 
+        if (IsAnonymousArray(declaration))
+        {
+            error = "memberRef does not select an element of the enclosing array.";
+            result = null;
+            return false;
+        }
+
         if (!TryResolveCompositeType(declaration.Type, _structs, out var structure))
         {
             error = "memberRef does not identify a structure component.";

@@ -408,6 +408,23 @@ public class XddIndirectUniqueIdRefTests
     }
 
     [Fact]
+    public void ReadString_AnonymousStructureArrayMemberRefWithoutIndex_IsRejected()
+    {
+        var application = @"
+          <dataTypeList><struct name=""Record"" uniqueID=""REC"">
+            <varDeclaration name=""Field"" uniqueID=""M""><USINT/></varDeclaration>
+          </struct></dataTypeList>"
+            + FunctionTypes(@"<inputVars><varDeclaration name=""Records"" uniqueID=""V"" size=""3""><dataTypeIDRef uniqueIDRef=""REC""/></varDeclaration></inputVars>") + @"
+          <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT_LEAF""/></functionInstanceList>
+          <parameterList>" + Parameter("P", VariableRef("V", member: " uniqueIDRef=\"M\"")) + "</parameterList>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application, Object("2000", "Records")));
+
+        result.Diagnostics.Should().ContainSingle(d => d.Message.Contains("enclosing array", StringComparison.Ordinal));
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().BeNull();
+    }
+
+    [Fact]
     public void ReadString_DeclarationInitialValues_ProjectAsDefaultFallbacks()
     {
         var application = @"
