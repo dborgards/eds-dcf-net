@@ -37,6 +37,9 @@
 #   tools/enforce-coverage-threshold.sh <results-directory>
 set -euo pipefail
 
+# Decimal parsing, formatting, and comparison must not depend on runner locale.
+export LC_ALL=C
+
 if [[ $# -ne 1 || -z "${1:-}" ]]; then
   echo "Usage: tools/enforce-coverage-threshold.sh <results-directory>" >&2
   echo "Pass the fresh directory created under RUNNER_TEMP for this test run." >&2

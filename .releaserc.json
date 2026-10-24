@@ -108,7 +108,7 @@
         ],
         "successComment": false,
         "failComment": false,
-        "releasedLabels": ["released"]
+        "releasedLabels": false
       }
     ]
   ]
