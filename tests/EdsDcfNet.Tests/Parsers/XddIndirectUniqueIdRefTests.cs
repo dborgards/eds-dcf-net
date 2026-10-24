@@ -322,6 +322,33 @@ public class XddIndirectUniqueIdRefTests
     }
 
     [Fact]
+    public void ReadString_AnonymousArrayMemberRefs_ResolveElementTypeAndCheckBounds()
+    {
+        var application = @"
+          <functionTypeList><functionType name=""F"" uniqueID=""FT""><versionInfo organization=""O"" version=""1"" author=""A"" date=""2026-01-01""/>
+            <interfaceList><inputVars>
+              <varDeclaration name=""Bytes"" uniqueID=""V"" start=""2"" size=""3"" initialValue=""parent""><USINT/></varDeclaration>
+            </inputVars></interfaceList>
+          </functionType></functionTypeList>
+          <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT""/></functionInstanceList>
+          <parameterList>"
+            + Parameter("P", VariableRef("V", member: " index=\"3\""))
+            + Parameter("PDEFAULT", VariableRef("V", member: " index=\"4\"") + "<defaultValue value=\"6\"/>")
+            + Parameter("POUT", VariableRef("V", member: " index=\"5\""))
+            + "</parameterList>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application,
+            Object("2000", "Element") + Object("2001", "Default", "PDEFAULT")
+            + Object("2002", "Outside", "POUT")));
+
+        result.Diagnostics.Should().ContainSingle(d => d.Message.Contains("memberRef index", StringComparison.Ordinal));
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().Be(CanOpenDataType.Unsigned8);
+        result.Model.ObjectDictionary.Objects[0x2000].DefaultValue.Should().BeNull();
+        result.Model.ObjectDictionary.Objects[0x2001].DefaultValue.Should().Be("6");
+        result.Model.ObjectDictionary.Objects[0x2002].DataType.Should().BeNull();
+    }
+
+    [Fact]
     public void ReadString_DeclarationInitialValues_ProjectAsDefaultFallbacks()
     {
         var application = @"
@@ -332,7 +359,7 @@ public class XddIndirectUniqueIdRefTests
           <functionTypeList><functionType name=""F"" uniqueID=""FT""><versionInfo organization=""O"" version=""1"" author=""A"" date=""2026-01-01""/>
             <interfaceList><inputVars>
               <varDeclaration name=""Value"" uniqueID=""V"" initialValue=""7""><USINT/></varDeclaration>
-              <varDeclaration name=""Struct"" uniqueID=""VS""><dataTypeIDRef uniqueIDRef=""REC""/></varDeclaration>
+              <varDeclaration name=""Struct"" uniqueID=""VS"" initialValue=""composite""><dataTypeIDRef uniqueIDRef=""REC""/></varDeclaration>
             </inputVars></interfaceList>
           </functionType></functionTypeList>
           <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT""/></functionInstanceList>
@@ -341,16 +368,103 @@ public class XddIndirectUniqueIdRefTests
             + Parameter("PMEMBER", VariableRef("VS", member: " uniqueIDRef=\"M\""))
             + Parameter("POVERRIDE", VariableRef("VS", member: " uniqueIDRef=\"M\"") + "<defaultValue value=\"5\"/>")
                 .Replace("uniqueID=\"POVERRIDE\"", "uniqueID=\"POVERRIDE\" templateIDRef=\"T\"")
+            + Parameter("PTEMPLATE", VariableRef("V"))
+                .Replace("uniqueID=\"PTEMPLATE\"", "uniqueID=\"PTEMPLATE\" templateIDRef=\"T\"")
             + "</parameterList>";
 
         var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application,
             Object("2000", "Direct", "PDIRECT") + Object("2001", "Member", "PMEMBER")
-            + Object("2002", "Override", "POVERRIDE")));
+            + Object("2002", "Override", "POVERRIDE") + Object("2003", "Template", "PTEMPLATE")));
 
         result.Diagnostics.Should().BeEmpty();
-        result.Model.ObjectDictionary.Objects[0x2000].DefaultValue.Should().Be("7");
+        result.Model.ObjectDictionary.Objects[0x2000].DefaultValue.Should().Be("6");
         result.Model.ObjectDictionary.Objects[0x2001].DefaultValue.Should().Be("8");
         result.Model.ObjectDictionary.Objects[0x2002].DefaultValue.Should().Be("5");
+        result.Model.ObjectDictionary.Objects[0x2003].DefaultValue.Should().Be("4");
+    }
+
+    [Fact]
+    public void ReadString_SizedStringAndBitstringDeclarations_RemainScalar()
+    {
+        var application = FunctionTypes(@"<inputVars>
+          <varDeclaration name=""Text"" uniqueID=""VW"" size=""3""><WSTRING/></varDeclaration>
+          <varDeclaration name=""Bits"" uniqueID=""VB"" size=""3""><BITSTRING/></varDeclaration>
+        </inputVars>") + @"
+          <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT_LEAF""/></functionInstanceList>
+          <parameterList>"
+            + Parameter("PW", VariableRef("VW")) + Parameter("PB", VariableRef("VB"))
+            + "</parameterList>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application,
+            Object("2000", "Text", "PW") + Object("2001", "Bits", "PB")));
+
+        result.Diagnostics.Should().BeEmpty();
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().Be(CanOpenDataType.UnicodeString);
+        result.Model.ObjectDictionary.Objects[0x2001].DataType.Should().Be(CanOpenDataType.OctetString);
+    }
+
+    [Fact]
+    public void ReadString_TemplateChain_NearerValuesWinAndDuplicateTargetsAreReported()
+    {
+        const string application = @"
+          <templateList>
+            <parameterTemplate uniqueID=""T0""><UINT/><defaultValue value=""11""/>
+              <allowedValues><range><minValue value=""1""/><maxValue value=""99""/></range></allowedValues>
+            </parameterTemplate>
+            <parameterTemplate uniqueID=""T1"" templateIDRef=""T0""><USINT/><defaultValue value=""12""/>
+              <allowedValues><range><minValue value=""2""/><maxValue value=""3""/></range></allowedValues>
+            </parameterTemplate>
+            <parameterTemplate uniqueID=""DUP""><USINT/></parameterTemplate>
+            <parameterTemplate uniqueID=""DUP""><UINT/></parameterTemplate>
+          </templateList>
+          <parameterList><parameter uniqueID=""P"" templateIDRef=""T1""><label lang=""en"">P</label></parameter>
+            <parameter uniqueID=""PDUP"" templateIDRef=""DUP""><label lang=""en"">Duplicate</label></parameter>
+          </parameterList>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application,
+            Object("2000", "P") + Object("2001", "Duplicate", "PDUP")));
+
+        result.Diagnostics.Should().ContainSingle(d => d.Message.Contains("identifies 2 targets", StringComparison.Ordinal));
+        var obj = result.Model.ObjectDictionary.Objects[0x2000];
+        obj.DataType.Should().Be(CanOpenDataType.Unsigned8);
+        obj.DefaultValue.Should().Be("12");
+        obj.LowLimit.Should().Be("2");
+        obj.HighLimit.Should().Be("3");
+    }
+
+    [Fact]
+    public void ReadString_MultidimensionalNamedArrayMemberRef_IsRejected()
+    {
+        var application = @"
+          <dataTypeList><array name=""Matrix"" uniqueID=""ARR"">
+            <subrange lowerLimit=""0"" upperLimit=""1""/><subrange lowerLimit=""0"" upperLimit=""1""/><USINT/>
+          </array></dataTypeList>"
+            + FunctionTypes(@"<inputVars><varDeclaration name=""Matrix"" uniqueID=""V""><dataTypeIDRef uniqueIDRef=""ARR""/></varDeclaration></inputVars>") + @"
+          <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT_LEAF""/></functionInstanceList>
+          <parameterList>" + Parameter("P", VariableRef("V", member: " index=\"1\"")) + "</parameterList>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application, Object("2000", "Matrix")));
+
+        result.Diagnostics.Should().ContainSingle(d => d.Message.Contains("one-dimensional array", StringComparison.Ordinal));
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("start=\"bad\" size=\"3\"", "3")]
+    [InlineData("start=\"2\" size=\"bad\"", "3")]
+    [InlineData("start=\"2\" size=\"0\"", "2")]
+    [InlineData("start=\"2\" size=\"3\"", "1")]
+    public void ReadString_AnonymousArrayWithInvalidBounds_IsRejected(string bounds, string index)
+    {
+        var application = FunctionTypes(
+            "<inputVars><varDeclaration name=\"Bytes\" uniqueID=\"V\" " + bounds + "><USINT/></varDeclaration></inputVars>") + @"
+          <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT_LEAF""/></functionInstanceList>
+          <parameterList>" + Parameter("P", VariableRef("V", member: " index=\"" + index + "\"")) + "</parameterList>";
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(BuildXdd(application, Object("2000", "Bytes")));
+
+        result.Diagnostics.Should().ContainSingle(d => d.Message.Contains("memberRef index", StringComparison.Ordinal));
+        result.Model.ObjectDictionary.Objects[0x2000].DataType.Should().BeNull();
     }
 
     [Fact]

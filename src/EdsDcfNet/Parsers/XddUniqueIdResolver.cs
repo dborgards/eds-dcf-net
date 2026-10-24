@@ -461,9 +461,9 @@ internal sealed class XddUniqueIdResolver
             ? variables.Variables[0]
             : null;
         var value = variable?.DefaultValue?.Value
-            ?? variable?.InitialValue
             ?? parameter.DefaultValue?.Value
             ?? ResolveParameterTemplate(parameter.TemplateIdRef, projection)?.DefaultValue?.Value
+            ?? variable?.InitialValue
             ?? variable?.ComponentDefaultValue?.Value
             ?? variable?.ComponentInitialValue;
         if (value != null)
@@ -540,7 +540,8 @@ internal sealed class XddUniqueIdResolver
     {
         result = null;
         error = null;
-        var instances = _applicationProcess?.FunctionInstanceList;
+        // A parameter can only have been indexed when an application process exists.
+        var instances = _applicationProcess!.FunctionInstanceList;
         ApFunctionType? functionType = null;
         foreach (var instanceId in reference.InstanceIdRefs)
         {
@@ -597,21 +598,18 @@ internal sealed class XddUniqueIdResolver
 
         if (member.Index.HasValue)
         {
-            if (!TryResolveCompositeType(declaration.Type, _arrays, out var array)
-                || array!.Subranges.Count != 1
-                || member.Index.Value < array.Subranges[0].LowerLimit
-                || member.Index.Value > array.Subranges[0].UpperLimit)
+            if (!TryResolveArrayElement(declaration, member.Index.Value, out var elementType))
             {
                 error = "memberRef index does not identify an element of a one-dimensional array.";
                 result = null;
                 return false;
             }
 
+            // A composite initializer belongs to the array as a whole, not to a scalar element.
             result = new ResolvedVariable(
-                array.ElementType,
+                elementType,
                 declaration.DefaultValue,
-                declaration.AllowedValues,
-                initialValue: declaration.InitialValue);
+                declaration.AllowedValues);
             return true;
         }
 
@@ -637,9 +635,36 @@ internal sealed class XddUniqueIdResolver
             declaration.AllowedValues,
             members[0].DefaultValue,
             members[0].AllowedValues,
-            declaration.InitialValue,
-            members[0].InitialValue);
+            componentInitialValue: members[0].InitialValue);
         return true;
+    }
+
+    private bool TryResolveArrayElement(
+        ApVarDeclaration declaration,
+        long index,
+        out ApTypeRef? elementType)
+    {
+        if (IsAnonymousArray(declaration))
+        {
+            elementType = declaration.Type;
+            return int.TryParse(declaration.Start ?? "0", NumberStyles.Integer, CultureInfo.InvariantCulture, out var start)
+                && int.TryParse(declaration.Size ?? "1", NumberStyles.Integer, CultureInfo.InvariantCulture, out var size)
+                && size > 0
+                && index >= start
+                && (long)index < (long)start + size;
+        }
+
+        if (TryResolveCompositeType(declaration.Type, _arrays, out var array)
+            && array!.Subranges.Count == 1
+            && index >= array.Subranges[0].LowerLimit
+            && index <= array.Subranges[0].UpperLimit)
+        {
+            elementType = array.ElementType;
+            return true;
+        }
+
+        elementType = null;
+        return false;
     }
 
     private bool TryResolveCompositeType<T>(
