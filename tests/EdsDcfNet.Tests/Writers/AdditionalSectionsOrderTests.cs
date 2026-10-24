@@ -249,6 +249,41 @@ public class AdditionalSectionsOrderTests
         order.Should().Equal("Zeta", "DeviceCommissioning", "Alpha");
     }
 
+    [Theory]
+    [InlineData("DeviceCommissioning")]
+    [InlineData("devicecommissioning")]
+    public void Write_Dcf_AdditionalBeforeAlternateCommissioningSpelling_KeepsSourcePosition(string sectionName)
+    {
+        var dcf = new DcfReader().ReadString(Join(
+            "[FileInfo]", "FileName=t.dcf", "[DeviceInfo]", "VendorName=V", "",
+            "[BeforeCommissioning]", "Key=kept", "",
+            "[" + sectionName + "]", "NodeID=1"));
+
+        var written = new DcfWriter().GenerateString(dcf);
+
+        Pos(written, "[BeforeCommissioning]").Should().BeLessThan(Pos(written, "[DeviceComissioning]"));
+        Pos(written, "Key=kept").Should().BeLessThan(Pos(written, "[DeviceComissioning]"));
+    }
+
+    [Fact]
+    public void Write_Dcf_StaleObjectLinksForExistingObjectWithoutLinks_AreSkipped()
+    {
+        var dcf = new DeviceConfigurationFile();
+        dcf.ObjectDictionary.Objects[0x1000] = new CanOpenObject
+        {
+            Index = 0x1000,
+            ParameterName = "Device type",
+            ObjectType = 0x7,
+            DataType = 0x0007,
+            AccessType = AccessType.ReadOnly
+        };
+        dcf.AdditionalSections["1000ObjectLinks"] = new Dictionary<string, string> { ["ObjectLinks"] = "0" };
+
+        var written = new DcfWriter().GenerateString(dcf);
+
+        written.Should().NotContain("[1000ObjectLinks]");
+    }
+
     [Fact]
     public void ConvertToDcf_KeepsAdditionalSectionAndKeyOrder()
     {

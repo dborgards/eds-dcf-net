@@ -1551,6 +1551,10 @@ public abstract class IniWriterBase
 
     private static int FindSectionHeader(StringBuilder sb, string sectionName)
     {
+        // CiA 306-1 writes commissioning with a single "m", while some sources use two.
+        if (sectionName.Equals("DeviceCommissioning", StringComparison.OrdinalIgnoreCase))
+            sectionName = "DeviceComissioning";
+
         var header = string.Concat("[", sectionName, "]");
         for (var offset = 0; offset + header.Length <= sb.Length; offset++)
         {

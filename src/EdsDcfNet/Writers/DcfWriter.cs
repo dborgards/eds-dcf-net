@@ -386,13 +386,9 @@ public class DcfWriter : IniWriterBase
             dcf.AdditionalSections,
             dcf.AdditionalSectionOrder,
             WriteSection,
-            sectionName =>
-                ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(
-                    sectionName,
-                    dcf.ObjectDictionary) ||
-                DeviceCommissioningSemantics.IsDiscardedAdditionalSection(
-                    sectionName,
-                    dcf.DeviceCommissioning));
+            sectionName => ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(
+                sectionName,
+                dcf.ObjectDictionary));
 
         return TextFileIo.ApplyOutputNewLine(sb.ToString());
     }

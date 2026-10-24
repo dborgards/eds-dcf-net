@@ -149,11 +149,28 @@ public class CpjWriter
     private static string GenerateCpjContent(NodelistProject cpj)
     {
         var sb = new StringBuilder();
+        var usedNames = new HashSet<string>(
+            cpj.Networks
+                .Where(network => network?.SourceSectionName != null)
+                .Select(network => network!.SourceSectionName!),
+            StringComparer.OrdinalIgnoreCase);
+        var nextTopologyNumber = 1;
 
         for (int i = 0; i < cpj.Networks.Count; i++)
         {
-            var defaultName = i == 0 ? "Topology" : string.Format(CultureInfo.InvariantCulture, "Topology{0}", i + 1);
-            var sectionName = cpj.Networks[i]?.SourceSectionName ?? defaultName;
+            var sectionName = cpj.Networks[i]?.SourceSectionName;
+            if (sectionName == null)
+            {
+                do
+                {
+                    sectionName = nextTopologyNumber == 1
+                        ? "Topology"
+                        : string.Format(CultureInfo.InvariantCulture, "Topology{0}", nextTopologyNumber);
+                    nextTopologyNumber++;
+                }
+                while (!usedNames.Add(sectionName));
+            }
+
             WriteSection(sectionName, () => WriteTopology(sb, cpj.Networks[i], sectionName));
         }
 

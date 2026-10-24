@@ -117,6 +117,23 @@ EDSBaseName=/eds/
             .Should().Equal("First", "Fourth", "Ninth");
     }
 
+    [Theory]
+    [InlineData("Topology2")]
+    [InlineData("topologY2")]
+    public void GenerateString_NewTopologiesWithNumberingGap_UseUniqueSectionNames(string preservedName)
+    {
+        var project = _reader.ReadString("[" + preservedName + "]\nNetName=Preserved\nNodes=0x00\n");
+        project.Networks.Add(new NetworkTopology { NetName = "Added first" });
+        project.Networks.Add(new NetworkTopology { NetName = "Added second" });
+
+        var written = _writer.GenerateString(_reader.ReadString(_writer.GenerateString(project)));
+        var reparsed = _reader.ReadString(written);
+
+        written.Should().Contain("[Topology]").And.Contain("[Topology3]");
+        reparsed.Networks.Select(network => network.NetName)
+            .Should().Equal("Preserved", "Added first", "Added second");
+    }
+
     [Fact]
     public void GenerateString_NodeNotPresent_WritesPresent0x00()
     {
