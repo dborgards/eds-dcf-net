@@ -335,6 +335,8 @@ internal static class XddApplicationProcessBuilder
             elem.Add(new XAttribute("offset", pt.Offset));
         if (!string.IsNullOrEmpty(pt.Multiplier))
             elem.Add(new XAttribute("multiplier", pt.Multiplier));
+        if (!string.IsNullOrEmpty(pt.TemplateIdRef))
+            elem.Add(new XAttribute("templateIDRef", pt.TemplateIdRef));
 
         ApAddLabelGroup(elem, pt.LabelGroup);
         ApAddTypeRef(elem, pt.TypeRef);
