@@ -630,6 +630,7 @@ internal static class ModelCloner
             Persistent = source.Persistent,
             Offset = source.Offset,
             Multiplier = source.Multiplier,
+            TemplateIdRef = source.TemplateIdRef,
             TypeRef = CloneTypeRef(source.TypeRef),
             ActualValue = CloneParameterValue(source.ActualValue),
             DefaultValue = CloneParameterValue(source.DefaultValue),

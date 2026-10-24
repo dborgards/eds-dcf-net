@@ -393,6 +393,7 @@ private static ApParameterTemplate ParseParameterTemplate(XElement elem)
         Support = elem.Attribute("support")?.Value,
         Offset = elem.Attribute("offset")?.Value,
         Multiplier = elem.Attribute("multiplier")?.Value,
+        TemplateIdRef = elem.Attribute("templateIDRef")?.Value,
     };
 
     var persistentStr = elem.Attribute("persistent")?.Value;
