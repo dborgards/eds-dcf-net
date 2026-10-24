@@ -82,6 +82,27 @@ The merge method is enforced by the repository rulesets (see
   the PR is not blocked. There is deliberately no workflow-level
   `paths-ignore`: it would leave the required checks unreported.
 
+### Changed-lines coverage
+
+Use the shared Cobertura diff gate to check coverage of added source lines before
+opening a PR. Fetch the base ref, generate a fresh report, and pass its results
+directory to the script:
+
+```sh
+git fetch origin develop
+results="TestResults/changed-lines"
+dotnet test tests/EdsDcfNet.Tests/EdsDcfNet.Tests.csproj \
+  --configuration Release --framework net10.0 \
+  --collect:"XPlat Code Coverage" --results-directory "$results"
+bash tools/changed-lines-coverage.sh "$results" origin/develop
+```
+
+The gate defaults to `src` and `COVERAGE_MIN_PERCENT=95.0`. Append paths to check
+another subtree, or set the environment variable for a different local threshold.
+It includes committed, staged, and unstaged changes since the merge base, merges
+multiple Cobertura reports by line, and ignores deleted or non-instrumentable
+lines. A changed line is covered when any report records at least one hit.
+
 ## Coding conventions
 
 Repository-wide formatting and baseline analyzer severities are defined in
