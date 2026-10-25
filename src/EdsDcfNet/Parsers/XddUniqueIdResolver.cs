@@ -599,6 +599,7 @@ internal sealed class XddUniqueIdResolver
             return true;
         }
 
+        var selectedArrayElement = false;
         for (var i = 0; i < memberRefs.Count; i++)
         {
             var member = memberRefs[i];
@@ -620,10 +621,11 @@ internal sealed class XddUniqueIdResolver
                 }
 
                 declaration = new ApVarDeclaration { Type = elementType };
+                selectedArrayElement = true;
                 // A composite initializer belongs to the array as a whole, not to a scalar element.
                 result = new ResolvedVariable(
                     elementType,
-                    variableDeclaration.DefaultValue,
+                    defaultValue: null,
                     variableDeclaration.AllowedValues);
                 continue;
             }
@@ -662,7 +664,7 @@ internal sealed class XddUniqueIdResolver
 
             result = new ResolvedVariable(
                 declaration.Type,
-                variableDeclaration.DefaultValue,
+                selectedArrayElement ? null : variableDeclaration.DefaultValue,
                 variableDeclaration.AllowedValues,
                 declaration.DefaultValue,
                 declaration.AllowedValues,

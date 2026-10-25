@@ -439,6 +439,75 @@ public class XddIndirectUniqueIdRefTests
         result.Model.ObjectDictionary.Objects[0x2002].DataType.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void ReadString_ArrayMemberDefaults_ExcludeCompositeInitializerAndRoundTrip(
+        bool namedArray, bool structElement)
+    {
+        var elementType = structElement ? "<dataTypeIDRef uniqueIDRef=\"REC\"/>" : "<USINT/>";
+        var declarationType = namedArray ? "<dataTypeIDRef uniqueIDRef=\"ARR_ALIAS\"/>" : elementType;
+        var bounds = namedArray ? string.Empty : " start=\"2\" size=\"3\"";
+        var memberPath = "<memberRef index=\"2\"/>"
+            + (structElement ? "<memberRef uniqueIDRef=\"FIELD\"/>" : string.Empty);
+        var reference = VariableRef("V").Replace("</variableRef>", memberPath + "</variableRef>");
+        var application = @"
+          <templateList><parameterTemplate uniqueID=""T""><defaultValue value=""5""/></parameterTemplate></templateList>
+          <dataTypeList>
+            <struct name=""Record"" uniqueID=""REC""><varDeclaration name=""Field"" uniqueID=""FIELD""><USINT/><defaultValue value=""7""/></varDeclaration></struct>
+            <array name=""Array"" uniqueID=""ARR""><subrange lowerLimit=""2"" upperLimit=""4""/>"
+            + elementType + @"</array>
+            <derived name=""Alias"" uniqueID=""ARR_ALIAS""><dataTypeIDRef uniqueIDRef=""ARR""/></derived>
+          </dataTypeList>"
+            + FunctionTypes("<inputVars><varDeclaration name=\"Values\" uniqueID=\"V\"" + bounds + ">"
+                + declarationType + "<defaultValue value=\"[1,2,3]\"/>"
+                + "<allowedValues><range><minValue value=\"0\"/><maxValue value=\"255\"/></range></allowedValues>"
+                + "</varDeclaration></inputVars>") + @"
+          <functionInstanceList><functionInstance name=""F"" uniqueID=""I"" typeIDRef=""FT_LEAF""/></functionInstanceList>
+          <parameterList>"
+            + Parameter("P", reference)
+            + Parameter("PLOCAL", reference + "<defaultValue value=\"6\"/>")
+            + Parameter("PEMPTY", reference + "<defaultValue/>")
+            + Parameter("PTEMPLATE", reference).Replace("uniqueID=\"PTEMPLATE\"", "uniqueID=\"PTEMPLATE\" templateIDRef=\"T\"")
+            + "</parameterList>";
+        var xml = BuildXdd(application,
+            Object("2000", "Element") + Object("2001", "Local", "PLOCAL")
+            + Object("2002", "Empty", "PEMPTY") + Object("2003", "Template", "PTEMPLATE")
+            + Object("2004", "Explicit").Replace("/>", " defaultValue=\"8\"/>"));
+
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml, Strict);
+        result.Diagnostics.Should().BeEmpty();
+        AssertDefaults(result.Model.ObjectDictionary);
+        var written = CanOpenFile.Xdd.WriteToString(result.Model);
+        written.Should().Contain("value=\"[1,2,3]\"");
+        AssertDefaults(CanOpenFile.Xdd.ReadString(written, Strict).ObjectDictionary);
+
+        var xdc = CanOpenFile.Xdc.ReadString(xml, Strict);
+        AssertDefaults(xdc.ObjectDictionary);
+        AssertDefaults(CanOpenFile.Xdc.ReadString(CanOpenFile.Xdc.WriteToString(xdc), Strict).ObjectDictionary);
+
+        // The writer must compare against the scalar projection as well.
+        result.Model.ObjectDictionary.Objects[0x2000].DefaultValue = "[1,2,3]";
+        var overridden = System.Xml.Linq.XDocument.Parse(CanOpenFile.Xdd.WriteToString(result.Model))
+            .Descendants().Single(element => element.Name.LocalName == "CANopenObject"
+                && (string?)element.Attribute("index") == "2000");
+        ((string?)overridden.Attribute("defaultValue")).Should().Be("[1,2,3]");
+
+        void AssertDefaults(ObjectDictionary dictionary)
+        {
+            dictionary.Objects[0x2000].DataType.Should().Be(CanOpenDataType.Unsigned8);
+            dictionary.Objects[0x2000].DefaultValue.Should().Be(structElement ? "7" : null);
+            dictionary.Objects[0x2000].LowLimit.Should().Be("0");
+            dictionary.Objects[0x2000].HighLimit.Should().Be("255");
+            dictionary.Objects[0x2001].DefaultValue.Should().Be("6");
+            dictionary.Objects[0x2002].DefaultValue.Should().BeEmpty();
+            dictionary.Objects[0x2003].DefaultValue.Should().Be("5");
+            dictionary.Objects[0x2004].DefaultValue.Should().Be("8");
+        }
+    }
+
     [Fact]
     public void ReadString_NestedNamedArrayElement_DoesNotProjectInnerScalarType()
     {
