@@ -90,19 +90,23 @@ public class XddTypedProfileApiTests
         function.Pictures.Add(new XddPicture { Uri = "device.png" });
         function.Dictionaries.Add(new XddTextResource { Uri = "texts.xml" });
 
-        var deviceInterface = eds.DeviceManager!.ModuleManagement!.Interfaces.Single();
+        var manager = eds.DeviceManager!;
+        var deviceInterface = manager.ModuleManagement!.Interfaces.Single();
         deviceInterface.ConnectedModuleIds.Add("5");
+        manager.Indicators.Add(new XddLed());
 
         function.Standards.Clear();
         function.Pictures.Clear();
         function.Dictionaries.Clear();
         deviceInterface.ConnectedModuleIds.Clear();
+        manager.Indicators.Clear();
 
         var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(eds));
         written.Descendants(Co + "standardComplianceList").Should().BeEmpty();
         written.Descendants(Co + "picturesList").Should().BeEmpty();
         written.Descendants(Co + "dictionaryList").Should().BeEmpty();
         written.Descendants(Co + "connectedModuleList").Should().BeEmpty();
+        written.Descendants(Co + "LEDList").Should().BeEmpty();
         Cia311Schema.Validate(written.ToString()).Should().BeEmpty();
 
         var extensionName = (XNamespace)"urn:vendor" + "extension";
@@ -113,14 +117,20 @@ public class XddTypedProfileApiTests
             new XElement(Co + "connectedModuleList",
                 new XElement(Co + "connectedModule", new XAttribute("childIDRef", "5")),
                 new XElement(extensionName)));
+        written.Descendants(Co + "indicatorList").Remove();
+        written.Descendants(Co + "DeviceManager").Single().Add(new XElement(Co + "indicatorList",
+            new XElement(Co + "LEDList", new XElement(Co + "LED"), new XElement(extensionName))));
         var withExtension = CanOpenFile.Xdd.ReadString(written.ToString());
         withExtension.DeviceFunctions.Single().Pictures.Clear();
         withExtension.DeviceManager!.ModuleManagement!.Interfaces.Single().ConnectedModuleIds.Clear();
+        withExtension.DeviceManager.Indicators.Clear();
 
         var preserved = XDocument.Parse(CanOpenFile.Xdd.WriteToString(withExtension));
         preserved.Descendants(Co + "picturesList").Single().Elements().Single()
             .Name.Should().Be(extensionName);
         preserved.Descendants(Co + "connectedModuleList").Single().Elements().Single()
+            .Name.Should().Be(extensionName);
+        preserved.Descendants(Co + "LEDList").Single().Elements().Single()
             .Name.Should().Be(extensionName);
     }
 

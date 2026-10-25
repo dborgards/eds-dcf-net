@@ -9,11 +9,11 @@ public sealed class XddDeviceManager : XddXmlModel
 
     /// <summary>LED indicators declared by the device.</summary>
     public ICollection<XddLed> Indicators => List<XddLed>("indicatorList/LEDList", "LED",
-        e => new XddLed(e), () => new XddLed(), false, "LED", "combinedState");
+        e => new XddLed(e), () => new XddLed(), true, "LED", "combinedState");
 
     /// <summary>Combined states that reference two or more LED states.</summary>
     public ICollection<XddCombinedState> CombinedStates => List<XddCombinedState>("indicatorList/LEDList", "combinedState",
-        e => new XddCombinedState(e), () => new XddCombinedState(), false, "LED", "combinedState");
+        e => new XddCombinedState(e), () => new XddCombinedState(), true, "LED", "combinedState");
 
     /// <summary>Device-side module management, or <see langword="null"/> when absent.</summary>
     public XddDeviceModuleManagement? ModuleManagement
