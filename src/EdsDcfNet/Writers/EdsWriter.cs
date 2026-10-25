@@ -41,6 +41,7 @@ public class EdsWriter : IniWriterBase
             "EDS",
             () =>
             {
+                TextFileIo.ThrowIfReadOnlyTarget(filePath);
                 var content = GenerateEdsContent(eds);
                 TextFileIo.WriteOutputTextToFile(filePath, content);
             },
@@ -101,6 +102,7 @@ public class EdsWriter : IniWriterBase
             "EDS",
             async () =>
             {
+                TextFileIo.ThrowIfReadOnlyTarget(filePath);
                 var content = GenerateEdsContent(eds);
                 await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
             },

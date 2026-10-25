@@ -39,6 +39,7 @@ public class CpjWriter
             "CPJ",
             () =>
             {
+                TextFileIo.ThrowIfReadOnlyTarget(filePath);
                 var content = GenerateCpjContent(cpj);
                 TextFileIo.WriteOutputTextToFile(filePath, content);
             },
@@ -99,6 +100,7 @@ public class CpjWriter
             "CPJ",
             async () =>
             {
+                TextFileIo.ThrowIfReadOnlyTarget(filePath);
                 var content = GenerateCpjContent(cpj);
                 await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
             },

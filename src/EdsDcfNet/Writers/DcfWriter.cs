@@ -41,6 +41,7 @@ public class DcfWriter : IniWriterBase
             "DCF",
             () =>
             {
+                TextFileIo.ThrowIfReadOnlyTarget(filePath);
                 var content = GenerateDcfContent(dcf);
                 TextFileIo.WriteOutputTextToFile(filePath, content);
             },
@@ -101,6 +102,7 @@ public class DcfWriter : IniWriterBase
             "DCF",
             async () =>
             {
+                TextFileIo.ThrowIfReadOnlyTarget(filePath);
                 var content = GenerateDcfContent(dcf);
                 await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
             },
