@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Models;
 using System.Xml.Linq;
 using EdsDcfNet.Validation;
+using EdsDcfNet.Writers;
 
 /// <summary>
 /// Represents a complete Device Configuration File (DCF) for a CANopen device.
@@ -127,13 +128,14 @@ public class DeviceConfigurationFile : ICanOpenFileModel
         get
         {
             var element = XddPreserved?.ElementsAt(XddPreservedContent.DeviceProfileBody)
-                .FirstOrDefault(item => item.Name.LocalName == "DeviceManager");
+                .FirstOrDefault(item => item.Name == XddNames.Namespace + "DeviceManager");
             return element == null ? null : new XddDeviceManager(element);
         }
         set
         {
             if (value != null) XddXml.QualifyRoot(value.Element, true);
-            PreservedForEditing().SetElement(XddPreservedContent.DeviceProfileBody, "DeviceManager", value?.Element);
+            PreservedForEditing().SetElement(XddPreservedContent.DeviceProfileBody,
+                XddNames.Namespace + "DeviceManager", value?.Element);
         }
     }
 
@@ -144,7 +146,7 @@ public class DeviceConfigurationFile : ICanOpenFileModel
         {
             return new XddModelCollection<XddDeviceFunction>(
                 () => XddPreserved?.ElementsAt(XddPreservedContent.DeviceProfileBody)
-                    .Where(item => item.Name.LocalName == "DeviceFunction") ?? Enumerable.Empty<XElement>(),
+                    .Where(item => item.Name == XddNames.Namespace + "DeviceFunction") ?? Enumerable.Empty<XElement>(),
                 element => new XddDeviceFunction(element),
                 item =>
                 {
@@ -162,13 +164,14 @@ public class DeviceConfigurationFile : ICanOpenFileModel
         get
         {
             var element = XddPreserved?.ElementsAt(XddPreservedContent.ApplicationLayers)
-                .FirstOrDefault(item => item.Name.LocalName == "moduleManagement");
+                .FirstOrDefault(item => item.Name == XNamespace.None + "moduleManagement");
             return element == null ? null : new XddNetworkModuleManagement(element);
         }
         set
         {
             if (value != null) XddXml.QualifyRoot(value.Element, false);
-            PreservedForEditing().SetElement(XddPreservedContent.ApplicationLayers, "moduleManagement", value?.Element);
+            PreservedForEditing().SetElement(XddPreservedContent.ApplicationLayers,
+                XNamespace.None + "moduleManagement", value?.Element);
         }
     }
 

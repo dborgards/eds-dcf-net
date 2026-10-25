@@ -180,6 +180,110 @@ public class XddTypedProfileApiTests
     }
 
     [Fact]
+    public void OptionalListPruning_PreservesAttributesAndNonElementContent()
+    {
+        XNamespace vendor = "urn:vendor";
+        var function = new XddDeviceFunction(XddXml.Create("DeviceFunction",
+            XddXml.Create("picturesList", new XAttribute(vendor + "keep", "yes"),
+                XddXml.Create("picture", new XAttribute("URI", "device.png"))),
+            XddXml.Create("standardComplianceList", new XComment("standard note"),
+                XddXml.Create("compliantWith")),
+            XddXml.Create("dictionaryList", new XProcessingInstruction("vendor", "keep"),
+                XddXml.Create("dictionary"))));
+
+        function.Pictures.Clear();
+        function.Standards.Clear();
+        function.Dictionaries.Clear();
+
+        function.Element.Element("picturesList")!.Attribute(vendor + "keep")!.Value.Should().Be("yes");
+        function.Element.Element("standardComplianceList")!.Nodes().OfType<XComment>().Single()
+            .Value.Should().Be("standard note");
+        function.Element.Element("dictionaryList")!.Nodes().OfType<XProcessingInstruction>().Single()
+            .Target.Should().Be("vendor");
+
+        var deviceInterface = new XddDeviceModuleInterface(XddXml.Create("interface",
+            XddXml.Create("connectedModuleList", new XComment("module note"),
+                XddXml.Create("connectedModule", new XAttribute("childIDRef", "5")))));
+        deviceInterface.ConnectedModuleIds.Clear();
+        deviceInterface.Element.Element("connectedModuleList")!.Nodes().OfType<XComment>().Single()
+            .Value.Should().Be("module note");
+
+        var source = new XddDeviceFunction(XddXml.Create("DeviceFunction",
+            XddXml.Create("picturesList", new XComment("source note"),
+                XddXml.Create("picture", new XAttribute("URI", "move.png")))));
+        var destination = new XddDeviceFunction();
+        destination.Pictures.Add(source.Pictures.Single());
+        source.Element.Element("picturesList")!.Nodes().OfType<XComment>().Single()
+            .Value.Should().Be("source note");
+
+        XddXml.CanPrune(XddXml.Create("list", " \t\r\n")).Should().BeTrue();
+        XddXml.CanPrune(XddXml.Create("list", "keep")).Should().BeFalse();
+        XddXml.CanPrune(XddXml.Create("list", new XCData(" "))).Should().BeFalse();
+    }
+
+    [Fact]
+    public void TopLevelTypedModels_IgnoreAndPreserveForeignNamespaceLookalikes()
+    {
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadFile(Fixture)));
+        XNamespace vendor = "urn:vendor";
+        written.Descendants(Co + "DeviceManager").Single().AddBeforeSelf(
+            new XElement(vendor + "DeviceManager", new XAttribute("marker", "manager")));
+        written.Descendants(Co + "DeviceFunction").Single().AddBeforeSelf(
+            new XElement(vendor + "DeviceFunction", new XAttribute("marker", "function")));
+        written.Descendants("ApplicationLayers").Single().Element("moduleManagement")!.AddBeforeSelf(
+            new XElement(vendor + "moduleManagement", new XAttribute("marker", "network")));
+
+        var eds = CanOpenFile.Xdd.ReadString(written.ToString());
+        eds.DeviceManager!.ModuleManagement!.Interfaces.Single().Id.Should().Be("if_main");
+        eds.NetworkModuleManagement!.Interfaces.Single().Ranges.Single().BaseIndex.Should().Be("3000");
+        eds.DeviceFunctions.Should().ContainSingle();
+        var dcf = CanOpenFile.Eds.ConvertToDcf(eds, 3, new DateTime(2026, 1, 2), 250);
+        dcf.DeviceManager.Should().NotBeNull();
+        dcf.NetworkModuleManagement.Should().NotBeNull();
+        dcf.DeviceFunctions.Should().ContainSingle();
+
+        eds.DeviceManager = null;
+        eds.NetworkModuleManagement = null;
+        eds.DeviceFunctions.Clear();
+        dcf.DeviceManager = null;
+        dcf.NetworkModuleManagement = null;
+        dcf.DeviceFunctions.Clear();
+
+        var edsText = CanOpenFile.Xdd.WriteToString(eds);
+        var edsOutput = XDocument.Parse(edsText);
+        edsOutput.Descendants(vendor + "DeviceManager").Should().ContainSingle();
+        edsOutput.Descendants(vendor + "DeviceFunction").Should().ContainSingle();
+        edsOutput.Descendants(vendor + "moduleManagement").Should().ContainSingle();
+        edsOutput.Descendants(Co + "DeviceManager").Should().ContainSingle();
+        edsOutput.Descendants(Co + "DeviceFunction").Should().ContainSingle();
+        edsOutput.Descendants("ApplicationLayers").Single().Elements("moduleManagement").Should().BeEmpty();
+        var dcfOutput = XDocument.Parse(CanOpenFile.Xdc.WriteToString(dcf));
+        dcfOutput.Descendants(vendor + "DeviceManager").Should().ContainSingle();
+        dcfOutput.Descendants(vendor + "DeviceFunction").Should().ContainSingle();
+        dcfOutput.Descendants(vendor + "moduleManagement").Should().ContainSingle();
+    }
+
+    [Fact]
+    public void DeviceFunctions_ReaddingSameInstance_DoesNotDuplicateEdsOrDcfContent()
+    {
+        var eds = new ElectronicDataSheet();
+        var edsFunction = new XddDeviceFunction();
+        eds.DeviceFunctions.Add(edsFunction);
+        eds.DeviceFunctions.Add(eds.DeviceFunctions.Single());
+        eds.DeviceFunctions.Should().ContainSingle();
+        XDocument.Parse(CanOpenFile.Xdd.WriteToString(eds))
+            .Descendants(Co + "DeviceFunction").Should().ContainSingle();
+
+        var dcf = new DeviceConfigurationFile();
+        var dcfFunction = new XddDeviceFunction();
+        dcf.DeviceFunctions.Add(dcfFunction);
+        dcf.DeviceFunctions.Add(dcf.DeviceFunctions.Single());
+        dcf.DeviceFunctions.Should().ContainSingle();
+        XDocument.Parse(CanOpenFile.Xdc.WriteToString(dcf))
+            .Descendants(Co + "DeviceFunction").Should().ContainSingle();
+    }
+
+    [Fact]
     public void TypedCollections_ForeignNamespaceLookalikes_AreNotReadOrRemoved()
     {
         var eds = CanOpenFile.Xdd.ReadFile(Fixture);
@@ -471,6 +575,12 @@ public class XddTypedProfileApiTests
             .MaxChildren.Should().Be(4);
         new XddDeviceModuleInterface(XddXml.Create("interface", new XAttribute("maxChilds", "\u00A04\u00A0")))
             .MaxChildren.Should().Be(1);
+        new XddDeviceModuleInterface(XddXml.Create("interface", new XAttribute("unusedSlots", " \ttrue\r\n"),
+                new XAttribute("multipleChilds", " 1 "))).UnusedSlots.Should().BeTrue();
+        new XddDeviceModuleInterface(XddXml.Create("interface", new XAttribute("multipleChilds", " 1 ")))
+            .MultipleChildren.Should().BeTrue();
+        new XddDeviceModuleInterface(XddXml.Create("interface", new XAttribute("unusedSlots", "\u00A0true\u00A0")))
+            .UnusedSlots.Should().BeFalse();
         new XddPicture(XddXml.Create("picture", new XAttribute("number", " +2 "))).Number.Should().Be(2);
         var numericState = new XddLedState(XddXml.Create("LEDstate",
             new XAttribute("flashingPeriod", " +200 "), new XAttribute("impulsWidth", " +25 "),

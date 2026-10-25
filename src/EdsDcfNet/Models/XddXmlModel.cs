@@ -69,8 +69,8 @@ public abstract class XddXmlModel
             var element = Items().FirstOrDefault(candidate => ReferenceEquals(candidate, item.Element));
             if (element == null) return false;
             element.Remove();
-            if (pruneEmptyParent && !parent!.Elements().Any())
-                parent.Remove();
+            if (pruneEmptyParent && XddXml.CanPrune(parent!))
+                parent!.Remove();
             return true;
         }, create);
     }
@@ -107,20 +107,24 @@ public abstract class XddXmlModel
             pruneEmptyParent ? Parent : null);
     }
 
-    private protected uint? UInt(string name) => uint.TryParse(IntegerLexical(name),
+    private protected uint? UInt(string name) => uint.TryParse(XmlLexical(name),
         NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value) ? value : null;
     private protected void SetUInt(string name, uint? value) => Set(name, value?.ToString(CultureInfo.InvariantCulture));
-    private protected byte Byte(string name, byte fallback) => byte.TryParse(IntegerLexical(name),
+    private protected byte Byte(string name, byte fallback) => byte.TryParse(XmlLexical(name),
         NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value) ? value : fallback;
     private protected void SetByte(string name, byte value, byte defaultValue) => Set(name, value == defaultValue ? null : value.ToString(CultureInfo.InvariantCulture));
-    private protected ulong ULong(string name, ulong fallback) => ulong.TryParse(IntegerLexical(name),
+    private protected ulong ULong(string name, ulong fallback) => ulong.TryParse(XmlLexical(name),
         NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value) ? value : fallback;
-    private protected ulong? NullableULong(string name) => ulong.TryParse(IntegerLexical(name),
+    private protected ulong? NullableULong(string name) => ulong.TryParse(XmlLexical(name),
         NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value) ? value : null;
-    private string? IntegerLexical(string name) => Get(name)?.Trim(' ', '\t', '\r', '\n');
+    private string? XmlLexical(string name) => Get(name)?.Trim(' ', '\t', '\r', '\n');
     private protected void SetULong(string name, ulong? value, ulong? defaultValue)
         => Set(name, value == null || value.Value == defaultValue ? null : value.Value.ToString(CultureInfo.InvariantCulture));
-    private protected bool Bool(string name) => string.Equals(Get(name), "true", StringComparison.Ordinal) || Get(name) == "1";
+    private protected bool Bool(string name)
+    {
+        var value = XmlLexical(name);
+        return string.Equals(value, "true", StringComparison.Ordinal) || value == "1";
+    }
     private protected void SetBool(string name, bool value) => Set(name, value ? "true" : "false");
 
     private protected T Enum<T>(string name, T fallback) where T : struct
@@ -204,7 +208,7 @@ internal static class XddXml
         var sourceParent = child.Parent;
         if (sourceParent != null) child.Remove();
         if (sourceParent != null && sourceParent != parent && IsOptionalList(sourceParent.Name.LocalName)
-            && !sourceParent.Elements().Any())
+            && CanPrune(sourceParent))
             sourceParent.Remove();
         Adopt(parent, child);
         var rank = Rank(order.Length == 0 ? DefaultOrder(parent.Name.LocalName) : order, child.Name.LocalName);
@@ -221,6 +225,13 @@ internal static class XddXml
 
     internal static bool IsOptionalList(string name)
         => name is "standardComplianceList" or "picturesList" or "dictionaryList" or "LEDList";
+
+    internal static bool CanPrune(XElement element)
+        => !element.Attributes().Any() && !element.Elements().Any() && element.Nodes().All(node =>
+            node.NodeType == System.Xml.XmlNodeType.Text && IsXmlWhitespace(((XText)node).Value));
+
+    private static bool IsXmlWhitespace(string value)
+        => value.Trim(' ', '\t', '\r', '\n').Length == 0;
 
     private static void Adopt(XElement parent, XElement child)
     {
@@ -307,7 +318,7 @@ internal sealed class XddStringCollection : ICollection<string>
 
     private void PruneEmptyParent()
     {
-        if (_pruneParent?.Invoke() is { } parent && !parent.Elements().Any())
+        if (_pruneParent?.Invoke() is { } parent && XddXml.CanPrune(parent))
             parent.Remove();
     }
 }
