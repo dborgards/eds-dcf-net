@@ -224,6 +224,7 @@ def main() -> None:
         "-c",
         "core.quotepath=false",
         "diff",
+        "--find-renames",
         "--unified=0",
         "--no-color",
         "--no-ext-diff",
@@ -231,7 +232,9 @@ def main() -> None:
         "--dst-prefix=b/",
         merge_base,
         "--",
-        *roots,
+        # Rename detection needs both sides even when the caller selects only src/.
+        # The selected() filter below still limits the reported paths to roots.
+        ".",
     )
     changed = parse_diff(diff)
     coverage = load_coverage(results, root)
