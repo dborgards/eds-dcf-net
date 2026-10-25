@@ -340,7 +340,7 @@ internal static class XmlLexicalRules
     {
         if (string.IsNullOrEmpty(value))
             return;
-        var tokens = value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        var tokens = value!.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         if (tokens.Length == 0)
         {
             AddIssue(path, value, "xsd:NMTOKENS", issues);
