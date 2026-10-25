@@ -104,6 +104,38 @@ public class CanOpenIniValidatorTests
     }
 
     [Fact]
+    public void ValidateString_InvalidMandatoryMetadata_ReportsSpecificRules()
+    {
+        var text = "[FileInfo]\nEDSVersion=40\nDescription=" + new string('x', 244) +
+            "\nCreationTime=25:00\nCreationDate=2026-01-01\n" +
+            "[DeviceInfo]\nGranularity=65\nCANopenManager=1\n" +
+            "[DeviceCommissioning]\nCANopenManager=yes\n";
+
+        var issues = CanOpenIniValidator.ValidateString(text, CanOpenIniFormat.Dcf);
+
+        issues.Should().Contain(i => i.Code == "MND003" && i.Key == "EDSVersion" && i.Severity == IniValidationSeverity.Error);
+        issues.Should().Contain(i => i.Code == "MND003" && i.Key == "Description");
+        issues.Should().Contain(i => i.Code == "MND003" && i.Key == "CreationTime");
+        issues.Should().Contain(i => i.Code == "MND003" && i.Key == "CreationDate");
+        issues.Should().Contain(i => i.Code == "MND003" && i.Key == "Granularity");
+        issues.Should().Contain(i => i.Code == "MND003" && i.Key == "CANopenManager");
+        issues.Should().Contain(i => i.Code == "MND003" && i.Section == "DeviceCommissioning" && i.Key == null);
+    }
+
+    [Theory]
+    [InlineData("1.0", IniValidationSeverity.Warning)]
+    [InlineData("256.0", IniValidationSeverity.Error)]
+    [InlineData("0x1", IniValidationSeverity.Error)]
+    public void ValidateString_FileVersionForms_MatchReaderSemantics(string value, IniValidationSeverity severity)
+    {
+        var issues = CanOpenIniValidator.ValidateString(
+            "[FileInfo]\nFileVersion=" + value + "\n",
+            CanOpenIniFormat.Eds);
+
+        issues.Should().Contain(i => i.Code == "MND003" && i.Key == "FileVersion" && i.Severity == severity);
+    }
+
+    [Fact]
     public void IniValidationIssue_WithoutOptionalLocation_FormatsSourceOnly()
     {
         var issue = new IniValidationIssue(
