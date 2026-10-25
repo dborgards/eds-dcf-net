@@ -1166,11 +1166,13 @@ internal static class CanOpenSectionParsers
             coercedTo: "0",
             fallbackDescription: LenientIniNumber.TreatAsZero);
 
-        foreach (var toolSection in sections.Keys
+        var toolSections = sections.Keys
             .Where(name => IsToolSectionWithinCount(name, items))
             .OrderBy(name => uint.Parse(name[4..], NumberStyles.None, CultureInfo.InvariantCulture))
-            .ToArray())
+            .ToArray();
+        for (var i = 0; i < toolSections.Length; i++)
         {
+            var toolSection = toolSections[i];
             var tool = new ToolInfo
             {
                 Name = IniParser.GetValue(sections, toolSection, "Name"),
