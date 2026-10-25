@@ -393,6 +393,7 @@ private static ApParameterTemplate ParseParameterTemplate(XElement elem)
         Support = elem.Attribute("support")?.Value,
         Offset = elem.Attribute("offset")?.Value,
         Multiplier = elem.Attribute("multiplier")?.Value,
+        TemplateIdRef = elem.Attribute("templateIDRef")?.Value,
     };
 
     var persistentStr = elem.Attribute("persistent")?.Value;
@@ -544,17 +545,19 @@ private static ApVariableRef ParseVariableRef(XElement elem)
                 vr.VariableIdRef = child.Attribute("uniqueIDRef")?.Value ?? string.Empty;
                 break;
             case "memberRef":
-                vr.MemberRef = new ApMemberRef
+                var memberRef = new ApMemberRef
                 {
                     UniqueIdRef = child.Attribute("uniqueIDRef")?.Value,
                 };
+                vr.MemberRefs.Add(memberRef);
+                vr.MemberRef = memberRef;
                 var idxStr = GetTrimmedAttributeValue(child, "index");
                 if (!string.IsNullOrEmpty(idxStr))
                 {
                     var idxParsed = long.TryParse(idxStr, NumberStyles.Integer,
                         CultureInfo.InvariantCulture, out var idx);
                     if (idxParsed)
-                        vr.MemberRef.Index = idx;
+                        memberRef.Index = idx;
                     RejectFailedSignedNumericAttribute(idxStr, idxParsed, "index");
                 }
                 break;
