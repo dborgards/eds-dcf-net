@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.16.0-beta.6](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.5...v1.16.0-beta.6) (2026-10-25)
+
+### ✨ Features
+
+* **xdd:** expose typed device and module profiles ([#676](https://github.com/dborgards/eds-dcf-net/issues/676)) ([a76c24d](https://github.com/dborgards/eds-dcf-net/commit/a76c24d408838826f95a76e753caac9ed54b6f60))
+
 ## [1.16.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.4...v1.16.0-beta.5) (2026-10-25)
 
 ### 🐛 Bug Fixes
