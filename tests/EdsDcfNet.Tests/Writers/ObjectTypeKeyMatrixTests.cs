@@ -515,7 +515,8 @@ public class ObjectTypeKeyMatrixTests
         result.Diagnostics.Select(d => d.Path).Should().Equal("2000sub1.SubNumber", "2000sub1.CompactSubObj");
         result.Diagnostics[0].Line.Should().Be(SourceLine(content, "SubNumber=1"));
         var sub = result.Model.ObjectDictionary.Objects[0x2000].SubObjects[1];
-        sub.RemainingEntries.Keys.Should().Equal("ObjFlags");
+        sub.ObjFlags.Should().Be(1u);
+        sub.RemainingEntries.Should().BeEmpty();
         var keys = SectionKeys(written, "2000sub1");
         keys.Should().NotContain(new[] { "SubNumber", "CompactSubObj" });
         keys.Should().Contain("ObjFlags");

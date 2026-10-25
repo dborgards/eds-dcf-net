@@ -20,20 +20,18 @@ public class NodelistProject
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The writers emit these sections after the standard sections of the file, in the order in
-    /// which the reader found the sections and, within a section, its keys. The
+    /// The writers keep the reader order of these sections and their keys. A read section is
+    /// inserted before the next generated section from the source file; read sections at the end
+    /// and newly added sections follow the generated content. The
     /// <see cref="Dictionary{TKey,TValue}"/> enumeration order is not guaranteed, so the model
-    /// keeps the names the reader saw as separate, internal ordering information (a list of
-    /// names, not a change log; the dictionaries cannot report changes). Therefore:
+    /// keeps separate internal ordering and insertion information (not a change log; the
+    /// dictionaries cannot report changes). Therefore:
     /// </para>
     /// <list type="number">
     /// <item><description>Sections and keys that are present when writing and whose name the reader saw are written in reader order.</description></item>
-    /// <item><description>All other sections and keys follow, in the enumeration order of the dictionary (no further guarantee).</description></item>
-    /// <item><description>A removed section or key is skipped. One that is removed and added again under the same name is written at its reader position, not at the end, and cannot be told apart from an unchanged one.</description></item>
+    /// <item><description>New sections and keys follow in dictionary enumeration order; a new section follows the generated content.</description></item>
+    /// <item><description>A removed section or key is skipped. One that is removed and added again under the same name takes its reader position again and cannot be told apart from an unchanged one.</description></item>
     /// </list>
-    /// <para>
-    /// The original position of a section between standard sections is not kept.
-    /// </para>
     /// </remarks>
     public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } =
         new(StringComparer.OrdinalIgnoreCase);

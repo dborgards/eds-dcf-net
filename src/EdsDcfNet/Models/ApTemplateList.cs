@@ -30,6 +30,9 @@ public class ApParameterTemplate
     /// <summary>Engineering-unit multiplier.</summary>
     public string? Multiplier { get; set; }
 
+    /// <summary>Optional reference to another <c>parameterTemplate</c> uniqueID.</summary>
+    public string? TemplateIdRef { get; set; }
+
     /// <summary>Multilingual names / descriptions.</summary>
     public ApLabelGroup LabelGroup { get; } = new();
 

@@ -25,7 +25,7 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
 
     private XddCanOpenOperations()
         : base(
-            (model, options) => CanOpenWriteGuard.EnsureValidForWrite(model, options, XmlWriteRules.Apply),
+            (model, options) => CanOpenWriteGuard.EnsureValidForXmlWrite(model, options, XmlWriteRules.Apply),
             (filePath, maxInputSize) => new XddReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new XddReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),
@@ -40,7 +40,7 @@ public sealed class XddCanOpenOperations : FormatCanOpenOperations<ElectronicDat
             (xdd, stream, cancellationToken) =>
                 new XddWriter().WriteStreamAsync(xdd, stream, cancellationToken),
             xdd => new XddWriter().GenerateString(xdd),
-            (model, options, cancellationToken) => CanOpenWriteGuard.EnsureValidForWriteAsync(
+            (model, options, cancellationToken) => CanOpenWriteGuard.EnsureValidForXmlWriteAsync(
                 model,
                 options,
                 XmlWriteRules.Apply,
