@@ -523,4 +523,115 @@ public class XddTypedProfileApiTests
         xml.Descendants(Co + "combinedState").Single().Elements().Select(element => element.Name.LocalName)
             .Should().Equal("label", "LEDstateRef", "LEDstateRef");
     }
+
+    [Fact]
+    public void ScalarAccessors_CoverValuesDefaultsAndNullAssignments()
+    {
+        var device = new XddDeviceModuleReference();
+        device.ChildId.Should().BeEmpty();
+        device.Type.Should().BeEmpty();
+        device.ChildId = "child";
+        device.Type = "io";
+        device.MaxCount = 4;
+        device.ChildId.Should().Be("child");
+        device.Type.Should().Be("io");
+        device.MaxCount.Should().Be(4);
+
+        var networkInterface = new XddNetworkModuleInterface();
+        networkInterface.InterfaceReference.Should().BeEmpty();
+        networkInterface.InterfaceReference = "if_main";
+        networkInterface.InterfaceReference.Should().Be("if_main");
+        var network = new XddNetworkModuleReference();
+        network.ChildReference.Should().BeEmpty();
+        network.ChildReference = "child";
+        network.ChildReference.Should().Be("child");
+
+        var range = new XddModuleRange();
+        range.Name.Should().BeEmpty();
+        range.ModuleType.Should().BeEmpty();
+        range.BaseIndex.Should().BeEmpty();
+        range.MaximumIndex.Should().BeEmpty();
+        range.Name = "range";
+        range.ModuleType = "io";
+        range.BaseIndex = "2000";
+        range.MaximumIndex = "2FFF";
+        range.MaximumSubIndex = "FE";
+        range.MaximumSubIndex = null;
+        range.Name.Should().Be("range");
+        range.ModuleType.Should().Be("io");
+        range.BaseIndex.Should().Be("2000");
+        range.MaximumIndex.Should().Be("2FFF");
+        range.MaximumSubIndex.Should().BeNull();
+
+        var standard = new XddStandardCompliance();
+        standard.Name.Should().BeEmpty();
+        standard.Name = "CiA 311";
+        standard.Name.Should().Be("CiA 311");
+        var picture = new XddPicture();
+        picture.Uri.Should().BeEmpty();
+        picture.Uri = "run.png";
+        picture.Uri.Should().Be("run.png");
+        var resource = new XddTextResource();
+        resource.Language.Should().BeEmpty();
+        resource.Id.Should().BeEmpty();
+        resource.Language = "en";
+        resource.Id = "dict";
+        resource.Uri = "texts.xml";
+        resource.Language.Should().Be("en");
+        resource.Id.Should().Be("dict");
+        resource.Uri.Should().Be("texts.xml");
+        var state = new XddLedState();
+        state.Id.Should().BeEmpty();
+        state.Id = "run";
+        state.Id.Should().Be("run");
+        var led = new XddLed { Type = XddLedType.IO };
+        led.Type = null;
+        led.Type.Should().BeNull();
+
+        var deviceManagement = new XddDeviceModuleManagement { Module = device };
+        deviceManagement.Module.Should().NotBeNull();
+        deviceManagement.Module = null;
+        deviceManagement.Module.Should().BeNull();
+        var networkManagement = new XddNetworkModuleManagement { Module = network };
+        networkManagement.Module.Should().NotBeNull();
+        networkManagement.Module = null;
+        networkManagement.Module.Should().BeNull();
+
+        var eds = new ElectronicDataSheet();
+        eds.DeviceManager = new XddDeviceManager();
+        eds.NetworkModuleManagement = new XddNetworkModuleManagement();
+        eds.DeviceManager = null;
+        eds.NetworkModuleManagement = null;
+        eds.DeviceManager.Should().BeNull();
+        eds.NetworkModuleManagement.Should().BeNull();
+    }
+
+    [Fact]
+    public void TypedCollections_CoverMissingParentsAttributesAndAttachedChildren()
+    {
+        var source = XDocument.Load(Fixture);
+        source.Descendants(Co + "fileList").Remove();
+        source.Descendants(Co + "moduleType").Single().Attribute("type")!.Remove();
+        source.Descendants(Co + "DeviceFunction").Single().Add(new XElement(Co + "dictionaryList",
+            new XElement(Co + "dictionary", new XAttribute("lang", "en"), new XAttribute("dictID", "dict"))));
+        var eds = CanOpenFile.Xdd.ReadString(source.ToString());
+
+        var deviceInterface = eds.DeviceManager!.ModuleManagement!.Interfaces.Single();
+        deviceInterface.SearchPath.Should().BeEmpty();
+        deviceInterface.ModuleTypes.Contains("IOModule").Should().BeFalse();
+        deviceInterface.ModuleTypes.Remove("IOModule").Should().BeFalse();
+        deviceInterface.ModuleTypes.Single().Should().BeEmpty();
+        eds.DeviceFunctions.Single().Dictionaries.Single().Uri.Should().BeEmpty();
+
+        var led = new XddLed();
+        var manager = eds.DeviceManager;
+        manager.Indicators.Add(led);
+        manager.Indicators.Add(led);
+        manager.Indicators.Should().ContainSingle();
+        led.States.Remove(new XddLedState()).Should().BeFalse();
+        var state = new XddLedState();
+        led.States.Add(state);
+        led.States.Add(state);
+        led.States.Should().ContainSingle();
+    }
 }
