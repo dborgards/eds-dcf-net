@@ -149,27 +149,39 @@ public class CpjWriter
     private static string GenerateCpjContent(NodelistProject cpj)
     {
         var sb = new StringBuilder();
+        var usedNames = new HashSet<string>(
+            cpj.Networks
+                .Where(network => network?.SourceSectionName != null)
+                .Select(network => network!.SourceSectionName!),
+            StringComparer.OrdinalIgnoreCase);
+        var emittedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var nextTopologyNumber = 1;
 
         for (int i = 0; i < cpj.Networks.Count; i++)
         {
-            var sectionName = i == 0 ? "Topology" : string.Format(CultureInfo.InvariantCulture, "Topology{0}", i + 1);
+            var sourceName = cpj.Networks[i]?.SourceSectionName;
+            var sectionName = sourceName ?? string.Empty;
+            if (sourceName == null || !emittedNames.Add(sourceName))
+            {
+                do
+                {
+                    sectionName = nextTopologyNumber == 1
+                        ? "Topology"
+                        : string.Format(CultureInfo.InvariantCulture, "Topology{0}", nextTopologyNumber);
+                    nextTopologyNumber++;
+                }
+                while (!usedNames.Add(sectionName));
+                emittedNames.Add(sectionName);
+            }
+
             WriteSection(sectionName, () => WriteTopology(sb, cpj.Networks[i], sectionName));
         }
 
-        foreach (var section in cpj.AdditionalSectionOrder.Sections(cpj.AdditionalSections))
-        {
-            WriteSection(
-                section.Key,
-                () =>
-                {
-                    IniRoundTripText.WriteSectionHeader(sb, section.Key);
-                    foreach (var entry in cpj.AdditionalSectionOrder.Entries(section.Key, section.Value))
-                    {
-                        IniRoundTripText.WriteKeyValue(sb, entry.Key, entry.Value);
-                    }
-                    sb.AppendLine();
-                });
-        }
+        IniWriterBase.WriteAdditionalSections(
+            sb,
+            cpj.AdditionalSections,
+            cpj.AdditionalSectionOrder,
+            WriteSection);
 
         return TextFileIo.ApplyOutputNewLine(sb.ToString());
     }

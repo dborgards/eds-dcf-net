@@ -2,6 +2,8 @@ namespace EdsDcfNet.Checker;
 
 using EdsDcfNet.Diagnostics;
 using EdsDcfNet.Validation;
+using Finding = EdsDcfNet.Validation.IniValidationIssue;
+using Severity = EdsDcfNet.Validation.IniValidationSeverity;
 
 /// <summary>
 /// Runs the EdsDcfNet reader and <see cref="CanOpenModelValidator"/> on a file and converts

@@ -99,6 +99,57 @@ EDSBaseName=/eds/
     }
 
     [Fact]
+    public void RoundTrip_TopologyNamesAndNumberingGaps_ArePreserved()
+    {
+        const string content = "[Topology]\nNetName=First\nNodes=0x00\n\n" +
+                               "[Topology4]\nNetName=Fourth\nNodes=0x00\n\n" +
+                               "[topologY9]\nNetName=Ninth\nNodes=0x00\n";
+        var project = _reader.ReadString(content);
+
+        var written = _writer.GenerateString(project);
+
+        written.Should().Contain("[Topology]");
+        written.Should().Contain("[Topology4]");
+        written.Should().Contain("[topologY9]");
+        written.Should().NotContain("[Topology2]");
+        written.Should().NotContain("[Topology3]");
+        _reader.ReadString(written).Networks.Select(n => n.NetName)
+            .Should().Equal("First", "Fourth", "Ninth");
+    }
+
+    [Theory]
+    [InlineData("Topology2")]
+    [InlineData("topologY2")]
+    public void GenerateString_NewTopologiesWithNumberingGap_UseUniqueSectionNames(string preservedName)
+    {
+        var project = _reader.ReadString("[" + preservedName + "]\nNetName=Preserved\nNodes=0x00\n");
+        project.Networks.Add(new NetworkTopology { NetName = "Added first" });
+        project.Networks.Add(new NetworkTopology { NetName = "Added second" });
+
+        var written = _writer.GenerateString(_reader.ReadString(_writer.GenerateString(project)));
+        var reparsed = _reader.ReadString(written);
+
+        written.Should().Contain("[Topology]").And.Contain("[Topology3]");
+        reparsed.Networks.Select(network => network.NetName)
+            .Should().Equal("Preserved", "Added first", "Added second");
+    }
+
+    [Fact]
+    public void GenerateString_DuplicatePreservedNames_AreAllocatedUniqueNames()
+    {
+        var project = _reader.ReadString("[Topology]\nNetName=First\nNodes=0x00\n");
+        var second = _reader.ReadString("[topologY]\nNetName=Second\nNodes=0x00\n");
+        project.Networks.Add(second.Networks[0]);
+        project.Networks.Add(new NetworkTopology { NetName = "Third" });
+
+        var written = _writer.GenerateString(project);
+        var reparsed = _reader.ReadString(written);
+
+        written.Should().Contain("[Topology2]").And.Contain("[Topology3]");
+        reparsed.Networks.Select(network => network.NetName).Should().Equal("First", "Second", "Third");
+    }
+
+    [Fact]
     public void GenerateString_NodeNotPresent_WritesPresent0x00()
     {
         // Arrange

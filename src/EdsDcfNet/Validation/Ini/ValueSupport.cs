@@ -1,4 +1,4 @@
-namespace EdsDcfNet.Checker;
+namespace EdsDcfNet.Validation;
 
 using System.Globalization;
 using System.Numerics;
@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 using EdsDcfNet.Utilities;
 
 /// <summary>A parsed numeric value that can be compared against limits.</summary>
-public readonly record struct NumericValue(BigInteger? Integer, double? Real)
+internal readonly record struct NumericValue(BigInteger? Integer, double? Real)
 {
     public int CompareTo(NumericValue other)
     {
@@ -27,7 +27,7 @@ public readonly record struct NumericValue(BigInteger? Integer, double? Real)
 }
 
 /// <summary>Result of evaluating a raw EDS/DCF value against a CANopen data type.</summary>
-public sealed class ValueEvaluation
+internal sealed class ValueEvaluation
 {
     /// <summary>Value per node-ID (key 0 when the value does not depend on the node-ID).</summary>
     public Dictionary<byte, NumericValue> Values { get; } = new();
@@ -41,7 +41,7 @@ public sealed class ValueEvaluation
 }
 
 /// <summary>Helpers for data-type aware value checks.</summary>
-public static class ValueSupport
+internal static class ValueSupport
 {
     private static readonly Regex NodeIdSuffixFormula = new(
         @"^\$NODEID(?<terms>(?:\s*[+-]\s*[^\s+-]+)*)$",

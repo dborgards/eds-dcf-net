@@ -1888,22 +1888,8 @@ ObjectLinks=1
         loaded.ObjectDictionary.Objects[0x40].ObjectLinks.Should().Equal((ushort)0x1000);
     }
 
-    private static List<Finding> Check(string content, bool isDcf = false)
-    {
-        var path = Path.Combine(
-            Path.GetTempPath(),
-            "edsdcf-check-" + Guid.NewGuid().ToString("N") + (isDcf ? ".dcf" : ".eds"));
-        File.WriteAllText(path, content);
-        try
-        {
-            var findings = new List<Finding>();
-            var document = RawIniDocument.Parse(path, findings);
-            new RawObjectChecker(path, document, isDcf, findings).Run();
-            return findings;
-        }
-        finally
-        {
-            File.Delete(path);
-        }
-    }
+    private static List<Finding> Check(string content, bool isDcf = false) =>
+        CanOpenIniValidator.ValidateString(
+            content,
+            isDcf ? CanOpenIniFormat.Dcf : CanOpenIniFormat.Eds).ToList();
 }

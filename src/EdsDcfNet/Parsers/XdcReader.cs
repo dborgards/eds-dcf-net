@@ -165,6 +165,8 @@ public class XdcReader : IFileReader<DeviceConfigurationFile>
                 AdditionalSectionsCloner.CloneSectionEntriesCaseInsensitive(kvp.Value);
         }
 
+        dcf.AdditionalSectionOrder.CopyFrom(eds.AdditionalSectionOrder);
+
         // Parse deviceCommissioning from XDC NetworkManagement
         dcf.DeviceCommissioning = ParseDeviceCommissioning(doc) ?? new DeviceCommissioning();
 

@@ -836,6 +836,10 @@ internal static class CanOpenSectionParsers
             PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping"),
             SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping"),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD"),
+            ObjFlags = LenientIniNumber.ParseObjFlags(
+                sections,
+                sectionName,
+                IniParser.GetValue(sections, sectionName, "ObjFlags", "0")),
             ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue"),
             Denotation = IniParser.GetValue(sections, sectionName, "Denotation"),
             ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd")

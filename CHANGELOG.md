@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.16.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.4...v1.16.0-beta.5) (2026-10-25)
+
+### 🐛 Bug Fixes
+
+* preserve XDD content and validate lexical values ([#673](https://github.com/dborgards/eds-dcf-net/issues/673)) ([ea62c1a](https://github.com/dborgards/eds-dcf-net/commit/ea62c1a465306013b37f32ca5c88cf381667bb8f))
+
+## [1.16.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.3...v1.16.0-beta.4) (2026-10-25)
+
+### ✨ Features
+
+* expose reusable INI validation rules ([#675](https://github.com/dborgards/eds-dcf-net/issues/675)) ([a0c75af](https://github.com/dborgards/eds-dcf-net/commit/a0c75af8db47074d20a15dc2c91a1d81d87caf6f))
+
+## [1.16.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.2...v1.16.0-beta.3) (2026-10-25)
+
+### 🐛 Bug Fixes
+
+* preserve INI section positions and CPJ topology names ([#672](https://github.com/dborgards/eds-dcf-net/issues/672)) ([b7b0f2d](https://github.com/dborgards/eds-dcf-net/commit/b7b0f2de0166c945ae6fad6a88a2280756eb6676))
+
+## [1.16.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.1...v1.16.0-beta.2) (2026-10-25)
+
+### ✨ Features
+
+* add validation options and sub-object flags ([#671](https://github.com/dborgards/eds-dcf-net/issues/671)) ([340260f](https://github.com/dborgards/eds-dcf-net/commit/340260fbce2e37cae3749da239a91544875fc032))
+
+## [1.16.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.15.1-beta.2...v1.16.0-beta.1) (2026-10-25)
+
+### ✨ Features
+
+* resolve indirect XDD parameter references ([#670](https://github.com/dborgards/eds-dcf-net/issues/670)) ([d9f854a](https://github.com/dborgards/eds-dcf-net/commit/d9f854a21ea590625304e045228de0ef6c3db67f))
+
 ## [1.15.1-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.15.1-beta.1...v1.15.1-beta.2) (2026-10-25)
 
 ### 🐛 Bug Fixes

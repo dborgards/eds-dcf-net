@@ -43,7 +43,7 @@ internal static class XddPreservedContentReader
     private static readonly HashSet<string> ModelledSubObjectAttributes = new(StringComparer.Ordinal)
     {
         "subIndex", "name", "objectType", "dataType", "accessType", "defaultValue", "lowLimit",
-        "highLimit", "PDOmapping", "uniqueIDRef",
+        "highLimit", "PDOmapping", "objFlags", "uniqueIDRef",
     };
 
     /// <summary>
@@ -61,6 +61,8 @@ internal static class XddPreservedContentReader
     {
         var qualify = HasNoNamespace(doc.Root!);
         var content = new XddPreservedContent();
+        KeepNonElementNodes(content, XddPreservedContent.ProfileContainer, doc.Root!);
+        SetContainerProfileAnchors(content, doc.Root!, deviceProfileBody, networkProfileBody);
 
         foreach (var comment in doc.Nodes().TakeWhile(node => node is not XElement).OfType<XComment>())
         {
@@ -72,11 +74,24 @@ internal static class XddPreservedContentReader
         if (deviceProfileBody != null)
         {
             KeepProfileSiblings(content, XddPreservedContent.DeviceProfile, deviceProfileBody, profileName, qualify);
+            KeepNonElementNodes(content, XddPreservedContent.DeviceProfile, deviceProfileBody.Parent!);
+            KeepNonElementNodes(content, XddPreservedContent.DeviceProfileBody, deviceProfileBody);
+            var identity = First(deviceProfileBody, "DeviceIdentity");
+            if (identity != null)
+                KeepNonElementNodes(content, XddPreservedContent.DeviceIdentity, identity);
             ReadDeviceProfileBody(content, deviceProfileBody, eds.DeviceInfo, qualify);
             ReadNetworkFileAttributes(content, networkProfileBody, eds.FileInfo);
         }
 
         KeepProfileSiblings(content, XddPreservedContent.NetworkProfile, networkProfileBody, profileName, qualify);
+        KeepNonElementNodes(content, XddPreservedContent.NetworkProfile, networkProfileBody.Parent!);
+        KeepNonElementNodes(content, XddPreservedContent.NetworkProfileBody, networkProfileBody);
+        var applicationLayers = First(networkProfileBody, "ApplicationLayers");
+        if (applicationLayers != null)
+            KeepNonElementNodes(content, XddPreservedContent.ApplicationLayers, applicationLayers);
+        var networkManagement = First(networkProfileBody, "NetworkManagement");
+        if (networkManagement != null)
+            KeepNonElementNodes(content, XddPreservedContent.NetworkManagement, networkManagement);
         ReadNetworkProfileBody(content, networkProfileBody, includeActualValues, qualify);
 
         foreach (var profile in doc.Root!.Elements())
@@ -310,6 +325,75 @@ internal static class XddPreservedContentReader
 
     private static XElement? First(XElement parent, string localName)
         => parent.Elements().FirstOrDefault(e => e.Name.LocalName == localName);
+
+    private static void SetContainerProfileAnchors(
+        XddPreservedContent content,
+        XElement container,
+        XElement? deviceProfileBody,
+        XElement networkProfileBody)
+    {
+        var profiles = container.Elements().Where(element => element.Name.LocalName == "ISO15745Profile").ToList();
+        var retainedProfiles = profiles.Where(profile => !ReferenceEquals(profile, deviceProfileBody?.Parent)
+            && !ReferenceEquals(profile, networkProfileBody.Parent)).ToList();
+        foreach (var node in content.NonElementNodesAt(XddPreservedContent.ProfileContainer))
+        {
+            if (node.FollowingElementName != "ISO15745Profile" || node.FollowingElementOccurrence >= profiles.Count)
+                continue;
+            var following = profiles[node.FollowingElementOccurrence];
+            if (ReferenceEquals(following, deviceProfileBody?.Parent))
+                node.FollowingProfileBodyType = XddNames.DeviceProfileBodyType;
+            else if (ReferenceEquals(following, networkProfileBody.Parent))
+                node.FollowingProfileBodyType = XddNames.NetworkProfileBodyType;
+            else
+                node.FollowingRetainedProfileOccurrence = retainedProfiles.IndexOf(following);
+        }
+    }
+
+    private static void KeepNonElementNodes(XddPreservedContent content, string key, XElement parent)
+    {
+        var occurrences = new Dictionary<string, int>(StringComparer.Ordinal);
+        var buffered = new List<XNode>();
+        foreach (var node in parent.Nodes())
+        {
+            if (node is XElement element)
+            {
+                FlushBufferedNodes(content, key, buffered, element, occurrences);
+                continue;
+            }
+
+            if (node is XComment || node is XProcessingInstruction)
+                buffered.Add(node);
+        }
+
+        FlushBufferedNodes(content, key, buffered, null, occurrences);
+    }
+
+    private static void FlushBufferedNodes(
+        XddPreservedContent content,
+        string key,
+        List<XNode> buffered,
+        XElement? following,
+        Dictionary<string, int> occurrences)
+    {
+        var occurrence = 0;
+        if (following != null)
+        {
+            occurrences.TryGetValue(following.Name.LocalName, out occurrence);
+            occurrences[following.Name.LocalName] = occurrence + 1;
+        }
+
+        foreach (var node in buffered)
+        {
+            content.AddNonElementNode(key, new XddPreservedNode(
+                node is XComment comment
+                    ? new XComment(comment.Value)
+                    : new XProcessingInstruction(((XProcessingInstruction)node).Target, ((XProcessingInstruction)node).Data),
+                following?.Name.LocalName,
+                occurrence));
+        }
+
+        buffered.Clear();
+    }
 
     private static bool HasNoNamespace(XElement root)
         => root.Name.Namespace == XNamespace.None;

@@ -1,10 +1,13 @@
-namespace EdsDcfNet.Checker;
+namespace EdsDcfNet.Validation;
+
+using Finding = EdsDcfNet.Validation.IniValidationIssue;
+using Severity = EdsDcfNet.Validation.IniValidationSeverity;
 
 /// <summary>A key/value entry together with the line it was read from.</summary>
-public sealed record RawEntry(string Key, string Value, int Line);
+internal sealed record RawEntry(string Key, string Value, int Line);
 
 /// <summary>An INI section together with the line of its header.</summary>
-public sealed class RawSection
+internal sealed class RawSection
 {
     public RawSection(string name, int line)
     {
@@ -20,7 +23,6 @@ public sealed class RawSection
 
     public RawEntry? Get(string key) => Entries.TryGetValue(key, out var entry) ? entry : null;
 
-    /// <summary>Returns the trimmed value, or <see langword="null"/> when the key is absent or empty.</summary>
     public string? GetValue(string key)
     {
         var entry = Get(key);
@@ -28,11 +30,8 @@ public sealed class RawSection
     }
 }
 
-/// <summary>
-/// Line-aware INI scan of an EDS/DCF file. Unlike the library reader it never throws on bad
-/// values, so every problem in the file can be collected and reported with its line number.
-/// </summary>
-public sealed class RawIniDocument
+/// <summary>Line-aware, non-throwing INI scan used by the raw validation rules.</summary>
+internal sealed class RawIniDocument
 {
     private RawIniDocument()
     {
@@ -42,20 +41,22 @@ public sealed class RawIniDocument
 
     public RawSection? Get(string name) => Sections.TryGetValue(name, out var section) ? section : null;
 
-    /// <summary>
-    /// Returns the DCF commissioning section the way <c>DcfReader</c> selects it: the normative
-    /// <c>[DeviceComissioning]</c> wins over <c>[DeviceCommissioning]</c> regardless of order.
-    /// </summary>
     public RawSection? GetDeviceCommissioning() => Get("DeviceComissioning") ?? Get("DeviceCommissioning");
 
-    public static RawIniDocument Parse(string filePath, List<Finding> findings)
+    public static RawIniDocument Parse(
+        TextReader reader,
+        string sourceName,
+        List<Finding> findings,
+        CancellationToken cancellationToken)
     {
         var document = new RawIniDocument();
         RawSection? current = null;
         var lineNumber = 0;
 
-        foreach (var rawLine in File.ReadLines(filePath))
+        string? rawLine;
+        while ((rawLine = reader.ReadLine()) is not null)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             lineNumber++;
             var line = rawLine.Trim();
             if (line.Length == 0 || line[0] == ';')
@@ -67,7 +68,7 @@ public sealed class RawIniDocument
             {
                 if (line[^1] != ']' || line.Length < 3)
                 {
-                    findings.Add(new Finding(Severity.Error, "INI001", filePath, lineNumber, null, null, null,
+                    findings.Add(new Finding(Severity.Error, "INI001", sourceName, lineNumber, null, null, null,
                         "Malformed section header '" + line + "'."));
                     current = null;
                     continue;
@@ -76,7 +77,7 @@ public sealed class RawIniDocument
                 var name = line[1..^1].Trim();
                 if (document.Sections.TryGetValue(name, out var existing))
                 {
-                    findings.Add(new Finding(Severity.Error, "INI002", filePath, lineNumber, name, null, null,
+                    findings.Add(new Finding(Severity.Error, "INI002", sourceName, lineNumber, name, null, null,
                         "Duplicate section; first defined on line " + existing.Line.ToString(System.Globalization.CultureInfo.InvariantCulture) +
                         ". Readers merge or drop duplicate keys unpredictably."));
                     current = existing;
@@ -89,8 +90,6 @@ public sealed class RawIniDocument
             }
 
             var separator = line.IndexOf('=');
-
-            // Same as IniParser: a '#' line without '=' is ignored; "#Key=Value" stays a key.
             if (separator < 0 && line[0] == '#')
             {
                 continue;
@@ -98,14 +97,14 @@ public sealed class RawIniDocument
 
             if (separator <= 0)
             {
-                findings.Add(new Finding(Severity.Error, "INI001", filePath, lineNumber, current?.Name, null, null,
+                findings.Add(new Finding(Severity.Error, "INI001", sourceName, lineNumber, current?.Name, null, null,
                     "Line is neither a section header nor a 'Key=Value' entry: '" + line + "'."));
                 continue;
             }
 
             if (current is null)
             {
-                findings.Add(new Finding(Severity.Error, "INI004", filePath, lineNumber, null, null, null,
+                findings.Add(new Finding(Severity.Error, "INI004", sourceName, lineNumber, null, null, null,
                     "Entry outside of any section: '" + line + "'."));
                 continue;
             }
@@ -114,7 +113,7 @@ public sealed class RawIniDocument
             var value = line[(separator + 1)..].Trim();
             if (current.Entries.TryGetValue(key, out var previous))
             {
-                findings.Add(new Finding(Severity.Warning, "INI003", filePath, lineNumber, current.Name, key, value,
+                findings.Add(new Finding(Severity.Warning, "INI003", sourceName, lineNumber, current.Name, key, value,
                     "Duplicate key; previous value '" + previous.Value + "' on line " +
                     previous.Line.ToString(System.Globalization.CultureInfo.InvariantCulture) + " is overridden."));
             }

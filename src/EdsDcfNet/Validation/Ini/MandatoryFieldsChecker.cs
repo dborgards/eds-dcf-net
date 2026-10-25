@@ -1,9 +1,12 @@
-namespace EdsDcfNet.Checker;
+namespace EdsDcfNet.Validation;
 
 using System.Globalization;
 using System.Text.RegularExpressions;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Utilities;
+using Finding = EdsDcfNet.Validation.IniValidationIssue;
+using Severity = EdsDcfNet.Validation.IniValidationSeverity;
+using static EdsDcfNet.Validation.CanOpenValidationRules;
 
 /// <summary>
 /// Checks the mandatory sections and entries of CiA 306-1 (<c>[FileInfo]</c>,
@@ -11,7 +14,7 @@ using EdsDcfNet.Utilities;
 /// their values. CiA 306-1: "If not otherwise specified, all sections and entries in this
 /// document are mandatory."
 /// </summary>
-public sealed class MandatoryFieldsChecker
+internal sealed class MandatoryFieldsChecker
 {
     private static readonly Regex TimePattern = new(
         "^(0[0-9]|1[0-2]):[0-5][0-9](AM|PM)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
@@ -26,8 +29,6 @@ public sealed class MandatoryFieldsChecker
         "BaudRate_10", "BaudRate_20", "BaudRate_50", "BaudRate_125",
         "BaudRate_250", "BaudRate_500", "BaudRate_800", "BaudRate_1000",
     };
-
-    private static readonly HashSet<uint> AllowedBaudrates = new() { 10, 20, 50, 100, 125, 250, 500, 800, 1000 };
 
     private readonly string _file;
     private readonly RawIniDocument _doc;
@@ -169,10 +170,10 @@ public sealed class MandatoryFieldsChecker
         // NodeID itself is checked by RawObjectChecker (DCF001/DCF002).
         RequireText(section, "NodeName", 246);
         var baudrate = RequireUnsigned(section, "Baudrate", 16);
-        if (baudrate.HasValue && !AllowedBaudrates.Contains((uint)baudrate.Value))
+        if (baudrate.HasValue && !AllowedBaudrates.Contains((ushort)baudrate.Value))
         {
             Add(Severity.Error, "MND003", section, section.Get("Baudrate"), "Baudrate",
-                "Baudrate must be one of 10, 20, 50, 100, 125, 250, 500, 800, 1000 (kbit/s).");
+                "Baudrate must be one of " + AllowedBaudratesDescription + " (kbit/s).");
         }
 
         RequireUnsigned(section, "NetNumber", 32);

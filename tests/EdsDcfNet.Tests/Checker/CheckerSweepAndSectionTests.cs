@@ -265,17 +265,8 @@ public class CheckerSweepAndSectionTests
 
     private static (RawIniDocument Document, List<Finding> Findings) Parse(string content)
     {
-        var path = Path.Combine(Path.GetTempPath(), "edsdcf-check-" + Guid.NewGuid().ToString("N") + ".eds");
-        File.WriteAllText(path, content);
-        try
-        {
-            var findings = new List<Finding>();
-            return (RawIniDocument.Parse(path, findings), findings);
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+        var findings = new List<Finding>();
+        return (RawIniDocument.Parse(new StringReader(content), "<test>", findings, CancellationToken.None), findings);
     }
 
     private static List<Finding> Check(string content, bool isDcf = false)

@@ -351,6 +351,25 @@ Validated writes work for every format. Async validation and async validated wri
 support cooperative cancellation. The [options guide](docs/options.md#validation-options)
 lists all default and opt-in rules.
 
+For line-aware EDS/DCF source validation, use `CanOpenIniValidator`. It reports malformed
+structure, duplicates, non-canonical section names and raw value errors without stopping
+at the first reader error. This is the same rule engine used by `edsdcf-check`:
+
+```csharp
+IReadOnlyList<IniValidationIssue> sourceIssues = CanOpenIniValidator.ValidateFile(
+    "device.dcf",
+    CanOpenIniFormat.Dcf,
+    cancellationToken);
+
+var memoryIssues = CanOpenIniValidator.ValidateString(
+    iniText,
+    CanOpenIniFormat.Eds,
+    sourceName: "generated.eds");
+```
+
+Each issue contains its stable rule code, severity, source name, optional line, section,
+key and raw value. `ToDisplayString()` produces a compiler-style diagnostic.
+
 ### Working with Nodelist Projects (CPJ)
 
 ```csharp
