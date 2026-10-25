@@ -122,6 +122,61 @@ public class DeviceConfigurationFile : ICanOpenFileModel
     /// </summary>
     public ApplicationProcess? ApplicationProcess { get; set; }
 
+    /// <summary>Device monitoring and device-side module management from the XDC device profile.</summary>
+    public XddDeviceManager? DeviceManager
+    {
+        get
+        {
+            var element = XddPreserved?.ElementsAt(XddPreservedContent.DeviceProfileBody)
+                .FirstOrDefault(item => item.Name.LocalName == "DeviceManager");
+            return element == null ? null : new XddDeviceManager(element);
+        }
+        set
+        {
+            if (value != null) XddXml.QualifyRoot(value.Element, true);
+            PreservedForEditing().SetElement(XddPreservedContent.DeviceProfileBody, "DeviceManager", value?.Element);
+        }
+    }
+
+    /// <summary>Network-independent device functions; an empty collection uses the derived default.</summary>
+    public ICollection<XddDeviceFunction> DeviceFunctions
+    {
+        get
+        {
+            var content = XddPreserved ?? new XddPreservedContent();
+            return new XddModelCollection<XddDeviceFunction>(
+                () => content.ElementsAt(XddPreservedContent.DeviceProfileBody)
+                    .Where(item => item.Name.LocalName == "DeviceFunction"),
+                element => new XddDeviceFunction(element),
+                item =>
+                {
+                    XddPreserved ??= content;
+                    XddXml.QualifyRoot(item.Element, true);
+                    content.AddElement(XddPreservedContent.DeviceProfileBody, item.Element);
+                },
+                item => content.ElementList(XddPreservedContent.DeviceProfileBody).Remove(item.Element),
+                () => new XddDeviceFunction());
+        }
+    }
+
+    /// <summary>Network-side module management and object-dictionary allocation.</summary>
+    public XddNetworkModuleManagement? NetworkModuleManagement
+    {
+        get
+        {
+            var element = XddPreserved?.ElementsAt(XddPreservedContent.ApplicationLayers)
+                .FirstOrDefault(item => item.Name.LocalName == "moduleManagement");
+            return element == null ? null : new XddNetworkModuleManagement(element);
+        }
+        set
+        {
+            if (value != null) XddXml.QualifyRoot(value.Element, false);
+            PreservedForEditing().SetElement(XddPreservedContent.ApplicationLayers, "moduleManagement", value?.Element);
+        }
+    }
+
+    private XddPreservedContent PreservedForEditing() => XddPreserved ??= new XddPreservedContent();
+
     /// <summary>
     /// XDD/XDC content the model does not represent, kept by the XDD/XDC reader for the XDD/XDC
     /// writers. <see langword="null"/> for a model that was not read from XDD/XDC.

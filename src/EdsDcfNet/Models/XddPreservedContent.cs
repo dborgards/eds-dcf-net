@@ -92,6 +92,10 @@ internal sealed class XddPreservedContent
         => Attributes.TryGetValue(key, out var list) ? list : Array.Empty<XAttribute>();
 
     internal void AddElement(string key, XElement element)
+        => ElementList(key).Add(element);
+
+    /// <summary>Mutable elements at <paramref name="key"/> for the typed XDD model views.</summary>
+    internal List<XElement> ElementList(string key)
     {
         if (!Elements.TryGetValue(key, out var list))
         {
@@ -99,7 +103,15 @@ internal sealed class XddPreservedContent
             Elements[key] = list;
         }
 
-        list.Add(element);
+        return list;
+    }
+
+    internal void SetElement(string key, string localName, XElement? element)
+    {
+        var list = ElementList(key);
+        list.RemoveAll(item => item.Name.LocalName == localName);
+        if (element != null)
+            list.Add(new XElement(element));
     }
 
     internal void AddAttribute(string key, XAttribute attribute)
