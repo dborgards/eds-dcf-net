@@ -43,7 +43,7 @@ public abstract class XddXmlModel
     }
 
     private protected ICollection<T> List<T>(string? path, string? name, Func<XElement, T> wrap,
-        Func<T> create, params string[] order) where T : XddXmlModel
+        Func<T> create, bool pruneEmptyParent = false, params string[] order) where T : XddXmlModel
     {
         XElement? Parent() => path == null ? Element : FindPath(path);
         IEnumerable<XElement> Items() => Parent()?.Elements().Where(e => name == null
@@ -54,9 +54,12 @@ public abstract class XddXmlModel
             XddXml.Add(parent, item.Element, order);
         }, item =>
         {
+            var parent = Parent();
             var element = Items().FirstOrDefault(candidate => ReferenceEquals(candidate, item.Element));
             if (element == null) return false;
             element.Remove();
+            if (pruneEmptyParent && parent?.Elements().Any() == false)
+                parent.Remove();
             return true;
         }, create);
     }

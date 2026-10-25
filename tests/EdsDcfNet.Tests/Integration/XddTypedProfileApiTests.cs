@@ -82,6 +82,37 @@ public class XddTypedProfileApiTests
     }
 
     [Fact]
+    public void ClearingOptionalLists_RemovesEmptyWrappersButPreservesExtensions()
+    {
+        var eds = CanOpenFile.Xdd.ReadFile(Fixture);
+        var function = eds.DeviceFunctions.Single();
+        function.Standards.Add(new XddStandardCompliance { Name = "CiA 311" });
+        function.Pictures.Add(new XddPicture { Uri = "device.png" });
+        function.Dictionaries.Add(new XddTextResource { Uri = "texts.xml" });
+
+        function.Standards.Clear();
+        function.Pictures.Clear();
+        function.Dictionaries.Clear();
+
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(eds));
+        written.Descendants(Co + "standardComplianceList").Should().BeEmpty();
+        written.Descendants(Co + "picturesList").Should().BeEmpty();
+        written.Descendants(Co + "dictionaryList").Should().BeEmpty();
+        Cia311Schema.Validate(written.ToString()).Should().BeEmpty();
+
+        var extensionName = (XNamespace)"urn:vendor" + "extension";
+        written.Descendants(Co + "DeviceFunction").Single().Add(new XElement(Co + "picturesList",
+            new XElement(Co + "picture", new XAttribute("URI", "device.png")),
+            new XElement(extensionName)));
+        var withExtension = CanOpenFile.Xdd.ReadString(written.ToString());
+        withExtension.DeviceFunctions.Single().Pictures.Clear();
+
+        var preserved = XDocument.Parse(CanOpenFile.Xdd.WriteToString(withExtension));
+        preserved.Descendants(Co + "picturesList").Single().Elements().Single()
+            .Name.Should().Be(extensionName);
+    }
+
+    [Fact]
     public void DeviceManager_LedsAndModuleInterface_RoundTripAndValidate()
     {
         var eds = CanOpenFile.Xdd.ReadFile(Fixture);
@@ -522,6 +553,40 @@ public class XddTypedProfileApiTests
             .Should().Equal("label", "LEDstate");
         xml.Descendants(Co + "combinedState").Single().Elements().Select(element => element.Name.LocalName)
             .Should().Equal("label", "LEDstateRef", "LEDstateRef");
+    }
+
+    [Fact]
+    public void CollectionTransitions_CoverChoiceReplacementAndDetachedItems()
+    {
+        var device = new XddDeviceModuleManagement { Module = new XddDeviceModuleReference() };
+        device.Interfaces.Add(new XddDeviceModuleInterface { Id = "if_device" });
+        device.Interfaces.Single().Id.Should().Be("if_device");
+        device.Module = new XddDeviceModuleReference { ChildId = "device" };
+        device.Interfaces.Add(new XddDeviceModuleInterface());
+
+        var network = new XddNetworkModuleManagement { Module = new XddNetworkModuleReference() };
+        network.Interfaces.Add(new XddNetworkModuleInterface());
+        network.Module = new XddNetworkModuleReference { ChildReference = "network" };
+        network.Interfaces.Add(new XddNetworkModuleInterface());
+
+        var deviceInterface = new XddDeviceModuleInterface();
+        deviceInterface.Id.Should().BeEmpty();
+        deviceInterface.MaxChildren.Should().Be(1);
+        deviceInterface.MaxChildren = 3;
+        deviceInterface.MaxChildren.Should().Be(3);
+        deviceInterface.UnusedSlots.Should().BeFalse();
+        deviceInterface.UnusedSlots = true;
+        deviceInterface.UnusedSlots.Should().BeTrue();
+        deviceInterface.MultipleChildren = false;
+        deviceInterface.MultipleChildren.Should().BeFalse();
+
+        var range = new XddModuleRange { SortMode = XddModuleSortMode.SubIndex };
+        range.SortMode.Should().Be(XddModuleSortMode.SubIndex);
+        var list = new XddCharacteristicsList();
+        list.Characteristics.Remove(new XddCharacteristic()).Should().BeFalse();
+        var characteristic = new XddCharacteristic();
+        list.Characteristics.Add(characteristic);
+        list.Characteristics.Remove(characteristic).Should().BeTrue();
     }
 
     [Fact]

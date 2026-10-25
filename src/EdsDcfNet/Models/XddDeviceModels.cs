@@ -9,11 +9,11 @@ public sealed class XddDeviceManager : XddXmlModel
 
     /// <summary>LED indicators declared by the device.</summary>
     public ICollection<XddLed> Indicators => List<XddLed>("indicatorList/LEDList", "LED",
-        e => new XddLed(e), () => new XddLed(), "LED", "combinedState");
+        e => new XddLed(e), () => new XddLed(), false, "LED", "combinedState");
 
     /// <summary>Combined states that reference two or more LED states.</summary>
     public ICollection<XddCombinedState> CombinedStates => List<XddCombinedState>("indicatorList/LEDList", "combinedState",
-        e => new XddCombinedState(e), () => new XddCombinedState(), "LED", "combinedState");
+        e => new XddCombinedState(e), () => new XddCombinedState(), false, "LED", "combinedState");
 
     /// <summary>Device-side module management, or <see langword="null"/> when absent.</summary>
     public XddDeviceModuleManagement? ModuleManagement
@@ -33,20 +33,20 @@ public sealed class XddDeviceFunction : XddXmlModel
     /// <summary>Groups of textual device characteristics.</summary>
     public ICollection<XddCharacteristicsList> CharacteristicsLists => List<XddCharacteristicsList>(
         "capabilities", "characteristicsList", e => new XddCharacteristicsList(e),
-        () => new XddCharacteristicsList(), "characteristicsList", "standardComplianceList");
+        () => new XddCharacteristicsList(), false, "characteristicsList", "standardComplianceList");
 
     /// <summary>Standards with which the device complies.</summary>
     public ICollection<XddStandardCompliance> Standards => List<XddStandardCompliance>(
         "capabilities/standardComplianceList", "compliantWith", e => new XddStandardCompliance(e),
-        () => new XddStandardCompliance());
+        () => new XddStandardCompliance(), pruneEmptyParent: true);
 
     /// <summary>External pictures linked to this function.</summary>
     public ICollection<XddPicture> Pictures => List<XddPicture>("picturesList", "picture",
-        e => new XddPicture(e), () => new XddPicture());
+        e => new XddPicture(e), () => new XddPicture(), pruneEmptyParent: true);
 
     /// <summary>External dictionaries used by label and description references.</summary>
     public ICollection<XddTextResource> Dictionaries => List<XddTextResource>("dictionaryList", "dictionary",
-        e => new XddTextResource(e), () => new XddTextResource());
+        e => new XddTextResource(e), () => new XddTextResource(), pruneEmptyParent: true);
 }
 
 /// <summary>A categorized group of device characteristics.</summary>
