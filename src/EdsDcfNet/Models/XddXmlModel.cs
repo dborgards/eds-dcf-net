@@ -58,7 +58,7 @@ public abstract class XddXmlModel
             var element = Items().FirstOrDefault(candidate => ReferenceEquals(candidate, item.Element));
             if (element == null) return false;
             element.Remove();
-            if (pruneEmptyParent && parent?.Elements().Any() == false)
+            if (pruneEmptyParent && !parent!.Elements().Any())
                 parent.Remove();
             return true;
         }, create);

@@ -400,6 +400,17 @@ public class XddTypedProfileApiTests
         new XddModuleRange().SortMode.Should().Be(XddModuleSortMode.Index);
         new XddModuleRange().SortNumber.Should().Be(XddModuleSortNumber.Continuous);
         new XddText().Kind.Should().Be(XddTextKind.Label);
+        XddXml.IsText("label").Should().BeTrue();
+        XddXml.IsText("description").Should().BeTrue();
+        XddXml.IsText("labelRef").Should().BeTrue();
+        XddXml.IsText("descriptionRef").Should().BeTrue();
+        XddXml.IsText("other").Should().BeFalse();
+        XddXml.TextKind("label").Should().Be(XddTextKind.Label);
+        XddXml.TextKind("description").Should().Be(XddTextKind.Description);
+        XddXml.TextKind("labelRef").Should().Be(XddTextKind.LabelReference);
+        XddXml.TextKind("descriptionRef").Should().Be(XddTextKind.DescriptionReference);
+        new XddTextResource(XddXml.Create("dictionary")).Uri.Should().BeEmpty();
+        new XddTextResource().Uri.Should().BeEmpty();
         new XddTextGroup().Items.Count.Should().Be(0);
         new XddCharacteristicsList().Category.Should().BeNull();
         new XddDeviceModuleManagement().Module.Should().BeNull();
