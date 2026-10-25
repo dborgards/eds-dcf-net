@@ -157,6 +157,7 @@ public class XddTypedProfileApiTests
         source.Pictures.Add(picture);
 
         destination.Pictures.Add(source.Pictures.Single());
+        destination.Pictures.Add(destination.Pictures.Single());
 
         var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(eds));
         var functions = written.Descendants(Co + "DeviceFunction").ToList();
@@ -442,6 +443,11 @@ public class XddTypedProfileApiTests
         XddXml.IsText("labelRef").Should().BeTrue();
         XddXml.IsText("descriptionRef").Should().BeTrue();
         XddXml.IsText("other").Should().BeFalse();
+        XddXml.IsOptionalList("standardComplianceList").Should().BeTrue();
+        XddXml.IsOptionalList("picturesList").Should().BeTrue();
+        XddXml.IsOptionalList("dictionaryList").Should().BeTrue();
+        XddXml.IsOptionalList("LEDList").Should().BeTrue();
+        XddXml.IsOptionalList("other").Should().BeFalse();
         XddXml.TextKind("label").Should().Be(XddTextKind.Label);
         XddXml.TextKind("description").Should().Be(XddTextKind.Description);
         XddXml.TextKind("labelRef").Should().Be(XddTextKind.LabelReference);

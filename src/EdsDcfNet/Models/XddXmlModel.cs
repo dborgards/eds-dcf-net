@@ -198,7 +198,7 @@ internal static class XddXml
         foreach (var child in element.Elements()) Adopt(element, child);
     }
 
-    private static bool IsOptionalList(string name)
+    internal static bool IsOptionalList(string name)
         => name is "standardComplianceList" or "picturesList" or "dictionaryList" or "LEDList";
 
     private static void Adopt(XElement parent, XElement child)
