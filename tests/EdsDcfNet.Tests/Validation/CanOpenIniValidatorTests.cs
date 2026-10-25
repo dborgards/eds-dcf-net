@@ -104,6 +104,17 @@ public class CanOpenIniValidatorTests
     }
 
     [Fact]
+    public void ValidateString_CommentsBlankLinesAndMalformedSectionEntry_AreClassified()
+    {
+        const string text = "\n; comment\n[Sec]\nnot an entry\n# comment\n";
+
+        var issues = CanOpenIniValidator.ValidateString(text, CanOpenIniFormat.Eds);
+
+        issues.Should().ContainSingle(i => i.Code == "INI001")
+            .Which.Should().Match<IniValidationIssue>(i => i.Line == 4 && i.Section == "Sec");
+    }
+
+    [Fact]
     public void ValidateString_InvalidMandatoryMetadata_ReportsSpecificRules()
     {
         var text = "[FileInfo]\nEDSVersion=40\nDescription=" + new string('x', 244) +
