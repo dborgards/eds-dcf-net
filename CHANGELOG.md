@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.16.0-beta.7](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.6...v1.16.0-beta.7) (2026-10-25)
+
+### 🐛 Bug Fixes
+
+* **io:** reject read-only targets and widen tool counts ([#677](https://github.com/dborgards/eds-dcf-net/issues/677)) ([23d7135](https://github.com/dborgards/eds-dcf-net/commit/23d71353e37aae69ce62bd414480e783f4c30907))
+
 ## [1.16.0-beta.6](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.5...v1.16.0-beta.6) (2026-10-25)
 
 ### ✨ Features
