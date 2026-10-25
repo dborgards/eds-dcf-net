@@ -271,6 +271,23 @@ Console.WriteLine($"Node ID: {xdc.DeviceCommissioning.NodeId}");
 Console.WriteLine($"Baudrate: {xdc.DeviceCommissioning.Baudrate} kbit/s");
 ```
 
+### Working with Device Profiles and Module Management
+
+XDD/XDC device functions, device-manager information, and both device-side and
+network-side module management are available as live typed models. Changes are
+included the next time the document is written; unknown XML content is preserved.
+
+```csharp
+using EdsDcfNet.Models;
+
+var xdd = CanOpenFile.Xdd.ReadFile("device.xdd");
+var function = xdd.DeviceFunctions.Single();
+
+Console.WriteLine($"Characteristic groups: {function.CharacteristicsLists.Count}");
+Console.WriteLine($"Device module interfaces: {xdd.DeviceManager?.ModuleManagement?.Interfaces.Count}");
+Console.WriteLine($"Network module interfaces: {xdd.NetworkModuleManagement?.Interfaces.Count}");
+```
+
 ### Working with ApplicationProcess (CiA 311 §6.4.5)
 
 XDD/XDC files may include an `ApplicationProcess` element describing device parameters

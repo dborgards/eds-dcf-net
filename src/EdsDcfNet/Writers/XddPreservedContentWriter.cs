@@ -50,8 +50,8 @@ internal static class XddPreservedContentWriter
     /// Adds copies of <paramref name="kept"/> to <paramref name="parent"/> and orders all children
     /// by their position in <paramref name="order"/>; an element the schema does not list goes last,
     /// and elements of the same position keep their order. A kept element whose local name is in
-    /// <paramref name="replaces"/> replaces the generated children of that name (the writer only
-    /// generates them as a default).
+    /// <paramref name="replaces"/> replaces only a generated child with the same qualified name
+    /// (the writer only generates them as a default); foreign-namespace lookalikes stay preserved.
     /// </summary>
     internal static void MergeElements(XElement parent, IEnumerable<XElement> kept, string[] order, params string[] replaces)
     {
@@ -59,11 +59,10 @@ internal static class XddPreservedContentWriter
         if (copies.Count == 0)
             return;
 
-        var replaced = new HashSet<string>(
-            copies.Select(element => element.Name.LocalName).Where(name => replaces.Contains(name)),
-            StringComparer.Ordinal);
+        var replaced = new HashSet<XName>(
+            copies.Select(element => element.Name).Where(name => replaces.Contains(name.LocalName)));
         var children = parent.Elements()
-            .Where(element => !replaced.Contains(element.Name.LocalName))
+            .Where(element => !replaced.Contains(element.Name))
             .Concat(copies)
             .OrderBy(element => Rank(order, element.Name.LocalName))
             .ToList();
