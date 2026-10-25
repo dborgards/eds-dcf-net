@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.16.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.4...v1.16.0-beta.5) (2026-10-25)
+
+### 🐛 Bug Fixes
+
+* preserve XDD content and validate lexical values ([#673](https://github.com/dborgards/eds-dcf-net/issues/673)) ([ea62c1a](https://github.com/dborgards/eds-dcf-net/commit/ea62c1a465306013b37f32ca5c88cf381667bb8f))
+
 ## [1.16.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.3...v1.16.0-beta.4) (2026-10-25)
 
 ### ✨ Features
