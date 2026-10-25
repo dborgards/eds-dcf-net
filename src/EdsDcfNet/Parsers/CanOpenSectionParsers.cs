@@ -1168,7 +1168,8 @@ internal static class CanOpenSectionParsers
 
         foreach (var toolSection in sections.Keys
             .Where(name => IsToolSectionWithinCount(name, items))
-            .OrderBy(name => uint.Parse(name[4..], NumberStyles.None, CultureInfo.InvariantCulture)))
+            .OrderBy(name => uint.Parse(name[4..], NumberStyles.None, CultureInfo.InvariantCulture))
+            .ToArray())
         {
             var tool = new ToolInfo
             {
