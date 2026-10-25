@@ -180,6 +180,36 @@ public class XddTypedProfileApiTests
     }
 
     [Fact]
+    public void TypedCollections_ForeignNamespaceLookalikes_AreNotReadOrRemoved()
+    {
+        var eds = CanOpenFile.Xdd.ReadFile(Fixture);
+        var picture = new XddPicture { Uri = "device.png" };
+        picture.Texts.Add("Device", "en");
+        eds.DeviceFunctions.Single().Pictures.Add(picture);
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(eds));
+        XNamespace vendor = "urn:vendor";
+        written.Descendants(Co + "picturesList").Single().Add(new XElement(vendor + "picture"));
+        written.Descendants(Co + "characteristicName").Single().Add(new XElement(vendor + "label"));
+        written.Descendants(Co + "moduleTypeList").Single().Add(new XElement(vendor + "moduleType"));
+
+        var reread = CanOpenFile.Xdd.ReadString(written.ToString());
+        var function = reread.DeviceFunctions.Single();
+        var name = function.CharacteristicsLists.Single().Characteristics.Single().Name;
+        var moduleTypes = reread.DeviceManager!.ModuleManagement!.Interfaces.Single().ModuleTypes;
+        function.Pictures.Should().ContainSingle();
+        name.Items.Should().ContainSingle();
+        moduleTypes.Should().ContainSingle();
+        function.Pictures.Clear();
+        name.Items.Clear();
+        moduleTypes.Clear();
+
+        var preserved = XDocument.Parse(CanOpenFile.Xdd.WriteToString(reread));
+        preserved.Descendants(vendor + "picture").Should().ContainSingle();
+        preserved.Descendants(vendor + "label").Should().ContainSingle();
+        preserved.Descendants(vendor + "moduleType").Should().ContainSingle();
+    }
+
+    [Fact]
     public void DeviceManager_LedsAndModuleInterface_RoundTripAndValidate()
     {
         var eds = CanOpenFile.Xdd.ReadFile(Fixture);
@@ -437,6 +467,23 @@ public class XddTypedProfileApiTests
         new XddNetworkModuleInterface().Addressing.Should().Be(XddAddressing.Auto);
         new XddModuleRange().SortMode.Should().Be(XddModuleSortMode.Index);
         new XddModuleRange().SortNumber.Should().Be(XddModuleSortNumber.Continuous);
+        new XddDeviceModuleInterface(XddXml.Create("interface", new XAttribute("maxChilds", " \t+4\r\n")))
+            .MaxChildren.Should().Be(4);
+        new XddDeviceModuleInterface(XddXml.Create("interface", new XAttribute("maxChilds", "\u00A04\u00A0")))
+            .MaxChildren.Should().Be(1);
+        new XddPicture(XddXml.Create("picture", new XAttribute("number", " +2 "))).Number.Should().Be(2);
+        var numericState = new XddLedState(XddXml.Create("LEDstate",
+            new XAttribute("flashingPeriod", " +200 "), new XAttribute("impulsWidth", " +25 "),
+            new XAttribute("numberOfImpulses", " +2 ")));
+        numericState.FlashingPeriod.Should().Be(200);
+        numericState.ImpulseWidth.Should().Be(25);
+        numericState.NumberOfImpulses.Should().Be(2);
+        new XddNetworkModuleReference(XddXml.Create("moduleRef", new XAttribute("addressMax", " +9 ")))
+            .MaximumAddress.Should().Be(9);
+        new XddDeviceModuleInterface(XddXml.Create("interface")).SearchPath.Should().BeEmpty();
+        new XddDeviceModuleInterface(XddXml.Create("interface", XddXml.Create("fileList",
+                new XElement((XNamespace)"urn:vendor" + "file"))))
+            .SearchPath.Should().BeEmpty();
         new XddText().Kind.Should().Be(XddTextKind.Label);
         XddXml.IsText("label").Should().BeTrue();
         XddXml.IsText("description").Should().BeTrue();

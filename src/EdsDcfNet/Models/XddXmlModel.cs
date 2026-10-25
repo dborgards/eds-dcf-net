@@ -19,15 +19,21 @@ public abstract class XddXmlModel
         else Element.SetAttributeValue(name, value);
     }
 
-    private protected XElement? Child(string name) => Element.Elements().FirstOrDefault(e => e.Name.LocalName == name);
-    private protected XElement? Descendant(string parent, string child) => Child(parent)?.Elements().FirstOrDefault(e => e.Name.LocalName == child);
+    private protected XElement? Child(string name)
+        => Element.Elements().FirstOrDefault(e => e.Name.LocalName == name && XddXml.IsModelChild(Element, e));
+    private protected XElement? Descendant(string parent, string child)
+    {
+        var parentElement = Child(parent);
+        return parentElement?.Elements().FirstOrDefault(e => e.Name.LocalName == child
+            && XddXml.IsModelChild(parentElement, e));
+    }
     private protected static T? Wrap<T>(XElement? element) where T : XddXmlModel => element == null ? null :
         (T)Activator.CreateInstance(typeof(T), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { element }, null)!;
 
     private protected XElement EnsureChild(string name, params string[] order) => EnsureChild(Element, name, order);
     private protected static XElement EnsureChild(XElement parent, string name, params string[] order)
     {
-        var child = parent.Elements().FirstOrDefault(e => e.Name.LocalName == name);
+        var child = parent.Elements().FirstOrDefault(e => e.Name.LocalName == name && XddXml.IsModelChild(parent, e));
         if (child != null) return child;
         child = XddXml.Create(name);
         XddXml.Add(parent, child, order);
@@ -46,8 +52,13 @@ public abstract class XddXmlModel
         Func<T> create, bool pruneEmptyParent = false, params string[] order) where T : XddXmlModel
     {
         XElement? Parent() => path == null ? Element : FindPath(path);
-        IEnumerable<XElement> Items() => Parent()?.Elements().Where(e => name == null
-            ? XddXml.IsText(e.Name.LocalName) : e.Name.LocalName == name) ?? Enumerable.Empty<XElement>();
+        IEnumerable<XElement> Items()
+        {
+            var parent = Parent();
+            return parent?.Elements().Where(e => (name == null
+                ? XddXml.IsText(e.Name.LocalName) : e.Name.LocalName == name) && XddXml.IsModelChild(parent, e))
+                ?? Enumerable.Empty<XElement>();
+        }
         return new XddModelCollection<T>(() => Items(), wrap, item =>
         {
             var parent = Parent() ?? EnsurePath(path!);
@@ -83,7 +94,8 @@ public abstract class XddXmlModel
     {
         XElement? Parent() => path == null ? Element : FindPath(path);
         return new XddStringCollection(
-            () => Parent()?.Elements().Where(e => e.Name.LocalName == childName) ?? Enumerable.Empty<XElement>(),
+            () => Parent()?.Elements().Where(e => e.Name.LocalName == childName && XddXml.IsModelChild(Parent()!, e))
+                ?? Enumerable.Empty<XElement>(),
             value =>
             {
                 var parent = Parent() ?? EnsurePath(path!);
@@ -95,12 +107,17 @@ public abstract class XddXmlModel
             pruneEmptyParent ? Parent : null);
     }
 
-    private protected uint? UInt(string name) => uint.TryParse(Get(name), NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : null;
+    private protected uint? UInt(string name) => uint.TryParse(IntegerLexical(name),
+        NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value) ? value : null;
     private protected void SetUInt(string name, uint? value) => Set(name, value?.ToString(CultureInfo.InvariantCulture));
-    private protected byte Byte(string name, byte fallback) => byte.TryParse(Get(name), NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : fallback;
+    private protected byte Byte(string name, byte fallback) => byte.TryParse(IntegerLexical(name),
+        NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value) ? value : fallback;
     private protected void SetByte(string name, byte value, byte defaultValue) => Set(name, value == defaultValue ? null : value.ToString(CultureInfo.InvariantCulture));
-    private protected ulong ULong(string name, ulong fallback) => ulong.TryParse(Get(name), NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : fallback;
-    private protected ulong? NullableULong(string name) => ulong.TryParse(Get(name), NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : null;
+    private protected ulong ULong(string name, ulong fallback) => ulong.TryParse(IntegerLexical(name),
+        NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value) ? value : fallback;
+    private protected ulong? NullableULong(string name) => ulong.TryParse(IntegerLexical(name),
+        NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value) ? value : null;
+    private string? IntegerLexical(string name) => Get(name)?.Trim(' ', '\t', '\r', '\n');
     private protected void SetULong(string name, ulong? value, ulong? defaultValue)
         => Set(name, value == null || value.Value == defaultValue ? null : value.Value.ToString(CultureInfo.InvariantCulture));
     private protected bool Bool(string name) => string.Equals(Get(name), "true", StringComparison.Ordinal) || Get(name) == "1";
@@ -134,7 +151,8 @@ public abstract class XddXmlModel
         var parent = Element;
         foreach (var part in path.Split('/'))
         {
-            parent = parent.Elements().FirstOrDefault(e => e.Name.LocalName == part);
+            var current = parent;
+            parent = parent.Elements().FirstOrDefault(e => e.Name.LocalName == part && XddXml.IsModelChild(current, e));
             if (parent == null) return null;
         }
         return parent;
@@ -155,6 +173,9 @@ internal static class XddXml
         if (value == null) throw new ArgumentNullException(name);
 #endif
     }
+
+    internal static bool IsModelChild(XElement _, XElement child)
+        => child.Name.Namespace == XddNames.Namespace || child.Name.Namespace == XNamespace.None;
 
     internal static bool IsText(string name) => name is "label" or "description" or "labelRef" or "descriptionRef";
     internal static string TextName(XddTextKind kind) => kind switch
