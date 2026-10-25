@@ -90,25 +90,37 @@ public class XddTypedProfileApiTests
         function.Pictures.Add(new XddPicture { Uri = "device.png" });
         function.Dictionaries.Add(new XddTextResource { Uri = "texts.xml" });
 
+        var deviceInterface = eds.DeviceManager!.ModuleManagement!.Interfaces.Single();
+        deviceInterface.ConnectedModuleIds.Add("5");
+
         function.Standards.Clear();
         function.Pictures.Clear();
         function.Dictionaries.Clear();
+        deviceInterface.ConnectedModuleIds.Clear();
 
         var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(eds));
         written.Descendants(Co + "standardComplianceList").Should().BeEmpty();
         written.Descendants(Co + "picturesList").Should().BeEmpty();
         written.Descendants(Co + "dictionaryList").Should().BeEmpty();
+        written.Descendants(Co + "connectedModuleList").Should().BeEmpty();
         Cia311Schema.Validate(written.ToString()).Should().BeEmpty();
 
         var extensionName = (XNamespace)"urn:vendor" + "extension";
         written.Descendants(Co + "DeviceFunction").Single().Add(new XElement(Co + "picturesList",
             new XElement(Co + "picture", new XAttribute("URI", "device.png")),
             new XElement(extensionName)));
+        written.Descendants(Co + "moduleInterfaceList").Single().Element(Co + "interface")!.Add(
+            new XElement(Co + "connectedModuleList",
+                new XElement(Co + "connectedModule", new XAttribute("childIDRef", "5")),
+                new XElement(extensionName)));
         var withExtension = CanOpenFile.Xdd.ReadString(written.ToString());
         withExtension.DeviceFunctions.Single().Pictures.Clear();
+        withExtension.DeviceManager!.ModuleManagement!.Interfaces.Single().ConnectedModuleIds.Clear();
 
         var preserved = XDocument.Parse(CanOpenFile.Xdd.WriteToString(withExtension));
         preserved.Descendants(Co + "picturesList").Single().Elements().Single()
+            .Name.Should().Be(extensionName);
+        preserved.Descendants(Co + "connectedModuleList").Single().Elements().Single()
             .Name.Should().Be(extensionName);
     }
 
@@ -568,6 +580,8 @@ public class XddTypedProfileApiTests
         network.Interfaces.Add(new XddNetworkModuleInterface());
         network.Module = new XddNetworkModuleReference { ChildReference = "network" };
         network.Interfaces.Add(new XddNetworkModuleInterface());
+        new XddDeviceModuleManagement().Interfaces.Add(new XddDeviceModuleInterface());
+        new XddNetworkModuleManagement().Interfaces.Add(new XddNetworkModuleInterface());
 
         var deviceInterface = new XddDeviceModuleInterface();
         deviceInterface.Id.Should().BeEmpty();

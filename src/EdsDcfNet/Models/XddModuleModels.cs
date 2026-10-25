@@ -54,7 +54,8 @@ public sealed class XddDeviceModuleInterface : XddXmlModel
     /// <summary>Module types accepted by this interface.</summary>
     public ICollection<string> ModuleTypes => StringList("moduleTypeList", "moduleType", "type");
     /// <summary>Identifiers of connected modules.</summary>
-    public ICollection<string> ConnectedModuleIds => StringList("connectedModuleList", "connectedModule", "childIDRef");
+    public ICollection<string> ConnectedModuleIds => StringList("connectedModuleList", "connectedModule", "childIDRef",
+        pruneEmptyParent: true);
 }
 
 /// <summary>A single module supported by a device.</summary>

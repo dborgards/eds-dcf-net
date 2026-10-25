@@ -78,7 +78,8 @@ public abstract class XddXmlModel
     private protected ICollection<string> StringList(string childName, string attribute)
         => StringList(null, childName, attribute);
 
-    private protected ICollection<string> StringList(string? path, string childName, string attribute)
+    private protected ICollection<string> StringList(string? path, string childName, string attribute,
+        bool pruneEmptyParent = false)
     {
         XElement? Parent() => path == null ? Element : FindPath(path);
         return new XddStringCollection(
@@ -90,16 +91,18 @@ public abstract class XddXmlModel
                 child.SetAttributeValue(attribute, value);
                 XddXml.Add(parent, child);
             },
-            attribute);
+            attribute,
+            pruneEmptyParent ? Parent : null);
     }
 
     private protected uint? UInt(string name) => uint.TryParse(Get(name), NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : null;
     private protected void SetUInt(string name, uint? value) => Set(name, value?.ToString(CultureInfo.InvariantCulture));
     private protected byte Byte(string name, byte fallback) => byte.TryParse(Get(name), NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : fallback;
-    private protected void SetByte(string name, byte value, byte? defaultValue) => Set(name, value == defaultValue ? null : value.ToString(CultureInfo.InvariantCulture));
+    private protected void SetByte(string name, byte value, byte defaultValue) => Set(name, value == defaultValue ? null : value.ToString(CultureInfo.InvariantCulture));
     private protected ulong ULong(string name, ulong fallback) => ulong.TryParse(Get(name), NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : fallback;
     private protected ulong? NullableULong(string name) => ulong.TryParse(Get(name), NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : null;
-    private protected void SetULong(string name, ulong? value, ulong? defaultValue) => Set(name, value == defaultValue ? null : value?.ToString(CultureInfo.InvariantCulture));
+    private protected void SetULong(string name, ulong? value, ulong? defaultValue)
+        => Set(name, value == null || value.Value == defaultValue ? null : value.Value.ToString(CultureInfo.InvariantCulture));
     private protected bool Bool(string name) => string.Equals(Get(name), "true", StringComparison.Ordinal) || Get(name) == "1";
     private protected void SetBool(string name, bool value) => Set(name, value ? "true" : "false");
 
@@ -168,7 +171,7 @@ internal static class XddXml
     };
     internal static string EnumName<T>(T value) where T : struct
     {
-        var name = value.ToString() ?? string.Empty;
+        var name = value.ToString()!;
         if (!System.Enum.IsDefined(typeof(T), value)) throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown XDD enumeration value.");
         if (name == "IO") return name;
         if (name == "SubIndex") return "subIndex";
@@ -248,12 +251,18 @@ internal sealed class XddStringCollection : ICollection<string>
     private readonly Func<IEnumerable<XElement>> _elements;
     private readonly Action<string> _add;
     private readonly string _attribute;
-    internal XddStringCollection(Func<IEnumerable<XElement>> elements, Action<string> add, string attribute)
-    { _elements = elements; _add = add; _attribute = attribute; }
+    private readonly Func<XElement?>? _pruneParent;
+    internal XddStringCollection(Func<IEnumerable<XElement>> elements, Action<string> add, string attribute,
+        Func<XElement?>? pruneParent)
+    { _elements = elements; _add = add; _attribute = attribute; _pruneParent = pruneParent; }
     public int Count => _elements().Count();
     public bool IsReadOnly => false;
     public void Add(string item) { XddXml.Require(item, nameof(item)); _add(item); }
-    public void Clear() { foreach (var element in _elements().ToList()) element.Remove(); }
+    public void Clear()
+    {
+        foreach (var element in _elements().ToList()) element.Remove();
+        PruneEmptyParent();
+    }
     public bool Contains(string item) => _elements().Any(e => e.Attribute(_attribute)?.Value == item);
     public void CopyTo(string[] array, int arrayIndex)
     { foreach (var item in this) array[arrayIndex++] = item; }
@@ -262,8 +271,15 @@ internal sealed class XddStringCollection : ICollection<string>
         var element = _elements().FirstOrDefault(e => e.Attribute(_attribute)?.Value == item);
         if (element == null) return false;
         element.Remove();
+        PruneEmptyParent();
         return true;
     }
     public IEnumerator<string> GetEnumerator() => _elements().Select(e => e.Attribute(_attribute)?.Value ?? string.Empty).GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    private void PruneEmptyParent()
+    {
+        if (_pruneParent?.Invoke() is { } parent && !parent.Elements().Any())
+            parent.Remove();
+    }
 }
