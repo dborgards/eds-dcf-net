@@ -180,7 +180,11 @@ internal static class XddXml
 
     internal static void Add(XElement parent, XElement child, params string[] order)
     {
-        if (child.Parent != null) child.Remove();
+        var sourceParent = child.Parent;
+        if (sourceParent != null) child.Remove();
+        if (sourceParent != null && sourceParent != parent && IsOptionalList(sourceParent.Name.LocalName)
+            && !sourceParent.Elements().Any())
+            sourceParent.Remove();
         Adopt(parent, child);
         var rank = Rank(order.Length == 0 ? DefaultOrder(parent.Name.LocalName) : order, child.Name.LocalName);
         var following = parent.Elements().FirstOrDefault(e => Rank(order.Length == 0 ? DefaultOrder(parent.Name.LocalName) : order, e.Name.LocalName) > rank);
@@ -193,6 +197,9 @@ internal static class XddXml
         element.Name = global ? XddNames.Namespace + element.Name.LocalName : XNamespace.None + element.Name.LocalName;
         foreach (var child in element.Elements()) Adopt(element, child);
     }
+
+    private static bool IsOptionalList(string name)
+        => name is "standardComplianceList" or "picturesList" or "dictionaryList" or "LEDList";
 
     private static void Adopt(XElement parent, XElement child)
     {

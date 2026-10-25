@@ -142,6 +142,43 @@ public class XddTypedProfileApiTests
     }
 
     [Fact]
+    public void MovingLastOptionalListItem_PrunesSourceWrapperButPreservesExtensions()
+    {
+        var eds = CanOpenFile.Xdd.ReadFile(Fixture);
+        var added = new XddDeviceFunction();
+        var characteristic = added.CharacteristicsLists.Single().Characteristics.Single();
+        characteristic.Name.Add("Destination", "en");
+        characteristic.Contents.Single().Add("Output", "en");
+        eds.DeviceFunctions.Add(added);
+        var source = eds.DeviceFunctions.First();
+        var destination = eds.DeviceFunctions.Last();
+        var picture = new XddPicture { Uri = "device.png" };
+        picture.Texts.Add("Device", "en");
+        source.Pictures.Add(picture);
+
+        destination.Pictures.Add(source.Pictures.Single());
+
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(eds));
+        var functions = written.Descendants(Co + "DeviceFunction").ToList();
+        functions[0].Element(Co + "picturesList").Should().BeNull();
+        functions[1].Descendants(Co + "picture").Should().ContainSingle();
+        Cia311Schema.Validate(written.ToString()).Should().BeEmpty();
+
+        var extensionName = (XNamespace)"urn:vendor" + "extension";
+        functions[0].Add(new XElement(Co + "picturesList",
+            new XElement(Co + "picture", new XAttribute("URI", "extended.png")),
+            new XElement(extensionName)));
+        var withExtension = CanOpenFile.Xdd.ReadString(written.ToString());
+        source = withExtension.DeviceFunctions.First();
+        destination = withExtension.DeviceFunctions.Last();
+        destination.Pictures.Add(source.Pictures.Single());
+
+        var preserved = XDocument.Parse(CanOpenFile.Xdd.WriteToString(withExtension));
+        preserved.Descendants(Co + "DeviceFunction").First().Element(Co + "picturesList")!
+            .Elements().Single().Name.Should().Be(extensionName);
+    }
+
+    [Fact]
     public void DeviceManager_LedsAndModuleInterface_RoundTripAndValidate()
     {
         var eds = CanOpenFile.Xdd.ReadFile(Fixture);
