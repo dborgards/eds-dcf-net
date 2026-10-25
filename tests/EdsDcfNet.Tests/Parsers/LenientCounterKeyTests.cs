@@ -309,7 +309,8 @@ public class LenientCounterKeyTests
 
     [Theory]
     [InlineData("abc")]
-    [InlineData("256")]
+    [InlineData("-1")]
+    [InlineData("4294967296")]
     public void ReadString_MalformedToolsItems_ReportsAndKeepsToolSections(string items)
     {
         // Arrange
@@ -329,17 +330,22 @@ public class LenientCounterKeyTests
     }
 
     [Fact]
-    public void ReadString_ToolsItemsAtMaxValue_ReadsTools()
+    public void ReadString_ToolsItemsAtUInt32MaxValue_ReadsOnlyPresentToolSectionsInOrder()
     {
-        // Arrange
-        var content = Eds("[Tools]\nItems=255\n\n[Tool1]\nName=Configurator\nCommand=cfg.exe\n");
+        // CiA 306-3 clause 7.2 gives no UNSIGNED8 limit for the decimal tool counter.
+        var content = Eds("[Tools]\nItems=4294967295\n\n" +
+            "[Tool256]\nName=Exporter\nCommand=export.exe\n\n" +
+            "[Tool1]\nName=Configurator\nCommand=cfg.exe\n\n" +
+            "[Tool4294967295]\nName=Last\nCommand=last.exe\n");
 
         // Act
         var result = CanOpenFile.Eds.ReadStringWithDiagnostics(content);
 
         // Assert
-        result.Model.Tools.Should().ContainSingle().Which.Name.Should().Be("Configurator");
+        result.Model.Tools.Select(tool => tool.Name).Should().Equal("Configurator", "Exporter", "Last");
         result.Model.AdditionalSections.Should().NotContainKey("Tool1");
+        result.Model.AdditionalSections.Should().NotContainKey("Tool256");
+        result.Model.AdditionalSections.Should().NotContainKey("Tool4294967295");
         result.Diagnostics.Should().NotContain(d => d.Code == ParseDiagnosticCodes.InvalidToolCount);
     }
 

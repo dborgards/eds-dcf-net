@@ -316,6 +316,34 @@ public sealed class AtomicFileWriteTargetTests : IDisposable
 
     [UnsupportedOSPlatform("windows")]
     [Fact]
+    public void WriteFileAtomic_SymbolicLinkToReadOnlyTarget_RejectsAndKeepsLinkAndContent()
+    {
+        SkipOnWindows();
+
+        var target = PathOf("readonly.eds");
+        var link = PathOf("readonly-link.eds");
+        File.WriteAllText(target, "old");
+        const UnixFileMode readOnly = UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead;
+        File.SetUnixFileMode(target, readOnly);
+        CreateSymbolicLinkOrSkip(link, target);
+        try
+        {
+            var act = () => TextFileIo.WriteFileAtomic(link, s => s.Write(NewContent, 0, NewContent.Length));
+
+            act.Should().Throw<UnauthorizedAccessException>().WithMessage("*read-only*");
+            File.ReadAllText(target).Should().Be("old");
+            File.GetUnixFileMode(target).Should().Be(readOnly);
+            new FileInfo(link).LinkTarget.Should().Be(target);
+            Directory.EnumerateFileSystemEntries(_dir, ".edsdcf.*").Should().BeEmpty();
+        }
+        finally
+        {
+            File.SetUnixFileMode(target, readOnly | UnixFileMode.UserWrite);
+        }
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    [Fact]
     public void DcfWriteFile_ExistingFileWithMode0600_KeepsMode()
     {
         SkipOnWindows();

@@ -37,6 +37,7 @@ verification. A blank or untested row must not be treated as supported.
 |---|---|---|---|
 | Create a missing regular file | all assets / Windows, Linux, macOS | Complete file, no temporary file | Automated: `AtomicFileWriteTests`; net10.0 on local Unix and Windows CI, net48/netstandard2.0 on Windows CI |
 | Replace an existing regular file | all assets / Windows, Linux, macOS | Old content visible before commit; complete replacement; no backup or temporary file | Automated: `AtomicFileWriteTests` on the same hosts |
+| Existing read-only target | all assets / Windows, Linux, macOS | `UnauthorizedAccessException` before serialization, temporary-file creation, or truncation; old content, mode, and links unchanged | Automated: `AtomicFileWriteTests`, `AtomicFileWriteTargetTests`; legacy Unix in-place fallback requires manual verification |
 | Serialization or callback failure | all assets / all supported hosts | Old target unchanged; no target created when absent; temporary file removed | Automated: `AtomicFileWriteTests`; in-place serialization covered by the net48 fallback tests |
 | Commit failure | all assets / all supported hosts | Error surfaces as the format's write exception; existing filesystem object and its content remain; no temporary file | Automated: `AtomicFileWriteTests.WriteFile*_CommitFails_*` |
 | Absolute symlink to existing or dangling file | net10.0 / Windows, Linux, macOS | Final target is created or replaced; every link remains a link | Automated: `AtomicFileWriteTargetTests` (Windows requires link privilege; Unix local runs execute it) |
@@ -71,9 +72,11 @@ asset, and result beside the relevant row in the PR.
    after observing target truncation; verify the operation finishes with complete,
    readable content.
 3. **Legacy Unix host:** on a host without managed Unix-mode APIs, set mode 0600,
-   write, and verify mode and content. Induce a serialization error and verify the
-   old content remains. An induced I/O error after truncation is explicitly not
-   required to preserve content.
+   write, and verify mode and content. Set mode 0444 and verify that writing is
+   rejected before serialization or truncation and leaves content and mode intact.
+   Restore mode 0600, induce a serialization error, and verify the old content
+   remains. An induced I/O error after truncation is explicitly not required to
+   preserve content.
 4. **Permissions:** when link creation or setting a special mode is denied, rerun
    on a suitably configured host or report the row as unverified. Never convert an
    environment skip into a passing contract claim.

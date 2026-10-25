@@ -62,6 +62,7 @@ internal static class PlatformFileSupport
     /// </summary>
     internal static void Write(string filePath, Action<Stream> write, Action<string, Action<Stream>> replace)
     {
+        ThrowIfReadOnlyTarget(filePath);
 #if !NET10_0_OR_GREATER
         if (MustWriteInPlace(filePath))
         {
@@ -79,11 +80,29 @@ internal static class PlatformFileSupport
         Func<string, Func<Stream, Task>, CancellationToken, Task> replace,
         CancellationToken cancellationToken)
     {
+        ThrowIfReadOnlyTarget(filePath);
 #if !NET10_0_OR_GREATER
         if (MustWriteInPlace(filePath))
             return WriteInPlaceAsync(filePath, write, cancellationToken);
 #endif
         return replace(filePath, write, cancellationToken);
+    }
+
+    private static void ThrowIfReadOnlyTarget(string filePath)
+    {
+        if (!File.Exists(filePath))
+            return;
+
+        var readOnly = (File.GetAttributes(filePath) & FileAttributes.ReadOnly) != 0;
+#if NET10_0_OR_GREATER
+        if (!OperatingSystem.IsWindows())
+        {
+            const UnixFileMode writeBits = UnixFileMode.UserWrite | UnixFileMode.GroupWrite | UnixFileMode.OtherWrite;
+            readOnly |= (File.GetUnixFileMode(filePath) & writeBits) == 0;
+        }
+#endif
+        if (readOnly)
+            throw new UnauthorizedAccessException("The target file is read-only: " + filePath);
     }
 
     /// <summary>

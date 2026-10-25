@@ -35,7 +35,73 @@ public sealed class AtomicFileWriteTests : IDisposable
 
     private static DeviceConfigurationFile SampleDcf() => new DcfReader().ReadFile(Path.Combine("Fixtures", "minimal.dcf"));
 
+    private static void MakeReadOnly(string path)
+    {
+        File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.ReadOnly);
+#if NET
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+#endif
+    }
+
+    private static void RestoreWritable(string path)
+    {
+        File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly);
+#if NET
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(path, File.GetUnixFileMode(path) | UnixFileMode.UserWrite);
+#endif
+    }
+
     // ---- TextFileIo.WriteFileAtomic ----
+
+    [Fact]
+    public void WriteFileAtomic_ReadOnlyTarget_ThrowsBeforeCallbackAndKeepsContent()
+    {
+        var target = Target("readonly.txt");
+        File.WriteAllText(target, "old");
+        MakeReadOnly(target);
+        var callbackCalled = false;
+        try
+        {
+            var act = () => TextFileIo.WriteFileAtomic(target, _ => callbackCalled = true);
+
+            act.Should().Throw<UnauthorizedAccessException>().WithMessage("*read-only*");
+            callbackCalled.Should().BeFalse();
+            File.ReadAllText(target).Should().Be("old");
+            AssertOnlyFiles("readonly.txt");
+        }
+        finally
+        {
+            RestoreWritable(target);
+        }
+    }
+
+    [Fact]
+    public async Task WriteFileAtomicAsync_ReadOnlyTarget_ThrowsBeforeCallbackAndKeepsContent()
+    {
+        var target = Target("readonly-async.txt");
+        File.WriteAllText(target, "old");
+        MakeReadOnly(target);
+        var callbackCalled = false;
+        try
+        {
+            var act = () => TextFileIo.WriteFileAtomicAsync(target, _ =>
+            {
+                callbackCalled = true;
+                return Task.CompletedTask;
+            });
+
+            await act.Should().ThrowAsync<UnauthorizedAccessException>().WithMessage("*read-only*");
+            callbackCalled.Should().BeFalse();
+            File.ReadAllText(target).Should().Be("old");
+            AssertOnlyFiles("readonly-async.txt");
+        }
+        finally
+        {
+            RestoreWritable(target);
+        }
+    }
 
     [Fact]
     public void WriteFileAtomic_TargetMissing_CreatesTargetAndLeavesNoTemp()
