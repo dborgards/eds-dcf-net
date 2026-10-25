@@ -448,6 +448,11 @@ public class XddTypedProfileApiTests
         XddXml.IsOptionalList("dictionaryList").Should().BeTrue();
         XddXml.IsOptionalList("LEDList").Should().BeTrue();
         XddXml.IsOptionalList("other").Should().BeFalse();
+        var sourceElement = XddXml.Create("source", XddXml.Create("item"));
+        var targetElement = XddXml.Create("target");
+        XddXml.Add(targetElement, sourceElement.Element("item")!);
+        sourceElement.Elements().Should().BeEmpty();
+        targetElement.Elements().Should().ContainSingle();
         XddXml.TextKind("label").Should().Be(XddTextKind.Label);
         XddXml.TextKind("description").Should().Be(XddTextKind.Description);
         XddXml.TextKind("labelRef").Should().Be(XddTextKind.LabelReference);
