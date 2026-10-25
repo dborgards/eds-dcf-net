@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.16.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.2...v1.16.0-beta.3) (2026-10-25)
+
+### 🐛 Bug Fixes
+
+* preserve INI section positions and CPJ topology names ([#672](https://github.com/dborgards/eds-dcf-net/issues/672)) ([b7b0f2d](https://github.com/dborgards/eds-dcf-net/commit/b7b0f2de0166c945ae6fad6a88a2280756eb6676))
+
+## [1.16.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.1...v1.16.0-beta.2) (2026-10-25)
+
+### ✨ Features
+
+* add validation options and sub-object flags ([#671](https://github.com/dborgards/eds-dcf-net/issues/671)) ([340260f](https://github.com/dborgards/eds-dcf-net/commit/340260fbce2e37cae3749da239a91544875fc032))
+
+## [1.16.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.15.1-beta.2...v1.16.0-beta.1) (2026-10-25)
+
+### ✨ Features
+
+* resolve indirect XDD parameter references ([#670](https://github.com/dborgards/eds-dcf-net/issues/670)) ([d9f854a](https://github.com/dborgards/eds-dcf-net/commit/d9f854a21ea590625304e045228de0ef6c3db67f))
+
+## [1.15.1-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.15.1-beta.1...v1.15.1-beta.2) (2026-10-25)
+
+### 🐛 Bug Fixes
+
+* preserve deferred INI and XDD round-trip content ([#669](https://github.com/dborgards/eds-dcf-net/issues/669)) ([1f6d60f](https://github.com/dborgards/eds-dcf-net/commit/1f6d60f896effdc227fdf43ad29db095e90399ce))
+
+### 📚 Documentation
+
+* consolidate migration and option guides ([#665](https://github.com/dborgards/eds-dcf-net/issues/665)) ([9deb1e9](https://github.com/dborgards/eds-dcf-net/commit/9deb1e9b7be34c299f00d990007d72ca6047f2a8))
+* record benchmark baseline ([#668](https://github.com/dborgards/eds-dcf-net/issues/668)) ([49d34a7](https://github.com/dborgards/eds-dcf-net/commit/49d34a7811e5ce1db44c97a2a93f9f83e9e5e1fb))
+
 ## [1.15.1-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0...v1.15.1-beta.1) (2026-10-08)
 
 ### 🐛 Bug Fixes

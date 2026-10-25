@@ -137,7 +137,8 @@ internal static class SectionEntryKeys
         "HighLimit",
         "PDOMapping",
         "SRDOMapping",
-        "InvertedSRAD"
+        "InvertedSRAD",
+        "ObjFlags"
     };
 
     private static readonly HashSet<string> DcfObjectOnlyKeys = new(StringComparer.OrdinalIgnoreCase)

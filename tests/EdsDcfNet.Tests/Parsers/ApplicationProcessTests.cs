@@ -1416,6 +1416,7 @@ public class ApplicationProcessTests
         };
         variableRef.InstanceIdRefs.Add("uid_inst_writer");
         parameter.VariableRefs.Add(variableRef);
+        parameter.VariableRefs.Add(new ApVariableRef { VariableIdRef = "uid_var_without_member" });
         ap.ParameterList.Add(parameter);
 
         var rootGroup = new ApParameterGroup

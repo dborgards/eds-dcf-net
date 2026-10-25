@@ -149,6 +149,7 @@ public class CpjReader : IFileReader<NodelistProject>
     {
         var topology = new NetworkTopology
         {
+            SourceSectionName = sectionName,
             NetName = IniParser.GetValue(sections, sectionName, "NetName"),
             NetRefd = IniParser.GetValue(sections, sectionName, "NetRefd"),
             EdsBaseName = IniParser.GetValue(sections, sectionName, "EDSBaseName")

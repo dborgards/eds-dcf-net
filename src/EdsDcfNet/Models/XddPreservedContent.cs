@@ -9,9 +9,9 @@ using System.Xml.Linq;
 /// <remarks>
 /// <para>
 /// Elements are kept whole (with everything inside them, comments included) and keep the
-/// <see cref="XName"/> they had in the source. Only a source without any namespace (older
-/// outputs of this library) is qualified while reading, from the parent-based name table.
-/// Namespace declarations are not kept; the writer declares its own.
+/// <see cref="XName"/> they had in the source. Unqualified content below a namespace-less
+/// document element (older outputs of this library) is qualified while reading, from the
+/// parent-based name table. Namespace bindings needed by the fragment are retained.
 /// </para>
 /// <para>
 /// The content is internal: it is copied by <c>ModelCloner</c> and read by the XDD/XDC writers
@@ -21,7 +21,7 @@ using System.Xml.Linq;
 /// </remarks>
 internal sealed class XddPreservedContent
 {
-    /// <summary>Children of the <c>ISO15745ProfileContainer</c>.</summary>
+    /// <summary>Additional <c>ISO15745Profile</c> children of the profile container.</summary>
     internal const string ProfileContainer = "ProfileContainer";
 
     /// <summary>Children of the device <c>ISO15745Profile</c> (its <c>ProfileHeader</c>).</summary>

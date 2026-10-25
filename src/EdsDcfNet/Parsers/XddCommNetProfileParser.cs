@@ -132,7 +132,14 @@ internal static class XddCommNetProfileParser
         obj.PdoMappingMode = ParseXddPdoMapping(pdoMappingStr);
 
         if (GetTrimmedAttributeValue(elem, "objFlags") is { Length: > 0 } objFlagsStr)
-            ReadObjFlags(obj, objFlagsStr);
+        {
+            var flags = ReadObjFlags(
+                objFlagsStr,
+                string.Format(CultureInfo.InvariantCulture, "CANopenObject[@index='{0:X4}']/objFlags", obj.Index));
+            obj.ObjFlags = flags.Value;
+            obj.ObjFlagsLexical = flags.Lexical;
+            obj.ObjFlagsLexicalBaseline = flags.Value;
+        }
 
         var subNumberStr = GetTrimmedAttributeValue(elem, "subNumber");
         if (!string.IsNullOrEmpty(subNumberStr))
@@ -158,6 +165,20 @@ internal static class XddCommNetProfileParser
         foreach (var subElem in elem.Elements().Where(e => e.Name.LocalName == "CANopenSubObject"))
         {
             var subObj = ParseCanOpenSubObject(subElem, includeActualValues);
+            if (GetTrimmedAttributeValue(subElem, "objFlags") is { Length: > 0 } subObjFlagsStr)
+            {
+                var flags = ReadObjFlags(
+                    subObjFlagsStr,
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "CANopenObject[@index='{0:X4}']/CANopenSubObject[@subIndex='{1:X2}']/objFlags",
+                        obj.Index,
+                        subObj.SubIndex));
+                subObj.ObjFlags = flags.Value;
+                subObj.ObjFlagsLexical = flags.Lexical;
+                subObj.ObjFlagsLexicalBaseline = flags.Value;
+            }
+
             subObj.XddPreservedAttributes = XddPreservedContentReader.SubObjectAttributes(subElem, includeActualValues);
             subObj.UniqueIdRef = ReadUniqueIdRef(subElem);
             resolver.ApplySubObject(obj.Index, subObj, ExplicitAttributes.From(subElem));
@@ -173,15 +194,15 @@ internal static class XddCommNetProfileParser
     /// annotation). Bits 0, 1 and 2 are defined; bits 3..31 are reserved. There is no
     /// decimal fallback. A single hex digit matches the old decimal spelling of values 0..7.
     /// </summary>
-    private static void ReadObjFlags(CanOpenObject obj, string raw)
+    private static ObjFlagsReadResult ReadObjFlags(string raw, string path)
     {
         // Defined bits are 0..2. Bit 2 means the change takes effect after reset.
         const uint definedMask = 0x7;
 
         if (!IsAsciiHex(raw))
         {
-            RejectObjFlags(obj.Index, raw, overflow: false);
-            return;
+            RejectObjFlags(path, raw, overflow: false);
+            return default;
         }
 
         var oddLength = (raw.Length & 1) != 0;
@@ -191,30 +212,27 @@ internal static class XddCommNetProfileParser
             if (oddLength)
             {
                 // Odd length is not schema-valid hexBinary, so an overflowing token stays a parse error.
-                RejectObjFlags(obj.Index, raw, overflow: true);
-                return;
+                RejectObjFlags(path, raw, overflow: true);
+                return default;
             }
 
             // Even length is schema-valid hexBinary that does not fit in uint. Keep the text.
             ReportObjFlags(
                 Diagnostics.ParseDiagnosticCodes.XddObjFlagsExceedsUInt32,
-                obj.Index,
+                path,
                 raw,
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "objFlags '{0}' is valid xsd:hexBinary and does not fit in 32 bits. ObjFlags was left at 0 and the original text is preserved for writing.",
                     raw));
-            obj.ObjFlags = 0;
-            obj.ObjFlagsLexical = raw;
-            obj.ObjFlagsLexicalBaseline = 0;
-            return;
+            return new ObjFlagsReadResult(0, raw);
         }
 
         if (oddLength)
         {
             ReportObjFlags(
                 Diagnostics.ParseDiagnosticCodes.XddObjFlagsOddHexLength,
-                obj.Index,
+                path,
                 raw,
                 string.Format(
                     CultureInfo.InvariantCulture,
@@ -238,7 +256,7 @@ internal static class XddCommNetProfileParser
         {
             ReportObjFlags(
                 Diagnostics.ParseDiagnosticCodes.XddObjFlagsReservedBits,
-                obj.Index,
+                path,
                 raw,
                 string.Format(
                     CultureInfo.InvariantCulture,
@@ -246,8 +264,20 @@ internal static class XddCommNetProfileParser
                     raw));
         }
 
-        obj.ObjFlags = flags;
-        obj.ObjFlagsLexical = null;
+        return new ObjFlagsReadResult(flags, lexical: null);
+    }
+
+    private readonly struct ObjFlagsReadResult
+    {
+        internal ObjFlagsReadResult(uint value, string? lexical)
+        {
+            Value = value;
+            Lexical = lexical;
+        }
+
+        internal uint Value { get; }
+
+        internal string? Lexical { get; }
     }
 
     private static bool IsAsciiHex(string raw)
@@ -265,7 +295,7 @@ internal static class XddCommNetProfileParser
         return raw.Length > 0;
     }
 
-    private static void RejectObjFlags(ushort index, string raw, bool overflow)
+    private static void RejectObjFlags(string path, string raw, bool overflow)
     {
         var diagnosticMessage = overflow
             ? string.Format(
@@ -288,7 +318,7 @@ internal static class XddCommNetProfileParser
 
         ReportObjFlags(
             Diagnostics.ParseDiagnosticCodes.XddInvalidNumericAttribute,
-            index,
+            path,
             raw,
             diagnosticMessage);
 
@@ -301,15 +331,12 @@ internal static class XddCommNetProfileParser
         };
     }
 
-    private static void ReportObjFlags(string code, ushort index, string raw, string message)
+    private static void ReportObjFlags(string code, string path, string raw, string message)
     {
         Diagnostics.ParseDiagnosticScope.Report(new Diagnostics.ParseDiagnostic(
             Diagnostics.ParseSeverity.Warning,
             code,
-            path: string.Format(
-                CultureInfo.InvariantCulture,
-                "CANopenObject[@index='{0:X4}']/objFlags",
-                index),
+            path: path,
             message: message,
             rawValue: raw));
     }
