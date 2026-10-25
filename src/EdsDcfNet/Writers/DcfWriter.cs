@@ -381,29 +381,14 @@ public class DcfWriter : IniWriterBase
         var sb = new StringBuilder();
         WriteGeneratedSections(sb, dcf);
 
-        // Collected before the first additional section is written, and only when there is one.
-        HashSet<string>? generatedHeaders = null;
-        foreach (var section in dcf.AdditionalSectionOrder.Sections(dcf.AdditionalSections))
-        {
-            generatedHeaders ??= GetGeneratedSectionHeaders(sb);
-            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary) ||
-                IsGeneratedSection(generatedHeaders, section.Key))
-            {
-                continue;
-            }
-
-            // The reader keeps the second of two commissioning spellings here. A stale copy of the
-            // generated name would duplicate the section: the generated one wins.
-            if (DeviceCommissioningSemantics.IsDiscardedAdditionalSection(section.Key, dcf.DeviceCommissioning))
-            {
-                continue;
-            }
-
-            WriteSection(
-                section.Key,
-                () => WriteAdditionalSection(
-                    sb, section.Key, dcf.AdditionalSectionOrder.Entries(section.Key, section.Value)));
-        }
+        WriteAdditionalSections(
+            sb,
+            dcf.AdditionalSections,
+            dcf.AdditionalSectionOrder,
+            WriteSection,
+            sectionName => ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(
+                sectionName,
+                dcf.ObjectDictionary));
 
         return TextFileIo.ApplyOutputNewLine(sb.ToString());
     }
