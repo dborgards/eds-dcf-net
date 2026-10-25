@@ -71,6 +71,44 @@ internal static class XddPreservedContentWriter
     }
 
     /// <summary>
+    /// Restores comments and processing instructions before their original following element.
+    /// A node whose anchor no longer exists is appended rather than dropped.
+    /// </summary>
+    internal static void MergeNonElementNodes(XElement parent, IEnumerable<XddPreservedNode> kept)
+    {
+        foreach (var preserved in kept)
+        {
+            var copy = preserved.Clone().Node;
+            XElement? anchor;
+            if (preserved.FollowingRetainedProfileOccurrence.HasValue)
+            {
+                anchor = parent.Elements()
+                    .Where(profile => profile.Name.LocalName == "ISO15745Profile")
+                    .ElementAtOrDefault(preserved.FollowingRetainedProfileOccurrence.Value);
+            }
+            else if (preserved.FollowingProfileBodyType != null)
+            {
+                anchor = parent.Elements().LastOrDefault(profile => profile.Elements()
+                    .Where(body => body.Name.LocalName == "ProfileBody")
+                    .Select(body => body.Attribute(XddNames.Xsi + "type")?.Value.Split(':').Last())
+                    .FirstOrDefault() == preserved.FollowingProfileBodyType);
+            }
+            else
+            {
+                anchor = preserved.FollowingElementName == null
+                    ? null
+                    : parent.Elements()
+                        .Where(element => element.Name.LocalName == preserved.FollowingElementName)
+                        .ElementAtOrDefault(preserved.FollowingElementOccurrence);
+            }
+            if (anchor == null)
+                parent.Add(copy);
+            else
+                anchor.AddBeforeSelf(copy);
+        }
+    }
+
+    /// <summary>
     /// Adds copies of <paramref name="kept"/> to <paramref name="element"/>. An attribute the writer
     /// already generated wins (rule 13).
     /// </summary>
