@@ -722,7 +722,7 @@ internal static class ModelCloner
                 Index = memberRef.Index
             });
         }
-        if (source.MemberRefs.Count > 0 && ReferenceEquals(source.MemberRef, source.MemberRefs[^1]))
+        if (source.MemberRefs.Count > 0)
             clone.MemberRef = clone.MemberRefs[^1];
         return clone;
     }
