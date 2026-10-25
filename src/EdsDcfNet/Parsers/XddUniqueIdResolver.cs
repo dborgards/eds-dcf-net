@@ -7,15 +7,12 @@ using EdsDcfNet.Exceptions;
 using EdsDcfNet.Models;
 
 /// <summary>
-/// Resolves CiA 311 <c>uniqueIDRef</c> on CANopen objects against
-/// <c>ApplicationProcess/parameterList/parameter</c>. Direct forms only:
-/// a simple type or <c>dataTypeIDRef</c>, <c>access</c>, <c>defaultValue</c>,
-/// and one unambiguous <c>allowedValues</c> range. <c>variableRef</c> and
-/// <c>templateIDRef</c> are reported and not followed.
+/// Resolves CiA 311 <c>uniqueIDRef</c> on CANopen objects against the application process.
+/// Direct types, function-instance variable references, parameter/allowed-values templates,
+/// defaults and unambiguous ranges are projected onto the CiA 306 object model.
 /// </summary>
 internal sealed class XddUniqueIdResolver
 {
-    private const string IndirectMessage = "Resolution via variableRef/templateIDRef is not supported.";
 
     private static readonly AsyncLocal<XddUniqueIdResolver?> WriteResolver = new AsyncLocal<XddUniqueIdResolver?>();
 
@@ -51,14 +48,19 @@ internal sealed class XddUniqueIdResolver
             { "TIME_OF_DAY", CanOpenDataType.TimeOfDay },
         };
 
+    private readonly ApplicationProcess? _applicationProcess;
     private readonly Dictionary<string, ApParameter> _parameters;
     private readonly Dictionary<string, ApArrayType> _arrays;
     private readonly Dictionary<string, ApStructType> _structs;
     private readonly Dictionary<string, ApEnumType> _enums;
     private readonly Dictionary<string, ApDerivedType> _derived;
+    private readonly Dictionary<string, List<ApFunctionType>> _functionTypes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<ApParameterTemplate>> _parameterTemplates = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<ApAllowedValuesTemplate>> _allowedValuesTemplates = new(StringComparer.Ordinal);
 
     private XddUniqueIdResolver(ApplicationProcess? applicationProcess)
     {
+        _applicationProcess = applicationProcess;
         _parameters = new Dictionary<string, ApParameter>(StringComparer.Ordinal);
         _arrays = new Dictionary<string, ApArrayType>(StringComparer.Ordinal);
         _structs = new Dictionary<string, ApStructType>(StringComparer.Ordinal);
@@ -73,6 +75,10 @@ internal sealed class XddUniqueIdResolver
             if (parameter.UniqueId.Length > 0)
                 _parameters[parameter.UniqueId] = parameter;
         }
+
+        AddById(_functionTypes, applicationProcess.FunctionTypeList);
+        AddById(_parameterTemplates, applicationProcess.TemplateList?.ParameterTemplates);
+        AddById(_allowedValuesTemplates, applicationProcess.TemplateList?.AllowedValuesTemplates);
 
         var types = applicationProcess.DataTypeList;
         if (types == null)
@@ -230,14 +236,16 @@ internal sealed class XddUniqueIdResolver
         if (nameMissing && !string.IsNullOrEmpty(projection.Label))
             setName(projection.Label!);
 
-        if (projection.DataTypeKind == DataTypeProjectionKind.Indirect)
+        foreach (var error in projection.IndirectErrors)
         {
-            Report(ParseDiagnosticCodes.XddUniqueIdRefIndirect, path, IndirectMessage, "variableRef");
-        }
-
-        if (projection.DefaultFromTemplateOnly || projection.RangeFromTemplateOnly)
-        {
-            Report(ParseDiagnosticCodes.XddUniqueIdRefIndirect, path, IndirectMessage, "templateIDRef");
+            var message = string.Format(
+                CultureInfo.InvariantCulture,
+                "Cannot resolve {0} on parameter '{1}': {2}",
+                error.Kind,
+                parameter.UniqueId,
+                error.Detail);
+            Report(ParseDiagnosticCodes.XddUnresolvedIndirectUniqueIdRef, path, message, error.Kind);
+            ThrowIfStrict(ParseDiagnosticCodes.XddUnresolvedIndirectUniqueIdRef, message);
         }
 
         if (projection.DataTypeKind == DataTypeProjectionKind.Dangling)
@@ -255,10 +263,12 @@ internal sealed class XddUniqueIdResolver
     private ParameterProjection Project(ApParameter parameter)
     {
         var projection = new ParameterProjection();
+        var variables = ResolveVariables(parameter);
+        projection.IndirectErrors.AddRange(variables.Errors);
         DescribeAccess(parameter, projection);
-        DescribeType(parameter, projection);
-        DescribeDefault(parameter, projection);
-        DescribeRange(parameter, projection);
+        DescribeType(parameter, variables, projection);
+        DescribeDefault(parameter, variables, projection);
+        DescribeRange(parameter, variables, projection);
         projection.Label = parameter.LabelGroup.GetDisplayName();
         return projection;
     }
@@ -300,23 +310,57 @@ internal sealed class XddUniqueIdResolver
         }
     }
 
+    private void DescribeType(
+        ApParameter parameter,
+        VariableProjection variables,
+        ParameterProjection projection)
+    {
+        if (parameter.TypeRef != null)
+        {
+            DescribeTypeRef(parameter.TypeRef, projection);
+            return;
+        }
+
+        if (parameter.VariableRefs.Count > 0 && variables.Errors.Count == 0)
+        {
+            var candidate = new ParameterProjection();
+            DescribeTypeRef(variables.Variables[0].TypeRef, candidate);
+            if (candidate.DataTypeKind != DataTypeProjectionKind.None)
+            {
+                projection.DataType = candidate.DataType;
+                projection.DataTypeDetail = candidate.DataTypeDetail;
+                projection.DataTypeKind = candidate.DataTypeKind;
+            }
+
+            if (candidate.DataTypeKind != DataTypeProjectionKind.Resolved
+                && candidate.DataTypeKind != DataTypeProjectionKind.None)
+            {
+                AddIndirectError(projection, "variableRef", "an interface variable has no resolvable scalar data type.");
+            }
+
+            return;
+        }
+
+        var template = ResolveParameterTemplate(parameter.TemplateIdRef, projection);
+        if (template?.TypeRef != null)
+            DescribeTypeRef(template.TypeRef, projection);
+    }
+
     /// <summary>
     /// Walks a direct type chain (array element or derived base) on the heap.
     /// A shallow document can still name an arbitrarily long acyclic chain, so this
     /// must not recurse. A repeated id is a cycle and is reported as dangling.
     /// </summary>
-    private void DescribeType(ApParameter parameter, ParameterProjection projection)
+    private void DescribeTypeRef(ApTypeRef? typeRef, ParameterProjection projection)
     {
-        if (parameter.TypeRef == null)
+        if (typeRef == null)
         {
-            projection.DataTypeKind = parameter.VariableRefs.Count > 0
-                ? DataTypeProjectionKind.Indirect
-                : DataTypeProjectionKind.None;
+            projection.DataTypeKind = DataTypeProjectionKind.None;
             return;
         }
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        var current = parameter.TypeRef;
+        var current = typeRef;
         // Every path through the body returns or continues with a non-null type.
         while (true)
         {
@@ -408,31 +452,47 @@ internal sealed class XddUniqueIdResolver
         }
     }
 
-    private static void DescribeDefault(ApParameter parameter, ParameterProjection projection)
+    private void DescribeDefault(
+        ApParameter parameter,
+        VariableProjection variables,
+        ParameterProjection projection)
     {
-        if (parameter.DefaultValue != null)
+        var variable = variables.Errors.Count == 0 && variables.Variables.Count == 1
+            ? variables.Variables[0]
+            : null;
+        var value = variable?.DefaultValue?.Value
+            ?? parameter.DefaultValue?.Value
+            ?? ResolveParameterTemplate(parameter.TemplateIdRef, projection)?.DefaultValue?.Value
+            ?? variable?.InitialValue
+            ?? variable?.ComponentDefaultValue?.Value
+            ?? variable?.ComponentInitialValue;
+        if (value != null)
         {
             projection.HasDefault = true;
-            projection.DefaultValue = parameter.DefaultValue.Value;
-            return;
+            projection.DefaultValue = value;
         }
-
-        if (!string.IsNullOrEmpty(parameter.TemplateIdRef))
-            projection.DefaultFromTemplateOnly = true;
     }
 
-    private static void DescribeRange(ApParameter parameter, ParameterProjection projection)
+    private void DescribeRange(
+        ApParameter parameter,
+        VariableProjection variables,
+        ParameterProjection projection)
     {
-        if (TryUnambiguousRange(parameter.AllowedValues, out var low, out var high))
+        var variable = variables.Errors.Count == 0 && variables.Variables.Count == 1
+            ? variables.Variables[0]
+            : null;
+        var allowed = variable?.AllowedValues
+            ?? parameter.AllowedValues
+            ?? ResolveParameterTemplate(parameter.TemplateIdRef, projection)?.AllowedValues
+            ?? variable?.ComponentAllowedValues;
+        allowed = ResolveAllowedValues(allowed, projection);
+
+        if (TryUnambiguousRange(allowed, out var low, out var high))
         {
             projection.HasUnambiguousRange = true;
             projection.LowLimit = low;
             projection.HighLimit = high;
-            return;
         }
-
-        if (RangeOnlyViaTemplate(parameter))
-            projection.RangeFromTemplateOnly = true;
     }
 
     private static bool TryUnambiguousRange(ApAllowedValues? allowed, out string? low, out string? high)
@@ -451,17 +511,331 @@ internal sealed class XddUniqueIdResolver
         return true;
     }
 
-    private static bool RangeOnlyViaTemplate(ApParameter parameter)
+    private VariableProjection ResolveVariables(ApParameter parameter)
     {
-        var allowed = parameter.AllowedValues;
-        var hasLocalContent = allowed != null && (allowed.Values.Count > 0 || allowed.Ranges.Count > 0);
-        if (hasLocalContent)
+        var result = new VariableProjection();
+        if (parameter.VariableRefs.Count > 1)
+        {
+            result.Errors.Add(new IndirectResolutionError(
+                "variableRef",
+                "packed variables have no scalar aggregate projection; component metadata was not projected."));
+            return result;
+        }
+
+        foreach (var reference in parameter.VariableRefs)
+        {
+            if (TryResolveVariable(reference, out var variable, out var error))
+                result.Variables.Add(variable!);
+            else
+                result.Errors.Add(new IndirectResolutionError("variableRef", error!));
+        }
+
+        return result;
+    }
+
+    private bool TryResolveVariable(
+        ApVariableRef reference,
+        out ResolvedVariable? result,
+        out string? error)
+    {
+        result = null;
+        error = null;
+        // A parameter can only have been indexed when an application process exists.
+        var instances = _applicationProcess!.FunctionInstanceList;
+        ApFunctionType? functionType = null;
+        foreach (var instanceId in reference.InstanceIdRefs)
+        {
+            var matches = instances?.FunctionInstances
+                .Where(instance => instance.UniqueId == instanceId)
+                .ToList() ?? new List<ApFunctionInstance>();
+            if (matches.Count != 1)
+            {
+                error = string.Format(CultureInfo.InvariantCulture,
+                    "instanceIDRef '{0}' identifies {1} instances.", instanceId, matches.Count);
+                return false;
+            }
+
+            if (!TryUnique(_functionTypes, matches[0].TypeIdRef, out functionType, out error))
+                return false;
+            instances = functionType!.FunctionInstanceList;
+        }
+
+        if (functionType?.InterfaceList == null)
+        {
+            error = "the instance path does not identify a function type with an interface.";
             return false;
+        }
 
-        if (!string.IsNullOrEmpty(parameter.TemplateIdRef))
+        var variables = InterfaceVariables(functionType.InterfaceList)
+            .Where(variable => variable.UniqueId == reference.VariableIdRef)
+            .ToList();
+        if (variables.Count != 1)
+        {
+            error = string.Format(CultureInfo.InvariantCulture,
+                "variableIDRef '{0}' identifies {1} interface variables.", reference.VariableIdRef, variables.Count);
+            return false;
+        }
+
+        var variableDeclaration = variables[0];
+        var declaration = variableDeclaration;
+        result = new ResolvedVariable(
+            declaration.Type,
+            declaration.DefaultValue,
+            declaration.AllowedValues,
+            initialValue: declaration.InitialValue);
+        IList<ApMemberRef> memberRefs = reference.MemberRefs.Count > 0
+            ? reference.MemberRefs
+            : reference.MemberRef == null ? new List<ApMemberRef>() : new List<ApMemberRef> { reference.MemberRef };
+        if (memberRefs.Count == 0)
+        {
+            if (IsAnonymousArray(declaration)
+                || TryResolveCompositeType(declaration.Type, _arrays, out _))
+            {
+                error = "a whole-array variable has no scalar projection without a memberRef.";
+                result = null;
+                return false;
+            }
+
             return true;
+        }
 
-        return allowed != null && !string.IsNullOrEmpty(allowed.TemplateIdRef);
+        for (var i = 0; i < memberRefs.Count; i++)
+        {
+            var member = memberRefs[i];
+            var isLeaf = i == memberRefs.Count - 1;
+            if (member.Index.HasValue)
+            {
+                if (!TryResolveArrayElement(declaration, member.Index.Value, out var elementType))
+                {
+                    error = "memberRef index does not identify an element of a one-dimensional array.";
+                    result = null;
+                    return false;
+                }
+
+                if (isLeaf && TryResolveCompositeType(elementType, _arrays, out _))
+                {
+                    error = "memberRef index selects an array element, which has no scalar projection.";
+                    result = null;
+                    return false;
+                }
+
+                declaration = new ApVarDeclaration { Type = elementType };
+                // A composite initializer belongs to the array as a whole, not to a scalar element.
+                result = new ResolvedVariable(
+                    elementType,
+                    variableDeclaration.DefaultValue,
+                    variableDeclaration.AllowedValues);
+                continue;
+            }
+
+            if (IsAnonymousArray(declaration))
+            {
+                error = "memberRef does not select an element of the enclosing array.";
+                result = null;
+                return false;
+            }
+
+            if (!TryResolveCompositeType(declaration.Type, _structs, out var structure))
+            {
+                error = "memberRef does not identify a structure component.";
+                result = null;
+                return false;
+            }
+
+            var members = structure!.VarDeclarations.Where(item => item.UniqueId == member.UniqueIdRef).ToList();
+            if (members.Count != 1)
+            {
+                error = string.Format(CultureInfo.InvariantCulture,
+                    "memberRef '{0}' identifies {1} structure components.", member.UniqueIdRef, members.Count);
+                result = null;
+                return false;
+            }
+
+            declaration = members[0];
+            if (isLeaf && (IsAnonymousArray(declaration)
+                || TryResolveCompositeType(declaration.Type, _arrays, out _)))
+            {
+                error = "a whole-array structure component has no scalar projection without an element selection.";
+                result = null;
+                return false;
+            }
+
+            result = new ResolvedVariable(
+                declaration.Type,
+                variableDeclaration.DefaultValue,
+                variableDeclaration.AllowedValues,
+                declaration.DefaultValue,
+                declaration.AllowedValues,
+                componentInitialValue: declaration.InitialValue);
+        }
+
+        return true;
+    }
+
+    private bool TryResolveArrayElement(
+        ApVarDeclaration declaration,
+        long index,
+        out ApTypeRef? elementType)
+    {
+        if (IsAnonymousArray(declaration))
+        {
+            elementType = declaration.Type;
+            return int.TryParse(declaration.Start ?? "0", NumberStyles.Integer, CultureInfo.InvariantCulture, out var start)
+                && int.TryParse(declaration.Size!, NumberStyles.Integer, CultureInfo.InvariantCulture, out var size)
+                && size > 0
+                && index >= start
+                && (long)index < (long)start + size;
+        }
+
+        if (TryResolveCompositeType(declaration.Type, _arrays, out var array)
+            && array!.Subranges.Count == 1
+            && index >= array.Subranges[0].LowerLimit
+            && index <= array.Subranges[0].UpperLimit)
+        {
+            elementType = array.ElementType;
+            return true;
+        }
+
+        elementType = null;
+        return false;
+    }
+
+    private bool TryResolveCompositeType<T>(
+        ApTypeRef? typeRef,
+        Dictionary<string, T> targets,
+        out T? result)
+        where T : class
+    {
+        result = null;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var current = typeRef;
+        while (current?.DataTypeIdRef is { Length: > 0 } id)
+        {
+            if (!seen.Add(id))
+                return false;
+
+            if (targets.TryGetValue(id, out result))
+                return true;
+
+            if (!_derived.TryGetValue(id, out var derived))
+                return false;
+            current = derived.BaseType;
+        }
+
+        return false;
+    }
+
+    private static bool IsAnonymousArray(ApVarDeclaration declaration) =>
+        !string.IsNullOrEmpty(declaration.Size)
+        && declaration.Type?.SimpleTypeName is not ("STRING" or "WSTRING" or "BITSTRING");
+
+    private static IEnumerable<ApVarDeclaration> InterfaceVariables(ApInterfaceList interfaces) =>
+        interfaces.InputVars.Concat(interfaces.OutputVars).Concat(interfaces.ConfigVars);
+
+    private ParameterTemplateProjection? ResolveParameterTemplate(
+        string? templateIdRef,
+        ParameterProjection projection)
+    {
+        if (string.IsNullOrEmpty(templateIdRef))
+            return null;
+
+        var result = new ParameterTemplateProjection();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var current = templateIdRef;
+        while (!string.IsNullOrEmpty(current))
+        {
+            if (!seen.Add(current!))
+            {
+                AddIndirectError(projection, "templateIDRef", "the parameter-template chain contains a cycle.");
+                return result;
+            }
+
+            if (!TryUnique(_parameterTemplates, current!, out var template, out var error))
+            {
+                AddIndirectError(projection, "templateIDRef", error!);
+                return result;
+            }
+
+            result.TypeRef ??= template!.TypeRef;
+            result.DefaultValue ??= template!.DefaultValue;
+            result.AllowedValues ??= template!.AllowedValues;
+            current = template!.TemplateIdRef;
+        }
+
+        return result;
+    }
+
+    private ApAllowedValues? ResolveAllowedValues(
+        ApAllowedValues? allowed,
+        ParameterProjection projection)
+    {
+        if (allowed == null || allowed.Values.Count > 0 || allowed.Ranges.Count > 0
+            || string.IsNullOrEmpty(allowed.TemplateIdRef))
+            return allowed;
+
+        if (!TryUnique(_allowedValuesTemplates, allowed.TemplateIdRef!, out var template, out var error))
+        {
+            AddIndirectError(projection, "templateIDRef", error!);
+            return null;
+        }
+
+        var resolved = new ApAllowedValues();
+        resolved.Values.AddRange(template!.Values);
+        resolved.Ranges.AddRange(template.Ranges);
+        return resolved;
+    }
+
+    private static void AddIndirectError(ParameterProjection projection, string kind, string detail)
+    {
+        if (!projection.IndirectErrors.Any(error => error.Kind == kind && error.Detail == detail))
+            projection.IndirectErrors.Add(new IndirectResolutionError(kind, detail));
+    }
+
+    private static void AddById(Dictionary<string, List<ApFunctionType>> target, IEnumerable<ApFunctionType> source)
+        => AddByIdCore(target, source, item => item.UniqueId);
+
+    private static void AddById(Dictionary<string, List<ApParameterTemplate>> target, IEnumerable<ApParameterTemplate>? source)
+        => AddByIdCore(target, source, item => item.UniqueId);
+
+    private static void AddById(Dictionary<string, List<ApAllowedValuesTemplate>> target, IEnumerable<ApAllowedValuesTemplate>? source)
+        => AddByIdCore(target, source, item => item.UniqueId);
+
+    private static void AddByIdCore<T>(Dictionary<string, List<T>> target, IEnumerable<T>? source, Func<T, string> id)
+    {
+        if (source == null)
+            return;
+        foreach (var item in source)
+        {
+            var key = id(item);
+            if (key.Length == 0)
+                continue;
+            if (!target.TryGetValue(key, out var items))
+            {
+                items = new List<T>();
+                target.Add(key, items);
+            }
+
+            items.Add(item);
+        }
+    }
+
+    private static bool TryUnique<T>(
+        Dictionary<string, List<T>> source,
+        string id,
+        out T? value,
+        out string? error)
+    {
+        value = default;
+        error = null;
+        if (!source.TryGetValue(id, out var matches) || matches.Count != 1)
+        {
+            error = string.Format(CultureInfo.InvariantCulture,
+                "uniqueIDRef '{0}' identifies {1} targets.", id, matches?.Count ?? 0);
+            return false;
+        }
+
+        value = matches[0];
+        return true;
     }
 
     private static void Report(string code, string path, string message, string? rawValue)
@@ -491,6 +865,57 @@ internal sealed class XddUniqueIdResolver
             "CANopenObject[@index='{0:X4}']/CANopenSubObject[@subIndex='{1:X2}']",
             index,
             subIndex);
+
+    private sealed class VariableProjection
+    {
+        internal List<ResolvedVariable> Variables { get; } = new();
+
+        internal List<IndirectResolutionError> Errors { get; } = new();
+    }
+
+    private sealed class ResolvedVariable
+    {
+        internal ResolvedVariable(
+            ApTypeRef? typeRef,
+            ApParameterValue? defaultValue,
+            ApAllowedValues? allowedValues,
+            ApParameterValue? componentDefaultValue = null,
+            ApAllowedValues? componentAllowedValues = null,
+            string? initialValue = null,
+            string? componentInitialValue = null)
+        {
+            TypeRef = typeRef;
+            DefaultValue = defaultValue;
+            AllowedValues = allowedValues;
+            ComponentDefaultValue = componentDefaultValue;
+            ComponentAllowedValues = componentAllowedValues;
+            InitialValue = initialValue;
+            ComponentInitialValue = componentInitialValue;
+        }
+
+        internal ApTypeRef? TypeRef { get; }
+
+        internal ApParameterValue? DefaultValue { get; }
+
+        internal ApAllowedValues? AllowedValues { get; }
+
+        internal ApParameterValue? ComponentDefaultValue { get; }
+
+        internal ApAllowedValues? ComponentAllowedValues { get; }
+
+        internal string? InitialValue { get; }
+
+        internal string? ComponentInitialValue { get; }
+    }
+
+    private sealed class ParameterTemplateProjection
+    {
+        internal ApTypeRef? TypeRef { get; set; }
+
+        internal ApParameterValue? DefaultValue { get; set; }
+
+        internal ApAllowedValues? AllowedValues { get; set; }
+    }
 
     private sealed class WriteScope : IDisposable
     {
@@ -547,8 +972,7 @@ internal enum DataTypeProjectionKind
     Resolved,
     NoScalar,
     Unsupported,
-    Dangling,
-    Indirect
+    Dangling
 }
 
 internal enum AccessProjectionKind
@@ -556,6 +980,19 @@ internal enum AccessProjectionKind
     Mapped,
     NoAccess,
     Unknown
+}
+
+internal sealed class IndirectResolutionError
+{
+    internal IndirectResolutionError(string kind, string detail)
+    {
+        Kind = kind;
+        Detail = detail;
+    }
+
+    internal string Kind { get; }
+
+    internal string Detail { get; }
 }
 
 internal sealed class ParameterProjection
@@ -574,15 +1011,13 @@ internal sealed class ParameterProjection
 
     public bool HasDefault { get; set; }
 
-    public bool DefaultFromTemplateOnly { get; set; }
-
     public string? LowLimit { get; set; }
 
     public string? HighLimit { get; set; }
 
     public bool HasUnambiguousRange { get; set; }
 
-    public bool RangeFromTemplateOnly { get; set; }
-
     public string? Label { get; set; }
+
+    public List<IndirectResolutionError> IndirectErrors { get; } = new();
 }

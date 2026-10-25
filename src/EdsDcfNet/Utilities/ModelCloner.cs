@@ -633,6 +633,7 @@ internal static class ModelCloner
             Persistent = source.Persistent,
             Offset = source.Offset,
             Multiplier = source.Multiplier,
+            TemplateIdRef = source.TemplateIdRef,
             TypeRef = CloneTypeRef(source.TypeRef),
             ActualValue = CloneParameterValue(source.ActualValue),
             DefaultValue = CloneParameterValue(source.DefaultValue),
@@ -716,6 +717,16 @@ internal static class ModelCloner
                 }
         };
         clone.InstanceIdRefs.AddRange(source.InstanceIdRefs);
+        foreach (var memberRef in source.MemberRefs)
+        {
+            clone.MemberRefs.Add(new ApMemberRef
+            {
+                UniqueIdRef = memberRef.UniqueIdRef,
+                Index = memberRef.Index
+            });
+        }
+        if (source.MemberRefs.Count > 0)
+            clone.MemberRef = clone.MemberRefs[^1];
         return clone;
     }
 

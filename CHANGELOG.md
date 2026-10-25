@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.15.1-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.15.1-beta.1...v1.15.1-beta.2) (2026-10-25)
+
+### 🐛 Bug Fixes
+
+* preserve deferred INI and XDD round-trip content ([#669](https://github.com/dborgards/eds-dcf-net/issues/669)) ([1f6d60f](https://github.com/dborgards/eds-dcf-net/commit/1f6d60f896effdc227fdf43ad29db095e90399ce))
+
+### 📚 Documentation
+
+* consolidate migration and option guides ([#665](https://github.com/dborgards/eds-dcf-net/issues/665)) ([9deb1e9](https://github.com/dborgards/eds-dcf-net/commit/9deb1e9b7be34c299f00d990007d72ca6047f2a8))
+* record benchmark baseline ([#668](https://github.com/dborgards/eds-dcf-net/issues/668)) ([49d34a7](https://github.com/dborgards/eds-dcf-net/commit/49d34a7811e5ce1db44c97a2a93f9f83e9e5e1fb))
+
 ## [1.15.1-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0...v1.15.1-beta.1) (2026-10-08)
 
 ### 🐛 Bug Fixes
