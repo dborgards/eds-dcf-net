@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.16.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.2...v1.16.0-beta.3) (2026-10-25)
+
+### 🐛 Bug Fixes
+
+* preserve INI section positions and CPJ topology names ([#672](https://github.com/dborgards/eds-dcf-net/issues/672)) ([b7b0f2d](https://github.com/dborgards/eds-dcf-net/commit/b7b0f2de0166c945ae6fad6a88a2280756eb6676))
+
 ## [1.16.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.1...v1.16.0-beta.2) (2026-10-25)
 
 ### ✨ Features
