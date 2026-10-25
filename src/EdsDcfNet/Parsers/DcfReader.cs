@@ -162,12 +162,22 @@ public class DcfReader : CanOpenReaderBase, IFileReader<DeviceConfigurationFile>
     private protected override bool IsKnownFileInfoEntryKey(string key) => SectionEntryKeys.IsDcfFileInfoKey(key);
 
     /// <inheritdoc/>
+    private protected override bool IsObjectCompanionSectionUnloaded(string sectionName, CanOpenObject obj)
+        => obj.SubObjects.Count == 0
+           && (TryParseCompanionSuffixSection(sectionName, "Value", out _)
+               || TryParseCompanionSuffixSection(sectionName, "Denotation", out _));
+
+    /// <inheritdoc/>
     private protected override void CaptureObjectCompanionEntries(
         Dictionary<string, Dictionary<string, string>> sections,
         CanOpenObject obj,
         Dictionary<string, OrderedStringDictionary> store)
     {
-        // ParseSubObjects applies [xxxxValue] / [xxxxDenotation] to every parsed object.
+        // With no sub-objects ParseSubObjects does not apply these lists. The complete
+        // sections are preserved through AdditionalSections, including NrOfEntries.
+        if (obj.SubObjects.Count == 0)
+            return;
+
         foreach (var suffix in CompactValueSectionSuffixes)
         {
             var sectionName = string.Concat(ToHexInvariant(obj.Index), suffix);

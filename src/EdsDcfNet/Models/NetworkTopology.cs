@@ -5,6 +5,10 @@ namespace EdsDcfNet.Models;
 /// </summary>
 public class NetworkTopology
 {
+    // Reader-only provenance: keeping the original header preserves TopologyN numbering gaps.
+    // Programmatically created topologies leave this null and receive canonical names.
+    internal string? SourceSectionName { get; set; }
+
     /// <summary>
     /// Gets or sets the network name.
     /// </summary>

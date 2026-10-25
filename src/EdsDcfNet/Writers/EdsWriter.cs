@@ -153,22 +153,14 @@ public class EdsWriter : IniWriterBase
         var sb = new StringBuilder();
         WriteGeneratedSections(sb, eds);
 
-        // Collected before the first additional section is written, and only when there is one.
-        HashSet<string>? generatedHeaders = null;
-        foreach (var section in eds.AdditionalSectionOrder.Sections(eds.AdditionalSections))
-        {
-            generatedHeaders ??= GetGeneratedSectionHeaders(sb);
-            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, eds.ObjectDictionary) ||
-                IsGeneratedSection(generatedHeaders, section.Key))
-            {
-                continue;
-            }
-
-            WriteSection(
-                section.Key,
-                () => WriteAdditionalSection(
-                    sb, section.Key, eds.AdditionalSectionOrder.Entries(section.Key, section.Value)));
-        }
+        WriteAdditionalSections(
+            sb,
+            eds.AdditionalSections,
+            eds.AdditionalSectionOrder,
+            WriteSection,
+            sectionName => ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(
+                sectionName,
+                eds.ObjectDictionary));
 
         return TextFileIo.ApplyOutputNewLine(sb.ToString());
     }

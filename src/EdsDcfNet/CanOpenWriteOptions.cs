@@ -33,6 +33,12 @@ public sealed class CanOpenWriteOptions
     public bool ValidateBeforeWrite { get; init; }
 
     /// <summary>
+    /// Gets the validation rules used when <see cref="ValidateBeforeWrite"/> is enabled.
+    /// <see langword="null"/> uses <see cref="Validation.CanOpenValidationOptions.Default"/>.
+    /// </summary>
+    public Validation.CanOpenValidationOptions? ValidationOptions { get; init; }
+
+    /// <summary>
     /// Gets the encoding used for byte output of every format (EDS, DCF, CPJ, XDD, and XDC).
     /// </summary>
     /// <remarks>
