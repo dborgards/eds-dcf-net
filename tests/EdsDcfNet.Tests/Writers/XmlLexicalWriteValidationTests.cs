@@ -118,15 +118,40 @@ public class XmlLexicalWriteValidationTests
         var issues = new List<ValidationIssue>();
         XmlWriteRules.Apply(dcf, issues);
 
-        issues.Where(issue => issue.Code == ValidationIssueCodes.XddLexicalValueInvalid)
-            .Select(issue => issue.Path)
-            .Should().Contain(new[]
-            {
-                "ObjectDictionary.Objects[0x2000].UniqueIdRef",
-                "ObjectDictionary.Objects[0x2000].ObjFlagsLexical",
-                "ObjectDictionary.Objects[0x2000].SubObjects[0x00].UniqueIdRef",
-                "DeviceCommissioning.NetworkNumberLexical",
-            });
+        var lexicalPaths = issues.Where(issue => issue.Code == ValidationIssueCodes.XddLexicalValueInvalid)
+            .Select(issue => issue.Path).ToList();
+        lexicalPaths.Should().Contain(new[]
+        {
+            "ObjectDictionary.Objects[0x2000].ObjFlagsLexical",
+            "DeviceCommissioning.NetworkNumberLexical",
+        });
+        lexicalPaths.Should().NotContain("ObjectDictionary.Objects[0x2000].UniqueIdRef");
+        lexicalPaths.Should().NotContain("ObjectDictionary.Objects[0x2000].SubObjects[0x00].UniqueIdRef");
+    }
+
+    [Fact]
+    public void ValidatedWrite_EmittedObjectReferences_AreValidated()
+    {
+        var eds = ValidEds();
+        eds.ApplicationProcess = new ApplicationProcess();
+        eds.ApplicationProcess.ParameterList.Add(new ApParameter { UniqueId = "not valid" });
+        eds.ApplicationProcess.ParameterList.Add(new ApParameter { UniqueId = "also invalid" });
+        var obj = eds.ObjectDictionary.Objects[0x2000];
+        obj.UniqueIdRef = "not valid";
+        obj.SubObjects[0] = new CanOpenSubObject
+        {
+            SubIndex = 0,
+            ParameterName = "sub",
+            ObjectType = 7,
+            DataType = 7,
+            UniqueIdRef = "also invalid",
+        };
+
+        var paths = Validate(eds).Where(issue => issue.Code == ValidationIssueCodes.XddLexicalValueInvalid)
+            .Select(issue => issue.Path);
+
+        paths.Should().Contain("ObjectDictionary.Objects[0x2000].UniqueIdRef");
+        paths.Should().Contain("ObjectDictionary.Objects[0x2000].SubObjects[0x00].UniqueIdRef");
     }
 
     [Fact]

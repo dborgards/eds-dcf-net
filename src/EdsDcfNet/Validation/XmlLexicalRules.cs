@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Xml;
 using System.Xml.Schema;
 using EdsDcfNet.Models;
+using EdsDcfNet.Parsers;
 
 /// <summary>Lexical XSD checks for model values emitted by the XDD/XDC writers.</summary>
 internal static class XmlLexicalRules
@@ -34,19 +35,22 @@ internal static class XmlLexicalRules
         ObjectDictionary dictionary,
         List<ValidationIssue> issues)
     {
+        var resolver = XddUniqueIdResolver.Create(applicationProcess);
         foreach (var entry in dictionary.Objects)
         {
             var path = string.Format(CultureInfo.InvariantCulture, "ObjectDictionary.Objects[0x{0:X4}]", entry.Key);
-            Check(entry.Value.UniqueIdRef, XmlTypeCode.Idref, path + ".UniqueIdRef", issues);
+            if (resolver.TryProject(entry.Value.UniqueIdRef) != null)
+                Check(entry.Value.UniqueIdRef, XmlTypeCode.Idref, path + ".UniqueIdRef", issues);
             if (entry.Value.ObjFlagsLexical != null && entry.Value.ObjFlags == entry.Value.ObjFlagsLexicalBaseline)
                 Check(entry.Value.ObjFlagsLexical, XmlTypeCode.HexBinary, path + ".ObjFlagsLexical", issues);
             foreach (var subEntry in entry.Value.SubObjects)
             {
-                Check(
-                    subEntry.Value.UniqueIdRef,
-                    XmlTypeCode.Idref,
-                    string.Format(CultureInfo.InvariantCulture, "{0}.SubObjects[0x{1:X2}].UniqueIdRef", path, subEntry.Key),
-                    issues);
+                if (resolver.TryProject(subEntry.Value.UniqueIdRef) != null)
+                    Check(
+                        subEntry.Value.UniqueIdRef,
+                        XmlTypeCode.Idref,
+                        string.Format(CultureInfo.InvariantCulture, "{0}.SubObjects[0x{1:X2}].UniqueIdRef", path, subEntry.Key),
+                        issues);
             }
         }
 
