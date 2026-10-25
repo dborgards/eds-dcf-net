@@ -569,8 +569,16 @@ public class XddTypedProfileApiTests
         network.MaximumAddress = null;
         new XddStandardCompliance().Range.Should().Be(XddStandardRange.International);
         new XddNetworkModuleInterface().Addressing.Should().Be(XddAddressing.Auto);
+        new XddNetworkModuleInterface(XddXml.Create("interface", new XAttribute("addressing", " \tmanual\r\n")))
+            .Addressing.Should().Be(XddAddressing.Manual);
+        new XddNetworkModuleInterface(XddXml.Create("interface", new XAttribute("addressing", "\u00A0manual\u00A0")))
+            .Addressing.Should().Be(XddAddressing.Auto);
         new XddModuleRange().SortMode.Should().Be(XddModuleSortMode.Index);
         new XddModuleRange().SortNumber.Should().Be(XddModuleSortNumber.Continuous);
+        var spacedRange = new XddModuleRange(XddXml.Create("range",
+            new XAttribute("sortMode", " subIndex "), new XAttribute("sortNumber", " address ")));
+        spacedRange.SortMode.Should().Be(XddModuleSortMode.SubIndex);
+        spacedRange.SortNumber.Should().Be(XddModuleSortNumber.Address);
         new XddDeviceModuleInterface(XddXml.Create("interface", new XAttribute("maxChilds", " \t+4\r\n")))
             .MaxChildren.Should().Be(4);
         new XddDeviceModuleInterface(XddXml.Create("interface", new XAttribute("maxChilds", "\u00A04\u00A0")))

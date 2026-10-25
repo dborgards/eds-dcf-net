@@ -131,7 +131,7 @@ public abstract class XddXmlModel
         => NullableEnum<T>(name) ?? fallback;
     private protected T? NullableEnum<T>(string name) where T : struct
     {
-        var text = Get(name);
+        var text = XmlLexical(name);
         if (text == null) return null;
         foreach (var value in System.Enum.GetValues(typeof(T)).Cast<T>())
             if (string.Equals(XddXml.EnumName(value), text, StringComparison.Ordinal)) return value;
