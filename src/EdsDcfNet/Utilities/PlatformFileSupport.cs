@@ -88,7 +88,7 @@ internal static class PlatformFileSupport
         return replace(filePath, write, cancellationToken);
     }
 
-    private static void ThrowIfReadOnlyTarget(string filePath)
+    internal static void ThrowIfReadOnlyTarget(string filePath)
     {
         if (!File.Exists(filePath))
             return;
