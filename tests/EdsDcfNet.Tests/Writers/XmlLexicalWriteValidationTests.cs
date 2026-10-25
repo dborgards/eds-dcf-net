@@ -155,6 +155,21 @@ public class XmlLexicalWriteValidationTests
     }
 
     [Fact]
+    public void ValidatedWrite_WhitespaceOnlyAccessLists_AreReported()
+    {
+        var eds = ValidEds();
+        eds.ApplicationProcess = CompleteApplicationProcess();
+        eds.ApplicationProcess.ParameterList[0].AccessList = "   ";
+        eds.ApplicationProcess.TemplateList!.ParameterTemplates[0].AccessList = "\t ";
+
+        var paths = Validate(eds).Where(issue => issue.Code == ValidationIssueCodes.XddLexicalValueInvalid)
+            .Select(issue => issue.Path);
+
+        paths.Should().Contain("ApplicationProcess.ParameterList[0].AccessList");
+        paths.Should().Contain("ApplicationProcess.TemplateList.ParameterTemplates[0].AccessList");
+    }
+
+    [Fact]
     public void ValidatedWrite_OptionalEmptyValuesOmittedByWriter_AreAccepted()
     {
         var eds = ValidEds();
@@ -162,6 +177,7 @@ public class XmlLexicalWriteValidationTests
         eds.ObjectDictionary.Objects[0x2000].UniqueIdRef = string.Empty;
         var parameter = eds.ApplicationProcess.ParameterList[0];
         parameter.Support = string.Empty;
+        parameter.AccessList = string.Empty;
         parameter.TemplateIdRef = string.Empty;
         parameter.TypeRef = new ApTypeRef { DataTypeIdRef = string.Empty };
         parameter.VariableRefs[0].VariableIdRef = string.Empty;
@@ -170,6 +186,7 @@ public class XmlLexicalWriteValidationTests
         parameter.Unit!.UnitUri = string.Empty;
         parameter.LabelGroup.Descriptions[0].Uri = string.Empty;
         eds.ApplicationProcess.TemplateList!.ParameterTemplates[0].Support = string.Empty;
+        eds.ApplicationProcess.TemplateList.ParameterTemplates[0].AccessList = string.Empty;
         eds.ApplicationProcess.DataTypeList!.Enums[0].SimpleTypeName = string.Empty;
 
         var issues = Validate(eds);

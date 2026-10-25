@@ -338,9 +338,15 @@ internal static class XmlLexicalRules
 
     private static void CheckAccessList(string? value, string path, List<ValidationIssue> issues)
     {
-        if (value == null)
+        if (string.IsNullOrEmpty(value))
             return;
-        foreach (var token in value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+        var tokens = value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length == 0)
+        {
+            AddIssue(path, value, "xsd:NMTOKENS", issues);
+            return;
+        }
+        foreach (var token in tokens)
         {
             Check(token, XmlTypeCode.NmToken, path, issues);
             CheckEnum(token, AccessValues, path, issues);
