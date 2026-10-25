@@ -244,6 +244,7 @@ internal static class XmlLexicalRules
             var template = templates.ParameterTemplates[i];
             var path = Path("ApplicationProcess.TemplateList.ParameterTemplates", i);
             Check(template.UniqueId, XmlTypeCode.Id, path + ".UniqueId", issues);
+            Check(template.TemplateIdRef, XmlTypeCode.Idref, path + ".TemplateIdRef", issues);
             CheckEnum(template.Access, AccessValues, path + ".Access", issues);
             CheckAccessList(template.AccessList, path + ".AccessList", issues);
             CheckOptionalEnum(template.Support, SupportValues, path + ".Support", issues);

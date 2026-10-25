@@ -72,7 +72,8 @@ public class XmlLexicalWriteValidationTests
     {
         var eds = ValidEds();
         eds.ApplicationProcess = CompleteApplicationProcess();
-        eds.ApplicationProcess.TemplateList!.ParameterTemplates[0].AllowedValues!.TemplateIdRef = "template invalid";
+        eds.ApplicationProcess.TemplateList!.ParameterTemplates[0].TemplateIdRef = "parent invalid";
+        eds.ApplicationProcess.TemplateList.ParameterTemplates[0].AllowedValues!.TemplateIdRef = "template invalid";
         var parameter = eds.ApplicationProcess.ParameterList[0];
         parameter.VariableRefs[0].MemberRef!.UniqueIdRef = "first invalid";
         var second = new ApVariableRef
@@ -90,6 +91,7 @@ public class XmlLexicalWriteValidationTests
             .Select(issue => issue.Path)
             .Should().Contain(new[]
             {
+                "ApplicationProcess.TemplateList.ParameterTemplates[0].TemplateIdRef",
                 "ApplicationProcess.TemplateList.ParameterTemplates[0].AllowedValues.TemplateIdRef",
                 "ApplicationProcess.ParameterList[0].VariableRefs[0].MemberRef.UniqueIdRef",
                 "ApplicationProcess.ParameterList[0].VariableRefs[1].MemberRefs[0].UniqueIdRef",
