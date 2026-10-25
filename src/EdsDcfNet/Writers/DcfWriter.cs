@@ -222,8 +222,8 @@ public class DcfWriter : IniWriterBase
     /// <inheritdoc/>
     /// <remarks>
     /// Also called with <paramref name="compactMax"/> <c>0</c> for an object without compact
-    /// storage: the reader applies <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c> to every object,
-    /// so a list section that only carries kept entries is written again.
+    /// storage: the reader applies <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c> to objects with
+    /// sub-objects, so a list section that only carries kept entries is written again.
     /// </remarks>
     private protected override void WriteCompactValueAndDenotationSections(
         StringBuilder sb,
