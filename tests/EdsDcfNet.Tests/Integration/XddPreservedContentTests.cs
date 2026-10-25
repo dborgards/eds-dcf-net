@@ -572,6 +572,148 @@ public class XddPreservedContentTests
         NetworkBody(written).Elements().Last().Name.LocalName.Should().Be("vendorBlock");
     }
 
+    [Fact]
+    public void WriteToString_CommentsAndProcessingInstructions_KeepTheirPositions()
+    {
+        var xml = Mutate(FixtureXdd, doc =>
+        {
+            doc.Root!.AddFirst(new XComment("before profiles"));
+            doc.Root.Add(new XProcessingInstruction("container-end", "kept"));
+            var identity = Single(doc, "DeviceIdentity");
+            identity.AddFirst(new XComment("identity start"));
+            identity.Element(Co + "vendorName")!.AddAfterSelf(
+                new XComment("after vendor"),
+                new XProcessingInstruction("identity", "between"));
+            NetworkBody(doc).AddFirst(new XComment("network body start"));
+            Single(doc, "ApplicationLayers").Add(new XProcessingInstruction("layers-end", "kept"));
+            Single(doc, "NetworkManagement").AddFirst(new XComment("management start"));
+        });
+
+        var eds = CanOpenFile.Xdd.ReadString(xml);
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(eds));
+        var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 5, timestamp: new DateTime(2026, 1, 1));
+        var xdc = XDocument.Parse(CanOpenFile.Xdc.WriteToString(dcf));
+
+        written.Root!.Nodes().First().Should().BeOfType<XComment>().Which.Value.Should().Be("before profiles");
+        written.Root.Nodes().Last().Should().BeOfType<XProcessingInstruction>().Which.Target.Should().Be("container-end");
+        var identity = Single(written, "DeviceIdentity");
+        identity.Nodes().First().Should().BeOfType<XComment>().Which.Value.Should().Be("identity start");
+        identity.Element(Co + "vendorID")!.NodesBeforeSelf().Where(node => node is not XText)
+            .Select(node => node.ToString(SaveOptions.DisableFormatting))
+            .Should().Contain(value => value.Contains("after vendor", StringComparison.Ordinal))
+            .And.Contain(value => value.Contains("<?identity between?>", StringComparison.Ordinal));
+        NetworkBody(written).Nodes().First().Should().BeOfType<XComment>().Which.Value.Should().Be("network body start");
+        Single(written, "ApplicationLayers").Nodes().Last().Should().BeOfType<XProcessingInstruction>();
+        Single(written, "NetworkManagement").Nodes().First().Should().BeOfType<XComment>();
+        xdc.Root!.Nodes().OfType<XComment>().Should().ContainSingle(comment => comment.Value == "before profiles");
+    }
+
+    [Fact]
+    public void WriteToString_ReorderedProfiles_KeepCommentsWithTheirOriginalProfiles()
+    {
+        var xml = Mutate(FixtureXdd, doc =>
+        {
+            var device = DeviceBody(doc).Parent!;
+            var network = NetworkBody(doc).Parent!;
+            network.Remove();
+            doc.Root!.AddFirst(network);
+            network.AddBeforeSelf(new XProcessingInstruction("before-network", "kept"));
+            device.AddBeforeSelf(new XComment("before device"));
+        });
+
+        var eds = CanOpenFile.Xdd.ReadString(xml);
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(eds));
+        var device = DeviceBody(written).Parent!;
+        var network = NetworkBody(written).Parent!;
+
+        device.NodesBeforeSelf().OfType<XComment>().Should().ContainSingle(comment => comment.Value == "before device");
+        device.NodesBeforeSelf().OfType<XProcessingInstruction>().Should().BeEmpty();
+        network.NodesBeforeSelf().OfType<XProcessingInstruction>().Should()
+            .ContainSingle(instruction => instruction.Target == "before-network");
+
+        var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 5, timestamp: new DateTime(2026, 1, 1));
+        var xdc = XDocument.Parse(CanOpenFile.Xdc.WriteToString(dcf));
+        NetworkBody(xdc).Parent!.NodesBeforeSelf().OfType<XProcessingInstruction>().Should()
+            .ContainSingle(instruction => instruction.Target == "before-network");
+    }
+
+    [Fact]
+    public void WriteToString_DuplicateProfiles_KeepCommentsWithSelectedLastProfile()
+    {
+        var xml = Mutate(FixtureXdd, doc =>
+        {
+            var selected = DeviceBody(doc).Parent!;
+            var duplicate = new XElement(selected);
+            duplicate.Elements().Single(body => body.Name.LocalName == "ProfileBody")
+                .SetAttributeValue("retained", "duplicate");
+            selected.AddBeforeSelf(duplicate);
+            duplicate.AddBeforeSelf(new XComment("before retained device"));
+            selected.AddBeforeSelf(new XComment("before selected device"));
+            var network = NetworkBody(doc).Parent!;
+            network.Remove();
+            doc.Root!.AddFirst(network);
+        });
+
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(xml)));
+        var deviceProfiles = written.Root!.Elements()
+            .Where(profile => profile.Elements().Any(body => body.Name.LocalName == "ProfileBody"
+                && body.Attribute(Xsi + "type")?.Value.Split(':').Last() == "ProfileBody_Device_CANopen"))
+            .ToList();
+        var retained = deviceProfiles.Single(profile => profile.Elements()
+            .Single(body => body.Name.LocalName == "ProfileBody").Attribute("retained") != null);
+        var selected = deviceProfiles.Single(profile => profile != retained);
+
+        selected.NodesBeforeSelf().OfType<XComment>().Should()
+            .ContainSingle(comment => comment.Value == "before selected device");
+        retained.NodesBeforeSelf().OfType<XComment>().Select(comment => comment.Value).Should()
+            .Contain("before retained device")
+            .And.NotContain("before selected device");
+    }
+
+    [Fact]
+    public void WriteToString_CommentWhoseAnchorDisappears_IsAppendedNotDropped()
+    {
+        var xml = Mutate(FixtureXdd, doc =>
+        {
+            var management = Single(doc, "NetworkManagement");
+            management.AddBeforeSelf(new XComment("orphaned anchor"));
+            management.AddBeforeSelf(new XElement("ExternalProfileHandle",
+                new XElement("ProfileIdentification", "legacy"),
+                new XElement("ProfileRevision", "1"),
+                new XElement("ProfileLocation", "legacy/device.eds")));
+            Object(doc, "1000").Remove();
+            Object(doc, "1018").Remove();
+        });
+
+        var body = NetworkBody(XDocument.Parse(CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(xml))));
+
+        body.Element("NetworkManagement").Should().BeNull();
+        body.Nodes().OfType<XComment>().Should().ContainSingle(comment => comment.Value == "orphaned anchor");
+    }
+
+    [Fact]
+    public void ReadString_AdditionalSectionsOrder_SurvivesReaddingAndXdcConversion()
+    {
+        var xml = Mutate(FixtureXdd, doc =>
+        {
+            NetworkBody(doc).Add(new XElement("vendorB", new XAttribute("second", "2")));
+            NetworkBody(doc).Add(new XElement("vendorA", new XAttribute("first", "1")));
+        });
+        var eds = CanOpenFile.Xdd.ReadString(xml);
+        var removed = eds.AdditionalSections["vendorA"];
+        eds.AdditionalSections.Remove("vendorA");
+        eds.AdditionalSections.Add("vendorA", removed);
+        var dcf = CanOpenFile.Xdc.ReadString(xml);
+        var dcfText = CanOpenFile.Dcf.WriteToString(dcf);
+
+        eds.AdditionalSectionOrder.Sections(eds.AdditionalSections).Select(section => section.Key)
+            .Should().Equal("vendorB", "vendorA");
+        dcf.AdditionalSectionOrder.Sections(dcf.AdditionalSections).Select(section => section.Key)
+            .Should().Equal("vendorB", "vendorA");
+        dcfText.IndexOf("[vendorB]", StringComparison.Ordinal).Should()
+            .BeLessThan(dcfText.IndexOf("[vendorA]", StringComparison.Ordinal));
+    }
+
     // ── edge cases of the reader ─────────────────────────────────────────────
 
     [Fact]

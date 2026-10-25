@@ -148,6 +148,37 @@ public class XddPreservedContentEdgeTests
             .Should().Contain("namespaceless-additional");
     }
 
+    [Fact]
+    public void WriteToString_NetworkOnlyProfile_KeepsCommentAnchor()
+    {
+        var source = XDocument.Load(FixtureXdd);
+        var profiles = source.Root!.Elements(Co + "ISO15745Profile").ToList();
+        profiles[0].Remove();
+        profiles[1].AddBeforeSelf(new XComment("before network only"));
+
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(source.ToString())));
+        var network = written.Root!.Elements(Co + "ISO15745Profile").Single(profile =>
+            profile.Descendants("ProfileClassID").Single().Value == "CommunicationNetwork");
+
+        network.NodesBeforeSelf().OfType<XComment>().Should()
+            .ContainSingle(comment => comment.Value == "before network only");
+    }
+
+    [Fact]
+    public void MergeNonElementNodes_ProfileWithoutBodyType_AppendsCommentInsteadOfDroppingIt()
+    {
+        var parent = new XElement("container",
+            new XElement("ISO15745Profile", new XElement("ProfileBody")));
+        var preserved = new XddPreservedNode(new XComment("fallback"), "ISO15745Profile", 0)
+        {
+            FollowingProfileBodyType = XddNames.DeviceProfileBodyType,
+        };
+
+        XddPreservedContentWriter.MergeNonElementNodes(parent, new[] { preserved });
+
+        parent.Nodes().Last().Should().BeOfType<XComment>().Which.Value.Should().Be("fallback");
+    }
+
     private static XElement Single(XDocument doc, string localName)
         => doc.Descendants().Single(e => e.Name.LocalName == localName);
 
