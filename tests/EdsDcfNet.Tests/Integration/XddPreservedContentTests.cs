@@ -638,6 +638,34 @@ public class XddPreservedContentTests
     }
 
     [Fact]
+    public void WriteToString_DuplicateProfiles_KeepCommentsWithSelectedLastProfile()
+    {
+        var xml = Mutate(FixtureXdd, doc =>
+        {
+            var selected = DeviceBody(doc).Parent!;
+            var duplicate = new XElement(selected);
+            duplicate.Elements().Single(body => body.Name.LocalName == "ProfileBody")
+                .SetAttributeValue("retained", "duplicate");
+            selected.AddBeforeSelf(duplicate);
+            selected.AddBeforeSelf(new XComment("before selected device"));
+        });
+
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(xml)));
+        var deviceProfiles = written.Root!.Elements()
+            .Where(profile => profile.Elements().Any(body => body.Name.LocalName == "ProfileBody"
+                && body.Attribute(Xsi + "type")?.Value.Split(':').Last() == "ProfileBody_Device_CANopen"))
+            .ToList();
+        var retained = deviceProfiles.Single(profile => profile.Elements()
+            .Single(body => body.Name.LocalName == "ProfileBody").Attribute("retained") != null);
+        var selected = deviceProfiles.Single(profile => profile != retained);
+
+        selected.NodesBeforeSelf().OfType<XComment>().Should()
+            .ContainSingle(comment => comment.Value == "before selected device");
+        retained.NodesBeforeSelf().OfType<XComment>().Should()
+            .NotContain(comment => comment.Value == "before selected device");
+    }
+
+    [Fact]
     public void WriteToString_CommentWhoseAnchorDisappears_IsAppendedNotDropped()
     {
         var xml = Mutate(FixtureXdd, doc =>

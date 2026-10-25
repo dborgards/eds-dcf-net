@@ -85,7 +85,7 @@ internal static class XddPreservedContentWriter
                     : parent.Elements()
                         .Where(element => element.Name.LocalName == preserved.FollowingElementName)
                         .ElementAtOrDefault(preserved.FollowingElementOccurrence)
-                : parent.Elements().FirstOrDefault(profile => profile.Elements()
+                : parent.Elements().LastOrDefault(profile => profile.Elements()
                     .Where(body => body.Name.LocalName == "ProfileBody")
                     .Select(body => body.Attribute(XddNames.Xsi + "type")?.Value.Split(':').Last())
                     .FirstOrDefault() == preserved.FollowingProfileBodyType);
