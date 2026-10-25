@@ -93,13 +93,20 @@ public class XddTypedProfileApiTests
         var manager = eds.DeviceManager!;
         var deviceInterface = manager.ModuleManagement!.Interfaces.Single();
         deviceInterface.ConnectedModuleIds.Add("5");
-        manager.Indicators.Add(new XddLed());
+        deviceInterface.ConnectedModuleIds.Add("6");
+        var led = new XddLed();
+        manager.Indicators.Add(led);
 
         function.Standards.Clear();
         function.Pictures.Clear();
         function.Dictionaries.Clear();
+        deviceInterface.ConnectedModuleIds.Remove("5").Should().BeTrue();
         deviceInterface.ConnectedModuleIds.Clear();
+        deviceInterface.ConnectedModuleIds.Add("5");
+        deviceInterface.ConnectedModuleIds.Remove("5").Should().BeTrue();
         manager.Indicators.Clear();
+        manager.Indicators.Add(led);
+        manager.Indicators.Remove(led).Should().BeTrue();
 
         var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(eds));
         written.Descendants(Co + "standardComplianceList").Should().BeEmpty();
