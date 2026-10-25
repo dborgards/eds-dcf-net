@@ -171,7 +171,7 @@ internal static class XddPreservedContentReader
                 continue;
 
             var copy = Copy(child, local => XddNames.ChildOfTypeOrUnqualified(XddNames.DeviceProfileBodyType, local), qualify);
-            if (child.Name.LocalName == "DeviceFunction" && IsDerivedDeviceFunction(copy, deviceInfo))
+            if (copy.Name == XddNames.Namespace + "DeviceFunction" && IsDerivedDeviceFunction(copy, deviceInfo))
                 continue;
 
             content.AddElement(XddPreservedContent.DeviceProfileBody, copy);

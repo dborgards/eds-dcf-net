@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Models;
+using System.Xml.Linq;
 using EdsDcfNet.Validation;
+using EdsDcfNet.Writers;
 
 /// <summary>
 /// Represents a complete Device Configuration File (DCF) for a CANopen device.
@@ -119,6 +121,61 @@ public class DeviceConfigurationFile : ICanOpenFileModel
     /// <c>ApplicationProcess</c> element was present in the XDD/XDC file.
     /// </summary>
     public ApplicationProcess? ApplicationProcess { get; set; }
+
+    /// <summary>Device monitoring and device-side module management from the XDC device profile.</summary>
+    public XddDeviceManager? DeviceManager
+    {
+        get
+        {
+            var element = XddPreserved?.ElementsAt(XddPreservedContent.DeviceProfileBody)
+                .FirstOrDefault(item => item.Name == XddNames.Namespace + "DeviceManager");
+            return element == null ? null : new XddDeviceManager(element);
+        }
+        set
+        {
+            if (value != null) XddXml.QualifyRoot(value.Element, true);
+            PreservedForEditing().SetElement(XddPreservedContent.DeviceProfileBody,
+                XddNames.Namespace + "DeviceManager", value?.Element);
+        }
+    }
+
+    /// <summary>Network-independent device functions; an empty collection uses the derived default.</summary>
+    public ICollection<XddDeviceFunction> DeviceFunctions
+    {
+        get
+        {
+            return new XddModelCollection<XddDeviceFunction>(
+                () => XddPreserved?.ElementsAt(XddPreservedContent.DeviceProfileBody)
+                    .Where(item => item.Name == XddNames.Namespace + "DeviceFunction") ?? Enumerable.Empty<XElement>(),
+                element => new XddDeviceFunction(element),
+                item =>
+                {
+                    XddXml.QualifyRoot(item.Element, true);
+                    PreservedForEditing().AddElement(XddPreservedContent.DeviceProfileBody, item.Element);
+                },
+                item => XddPreserved?.ElementList(XddPreservedContent.DeviceProfileBody).Remove(item.Element) == true,
+                () => new XddDeviceFunction());
+        }
+    }
+
+    /// <summary>Network-side module management and object-dictionary allocation.</summary>
+    public XddNetworkModuleManagement? NetworkModuleManagement
+    {
+        get
+        {
+            var element = XddPreserved?.ElementsAt(XddPreservedContent.ApplicationLayers)
+                .FirstOrDefault(item => item.Name == XNamespace.None + "moduleManagement");
+            return element == null ? null : new XddNetworkModuleManagement(element);
+        }
+        set
+        {
+            if (value != null) XddXml.QualifyRoot(value.Element, false);
+            PreservedForEditing().SetElement(XddPreservedContent.ApplicationLayers,
+                XNamespace.None + "moduleManagement", value?.Element);
+        }
+    }
+
+    private XddPreservedContent PreservedForEditing() => XddPreserved ??= new XddPreservedContent();
 
     /// <summary>
     /// XDD/XDC content the model does not represent, kept by the XDD/XDC reader for the XDD/XDC
