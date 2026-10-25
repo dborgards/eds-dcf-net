@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.16.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.15.1-beta.2...v1.16.0-beta.1) (2026-10-25)
+
+### ✨ Features
+
+* resolve indirect XDD parameter references ([#670](https://github.com/dborgards/eds-dcf-net/issues/670)) ([d9f854a](https://github.com/dborgards/eds-dcf-net/commit/d9f854a21ea590625304e045228de0ef6c3db67f))
+
 ## [1.15.1-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.15.1-beta.1...v1.15.1-beta.2) (2026-10-25)
 
 ### 🐛 Bug Fixes
