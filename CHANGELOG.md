@@ -1,69 +1,27 @@
 # Changelog
 
-## [1.16.0-beta.8](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.7...v1.16.0-beta.8) (2026-10-25)
-
-### 🐛 Bug Fixes
-
-* exclude composite defaults from XDD array member projections ([#679](https://github.com/dborgards/eds-dcf-net/issues/679)) ([6aeb77f](https://github.com/dborgards/eds-dcf-net/commit/6aeb77f0a905e78a499465af303c393db53d5096))
-
-## [1.16.0-beta.7](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.6...v1.16.0-beta.7) (2026-10-25)
-
-### 🐛 Bug Fixes
-
-* **io:** reject read-only targets and widen tool counts ([#677](https://github.com/dborgards/eds-dcf-net/issues/677)) ([23d7135](https://github.com/dborgards/eds-dcf-net/commit/23d71353e37aae69ce62bd414480e783f4c30907))
-
-## [1.16.0-beta.6](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.5...v1.16.0-beta.6) (2026-10-25)
-
-### ✨ Features
-
-* **xdd:** expose typed device and module profiles ([#676](https://github.com/dborgards/eds-dcf-net/issues/676)) ([a76c24d](https://github.com/dborgards/eds-dcf-net/commit/a76c24d408838826f95a76e753caac9ed54b6f60))
-
-## [1.16.0-beta.5](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.4...v1.16.0-beta.5) (2026-10-25)
-
-### 🐛 Bug Fixes
-
-* preserve XDD content and validate lexical values ([#673](https://github.com/dborgards/eds-dcf-net/issues/673)) ([ea62c1a](https://github.com/dborgards/eds-dcf-net/commit/ea62c1a465306013b37f32ca5c88cf381667bb8f))
-
-## [1.16.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.3...v1.16.0-beta.4) (2026-10-25)
-
-### ✨ Features
-
-* expose reusable INI validation rules ([#675](https://github.com/dborgards/eds-dcf-net/issues/675)) ([a0c75af](https://github.com/dborgards/eds-dcf-net/commit/a0c75af8db47074d20a15dc2c91a1d81d87caf6f))
-
-## [1.16.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.2...v1.16.0-beta.3) (2026-10-25)
-
-### 🐛 Bug Fixes
-
-* preserve INI section positions and CPJ topology names ([#672](https://github.com/dborgards/eds-dcf-net/issues/672)) ([b7b0f2d](https://github.com/dborgards/eds-dcf-net/commit/b7b0f2de0166c945ae6fad6a88a2280756eb6676))
-
-## [1.16.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.1...v1.16.0-beta.2) (2026-10-25)
+## [1.16.0](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0...v1.16.0) (2026-10-25)
 
 ### ✨ Features
 
 * add validation options and sub-object flags ([#671](https://github.com/dborgards/eds-dcf-net/issues/671)) ([340260f](https://github.com/dborgards/eds-dcf-net/commit/340260fbce2e37cae3749da239a91544875fc032))
-
-## [1.16.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.15.1-beta.2...v1.16.0-beta.1) (2026-10-25)
-
-### ✨ Features
-
+* expose reusable INI validation rules ([#675](https://github.com/dborgards/eds-dcf-net/issues/675)) ([a0c75af](https://github.com/dborgards/eds-dcf-net/commit/a0c75af8db47074d20a15dc2c91a1d81d87caf6f))
 * resolve indirect XDD parameter references ([#670](https://github.com/dborgards/eds-dcf-net/issues/670)) ([d9f854a](https://github.com/dborgards/eds-dcf-net/commit/d9f854a21ea590625304e045228de0ef6c3db67f))
-
-## [1.15.1-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.15.1-beta.1...v1.15.1-beta.2) (2026-10-25)
+* **xdd:** expose typed device and module profiles ([#676](https://github.com/dborgards/eds-dcf-net/issues/676)) ([a76c24d](https://github.com/dborgards/eds-dcf-net/commit/a76c24d408838826f95a76e753caac9ed54b6f60))
 
 ### 🐛 Bug Fixes
 
+* exclude composite defaults from XDD array member projections ([#679](https://github.com/dborgards/eds-dcf-net/issues/679)) ([6aeb77f](https://github.com/dborgards/eds-dcf-net/commit/6aeb77f0a905e78a499465af303c393db53d5096))
+* **io:** reject read-only targets and widen tool counts ([#677](https://github.com/dborgards/eds-dcf-net/issues/677)) ([23d7135](https://github.com/dborgards/eds-dcf-net/commit/23d71353e37aae69ce62bd414480e783f4c30907))
 * preserve deferred INI and XDD round-trip content ([#669](https://github.com/dborgards/eds-dcf-net/issues/669)) ([1f6d60f](https://github.com/dborgards/eds-dcf-net/commit/1f6d60f896effdc227fdf43ad29db095e90399ce))
+* preserve INI section positions and CPJ topology names ([#672](https://github.com/dborgards/eds-dcf-net/issues/672)) ([b7b0f2d](https://github.com/dborgards/eds-dcf-net/commit/b7b0f2de0166c945ae6fad6a88a2280756eb6676))
+* preserve XDD content and validate lexical values ([#673](https://github.com/dborgards/eds-dcf-net/issues/673)) ([ea62c1a](https://github.com/dborgards/eds-dcf-net/commit/ea62c1a465306013b37f32ca5c88cf381667bb8f))
+* **tools:** confine the plan path of check-plan-order.py to the working directory ([#656](https://github.com/dborgards/eds-dcf-net/issues/656)) ([55f3893](https://github.com/dborgards/eds-dcf-net/commit/55f38935b5d0f4b647b51266cab674461de90c72))
 
 ### 📚 Documentation
 
 * consolidate migration and option guides ([#665](https://github.com/dborgards/eds-dcf-net/issues/665)) ([9deb1e9](https://github.com/dborgards/eds-dcf-net/commit/9deb1e9b7be34c299f00d990007d72ca6047f2a8))
 * record benchmark baseline ([#668](https://github.com/dborgards/eds-dcf-net/issues/668)) ([49d34a7](https://github.com/dborgards/eds-dcf-net/commit/49d34a7811e5ce1db44c97a2a93f9f83e9e5e1fb))
-
-## [1.15.1-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0...v1.15.1-beta.1) (2026-10-08)
-
-### 🐛 Bug Fixes
-
-* **tools:** confine the plan path of check-plan-order.py to the working directory ([#656](https://github.com/dborgards/eds-dcf-net/issues/656)) ([55f3893](https://github.com/dborgards/eds-dcf-net/commit/55f38935b5d0f4b647b51266cab674461de90c72))
 
 ## [1.15.0](https://github.com/dborgards/eds-dcf-net/compare/v1.14.0...v1.15.0) (2026-10-03)
 
