@@ -21,10 +21,16 @@ internal sealed class XddPreservedNode
     /// <summary>Zero-based occurrence of the following element among siblings with the same local name.</summary>
     internal int FollowingElementOccurrence { get; }
 
+    /// <summary>Schema type of a following generated profile, stable across profile reordering.</summary>
+    internal string? FollowingProfileBodyType { get; set; }
+
     internal XddPreservedNode Clone()
         => new(Node is XComment comment
             ? new XComment(comment.Value)
             : new XProcessingInstruction(((XProcessingInstruction)Node).Target, ((XProcessingInstruction)Node).Data),
             FollowingElementName,
-            FollowingElementOccurrence);
+            FollowingElementOccurrence)
+        {
+            FollowingProfileBodyType = FollowingProfileBodyType,
+        };
 }

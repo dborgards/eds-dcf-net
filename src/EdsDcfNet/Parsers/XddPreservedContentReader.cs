@@ -62,6 +62,7 @@ internal static class XddPreservedContentReader
         var qualify = HasNoNamespace(doc.Root!);
         var content = new XddPreservedContent();
         KeepNonElementNodes(content, XddPreservedContent.ProfileContainer, doc.Root!);
+        SetContainerProfileAnchors(content, doc.Root!, deviceProfileBody, networkProfileBody);
 
         foreach (var comment in doc.Nodes().TakeWhile(node => node is not XElement).OfType<XComment>())
         {
@@ -324,6 +325,26 @@ internal static class XddPreservedContentReader
 
     private static XElement? First(XElement parent, string localName)
         => parent.Elements().FirstOrDefault(e => e.Name.LocalName == localName);
+
+    private static void SetContainerProfileAnchors(
+        XddPreservedContent content,
+        XElement container,
+        XElement? deviceProfileBody,
+        XElement networkProfileBody)
+    {
+        var profiles = container.Elements().Where(element => element.Name.LocalName == "ISO15745Profile").ToList();
+        foreach (var node in content.NonElementNodesAt(XddPreservedContent.ProfileContainer))
+        {
+            if (node.FollowingElementName != "ISO15745Profile" || node.FollowingElementOccurrence >= profiles.Count)
+                continue;
+            var following = profiles[node.FollowingElementOccurrence];
+            node.FollowingProfileBodyType = ReferenceEquals(following, deviceProfileBody?.Parent)
+                ? XddNames.DeviceProfileBodyType
+                : ReferenceEquals(following, networkProfileBody.Parent)
+                    ? XddNames.NetworkProfileBodyType
+                    : null;
+        }
+    }
 
     private static void KeepNonElementNodes(XddPreservedContent content, string key, XElement parent)
     {

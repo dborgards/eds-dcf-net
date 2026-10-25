@@ -68,6 +68,34 @@ public class XmlLexicalWriteValidationTests
     }
 
     [Fact]
+    public void ValidatedWrite_TemplateAllowedValuesAndEveryMemberRef_AreReported()
+    {
+        var eds = ValidEds();
+        eds.ApplicationProcess = CompleteApplicationProcess();
+        eds.ApplicationProcess.TemplateList!.ParameterTemplates[0].AllowedValues!.TemplateIdRef = "template invalid";
+        var parameter = eds.ApplicationProcess.ParameterList[0];
+        parameter.VariableRefs[0].MemberRef!.UniqueIdRef = "first invalid";
+        var second = new ApVariableRef
+        {
+            VariableIdRef = "V2",
+            MemberRef = new ApMemberRef { UniqueIdRef = "second invalid" },
+        };
+        second.InstanceIdRefs.Add("I");
+        parameter.VariableRefs.Add(second);
+
+        var issues = Validate(eds);
+
+        issues.Where(issue => issue.Code == ValidationIssueCodes.XddLexicalValueInvalid)
+            .Select(issue => issue.Path)
+            .Should().Contain(new[]
+            {
+                "ApplicationProcess.TemplateList.ParameterTemplates[0].AllowedValues.TemplateIdRef",
+                "ApplicationProcess.ParameterList[0].VariableRefs[0].MemberRef.UniqueIdRef",
+                "ApplicationProcess.ParameterList[0].VariableRefs[1].MemberRef.UniqueIdRef",
+            });
+    }
+
+    [Fact]
     public void ValidatedWrite_ObjectAndPreservedCommissioningLexemes_AreReported()
     {
         var dcf = CanOpenFile.Eds.ConvertToDcf(ValidEds(), nodeId: 5, timestamp: new DateTime(2026, 1, 1));

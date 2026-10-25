@@ -609,6 +609,35 @@ public class XddPreservedContentTests
     }
 
     [Fact]
+    public void WriteToString_ReorderedProfiles_KeepCommentsWithTheirOriginalProfiles()
+    {
+        var xml = Mutate(FixtureXdd, doc =>
+        {
+            var device = DeviceBody(doc).Parent!;
+            var network = NetworkBody(doc).Parent!;
+            network.Remove();
+            doc.Root!.AddFirst(network);
+            network.AddBeforeSelf(new XProcessingInstruction("before-network", "kept"));
+            device.AddBeforeSelf(new XComment("before device"));
+        });
+
+        var eds = CanOpenFile.Xdd.ReadString(xml);
+        var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(eds));
+        var device = DeviceBody(written).Parent!;
+        var network = NetworkBody(written).Parent!;
+
+        device.NodesBeforeSelf().OfType<XComment>().Should().ContainSingle(comment => comment.Value == "before device");
+        device.NodesBeforeSelf().OfType<XProcessingInstruction>().Should().BeEmpty();
+        network.NodesBeforeSelf().OfType<XProcessingInstruction>().Should()
+            .ContainSingle(instruction => instruction.Target == "before-network");
+
+        var dcf = CanOpenFile.Eds.ConvertToDcf(eds, nodeId: 5, timestamp: new DateTime(2026, 1, 1));
+        var xdc = XDocument.Parse(CanOpenFile.Xdc.WriteToString(dcf));
+        NetworkBody(xdc).Parent!.NodesBeforeSelf().OfType<XProcessingInstruction>().Should()
+            .ContainSingle(instruction => instruction.Target == "before-network");
+    }
+
+    [Fact]
     public void WriteToString_CommentWhoseAnchorDisappears_IsAppendedNotDropped()
     {
         var xml = Mutate(FixtureXdd, doc =>
