@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.16.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.1...v1.16.0-beta.2) (2026-10-25)
+
+### ✨ Features
+
+* add validation options and sub-object flags ([#671](https://github.com/dborgards/eds-dcf-net/issues/671)) ([340260f](https://github.com/dborgards/eds-dcf-net/commit/340260fbce2e37cae3749da239a91544875fc032))
+
 ## [1.16.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.15.1-beta.2...v1.16.0-beta.1) (2026-10-25)
 
 ### ✨ Features
