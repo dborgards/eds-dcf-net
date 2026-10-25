@@ -43,7 +43,7 @@ internal static class XddPreservedContentReader
     private static readonly HashSet<string> ModelledSubObjectAttributes = new(StringComparer.Ordinal)
     {
         "subIndex", "name", "objectType", "dataType", "accessType", "defaultValue", "lowLimit",
-        "highLimit", "PDOmapping", "uniqueIDRef",
+        "highLimit", "PDOmapping", "objFlags", "uniqueIDRef",
     };
 
     /// <summary>
@@ -78,6 +78,20 @@ internal static class XddPreservedContentReader
 
         KeepProfileSiblings(content, XddPreservedContent.NetworkProfile, networkProfileBody, profileName, qualify);
         ReadNetworkProfileBody(content, networkProfileBody, includeActualValues, qualify);
+
+        foreach (var profile in doc.Root!.Elements())
+        {
+            if (profile.Name.LocalName != profileName.LocalName)
+                continue;
+
+            if (profile != deviceProfileBody?.Parent && profile != networkProfileBody.Parent)
+            {
+                content.AddElement(
+                    XddPreservedContent.ProfileContainer,
+                    Copy(profile, local => XddNames.ChildOrUnqualified(XddNames.ProfileContainer, local), qualify));
+            }
+        }
+
         return content;
     }
 
@@ -164,6 +178,8 @@ internal static class XddPreservedContentReader
 
         var normalized = new XElement(function);
         normalized.DescendantNodes().OfType<XText>().Where(text => text.Value.Trim().Length == 0).Remove();
+        foreach (var element in normalized.DescendantsAndSelf())
+            element.Attributes().Where(attribute => attribute.IsNamespaceDeclaration).Remove();
         return XNode.DeepEquals(normalized, XddProfileBuilder.BuildDefaultDeviceFunction(deviceInfo));
     }
 
@@ -296,14 +312,14 @@ internal static class XddPreservedContentReader
         => parent.Elements().FirstOrDefault(e => e.Name.LocalName == localName);
 
     private static bool HasNoNamespace(XElement root)
-        => root.DescendantsAndSelf().All(element => element.Name.Namespace == XNamespace.None);
+        => root.Name.Namespace == XNamespace.None;
 
     /// <summary>
-    /// Deep copy without namespace declarations. For a source without any namespace, every element
-    /// is named from the parent-based table: the copy's own name from <paramref name="rootName"/>,
-    /// each descendant from its (already renamed) parent. A binding that a QName value of the
-    /// fragment refers to (<c>xsi:type="vendor:Extension"</c>) is declared again on that element,
-    /// unless the writer declares the same binding on the document element.
+    /// Deep copy without namespace declarations. For a source with a namespace-less document
+    /// element, every unqualified element is named from the parent-based table: the copy's own
+    /// name from <paramref name="rootName"/>, each descendant from its (already renamed) parent.
+    /// Elements in vendor namespaces keep their names. Prefix and default-namespace bindings that
+    /// QName values can refer to are retained on the fragment.
     /// </summary>
     private static XElement Copy(XElement source, Func<string, XName> rootName, bool qualify)
     {
@@ -314,8 +330,9 @@ internal static class XddPreservedContentReader
         {
             var element = copies[i];
             element.Attributes().Where(a => a.IsNamespaceDeclaration).Remove();
+            KeepDefaultNamespace(originals[i], element);
             KeepReferencedBindings(originals[i], element);
-            if (!qualify)
+            if (!qualify || element.Name.Namespace != XNamespace.None)
                 continue;
 
             element.Name = element.Parent == null
@@ -324,6 +341,13 @@ internal static class XddPreservedContentReader
         }
 
         return copy;
+    }
+
+    private static void KeepDefaultNamespace(XElement original, XElement copy)
+    {
+        var originalDefault = original.GetDefaultNamespace();
+        if (originalDefault != copy.GetDefaultNamespace())
+            copy.Add(new XAttribute("xmlns", originalDefault.NamespaceName));
     }
 
     private static readonly System.Text.RegularExpressions.Regex QNamePrefix = new(

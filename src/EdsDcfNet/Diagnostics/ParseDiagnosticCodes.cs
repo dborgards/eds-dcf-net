@@ -322,11 +322,18 @@ public static class ParseDiagnosticCodes
     public const string XddUniqueIdRefNoAccess = "XDD_UNIQUE_ID_REF_NO_ACCESS";
 
     /// <summary>
-    /// The parameter type, default, or allowed range is only available through
-    /// <c>variableRef</c> or <c>templateIDRef</c>. Those chains are not resolved.
-    /// Reported in lenient and strict mode.
+    /// Legacy diagnostic code from versions that did not follow indirect references.
+    /// Retained for API compatibility; current readers resolve these chains and report
+    /// <see cref="XddUnresolvedIndirectUniqueIdRef"/> when resolution fails.
     /// </summary>
     public const string XddUniqueIdRefIndirect = "XDD_UNIQUE_ID_REF_INDIRECT";
+
+    /// <summary>
+    /// An indirect <c>variableRef</c>/<c>templateIDRef</c> chain is dangling, cyclic,
+    /// ambiguous, or cannot be represented as one scalar CANopen value. Lenient mode
+    /// leaves the affected values unset; strict mode throws.
+    /// </summary>
+    public const string XddUnresolvedIndirectUniqueIdRef = "XDD_UNRESOLVED_INDIRECT_UNIQUE_ID_REF";
 
     /// <summary>
     /// A direct <c>dataTypeIDRef</c> does not identify a data type in <c>dataTypeList</c>

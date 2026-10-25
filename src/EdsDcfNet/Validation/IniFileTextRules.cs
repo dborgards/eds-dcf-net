@@ -79,7 +79,8 @@ internal static class IniFileTextRules
                         section,
                         line.Length,
                         MaxLineLength),
-                    ValidationIssueCodes.LineTooLong));
+                    ValidationIssueCodes.LineTooLong,
+                    ValidationSeverity.Warning));
             }
         }
     }
@@ -99,7 +100,8 @@ internal static class IniFileTextRules
                     lineNumber,
                     section,
                     (int)line[i]),
-                ValidationIssueCodes.Iso646CharacterNotAllowed));
+                ValidationIssueCodes.Iso646CharacterNotAllowed,
+                ValidationSeverity.Warning));
             return;
         }
     }

@@ -390,6 +390,125 @@ public class XddObjFlagsHexBinaryTests
         unvalidated.Should().Contain("ObjFlags=0x8");
     }
 
+    [Theory]
+    [InlineData("Xdd")]
+    [InlineData("Xdc")]
+    public void ReadWrite_SubObjectObjFlagsBeyondUInt32_PreservesLexicalTextUntilEdited(string format)
+    {
+        var xml = ProfileWithSubObjectObjFlags("0100000000");
+
+        ICanOpenFileModel model;
+        IReadOnlyList<ParseDiagnostic> diagnostics;
+        if (format == "Xdd")
+        {
+            var read = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml);
+            model = read.Model;
+            diagnostics = read.Diagnostics;
+        }
+        else
+        {
+            var read = CanOpenFile.Xdc.ReadStringWithDiagnostics(xml);
+            model = read.Model;
+            diagnostics = read.Diagnostics;
+        }
+
+        var subObject = model.ObjectDictionary.Objects[0x1000].SubObjects[1];
+        subObject.ObjFlags.Should().Be(0u);
+        subObject.ObjFlagsLexical.Should().Be("0100000000");
+        diagnostics.Should().ContainSingle(diagnostic =>
+            diagnostic.Code == ParseDiagnosticCodes.XddObjFlagsExceedsUInt32 &&
+            diagnostic.Path == "CANopenObject[@index='1000']/CANopenSubObject[@subIndex='01']/objFlags");
+
+        var preserved = format == "Xdd"
+            ? CanOpenFile.Xdd.WriteToString((ElectronicDataSheet)model)
+            : CanOpenFile.Xdc.WriteToString((DeviceConfigurationFile)model);
+        preserved.Should().Contain("objFlags=\"0100000000\"");
+        preserved.Split(new[] { "objFlags=\"0100000000\"" }, StringSplitOptions.None).Length.Should().Be(2);
+
+        subObject.ObjFlags = 4;
+        var replaced = format == "Xdd"
+            ? CanOpenFile.Xdd.WriteToString((ElectronicDataSheet)model)
+            : CanOpenFile.Xdc.WriteToString((DeviceConfigurationFile)model);
+        replaced.Should().Contain("objFlags=\"0004\"");
+        replaced.Should().NotContain("0100000000");
+    }
+
+    [Fact]
+    public void ReadString_SubObjectReservedObjFlags_ReportsSubObjectPath()
+    {
+        var read = CanOpenFile.Xdd.ReadStringWithDiagnostics(ProfileWithSubObjectObjFlags("0008"));
+
+        read.Model.ObjectDictionary.Objects[0x1000].SubObjects[1].ObjFlags.Should().Be(8u);
+        read.Diagnostics.Should().ContainSingle(diagnostic =>
+            diagnostic.Code == ParseDiagnosticCodes.XddObjFlagsReservedBits &&
+            diagnostic.Path == "CANopenObject[@index='1000']/CANopenSubObject[@subIndex='01']/objFlags");
+    }
+
+    [Theory]
+    [InlineData("Xdd")]
+    [InlineData("Xdc")]
+    public void WriteToString_SubObjectObjFlags_ValidatedRoundTripAndClone(string format)
+    {
+        var source = ValidCanOpenModelBuilder.CreateValidEds();
+        source.ObjectDictionary.Objects[0x1000].SubNumber = 1;
+        source.ObjectDictionary.Objects[0x1000].SubObjects[1] = new CanOpenSubObject
+        {
+            SubIndex = 1,
+            ParameterName = "Element",
+            ObjectType = CanOpenObjectType.Var,
+            DataType = CanOpenDataType.Unsigned8,
+            AccessType = AccessType.ReadOnly,
+            ObjFlags = 4,
+        };
+        ICanOpenFileModel model = format == "Xdc"
+            ? CanOpenFile.Eds.ConvertToDcf(source, nodeId: 5, timestamp: new DateTime(2026, 1, 2), baudrate: 250)
+            : source;
+
+        var written = format == "Xdd"
+            ? CanOpenFile.Xdd.WriteToString((ElectronicDataSheet)model, CanOpenWriteOptions.Validated)
+            : CanOpenFile.Xdc.WriteToString((DeviceConfigurationFile)model, CanOpenWriteOptions.Validated);
+        ICanOpenFileModel again = format == "Xdd"
+            ? CanOpenFile.Xdd.ReadString(written)
+            : CanOpenFile.Xdc.ReadString(written);
+
+        written.Should().Contain("objFlags=\"0004\"");
+        again.ObjectDictionary.Objects[0x1000].SubObjects[1].ObjFlags.Should().Be(4u);
+        if (format == "Xdc")
+        {
+            model.ObjectDictionary.Objects[0x1000].SubObjects[1].ObjFlags.Should().Be(4u);
+            model.ObjectDictionary.Objects[0x1000].SubObjects[1].Should().NotBeSameAs(
+                source.ObjectDictionary.Objects[0x1000].SubObjects[1]);
+        }
+    }
+
+    [Fact]
+    public void WriteToString_SubObjectReservedObjFlags_ValidatedXmlWriteRejects()
+    {
+        var eds = CanOpenFile.Xdd.ReadString(ProfileWithSubObjectObjFlags("0008"));
+
+        var act = () => CanOpenFile.Xdd.WriteToString(eds, CanOpenWriteOptions.Validated);
+
+        act.Should().Throw<ModelValidationException>().Which.Issues.Should().Contain(issue =>
+            issue.Code == ValidationIssueCodes.XddObjFlagsReservedBits &&
+            issue.Path == "ObjectDictionary.Objects[0x1000].SubObjects[0x01].ObjFlags");
+    }
+
+    private static string ProfileWithSubObjectObjFlags(string objFlags)
+    {
+        var document = System.Xml.Linq.XDocument.Parse(ProfileWithObjFlags("0004"));
+        var obj = document.Descendants().Single(element => element.Name.LocalName == "CANopenObject");
+        obj.Add(new System.Xml.Linq.XElement(
+            "CANopenSubObject",
+            new System.Xml.Linq.XAttribute("subIndex", "01"),
+            new System.Xml.Linq.XAttribute("name", "Element"),
+            new System.Xml.Linq.XAttribute("objectType", "7"),
+            new System.Xml.Linq.XAttribute("dataType", "0005"),
+            new System.Xml.Linq.XAttribute("accessType", "ro"),
+            new System.Xml.Linq.XAttribute("PDOmapping", "no"),
+            new System.Xml.Linq.XAttribute("objFlags", objFlags)));
+        return document.ToString();
+    }
+
     private static uint ReadObjFlags(
         string format,
         string raw,

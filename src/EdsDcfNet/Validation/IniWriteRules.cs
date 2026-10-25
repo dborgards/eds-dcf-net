@@ -371,6 +371,7 @@ internal static class IniWriteRules
         List<ValidationIssue> issues)
     {
         Check(subObj.ParameterName, IniTextSlot.Value, subPath + ".ParameterName", issues);
+        CheckObjFlags(subObj.ObjFlags, subPath + ".ObjFlags", issues);
         if (Writers.IniWriterBase.IsSubObjectKeyWritten(subObj, "DefaultValue"))
             CheckIfPresent(subObj.DefaultValue, IniTextSlot.Value, subPath + ".DefaultValue", issues);
         if (Writers.IniWriterBase.IsSubObjectKeyWritten(subObj, "LowLimit"))

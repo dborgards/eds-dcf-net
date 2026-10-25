@@ -84,8 +84,7 @@ ObjFlags=2
             sub.RemainingEntries,
             ("Group", "SubGroup"),
             ("Denotation", "eds-sub-denotation"),
-            ("Lang-Bemerkung", "SubHinweis"),
-            ("ObjFlags", "2"));
+            ("Lang-Bemerkung", "SubHinweis"));
         sub.RemainingEntries.Should().NotContainKey("ParameterName");
         sub.RemainingEntries.Should().NotContainKey("PDOMapping");
 
@@ -118,8 +117,7 @@ ObjFlags=2
             againSub.RemainingEntries,
             ("Group", "SubGroup"),
             ("Denotation", "eds-sub-denotation"),
-            ("Lang-Bemerkung", "SubHinweis"),
-            ("ObjFlags", "2"));
+            ("Lang-Bemerkung", "SubHinweis"));
     }
 
     [Fact]
