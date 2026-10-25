@@ -150,6 +150,18 @@ public class XddIndirectUniqueIdRefTests
         reference.MemberRef = null;
         reference.MemberRefs.Should().BeEmpty();
         CanOpenFile.Xdd.WriteToString(result.Model).Should().NotContain("FIELD_REPLACED");
+
+        reference.MemberRefs.Add(new ApMemberRef { UniqueIdRef = "CHILD_ONLY" });
+        reference.MemberRefs.Add(new ApMemberRef { UniqueIdRef = "LEAF_REMOVED" });
+        reference.MemberRefs.RemoveAt(1);
+        reference.MemberRef.Should().BeSameAs(reference.MemberRefs[0]);
+        var withoutLeaf = CanOpenFile.Xdd.WriteToString(result.Model);
+        withoutLeaf.Should().Contain("uniqueIDRef=\"CHILD_ONLY\"");
+        withoutLeaf.Should().NotContain("LEAF_REMOVED");
+
+        reference.MemberRefs.Clear();
+        reference.MemberRef.Should().BeNull();
+        CanOpenFile.Xdd.WriteToString(result.Model).Should().NotContain("CHILD_ONLY");
     }
 
     [Fact]

@@ -134,6 +134,16 @@ public class ApVariableRef
     private ApMemberRef? _memberRef;
 
     /// <summary>
+    /// Initializes an empty variable reference and keeps the compatibility member alias
+    /// synchronized with direct changes to the ordered member path.
+    /// </summary>
+    public ApVariableRef()
+    {
+        MemberRefs.CollectionChanged += (_, _) =>
+            _memberRef = MemberRefs.Count > 0 ? MemberRefs[^1] : null;
+    }
+
+    /// <summary>
     /// Optional reference to a specific member when the variable is structured/array.
     /// For paths parsed from XDD/XDC, this retains the last segment for compatibility;
     /// use <see cref="MemberRefs"/> to access the complete ordered path. Replacing this
@@ -160,7 +170,7 @@ public class ApVariableRef
     /// Ordered path of structure members and array elements below the interface variable
     /// (one <c>memberRef</c> element per hierarchy level).
     /// </summary>
-    public List<ApMemberRef> MemberRefs { get; } = new();
+    public System.Collections.ObjectModel.ObservableCollection<ApMemberRef> MemberRefs { get; } = new();
 }
 
 // ─── Parameter ────────────────────────────────────────────────────────────────

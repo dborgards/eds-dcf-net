@@ -438,7 +438,7 @@ internal static class XddApplicationProcessBuilder
             elem.Add(XddNames.Element(elem.Name, "variableIDRef",
                 new XAttribute("uniqueIDRef", vr.VariableIdRef)));
 
-        var memberRefs = vr.MemberRefs.Count > 0
+        IList<ApMemberRef> memberRefs = vr.MemberRefs.Count > 0
             ? vr.MemberRefs
             : vr.MemberRef == null ? new List<ApMemberRef>() : new List<ApMemberRef> { vr.MemberRef };
         foreach (var memberRef in memberRefs)
