@@ -3,6 +3,9 @@ namespace EdsDcfNet.Checker;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using EdsDcfNet.Validation;
+using Finding = EdsDcfNet.Validation.IniValidationIssue;
+using Severity = EdsDcfNet.Validation.IniValidationSeverity;
 
 /// <summary>
 /// edsdcf-check — validates CiA 306 EDS/DCF files and prints every problem found.
@@ -234,9 +237,9 @@ public static class Program
         var findings = new List<Finding>();
         var isDcf = IsDcf(file);
 
-        var document = RawIniDocument.Parse(file, findings);
-        new MandatoryFieldsChecker(file, document, isDcf, findings).Run();
-        new RawObjectChecker(file, document, isDcf, findings).Run();
+        findings.AddRange(CanOpenIniValidator.ValidateFile(
+            file,
+            isDcf ? CanOpenIniFormat.Dcf : CanOpenIniFormat.Eds));
 
         if (runLibrary)
         {

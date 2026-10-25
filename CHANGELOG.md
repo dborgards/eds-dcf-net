@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.16.0-beta.4](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.3...v1.16.0-beta.4) (2026-10-25)
+
+### ✨ Features
+
+* expose reusable INI validation rules ([#675](https://github.com/dborgards/eds-dcf-net/issues/675)) ([a0c75af](https://github.com/dborgards/eds-dcf-net/commit/a0c75af8db47074d20a15dc2c91a1d81d87caf6f))
+
 ## [1.16.0-beta.3](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.2...v1.16.0-beta.3) (2026-10-25)
 
 ### 🐛 Bug Fixes

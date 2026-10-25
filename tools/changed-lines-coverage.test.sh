@@ -240,6 +240,40 @@ case "$output" in
   *) echo "ok: deleted files are ignored" ;;
 esac
 
+# A move from outside the selected src/ root must retain its rename diff. If the
+# old path is excluded from Git's input, every moved line incorrectly looks added.
+move_repo="$work/move-repo"
+move_results="$work/move-results"
+mkdir -p "$move_repo/examples" "$move_results"
+git -C "$work" init -q move-repo
+git -C "$move_repo" config user.name fixture
+git -C "$move_repo" config user.email fixture@example.invalid
+printf 'unchanged\nold\n' > "$move_repo/examples/Old.cs"
+git -C "$move_repo" add examples/Old.cs
+git -C "$move_repo" commit -qm base
+git -C "$move_repo" branch base
+mkdir -p "$move_repo/src"
+git -C "$move_repo" mv examples/Old.cs src/New.cs
+printf 'unchanged\nnew\n' > "$move_repo/src/New.cs"
+cat > "$move_results/coverage.cobertura.xml" <<'XML'
+<?xml version="1.0"?>
+<coverage><packages><package><classes>
+  <class filename="src/New.cs"><lines>
+    <line number="1" hits="1" />
+    <line number="2" hits="1" />
+  </lines></class>
+</classes></package></packages></coverage>
+XML
+set +e
+move_output=$(cd "$move_repo" && "$script" "$move_results" base 2>&1)
+move_status=$?
+set -e
+check "cross-root rename passes with only its changed line" 0 "$move_status"
+case "$move_output" in
+  *"src/New.cs: 100.00% (1/1)"*) echo "ok: rename detection sees both pathspec sides" ;;
+  *) echo "FAIL: moved lines were treated as new: $move_output" >&2; failures=$((failures + 1)) ;;
+esac
+
 set +e
 missing_output=$(cd "$repo" && "$script" "$results" does-not-exist 2>&1)
 missing_status=$?
