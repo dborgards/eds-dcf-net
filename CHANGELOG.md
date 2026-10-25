@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.16.0-beta.8](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.7...v1.16.0-beta.8) (2026-10-25)
+
+### 🐛 Bug Fixes
+
+* exclude composite defaults from XDD array member projections ([#679](https://github.com/dborgards/eds-dcf-net/issues/679)) ([6aeb77f](https://github.com/dborgards/eds-dcf-net/commit/6aeb77f0a905e78a499465af303c393db53d5096))
+
 ## [1.16.0-beta.7](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0-beta.6...v1.16.0-beta.7) (2026-10-25)
 
 ### 🐛 Bug Fixes
