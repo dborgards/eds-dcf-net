@@ -24,6 +24,9 @@ internal sealed class XddPreservedNode
     /// <summary>Schema type of a following generated profile, stable across profile reordering.</summary>
     internal string? FollowingProfileBodyType { get; set; }
 
+    /// <summary>Zero-based position of a following retained profile among all retained profiles.</summary>
+    internal int? FollowingRetainedProfileOccurrence { get; set; }
+
     internal XddPreservedNode Clone()
         => new(Node is XComment comment
             ? new XComment(comment.Value)
@@ -32,5 +35,6 @@ internal sealed class XddPreservedNode
             FollowingElementOccurrence)
         {
             FollowingProfileBodyType = FollowingProfileBodyType,
+            FollowingRetainedProfileOccurrence = FollowingRetainedProfileOccurrence,
         };
 }

@@ -333,16 +333,19 @@ internal static class XddPreservedContentReader
         XElement networkProfileBody)
     {
         var profiles = container.Elements().Where(element => element.Name.LocalName == "ISO15745Profile").ToList();
+        var retainedProfiles = profiles.Where(profile => !ReferenceEquals(profile, deviceProfileBody?.Parent)
+            && !ReferenceEquals(profile, networkProfileBody.Parent)).ToList();
         foreach (var node in content.NonElementNodesAt(XddPreservedContent.ProfileContainer))
         {
             if (node.FollowingElementName != "ISO15745Profile" || node.FollowingElementOccurrence >= profiles.Count)
                 continue;
             var following = profiles[node.FollowingElementOccurrence];
-            node.FollowingProfileBodyType = ReferenceEquals(following, deviceProfileBody?.Parent)
-                ? XddNames.DeviceProfileBodyType
-                : ReferenceEquals(following, networkProfileBody.Parent)
-                    ? XddNames.NetworkProfileBodyType
-                    : null;
+            if (ReferenceEquals(following, deviceProfileBody?.Parent))
+                node.FollowingProfileBodyType = XddNames.DeviceProfileBodyType;
+            else if (ReferenceEquals(following, networkProfileBody.Parent))
+                node.FollowingProfileBodyType = XddNames.NetworkProfileBodyType;
+            else
+                node.FollowingRetainedProfileOccurrence = retainedProfiles.IndexOf(following);
         }
     }
 

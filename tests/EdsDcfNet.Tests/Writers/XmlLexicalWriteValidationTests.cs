@@ -81,6 +81,7 @@ public class XmlLexicalWriteValidationTests
             MemberRef = new ApMemberRef { UniqueIdRef = "second invalid" },
         };
         second.InstanceIdRefs.Add("I");
+        second.MemberRefs.Add(new ApMemberRef { UniqueIdRef = "last valid" });
         parameter.VariableRefs.Add(second);
 
         var issues = Validate(eds);
@@ -91,7 +92,7 @@ public class XmlLexicalWriteValidationTests
             {
                 "ApplicationProcess.TemplateList.ParameterTemplates[0].AllowedValues.TemplateIdRef",
                 "ApplicationProcess.ParameterList[0].VariableRefs[0].MemberRef.UniqueIdRef",
-                "ApplicationProcess.ParameterList[0].VariableRefs[1].MemberRef.UniqueIdRef",
+                "ApplicationProcess.ParameterList[0].VariableRefs[1].MemberRefs[0].UniqueIdRef",
             });
     }
 

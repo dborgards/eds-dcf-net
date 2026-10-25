@@ -79,16 +79,28 @@ internal static class XddPreservedContentWriter
         foreach (var preserved in kept)
         {
             var copy = preserved.Clone().Node;
-            var anchor = preserved.FollowingProfileBodyType == null
-                ? preserved.FollowingElementName == null
-                    ? null
-                    : parent.Elements()
-                        .Where(element => element.Name.LocalName == preserved.FollowingElementName)
-                        .ElementAtOrDefault(preserved.FollowingElementOccurrence)
-                : parent.Elements().LastOrDefault(profile => profile.Elements()
+            XElement? anchor;
+            if (preserved.FollowingRetainedProfileOccurrence.HasValue)
+            {
+                anchor = parent.Elements()
+                    .Where(profile => profile.Name.LocalName == "ISO15745Profile")
+                    .ElementAtOrDefault(preserved.FollowingRetainedProfileOccurrence.Value);
+            }
+            else if (preserved.FollowingProfileBodyType != null)
+            {
+                anchor = parent.Elements().LastOrDefault(profile => profile.Elements()
                     .Where(body => body.Name.LocalName == "ProfileBody")
                     .Select(body => body.Attribute(XddNames.Xsi + "type")?.Value.Split(':').Last())
                     .FirstOrDefault() == preserved.FollowingProfileBodyType);
+            }
+            else
+            {
+                anchor = preserved.FollowingElementName == null
+                    ? null
+                    : parent.Elements()
+                        .Where(element => element.Name.LocalName == preserved.FollowingElementName)
+                        .ElementAtOrDefault(preserved.FollowingElementOccurrence);
+            }
             if (anchor == null)
                 parent.Add(copy);
             else

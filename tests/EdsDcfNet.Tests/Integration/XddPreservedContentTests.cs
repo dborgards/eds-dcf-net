@@ -647,7 +647,11 @@ public class XddPreservedContentTests
             duplicate.Elements().Single(body => body.Name.LocalName == "ProfileBody")
                 .SetAttributeValue("retained", "duplicate");
             selected.AddBeforeSelf(duplicate);
+            duplicate.AddBeforeSelf(new XComment("before retained device"));
             selected.AddBeforeSelf(new XComment("before selected device"));
+            var network = NetworkBody(doc).Parent!;
+            network.Remove();
+            doc.Root!.AddFirst(network);
         });
 
         var written = XDocument.Parse(CanOpenFile.Xdd.WriteToString(CanOpenFile.Xdd.ReadString(xml)));
@@ -661,8 +665,9 @@ public class XddPreservedContentTests
 
         selected.NodesBeforeSelf().OfType<XComment>().Should()
             .ContainSingle(comment => comment.Value == "before selected device");
-        retained.NodesBeforeSelf().OfType<XComment>().Should()
-            .NotContain(comment => comment.Value == "before selected device");
+        retained.NodesBeforeSelf().OfType<XComment>().Select(comment => comment.Value).Should()
+            .Contain("before retained device")
+            .And.NotContain("before selected device");
     }
 
     [Fact]
