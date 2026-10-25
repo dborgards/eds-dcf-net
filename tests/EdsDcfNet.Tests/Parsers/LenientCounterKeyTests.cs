@@ -311,6 +311,7 @@ public class LenientCounterKeyTests
     [InlineData("abc")]
     [InlineData("-1")]
     [InlineData("4294967296")]
+    [InlineData("$NODEID+1")]
     public void ReadString_MalformedToolsItems_ReportsAndKeepsToolSections(string items)
     {
         // Arrange
