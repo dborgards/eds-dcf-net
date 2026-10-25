@@ -10,30 +10,25 @@ using Xunit;
 
 public class CanOpenFileTests
 {
-    [Fact]
-    public void SyncReadMethods_AcceptOptionalMaxInputSize()
+    [Theory]
+    [InlineData(nameof(CanOpenFile.ReadEds))]
+    [InlineData(nameof(CanOpenFile.ReadDcf))]
+    [InlineData(nameof(CanOpenFile.ReadCpj))]
+    [InlineData(nameof(CanOpenFile.ReadXdd))]
+    [InlineData(nameof(CanOpenFile.ReadXdc))]
+    [InlineData(nameof(CanOpenFile.ReadEdsFromString))]
+    [InlineData(nameof(CanOpenFile.ReadDcfFromString))]
+    [InlineData(nameof(CanOpenFile.ReadCpjFromString))]
+    [InlineData(nameof(CanOpenFile.ReadXddFromString))]
+    [InlineData(nameof(CanOpenFile.ReadXdcFromString))]
+    public void SyncReadMethods_AcceptOptionalMaxInputSize(string methodName)
     {
         var signature = new[] { typeof(string), typeof(long) };
 
-        var readEds = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadEds), signature);
-        readEds.Should().NotBeNull();
-        readEds!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+        var method = typeof(CanOpenFile).GetMethod(methodName, signature);
 
-        var readDcf = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadDcf), signature);
-        readDcf.Should().NotBeNull();
-        readDcf!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
-
-        var readCpj = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadCpj), signature);
-        readCpj.Should().NotBeNull();
-        readCpj!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
-
-        var readXdd = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdd), signature);
-        readXdd.Should().NotBeNull();
-        readXdd!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
-
-        var readXdc = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdc), signature);
-        readXdc.Should().NotBeNull();
-        readXdc!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
+        method.Should().NotBeNull();
+        method!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
     }
 
     [Fact]
@@ -73,32 +68,6 @@ public class CanOpenFileTests
             if (File.Exists(tempFile))
                 File.Delete(tempFile);
         }
-    }
-
-    [Fact]
-    public void SyncReadFromStringMethods_AcceptOptionalMaxInputSize()
-    {
-        var signature = new[] { typeof(string), typeof(long) };
-
-        var readEds = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadEdsFromString), signature);
-        readEds.Should().NotBeNull();
-        readEds!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
-
-        var readDcf = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadDcfFromString), signature);
-        readDcf.Should().NotBeNull();
-        readDcf!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
-
-        var readCpj = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadCpjFromString), signature);
-        readCpj.Should().NotBeNull();
-        readCpj!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
-
-        var readXdd = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXddFromString), signature);
-        readXdd.Should().NotBeNull();
-        readXdd!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
-
-        var readXdc = typeof(CanOpenFile).GetMethod(nameof(CanOpenFile.ReadXdcFromString), signature);
-        readXdc.Should().NotBeNull();
-        readXdc!.GetParameters()[1].HasDefaultValue.Should().BeTrue();
     }
 
     [Fact]

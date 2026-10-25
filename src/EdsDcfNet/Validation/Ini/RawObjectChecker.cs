@@ -1,19 +1,21 @@
-namespace EdsDcfNet.Checker;
+namespace EdsDcfNet.Validation;
 
 using System.Globalization;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using EdsDcfNet.Exceptions;
 using EdsDcfNet.Utilities;
+using Finding = EdsDcfNet.Validation.IniValidationIssue;
+using Severity = EdsDcfNet.Validation.IniValidationSeverity;
+using static EdsDcfNet.Validation.CanOpenValidationRules;
 
 /// <summary>
 /// Checks the object dictionary of an EDS/DCF file on the raw INI level: object types,
 /// data types, value ranges, limits, <c>$NODEID</c> formulas, sub-index consistency,
 /// object lists and PDO mappings.
 /// </summary>
-public sealed class RawObjectChecker
+internal sealed class RawObjectChecker
 {
-    private const int MaxParameterNameLength = 241;
 
     // Any hex length that still fits in a ushort, including over-width leading zeros
     // ([00020] is 0x20; [10000] is not an index). ParseObject probes only the
@@ -45,17 +47,24 @@ public sealed class RawObjectChecker
     private readonly bool _isDcf;
     private readonly List<Finding> _findings;
     private readonly byte[] _nodeIds;
+    private readonly CancellationToken _cancellationToken;
 
     private readonly Dictionary<ushort, RawSection> _objects = new();
     private readonly Dictionary<ushort, SortedDictionary<byte, RawSection>> _subObjects = new();
     private readonly List<(ushort Index, byte SubIndex, RawSection Section)> _duplicateSubSections = new();
 
-    public RawObjectChecker(string file, RawIniDocument doc, bool isDcf, List<Finding> findings)
+    public RawObjectChecker(
+        string file,
+        RawIniDocument doc,
+        bool isDcf,
+        List<Finding> findings,
+        CancellationToken cancellationToken)
     {
         _file = file;
         _doc = doc;
         _isDcf = isDcf;
         _findings = findings;
+        _cancellationToken = cancellationToken;
         _nodeIds = ResolveNodeIds();
     }
 
@@ -70,11 +79,13 @@ public sealed class RawObjectChecker
 
         foreach (var (index, section) in _objects.OrderBy(o => o.Key))
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             CheckObject(index, section);
         }
 
         foreach (var (index, subIndex, section) in _duplicateSubSections)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             CheckObjectType(section);
             CheckParameterName(section);
             CheckEntryValues(section, index, subIndex);
@@ -82,10 +93,12 @@ public sealed class RawObjectChecker
 
         foreach (var (index, subs) in _subObjects.OrderBy(o => o.Key))
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (!_objects.ContainsKey(index))
             {
                 foreach (var sub in subs.Values)
                 {
+                    _cancellationToken.ThrowIfCancellationRequested();
                     Add(Severity.Error, "OBJ008", sub, null, null,
                         "Sub-index section without a parent object section [" + UnpaddedIndex(index) + "].");
                 }
@@ -137,6 +150,7 @@ public sealed class RawObjectChecker
     {
         foreach (var section in _doc.Sections.Values)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             var objectMatch = ObjectSectionPattern.Match(section.Name);
             if (objectMatch.Success &&
                 TryParseObjectIndex(objectMatch.Groups["index"].Value, out var index))
@@ -232,6 +246,7 @@ public sealed class RawObjectChecker
 
         foreach (var listName in ObjectListSections)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             var list = _doc.Get(listName);
             if (list is null)
             {
@@ -258,6 +273,7 @@ public sealed class RawObjectChecker
 
             foreach (var entry in list.Entries.Values)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 if (entry.Key.Equals("SupportedObjects", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -306,6 +322,7 @@ public sealed class RawObjectChecker
 
         foreach (var (index, section) in _objects)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (!listed.ContainsKey(index))
             {
                 Add(Severity.Error, "LST003", section, null, null,
@@ -313,8 +330,9 @@ public sealed class RawObjectChecker
             }
         }
 
-        foreach (ushort mandatory in new ushort[] { 0x1000, 0x1001, 0x1018 })
+        foreach (ushort mandatory in MandatoryObjectIndexes)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (!_objects.ContainsKey(mandatory))
             {
                 _findings.Add(new Finding(Severity.Error, "LST005", _file, null, Hex4(mandatory), null, null,
@@ -420,6 +438,7 @@ public sealed class RawObjectChecker
                 CheckSubIndexZero(index, subs, compactSubObj);
                 foreach (var (subIndex, subSection) in subs)
                 {
+                    _cancellationToken.ThrowIfCancellationRequested();
                     CheckObjectType(subSection);
                     CheckParameterName(subSection);
 
@@ -722,6 +741,7 @@ public sealed class RawObjectChecker
 
         foreach (var entry in valueSection.Entries.Values.OrderBy(e => e.Line))
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (!TryParseCompactListSubIndex(entry.Key, out var subIndex) ||
                 string.IsNullOrWhiteSpace(entry.Value))
             {
@@ -787,6 +807,7 @@ public sealed class RawObjectChecker
 
         foreach (var entry in valueSection.Entries.Values.OrderBy(e => e.Line))
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (!TryParseCompactListSubIndex(entry.Key, out var subIndex) ||
                 string.IsNullOrWhiteSpace(entry.Value))
             {
@@ -1134,6 +1155,7 @@ public sealed class RawObjectChecker
 
         foreach (var index in indexes)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             CheckPdoMapping(index);
         }
     }
@@ -1179,6 +1201,7 @@ public sealed class RawObjectChecker
         var totalBits = 0;
         foreach (var subIndex in slots)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (subIndex == 0 || subIndex > numberOfEntries)
             {
                 continue;
@@ -1588,6 +1611,7 @@ public sealed class RawObjectChecker
     {
         foreach (var section in _doc.Sections.Values)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (!TryMatchPaddedIndexSection(section.Name, out var suffix, out var label, out var index))
             {
                 continue;

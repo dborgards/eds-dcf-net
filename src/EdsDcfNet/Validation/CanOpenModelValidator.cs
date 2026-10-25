@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
+using static EdsDcfNet.Validation.CanOpenValidationRules;
 
 /// <summary>
 /// Validates CANopen models against common CiA 306 and CiA 311 constraints.
@@ -15,25 +16,6 @@ using EdsDcfNet.Utilities;
 /// </threadsafety>
 public static class CanOpenModelValidator
 {
-    private static readonly ushort[] AllowedBaudrateValues = { 10, 20, 50, 100, 125, 250, 500, 800, 1000 };
-
-    private static readonly HashSet<ushort> AllowedBaudrates = new(AllowedBaudrateValues);
-
-    private static readonly string AllowedBaudratesDescription = string.Join(
-        ", ",
-        AllowedBaudrateValues.Select(v => v.ToString(CultureInfo.InvariantCulture)));
-
-    private const int MaxParameterNameLength = 241;
-    private const int MaxNodeNameLength = 246;
-    private const int MaxNetworkNameLength = 243;
-    private const int MaxVendorNameLength = 244;
-    private const int MaxProductNameLength = 243;
-    private const int MaxOrderCodeLength = 245;
-    private const int MaxReferenceNameLength = 249;
-    private const byte MaxGranularity = 64;
-
-    /// <summary>Objects that CiA 306-1 Table 4 / CiA 301 require in every device description.</summary>
-    private static readonly ushort[] MandatoryObjectIndexes = { 0x1000, 0x1001, 0x1018 };
 
     /// <summary>
     /// Validates an <see cref="ElectronicDataSheet"/> instance.
