@@ -12,44 +12,22 @@ on:
 
 permissions:
   contents: write
-  issues: write
-  pull-requests: write
 
 concurrency:
-  # Release runs must not overlap. semantic-release pushes the tag and channel
-  # note before the publish plugins run, so a second run starting in that window
-  # sees a release that looks incomplete but is only in progress — and would
-  # launch a repair racing the publish it duplicates.
+  # Releases on the same channel must not overlap. semantic-release pushes the
+  # tag and channel note before publishing, so an overlapping run could mistake
+  # that in-progress release for an incomplete one and race its repair.
   #
-  # The group is repository-wide rather than per-ref on purpose. main and
-  # develop can act on the *same* tag: verify_last_release considers reachable
-  # stable tags on develop too, because semantic-release does, so a back-merge
-  # firing develop while main publishes that stable release would have both
-  # jobs repairing it at once.
-  #
-  # This trade is not free, and the cost falls on the more valuable side.
-  # cancel-in-progress: false protects the run that is *executing*, but Actions
-  # keeps only one *pending* run per group: a newly queued run cancels the
-  # pending one. Sharing a group across channels therefore lets a develop push
-  # cancel a queued main release, and nothing retries it — the commit is
-  # already on main, so no further push fires the workflow, and that release
-  # stays missing until the next one. Weigh that against the duplicated publish
-  # it prevents before narrowing or widening this group again.
-  #
-  # Only main and develop share the group. workflow_dispatch accepts any ref,
-  # and such a run publishes nothing — it plans no version and skips
-  # verification — but it would still join the queue and evict a pending
-  # production release on its way to doing nothing. Non-channel refs therefore
-  # get a group of their own.
+  # main and develop use separate groups: a develop push must not evict a pending
+  # main release (Actions retains only one pending run per group). The required
+  # main→develop back-merge happens only after the stable release has completed,
+  # so develop cannot concurrently repair the stable tag still being published.
   #
   # A release-commit push (chore(release): by semantic-release-bot) must not
-  # carry [skip ci]: that directive would also skip every develop→main
-  # pull_request workflow. The push therefore still starts this workflow, and
-  # the job `if:` below skips the release work. Concurrency is chosen when the
-  # run is queued, before that `if` runs. One pending run per group means the
-  # no-op would cancel a queued main or develop release, and nothing retries a
-  # commit already on the branch. Those pushes get semantic-release-noop-<sha>
-  # so they cannot evict, or be evicted by, a real release.
+  # carry [skip ci]: that would also skip every develop→main pull_request gate.
+  # Its push still queues this workflow before the job-level skip is evaluated.
+  # Give that no-op a per-SHA group so it cannot evict a real pending release.
+  # Non-channel workflow_dispatch refs likewise get their own groups.
   #
   # Queue rather than cancel: cancelling a run mid-publish is precisely how the
   # partial releases this pipeline repairs come about.
@@ -61,7 +39,7 @@ concurrency:
         github.event.head_commit.committer.name == 'semantic-release-bot') &&
       format('semantic-release-noop-{0}', github.sha) ||
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
-      'semantic-release-channels' ||
+      format('semantic-release-{0}', github.ref_name) ||
       format('semantic-release-{0}', github.ref)
     }}
   cancel-in-progress: false
@@ -94,9 +72,9 @@ jobs:
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '24.21.x'
+          node-version: '24.22.x'
 
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
@@ -156,7 +134,9 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ steps.coverage_gate.outputs.coverage_files }}
           disable_search: true
-          fail_ci_if_error: true
+          # The local coverage gate above is blocking. A Codecov service outage
+          # must not prevent an otherwise verified release from publishing.
+          fail_ci_if_error: false
 
       - name: Semantic Release
         env:

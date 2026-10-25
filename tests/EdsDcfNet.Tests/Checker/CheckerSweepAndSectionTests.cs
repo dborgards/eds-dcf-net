@@ -2,6 +2,7 @@ namespace EdsDcfNet.Tests.Checker;
 
 using AwesomeAssertions;
 using EdsDcfNet.Checker;
+using EdsDcfNet.Tests.Utilities;
 using Xunit;
 
 [CollectionDefinition("CheckerConsole", DisableParallelization = true)]
@@ -184,6 +185,34 @@ public class CheckerSweepAndSectionTests
     }
 
     [Fact]
+    public void CheckFile_ValidatedDcfWithHundredKbit_IsAcceptedByValidatorWriterAndChecker()
+    {
+        // Arrange — reference integration pattern for the validation-rule checklist:
+        // a value accepted by model validation must survive all downstream consumers.
+        var path = Path.Combine(Path.GetTempPath(), "edsdcf-check-" + Guid.NewGuid().ToString("N") + ".dcf");
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
+        dcf.DeviceCommissioning.Baudrate = 100;
+
+        try
+        {
+            // Act
+            var issues = CanOpenFile.Validate(dcf);
+            CanOpenFile.Dcf.WriteFile(dcf, path, CanOpenWriteOptions.Validated);
+            var findings = Program.CheckFile(path, runLibrary: true);
+
+            // Assert
+            issues.Should().BeEmpty();
+            findings.Should().NotContain(finding => finding.Code == "MND003");
+            findings.Should().NotContain(finding =>
+                finding.Severity == Severity.Error && finding.Section == "DeviceComissioning");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Parse_HashLineWithEquals_IsAKeyLikeInIniParser()
     {
         // Arrange — IniParser ignores '#' only when the line has no '='.
@@ -236,17 +265,8 @@ public class CheckerSweepAndSectionTests
 
     private static (RawIniDocument Document, List<Finding> Findings) Parse(string content)
     {
-        var path = Path.Combine(Path.GetTempPath(), "edsdcf-check-" + Guid.NewGuid().ToString("N") + ".eds");
-        File.WriteAllText(path, content);
-        try
-        {
-            var findings = new List<Finding>();
-            return (RawIniDocument.Parse(path, findings), findings);
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+        var findings = new List<Finding>();
+        return (RawIniDocument.Parse(new StringReader(content), "<test>", findings, CancellationToken.None), findings);
     }
 
     private static List<Finding> Check(string content, bool isDcf = false)

@@ -94,6 +94,14 @@ public static class ValidationIssueCodes
     public const string XddCommentLineNotRepresentable = "XDD_COMMENT_LINE_NOT_REPRESENTABLE";
 
     /// <summary>
+    /// A model value written to XDD/XDC is not lexically valid for its XSD type or enumeration.
+    /// Covers IDs and references, NMTOKEN values, language tags, URIs, dates, hexBinary values,
+    /// preserved unsignedLong text, and ApplicationProcess access/support/type enumerations.
+    /// Checked only on a validated XDD or XDC write.
+    /// </summary>
+    public const string XddLexicalValueInvalid = "XDD_LEXICAL_VALUE_INVALID";
+
+    /// <summary>
     /// EDS/DCF <c>ObjFlags</c> sets reserved bits 2..31. CiA 306-1 Table 8 defines only bit 0 (refuse
     /// write on download) and bit 1 (refuse read on scan). Checked only on a validated EDS or DCF write;
     /// a validated XDD or XDC write allows bit 2 (<see cref="XddObjFlagsReservedBits"/> reserves 3..31).

@@ -23,7 +23,7 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
 
     private XdcCanOpenOperations()
         : base(
-            (model, options) => CanOpenWriteGuard.EnsureValidForWrite(model, options, XmlWriteRules.Apply),
+            (model, options) => CanOpenWriteGuard.EnsureValidForXmlWrite(model, options, XmlWriteRules.Apply),
             (filePath, maxInputSize) => new XdcReader().ReadFile(filePath, maxInputSize),
             (filePath, maxInputSize, cancellationToken) =>
                 new XdcReader().ReadFileAsync(filePath, maxInputSize, cancellationToken),
@@ -38,7 +38,7 @@ public sealed class XdcCanOpenOperations : FormatCanOpenOperations<DeviceConfigu
             (xdc, stream, cancellationToken) =>
                 new XdcWriter().WriteStreamAsync(xdc, stream, cancellationToken),
             xdc => new XdcWriter().GenerateString(xdc),
-            (model, options, cancellationToken) => CanOpenWriteGuard.EnsureValidForWriteAsync(
+            (model, options, cancellationToken) => CanOpenWriteGuard.EnsureValidForXmlWriteAsync(
                 model,
                 options,
                 XmlWriteRules.Apply,

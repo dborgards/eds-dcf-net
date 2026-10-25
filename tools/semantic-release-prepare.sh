@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 
 next_version="${1:-}"
 if [[ -z "$next_version" ]]; then

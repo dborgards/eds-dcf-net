@@ -91,8 +91,19 @@ def split_top(text, separators):
     return [p.strip() for p in parts if p.strip()]
 
 
-def main(path):
-    text = open(path, encoding="utf-8").read()
+def plan_path(argument):
+    """Absolute path of the plan: a Markdown file inside the working directory."""
+    root = os.path.realpath(os.getcwd())
+    path = os.path.realpath(argument)
+    if os.path.commonpath([root, path]) != root or not path.endswith(".md"):
+        raise SystemExit("plan must be a Markdown file inside the working directory: " + argument)
+    return path
+
+
+def main(argument):
+    path = plan_path(argument)
+    with open(path, encoding="utf-8") as plan:
+        text = plan.read()
     tracked = tracked_files(path)
     tracked_set = set(tracked)
 

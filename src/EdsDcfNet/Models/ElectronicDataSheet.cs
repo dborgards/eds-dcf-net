@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Models;
+using System.Xml.Linq;
 using EdsDcfNet.Validation;
+using EdsDcfNet.Writers;
 
 /// <summary>
 /// Represents a complete Electronic Data Sheet (EDS) for a CANopen device.
@@ -50,20 +52,18 @@ public class ElectronicDataSheet : ICanOpenFileModel
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The writers emit these sections after the standard sections of the file, in the order in
-    /// which the reader found the sections and, within a section, its keys. The
+    /// The writers keep the reader order of these sections and their keys. A read section is
+    /// inserted before the next generated section from the source file; read sections at the end
+    /// and newly added sections follow the generated content. The
     /// <see cref="Dictionary{TKey,TValue}"/> enumeration order is not guaranteed, so the model
-    /// keeps the names the reader saw as separate, internal ordering information (a list of
-    /// names, not a change log; the dictionaries cannot report changes). Therefore:
+    /// keeps separate internal ordering and insertion information (not a change log; the
+    /// dictionaries cannot report changes). Therefore:
     /// </para>
     /// <list type="number">
     /// <item><description>Sections and keys that are present when writing and whose name the reader saw are written in reader order.</description></item>
-    /// <item><description>All other sections and keys follow, in the enumeration order of the dictionary (no further guarantee).</description></item>
-    /// <item><description>A removed section or key is skipped. One that is removed and added again under the same name is written at its reader position, not at the end, and cannot be told apart from an unchanged one.</description></item>
+    /// <item><description>New sections and keys follow in dictionary enumeration order; a new section follows the generated content.</description></item>
+    /// <item><description>A removed section or key is skipped. One that is removed and added again under the same name takes its reader position again and cannot be told apart from an unchanged one.</description></item>
     /// </list>
-    /// <para>
-    /// The original position of a section between standard sections is not kept.
-    /// </para>
     /// </remarks>
     public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; } =
         new(StringComparer.OrdinalIgnoreCase);
@@ -109,6 +109,71 @@ public class ElectronicDataSheet : ICanOpenFileModel
     /// <c>ApplicationProcess</c> element was present in the XDD/XDC file.
     /// </summary>
     public ApplicationProcess? ApplicationProcess { get; set; }
+
+    /// <summary>
+    /// Device monitoring and device-side module management from the XDD/XDC device profile.
+    /// Changes are included when writing XDD or XDC. Unknown XML details in the fragment survive.
+    /// </summary>
+    public XddDeviceManager? DeviceManager
+    {
+        get
+        {
+            var element = XddPreserved?.ElementsAt(XddPreservedContent.DeviceProfileBody)
+                .FirstOrDefault(item => item.Name == XddNames.Namespace + "DeviceManager");
+            return element == null ? null : new XddDeviceManager(element);
+        }
+        set
+        {
+            if (value != null) XddXml.QualifyRoot(value.Element, true);
+            PreservedForEditing().SetElement(XddPreservedContent.DeviceProfileBody,
+                XddNames.Namespace + "DeviceManager", value?.Element);
+        }
+    }
+
+    /// <summary>
+    /// Network-independent device functions. An empty collection retains the existing behavior:
+    /// the writer derives a minimal function from <see cref="Models.DeviceInfo.ProductName"/>.
+    /// Adding an explicit function replaces that derived default in the output.
+    /// </summary>
+    public ICollection<XddDeviceFunction> DeviceFunctions
+    {
+        get
+        {
+            return new XddModelCollection<XddDeviceFunction>(
+                () => XddPreserved?.ElementsAt(XddPreservedContent.DeviceProfileBody)
+                    .Where(item => item.Name == XddNames.Namespace + "DeviceFunction") ?? Enumerable.Empty<XElement>(),
+                element => new XddDeviceFunction(element),
+                item =>
+                {
+                    XddXml.QualifyRoot(item.Element, true);
+                    PreservedForEditing().AddElement(XddPreservedContent.DeviceProfileBody, item.Element);
+                },
+                item => XddPreserved?.ElementList(XddPreservedContent.DeviceProfileBody).Remove(item.Element) == true,
+                () => new XddDeviceFunction());
+        }
+    }
+
+    /// <summary>
+    /// Network-side module management and object-dictionary allocation. Changes are included
+    /// when writing XDD or XDC; unknown XML details in the fragment survive.
+    /// </summary>
+    public XddNetworkModuleManagement? NetworkModuleManagement
+    {
+        get
+        {
+            var element = XddPreserved?.ElementsAt(XddPreservedContent.ApplicationLayers)
+                .FirstOrDefault(item => item.Name == XNamespace.None + "moduleManagement");
+            return element == null ? null : new XddNetworkModuleManagement(element);
+        }
+        set
+        {
+            if (value != null) XddXml.QualifyRoot(value.Element, false);
+            PreservedForEditing().SetElement(XddPreservedContent.ApplicationLayers,
+                XNamespace.None + "moduleManagement", value?.Element);
+        }
+    }
+
+    private XddPreservedContent PreservedForEditing() => XddPreserved ??= new XddPreservedContent();
 
     /// <summary>
     /// XDD/XDC content the model does not represent, kept by the XDD/XDC reader for the XDD/XDC

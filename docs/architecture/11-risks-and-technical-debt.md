@@ -111,11 +111,11 @@
 | **Priority**     | Low.                                                                        |
 | **Status**       | Open.                                                                       |
 
-### TD-9: No Recorded Performance Baseline
+### TD-9: Performance Baseline Without Automated Regression Checks
 
 | Aspect           | Description                                                                 |
 |------------------|-----------------------------------------------------------------------------|
-| **Description**  | `benchmarks/EdsDcfNet.Benchmarks/BASELINE.md` defines the baseline scenarios, but its tracking table has no row: no baseline was measured yet. |
-| **Impact**       | Performance regressions cannot be compared against a reference.             |
+| **Description**  | `benchmarks/EdsDcfNet.Benchmarks/BASELINE.md` records an initial local baseline, but no scheduled CI job compares later runs against it. |
+| **Impact**       | Performance regression comparisons remain manual and require equivalent hardware and runtime conditions. |
 | **Priority**     | Low.                                                                        |
-| **Status**       | Partly resolved: the "capture pending" placeholder row was removed and the file now states that nothing is recorded (WP-36, #584). A measurement on an idle machine is still missing. |
+| **Status**       | Baseline resolved: measured values were recorded on 2026-10-24. An optional manual or scheduled CI hook remains possible, but must not turn machine-specific timings into unstable PR gates. |

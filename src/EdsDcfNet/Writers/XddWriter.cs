@@ -210,14 +210,26 @@ public class XddWriter
                 new XAttribute(XNamespace.Xmlns + XddNames.Prefix, XddNames.Namespace),
                 new XAttribute(XNamespace.Xmlns + "xsi", XddNames.Xsi));
 
+            // The reader selects the last profile of each kind. Write retained duplicates
+            // first so a repeated read still selects the generated, model-backed profile.
+            foreach (var profile in (eds.XddPreserved ?? new XddPreservedContent())
+                         .ElementsAt(XddPreservedContent.ProfileContainer))
+            {
+                container.Add(new XElement(profile));
+            }
+
             container.Add(WriteContext("DeviceProfile", () => BuildDeviceProfile(eds)));
             container.Add(WriteContext("CommunicationNetworkProfile", () => BuildCommNetProfile(eds, commissioning)));
+            var preserved = eds.XddPreserved ?? new XddPreservedContent();
+            XddPreservedContentWriter.MergeNonElementNodes(
+                container,
+                preserved.NonElementNodesAt(XddPreservedContent.ProfileContainer));
 
             var doc = new XDocument(new XDeclaration("1.0", null, null));
 
             // Comments of the source document (generator, copyright) come first, then the
             // comments that carry the model's Comments section.
-            foreach (var text in (eds.XddPreserved ?? new XddPreservedContent()).RootComments)
+            foreach (var text in preserved.RootComments)
                 doc.Add(new XComment(text));
 
             foreach (var comment in XddRootComments.Build(eds.Comments))
@@ -254,6 +266,9 @@ public class XddWriter
             identity,
             preserved.ElementsAt(XddPreservedContent.DeviceIdentity),
             XddPreservedContentWriter.DeviceIdentityOrder);
+        XddPreservedContentWriter.MergeNonElementNodes(
+            identity,
+            preserved.NonElementNodesAt(XddPreservedContent.DeviceIdentity));
         profileBody.Add(identity);
         profileBody.Add(XddNames.ElementOfType(XddNames.DeviceProfileBodyType, "DeviceManager"));
         profileBody.Add(XddProfileBuilder.BuildDefaultDeviceFunction(eds.DeviceInfo));
@@ -267,6 +282,9 @@ public class XddWriter
             XddPreservedContentWriter.DeviceProfileBodyOrder,
             "DeviceManager",
             "DeviceFunction");
+        XddPreservedContentWriter.MergeNonElementNodes(
+            profileBody,
+            preserved.NonElementNodesAt(XddPreservedContent.DeviceProfileBody));
 
         var profile = XddProfileBuilder.BuildProfile("Device", profileBody);
         XddPreservedContentWriter.MergeElements(
@@ -274,6 +292,9 @@ public class XddWriter
             preserved.ElementsAt(XddPreservedContent.DeviceProfile),
             XddPreservedContentWriter.ProfileOrder,
             "ProfileHeader");
+        XddPreservedContentWriter.MergeNonElementNodes(
+            profile,
+            preserved.NonElementNodesAt(XddPreservedContent.DeviceProfile));
         return profile;
     }
 
@@ -311,6 +332,9 @@ public class XddWriter
             profileBody,
             handleOnly ? keptBody : keptBody.Where(element => element.Name.LocalName != ExternalProfileHandleName),
             XddPreservedContentWriter.NetworkProfileBodyOrder);
+        XddPreservedContentWriter.MergeNonElementNodes(
+            profileBody,
+            preserved.NonElementNodesAt(XddPreservedContent.NetworkProfileBody));
 
         var profile = XddProfileBuilder.BuildProfile("CommunicationNetwork", profileBody);
         XddPreservedContentWriter.MergeElements(
@@ -318,6 +342,9 @@ public class XddWriter
             preserved.ElementsAt(XddPreservedContent.NetworkProfile),
             XddPreservedContentWriter.ProfileOrder,
             "ProfileHeader");
+        XddPreservedContentWriter.MergeNonElementNodes(
+            profile,
+            preserved.NonElementNodesAt(XddPreservedContent.NetworkProfile));
         return profile;
     }
 
@@ -336,6 +363,9 @@ public class XddWriter
             appLayers,
             preserved.ElementsAt(XddPreservedContent.ApplicationLayers),
             XddPreservedContentWriter.ApplicationLayersOrder);
+        XddPreservedContentWriter.MergeNonElementNodes(
+            appLayers,
+            preserved.NonElementNodesAt(XddPreservedContent.ApplicationLayers));
         profileBody.Add(appLayers);
         profileBody.Add(XddTransportLayersBuilder.Build(eds.DeviceInfo));
 
@@ -347,6 +377,9 @@ public class XddWriter
             preserved.ElementsAt(XddPreservedContent.NetworkManagement)
                 .Where(element => commissioning == null || element.Name.LocalName != "deviceCommissioning"),
             XddPreservedContentWriter.NetworkManagementOrder);
+        XddPreservedContentWriter.MergeNonElementNodes(
+            networkMgmt,
+            preserved.NonElementNodesAt(XddPreservedContent.NetworkManagement));
         profileBody.Add(networkMgmt);
     }
 
@@ -492,6 +525,12 @@ public class XddWriter
         AddStringUnlessSupplied(elem, "highLimit", subObject.HighLimit, projection, projection?.HasUnambiguousRange == true, projection?.HighLimit);
 
         elem.Add(new XAttribute("PDOmapping", ToXddPdoMappingAttribute(subObject.PdoMappingMode)));
+
+        if (subObject.ObjFlagsLexical != null && subObject.ObjFlags == subObject.ObjFlagsLexicalBaseline)
+            elem.Add(new XAttribute("objFlags", subObject.ObjFlagsLexical));
+        else if (subObject.ObjFlags > 0)
+            elem.Add(new XAttribute("objFlags", FormatObjFlags(subObject.ObjFlags)));
+
         AddUniqueIdRefAttribute(elem, subObject.UniqueIdRef, projection);
 
         AddCanOpenSubObjectXdcAttributes(elem, subObject);

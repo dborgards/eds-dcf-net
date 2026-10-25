@@ -41,6 +41,7 @@ public class DcfWriter : IniWriterBase
             "DCF",
             () =>
             {
+                TextFileIo.ThrowIfReadOnlyTarget(filePath);
                 var content = GenerateDcfContent(dcf);
                 TextFileIo.WriteOutputTextToFile(filePath, content);
             },
@@ -101,6 +102,7 @@ public class DcfWriter : IniWriterBase
             "DCF",
             async () =>
             {
+                TextFileIo.ThrowIfReadOnlyTarget(filePath);
                 var content = GenerateDcfContent(dcf);
                 await TextFileIo.WriteOutputTextToFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
             },
@@ -222,8 +224,8 @@ public class DcfWriter : IniWriterBase
     /// <inheritdoc/>
     /// <remarks>
     /// Also called with <paramref name="compactMax"/> <c>0</c> for an object without compact
-    /// storage: the reader applies <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c> to every object,
-    /// so a list section that only carries kept entries is written again.
+    /// storage: the reader applies <c>[xxxxValue]</c> / <c>[xxxxDenotation]</c> to objects with
+    /// sub-objects, so a list section that only carries kept entries is written again.
     /// </remarks>
     private protected override void WriteCompactValueAndDenotationSections(
         StringBuilder sb,
@@ -381,29 +383,14 @@ public class DcfWriter : IniWriterBase
         var sb = new StringBuilder();
         WriteGeneratedSections(sb, dcf);
 
-        // Collected before the first additional section is written, and only when there is one.
-        HashSet<string>? generatedHeaders = null;
-        foreach (var section in dcf.AdditionalSectionOrder.Sections(dcf.AdditionalSections))
-        {
-            generatedHeaders ??= GetGeneratedSectionHeaders(sb);
-            if (ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(section.Key, dcf.ObjectDictionary) ||
-                IsGeneratedSection(generatedHeaders, section.Key))
-            {
-                continue;
-            }
-
-            // The reader keeps the second of two commissioning spellings here. A stale copy of the
-            // generated name would duplicate the section: the generated one wins.
-            if (DeviceCommissioningSemantics.IsDiscardedAdditionalSection(section.Key, dcf.DeviceCommissioning))
-            {
-                continue;
-            }
-
-            WriteSection(
-                section.Key,
-                () => WriteAdditionalSection(
-                    sb, section.Key, dcf.AdditionalSectionOrder.Entries(section.Key, section.Value)));
-        }
+        WriteAdditionalSections(
+            sb,
+            dcf.AdditionalSections,
+            dcf.AdditionalSectionOrder,
+            WriteSection,
+            sectionName => ObjectLinksSectionHelper.IsObjectLinksSectionForExistingObject(
+                sectionName,
+                dcf.ObjectDictionary));
 
         return TextFileIo.ApplyOutputNewLine(sb.ToString());
     }

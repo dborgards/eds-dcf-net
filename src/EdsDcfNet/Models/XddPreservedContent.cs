@@ -9,17 +9,21 @@ using System.Xml.Linq;
 /// <remarks>
 /// <para>
 /// Elements are kept whole (with everything inside them, comments included) and keep the
-/// <see cref="XName"/> they had in the source. Only a source without any namespace (older
-/// outputs of this library) is qualified while reading, from the parent-based name table.
-/// Namespace declarations are not kept; the writer declares its own.
+/// <see cref="XName"/> they had in the source. Unqualified content below a namespace-less
+/// document element (older outputs of this library) is qualified while reading, from the
+/// parent-based name table. Namespace bindings needed by the fragment are retained.
 /// </para>
 /// <para>
 /// The content is internal: it is copied by <c>ModelCloner</c> and read by the XDD/XDC writers
-/// only. Comments and processing instructions between modelled elements are not kept.
+/// only. Comments and processing instructions between modelled elements keep an anchor at the
+/// following element; if that element disappears, they are appended instead of being dropped.
 /// </para>
 /// </remarks>
 internal sealed class XddPreservedContent
 {
+    /// <summary>Additional <c>ISO15745Profile</c> children of the profile container.</summary>
+    internal const string ProfileContainer = "ProfileContainer";
+
     /// <summary>Children of the device <c>ISO15745Profile</c> (its <c>ProfileHeader</c>).</summary>
     internal const string DeviceProfile = "DeviceProfile";
 
@@ -63,8 +67,25 @@ internal sealed class XddPreservedContent
     /// <summary>Kept elements per position key, in source order.</summary>
     internal Dictionary<string, List<XElement>> Elements { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>Comments and processing instructions per parent key, in source order.</summary>
+    internal Dictionary<string, List<XddPreservedNode>> NonElementNodes { get; } = new(StringComparer.Ordinal);
+
     /// <summary>Kept attributes per element key, in source order.</summary>
     internal Dictionary<string, List<XAttribute>> Attributes { get; } = new(StringComparer.Ordinal);
+
+    internal IReadOnlyList<XddPreservedNode> NonElementNodesAt(string key)
+        => NonElementNodes.TryGetValue(key, out var list) ? list : Array.Empty<XddPreservedNode>();
+
+    internal void AddNonElementNode(string key, XddPreservedNode node)
+    {
+        if (!NonElementNodes.TryGetValue(key, out var list))
+        {
+            list = new List<XddPreservedNode>();
+            NonElementNodes[key] = list;
+        }
+
+        list.Add(node);
+    }
 
     /// <summary>
     /// File attributes of the communication network <c>ProfileBody</c>, read like those of the device
@@ -90,13 +111,28 @@ internal sealed class XddPreservedContent
 
     internal void AddElement(string key, XElement element)
     {
+        var list = ElementList(key);
+        if (!list.Contains(element)) list.Add(element);
+    }
+
+    /// <summary>Mutable elements at <paramref name="key"/> for the typed XDD model views.</summary>
+    internal List<XElement> ElementList(string key)
+    {
         if (!Elements.TryGetValue(key, out var list))
         {
             list = new List<XElement>();
             Elements[key] = list;
         }
 
-        list.Add(element);
+        return list;
+    }
+
+    internal void SetElement(string key, XName name, XElement? element)
+    {
+        var list = ElementList(key);
+        list.RemoveAll(item => item.Name == name);
+        if (element != null)
+            list.Add(element);
     }
 
     internal void AddAttribute(string key, XAttribute attribute)
@@ -173,6 +209,8 @@ internal sealed class XddPreservedContent
         clone.RootComments.AddRange(RootComments);
         foreach (var entry in Elements)
             clone.Elements[entry.Key] = entry.Value.Select(element => new XElement(element)).ToList();
+        foreach (var entry in NonElementNodes)
+            clone.NonElementNodes[entry.Key] = entry.Value.Select(node => node.Clone()).ToList();
         foreach (var entry in Attributes)
             clone.Attributes[entry.Key] = CloneAttributes(entry.Value)!;
         if (NetworkFileInfo != null)

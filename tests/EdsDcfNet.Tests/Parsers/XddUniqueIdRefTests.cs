@@ -16,7 +16,7 @@ using Xunit;
 /// </summary>
 public class XddUniqueIdRefTests
 {
-    private const string IndirectMessage = "variableRef/templateIDRef";
+    private const string IndirectMessage = "Cannot resolve";
 
     private static readonly CanOpenFileOptions Strict = new() { StrictParsing = true };
 
@@ -114,7 +114,7 @@ public class XddUniqueIdRefTests
     }
 
     [Fact]
-    public void ReadString_VariableRef_LeavesDataTypeUnsetAndReportsDiagnosticInStrictMode()
+    public void ReadString_DanglingVariableRef_LeavesDataTypeUnsetAndReportsDiagnostic()
     {
         var parameter = @"<parameter uniqueID=""P1"" access=""read"">
             <label lang=""en"">Indirect</label>
@@ -125,26 +125,26 @@ public class XddUniqueIdRefTests
           </parameter>";
         var xml = BuildXdd(parameter, Object("2000", "Indirect", "7", "uniqueIDRef=\"P1\""));
 
-        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml, Strict);
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml);
         var obj = result.Model.ObjectDictionary.Objects[0x2000];
 
         obj.DataType.Should().BeNull();
         obj.AccessType.Should().Be(AccessType.ReadOnly);
         obj.UniqueIdRef.Should().Be("P1");
         result.Diagnostics.Should().ContainSingle(d =>
-            d.Code == ParseDiagnosticCodes.XddUniqueIdRefIndirect &&
+            d.Code == ParseDiagnosticCodes.XddUnresolvedIndirectUniqueIdRef &&
             d.RawValue == "variableRef" &&
             d.Message.Contains(IndirectMessage));
     }
 
     [Fact]
-    public void ReadString_TemplateIdRef_LeavesDefaultAndLimitsUnsetAndReportsDiagnosticInStrictMode()
+    public void ReadString_DanglingTemplateIdRef_LeavesDefaultAndLimitsUnsetAndReportsDiagnostic()
     {
         var xml = BuildXdd(
             Parameter("P1", "read", "<UDINT/>", templateIdRef: "TPL1"),
             Object("2000", "P", "7", "uniqueIDRef=\"P1\""));
 
-        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml, Strict);
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml);
         var obj = result.Model.ObjectDictionary.Objects[0x2000];
 
         obj.DataType.Should().Be(CanOpenDataType.Unsigned32);
@@ -152,7 +152,7 @@ public class XddUniqueIdRefTests
         obj.LowLimit.Should().BeNull();
         obj.HighLimit.Should().BeNull();
         result.Diagnostics.Should().ContainSingle(d =>
-            d.Code == ParseDiagnosticCodes.XddUniqueIdRefIndirect &&
+            d.Code == ParseDiagnosticCodes.XddUnresolvedIndirectUniqueIdRef &&
             d.RawValue == "templateIDRef" &&
             d.Message.Contains(IndirectMessage));
     }
@@ -703,12 +703,12 @@ public class XddUniqueIdRefTests
             + Object("2001", "B", "7", "uniqueIDRef=\"P_BARE\"")
             + Object("2002", "T", "7", "uniqueIDRef=\"P_TPL\""));
 
-        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml, Strict);
+        var result = CanOpenFile.Xdd.ReadStringWithDiagnostics(xml);
         result.Model.ObjectDictionary.Objects[0x2000].LowLimit.Should().BeNull();
         result.Model.ObjectDictionary.Objects[0x2000].HighLimit.Should().BeNull();
         result.Model.ObjectDictionary.Objects[0x2001].LowLimit.Should().BeNull();
         result.Diagnostics.Should().ContainSingle(d =>
-            d.Code == ParseDiagnosticCodes.XddUniqueIdRefIndirect &&
+            d.Code == ParseDiagnosticCodes.XddUnresolvedIndirectUniqueIdRef &&
             d.RawValue == "templateIDRef");
     }
 

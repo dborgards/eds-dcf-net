@@ -82,6 +82,28 @@ The merge method is enforced by the repository rulesets (see
   the PR is not blocked. There is deliberately no workflow-level
   `paths-ignore`: it would leave the required checks unreported.
 
+### Changed-lines coverage
+
+Use the shared Cobertura diff gate to check coverage of added source lines before
+opening a PR. Fetch the base ref, generate a fresh report, and pass its results
+directory to the script:
+
+```sh
+git fetch origin develop
+mkdir -p TestResults
+results="$(mktemp -d "TestResults/changed-lines.XXXXXX")"
+dotnet test tests/EdsDcfNet.Tests/EdsDcfNet.Tests.csproj \
+  --configuration Release --framework net10.0 \
+  --collect:"XPlat Code Coverage" --results-directory "$results"
+bash tools/changed-lines-coverage.sh "$results" origin/develop
+```
+
+The gate defaults to `src` and `COVERAGE_MIN_PERCENT=95.0`. Append paths to check
+another subtree, or set the environment variable for a different local threshold.
+It includes committed, staged, and unstaged changes since the merge base, merges
+multiple Cobertura reports by line, and ignores deleted or non-instrumentable
+lines. A changed line is covered when any report records at least one hit.
+
 ## Coding conventions
 
 Repository-wide formatting and baseline analyzer severities are defined in
@@ -176,6 +198,43 @@ Naming convention for boundary cases: suffix the scenario, e.g.
 | Validation modes | n/a | conversion path does not depend on write validation |
 | Representative fixtures | minimal EDS with `FileRevision = 255` | added |
 | API contract assertions | n/a | no public signature change |
+
+## Writer and validation-rule contracts
+
+### File-writer changes
+
+Every change to `TextFileIo`, `PlatformFileSupport`, symbolic-link resolution, or
+the public file-writing pipeline must update and satisfy the
+[file-write contract matrix](docs/file-write-contract.md). In particular, do not
+describe a `netstandard2.0` in-place fallback as atomic, and keep cancellation from
+interrupting the copy after a target has been truncated. Platform skips are not
+passing verification; use the documented repeatable steps when CI cannot establish
+the fixture.
+
+### Validation-rule checklist
+
+Complete this checklist for every new or changed validation rule. The PR template
+links here, and `ObjectListKeptEntriesValidationTests` plus
+`CheckerSweepAndSectionTests` provide the reference patterns.
+
+- [ ] **Supported model states:** test null, empty, missing, and partially populated
+      stores/objects that the public model permits. A null store means no entries;
+      it is not automatically a validation failure.
+- [ ] **Iteration boundaries and cancellation:** pass the public cancellation token
+      into every rule with a user-controlled loop. Check it at each user-controlled
+      iteration boundary, not only once before validation. Add direct boundary
+      coverage and a public `ValidateAsync` / `EnsureValidAsync` cancellation test.
+- [ ] **Modes and opt-in compatibility:** cover default, strict, and each affected
+      opt-in option. State explicitly whether `CanOpenWriteOptions.Validated`
+      changes; do not silently enable a new opt-in rule for existing validated writes.
+- [ ] **Downstream consumers:** identify and exercise every applicable writer,
+      EDS↔DCF / INI↔XML conversion path, example, and the bundled checker. Newly
+      accepted vocabulary or ranges must not make validated library output fail an
+      in-repository consumer.
+- [ ] **End-to-end contract:** for a representative newly accepted value, assert
+      that model validation accepts it, the validated writer emits it, and the
+      bundled checker reports no error for that value. Add focused checker and
+      writer tests when their rules are separate implementations.
 
 ## Real-world fixture corpus
 
@@ -446,6 +505,14 @@ Releases are fully automated via semantic-release:
 - **Stable release**: merge `develop` into `main` (open a PR from `develop` → `main`) → semantic-release publishes `X.Y.Z` to NuGet and creates a GitHub release.
 
 Maintainers decide when to promote `develop` → `main`.
+
+After the stable release workflow on `main` has **completed successfully**, merge `main`
+back into `develop` with a regular merge commit, not squash or rebase. This back-merge
+brings the generated `CHANGELOG.md` and package version forward and makes the stable tag
+reachable from `develop`. Waiting for completion is required: an earlier back-merge can
+make the develop verification inspect a stable release that is still being published.
+Do not open a new feature PR from the back-merge branch; merge it directly as release
+maintenance once its required checks pass.
 
 The release commit message is exactly `chore(release): <version>`
 (`.releaserc.json`). Generated notes go to `CHANGELOG.md` and the GitHub

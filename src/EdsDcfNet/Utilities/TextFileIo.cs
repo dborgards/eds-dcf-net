@@ -104,6 +104,10 @@ internal static class TextFileIo
     private static string ResolveWriteTarget(string filePath)
         => PlatformFileSupport.ResolveLinkTarget(Path.GetFullPath(filePath));
 
+    /// <summary>Rejects an existing read-only target before a public writer serializes content.</summary>
+    internal static void ThrowIfReadOnlyTarget(string filePath)
+        => PlatformFileSupport.ThrowIfReadOnlyTarget(ResolveWriteTarget(filePath));
+
     /// <summary>The platform-neutral commit sequence of <see cref="WriteFileAtomic"/>.</summary>
     private static void ReplaceThroughTempFile(string filePath, Action<Stream> write)
     {

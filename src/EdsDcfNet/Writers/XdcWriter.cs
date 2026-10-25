@@ -337,6 +337,7 @@ public class XdcWriter : XddWriter
         eds.Tools.AddRange(dcf.Tools);
         foreach (var kvp in dcf.AdditionalSections)
             eds.AdditionalSections[kvp.Key] = kvp.Value;
+        eds.AdditionalSectionOrder.CopyFrom(dcf.AdditionalSectionOrder);
 
         return eds;
     }

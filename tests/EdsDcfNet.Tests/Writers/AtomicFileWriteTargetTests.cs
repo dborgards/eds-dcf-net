@@ -1,6 +1,8 @@
 namespace EdsDcfNet.Tests.Writers;
 
 using System.Runtime.Versioning;
+using EdsDcfNet.Exceptions;
+using EdsDcfNet.Tests.Utilities;
 using EdsDcfNet.Utilities;
 
 /// <summary>
@@ -312,6 +314,84 @@ public sealed class AtomicFileWriteTargetTests : IDisposable
         // Assert
         File.GetUnixFileMode(target).Should().Be(OwnerOnly);
         new FileInfo(link).LinkTarget.Should().Be(target);
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    [Fact]
+    public void WriteFileAtomic_SymbolicLinkToReadOnlyTarget_RejectsAndKeepsLinkAndContent()
+    {
+        SkipOnWindows();
+
+        var target = PathOf("readonly.eds");
+        var link = PathOf("readonly-link.eds");
+        File.WriteAllText(target, "old");
+        const UnixFileMode readOnly = UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead;
+        File.SetUnixFileMode(target, readOnly);
+        CreateSymbolicLinkOrSkip(link, target);
+        try
+        {
+            var act = () => TextFileIo.WriteFileAtomic(link, s => s.Write(NewContent, 0, NewContent.Length));
+
+            act.Should().Throw<UnauthorizedAccessException>().WithMessage("*read-only*");
+            File.ReadAllText(target).Should().Be("old");
+            File.GetUnixFileMode(target).Should().Be(readOnly);
+            new FileInfo(link).LinkTarget.Should().Be(target);
+            Directory.EnumerateFileSystemEntries(_dir, ".edsdcf.*").Should().BeEmpty();
+        }
+        finally
+        {
+            File.SetUnixFileMode(target, readOnly | UnixFileMode.UserWrite);
+        }
+    }
+
+    [Theory]
+    [InlineData("EDS", false)]
+    [InlineData("EDS", true)]
+    [InlineData("DCF", false)]
+    [InlineData("DCF", true)]
+    [InlineData("CPJ", false)]
+    [InlineData("CPJ", true)]
+    public async Task PublicIniWriteFile_ReadOnlyTarget_RejectsBeforeSerialization(string format, bool asynchronous)
+    {
+        var target = PathOf($"readonly-{format}-{asynchronous}.ini");
+        File.WriteAllText(target, "old");
+        const UnixFileMode readOnly = UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead;
+        if (OperatingSystem.IsWindows())
+            File.SetAttributes(target, FileAttributes.ReadOnly);
+        else
+            File.SetUnixFileMode(target, readOnly);
+
+        var eds = ValidCanOpenModelBuilder.CreateValidEds();
+        eds.ObjectDictionary.Objects[0x1000].ParameterName = "invalid\nname";
+        var dcf = ValidCanOpenModelBuilder.CreateValidDcf();
+        dcf.ObjectDictionary.Objects[0x1000].ParameterName = "invalid\nname";
+        var cpj = ValidCanOpenModelBuilder.CreateValidCpj();
+        cpj.Networks.Add(null!);
+        Func<Task> act = (format, asynchronous) switch
+        {
+            ("EDS", false) => () => { CanOpenFile.Eds.WriteFile(eds, target); return Task.CompletedTask; },
+            ("EDS", true) => async () => await CanOpenFile.Eds.WriteFileAsync(eds, target),
+            ("DCF", false) => () => { CanOpenFile.Dcf.WriteFile(dcf, target); return Task.CompletedTask; },
+            ("DCF", true) => async () => await CanOpenFile.Dcf.WriteFileAsync(dcf, target),
+            ("CPJ", false) => () => { CanOpenFile.Cpj.WriteFile(cpj, target); return Task.CompletedTask; },
+            _ => async () => await CanOpenFile.Cpj.WriteFileAsync(cpj, target),
+        };
+
+        try
+        {
+            var exception = await act.Should().ThrowAsync<WriteException>();
+            exception.Which.InnerException.Should().BeOfType<UnauthorizedAccessException>()
+                .Which.Message.Should().Contain("read-only");
+            File.ReadAllText(target).Should().Be("old");
+            Directory.EnumerateFileSystemEntries(_dir, ".edsdcf.*").Should().BeEmpty();
+        }
+        finally
+        {
+            if (OperatingSystem.IsWindows())
+                File.SetAttributes(target, FileAttributes.Normal);
+            else
+                File.SetUnixFileMode(target, readOnly | UnixFileMode.UserWrite);
+        }
     }
 
     [UnsupportedOSPlatform("windows")]

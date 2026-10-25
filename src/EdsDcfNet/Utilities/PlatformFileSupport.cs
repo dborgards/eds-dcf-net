@@ -62,6 +62,7 @@ internal static class PlatformFileSupport
     /// </summary>
     internal static void Write(string filePath, Action<Stream> write, Action<string, Action<Stream>> replace)
     {
+        ThrowIfReadOnlyTarget(filePath);
 #if !NET10_0_OR_GREATER
         if (MustWriteInPlace(filePath))
         {
@@ -79,11 +80,29 @@ internal static class PlatformFileSupport
         Func<string, Func<Stream, Task>, CancellationToken, Task> replace,
         CancellationToken cancellationToken)
     {
+        ThrowIfReadOnlyTarget(filePath);
 #if !NET10_0_OR_GREATER
         if (MustWriteInPlace(filePath))
             return WriteInPlaceAsync(filePath, write, cancellationToken);
 #endif
         return replace(filePath, write, cancellationToken);
+    }
+
+    internal static void ThrowIfReadOnlyTarget(string filePath)
+    {
+        if (!File.Exists(filePath))
+            return;
+
+        var readOnly = (File.GetAttributes(filePath) & FileAttributes.ReadOnly) != 0;
+#if NET10_0_OR_GREATER
+        if (!OperatingSystem.IsWindows())
+        {
+            const UnixFileMode writeBits = UnixFileMode.UserWrite | UnixFileMode.GroupWrite | UnixFileMode.OtherWrite;
+            readOnly |= (File.GetUnixFileMode(filePath) & writeBits) == 0;
+        }
+#endif
+        if (readOnly)
+            throw new UnauthorizedAccessException("The target file is read-only: " + filePath);
     }
 
     /// <summary>
@@ -205,7 +224,11 @@ internal static class PlatformFileSupport
     /// <see cref="CancellationToken.None"/>: a cancellation can no longer leave the target empty
     /// or partially written.
     /// </summary>
-    private static async Task WriteInPlaceAsync(string filePath, Func<Stream, Task> write, CancellationToken cancellationToken)
+    private static async Task WriteInPlaceAsync(
+        string filePath,
+        Func<Stream, Task> write,
+        CancellationToken cancellationToken,
+        Action? afterTruncation = null)
     {
         using var buffer = new MemoryStream();
         await write(buffer).ConfigureAwait(false);
@@ -220,6 +243,7 @@ internal static class PlatformFileSupport
             FileShare.None,
             bufferSize: 4096,
             options: FileOptions.Asynchronous);
+        afterTruncation?.Invoke();
         buffer.Position = 0;
         await buffer.CopyToAsync(stream, 4096, CancellationToken.None).ConfigureAwait(false);
         await stream.FlushAsync(CancellationToken.None).ConfigureAwait(false);

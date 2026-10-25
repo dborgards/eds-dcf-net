@@ -836,6 +836,10 @@ internal static class CanOpenSectionParsers
             PdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "PDOMapping"),
             SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping"),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD"),
+            ObjFlags = LenientIniNumber.ParseObjFlags(
+                sections,
+                sectionName,
+                IniParser.GetValue(sections, sectionName, "ObjFlags", "0")),
             ParameterValue = IniParser.GetValue(sections, sectionName, "ParameterValue"),
             Denotation = IniParser.GetValue(sections, sectionName, "Denotation"),
             ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd")
@@ -1106,27 +1110,30 @@ internal static class CanOpenSectionParsers
     /// parsed tool section out of <c>AdditionalSections</c>.
     /// </summary>
     internal static bool IsParsedToolSection(Dictionary<string, Dictionary<string, string>> sections, string sectionName)
+        // ParseTools has already read Items (and reported a malformed value, read as 0).
+        => IsToolSectionWithinCount(sectionName, ToolCountOrZero(sections));
+
+    private static bool IsToolSectionWithinCount(string sectionName, uint items)
     {
         if (!sectionName.StartsWith("Tool", StringComparison.OrdinalIgnoreCase)
-            || !int.TryParse(sectionName[4..], NumberStyles.None, CultureInfo.InvariantCulture, out var number)
-            || number < 1)
+            || !uint.TryParse(sectionName[4..], NumberStyles.None, CultureInfo.InvariantCulture, out var number)
+            || number == 0)
         {
             return false;
         }
 
-        // ParseTools has already read Items (and reported a malformed value, read as 0).
-        return number <= ToolCountOrZero(sections)
+        return number <= items
                && string.Equals(sectionName, "Tool" + number.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary><c>[Tools] Items</c> as <see cref="ParseTools(Dictionary{string, Dictionary{string, string}}, Dictionary{string, OrderedStringDictionary})"/> uses it, without reporting: a malformed value is <c>0</c>.</summary>
-    private static byte ToolCountOrZero(Dictionary<string, Dictionary<string, string>> sections)
+    private static uint ToolCountOrZero(Dictionary<string, Dictionary<string, string>> sections)
     {
         try
         {
-            return ValueConverter.ParseByte(IniParser.GetValue(sections, "Tools", "Items", "0"));
+            return ValueConverter.ParseInteger(IniParser.GetValue(sections, "Tools", "Items", "0"));
         }
-        catch (EdsParseException)
+        catch (Exception ex) when (ex is EdsParseException or NotSupportedException)
         {
             return 0;
         }
@@ -1138,6 +1145,8 @@ internal static class CanOpenSectionParsers
     /// <summary>
     /// Parses <c>[Tools]</c> and <c>[Tool{n}]</c>. Unmapped <c>[Tools]</c> entries go to
     /// <paramref name="store"/>; unmapped <c>[Tool{n}]</c> entries go to the tool.
+    /// CiA 306-3 clause 7.2 defines X as a decimal counter from 1 through Items without
+    /// imposing an UNSIGNED8 limit. Enumerating present sections also keeps huge counts cheap.
     /// </summary>
     internal static List<ToolInfo> ParseTools(
         Dictionary<string, Dictionary<string, string>> sections,
@@ -1147,7 +1156,7 @@ internal static class CanOpenSectionParsers
 
         var tools = new List<ToolInfo>();
 
-        var items = LenientIniNumber.ParseByte(
+        var items = LenientIniNumber.ParseUInt32(
             sections,
             "Tools",
             "Items",
@@ -1157,12 +1166,13 @@ internal static class CanOpenSectionParsers
             coercedTo: "0",
             fallbackDescription: LenientIniNumber.TreatAsZero);
 
-        for (int i = 1; i <= items; i++)
+        var toolSections = sections.Keys
+            .Where(name => IsToolSectionWithinCount(name, items))
+            .OrderBy(name => uint.Parse(name[4..], NumberStyles.None, CultureInfo.InvariantCulture))
+            .ToArray();
+        for (var i = 0; i < toolSections.Length; i++)
         {
-            var toolSection = "Tool" + i.ToString(CultureInfo.InvariantCulture);
-            if (!IniParser.HasSection(sections, toolSection))
-                continue;
-
+            var toolSection = toolSections[i];
             var tool = new ToolInfo
             {
                 Name = IniParser.GetValue(sections, toolSection, "Name"),

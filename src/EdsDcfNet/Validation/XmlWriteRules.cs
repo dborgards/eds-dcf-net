@@ -33,12 +33,15 @@ internal static class XmlWriteRules
                 ApplyFileInfo(eds.FileInfo, issues);
                 ApplyComments(eds.Comments, issues);
                 ApplyDictionary(eds.ObjectDictionary, issues);
+                XmlLexicalRules.Apply(eds.ApplicationProcess, eds.ObjectDictionary, issues);
                 break;
             case DeviceConfigurationFile dcf:
                 ApplyFileInfo(dcf.FileInfo, issues);
                 ApplyComments(dcf.Comments, issues);
                 ApplyDictionary(dcf.ObjectDictionary, issues);
                 ApplyCommissioning(dcf.DeviceCommissioning, issues);
+                XmlLexicalRules.Apply(dcf.ApplicationProcess, dcf.ObjectDictionary, issues);
+                XmlLexicalRules.CheckPreservedNetworkNumber(dcf.DeviceCommissioning, issues);
                 break;
         }
     }
@@ -164,24 +167,41 @@ internal static class XmlWriteRules
 
     private static void ApplyObject(ushort index, CanOpenObject obj, List<ValidationIssue> issues)
     {
-        var path = string.Format(
-            CultureInfo.InvariantCulture,
-            "ObjectDictionary.Objects[0x{0:X4}].ObjFlags",
-            index);
+        var objectPath = string.Format(CultureInfo.InvariantCulture, "ObjectDictionary.Objects[0x{0:X4}]", index);
+        ApplyObjFlags(objectPath + ".ObjFlags", obj.ObjFlags, obj.ObjFlagsLexical, obj.ObjFlagsLexicalBaseline, issues);
 
-        if (obj.ObjFlagsLexical != null && obj.ObjFlags == obj.ObjFlagsLexicalBaseline)
+        foreach (var subEntry in obj.SubObjects)
+        {
+            var subPath = string.Format(
+                CultureInfo.InvariantCulture,
+                "{0}.SubObjects[0x{1:X2}].ObjFlags",
+                objectPath,
+                subEntry.Key);
+            var subObj = subEntry.Value;
+            ApplyObjFlags(subPath, subObj.ObjFlags, subObj.ObjFlagsLexical, subObj.ObjFlagsLexicalBaseline, issues);
+        }
+    }
+
+    private static void ApplyObjFlags(
+        string path,
+        uint flags,
+        string? lexical,
+        uint lexicalBaseline,
+        List<ValidationIssue> issues)
+    {
+        if (lexical != null && flags == lexicalBaseline)
         {
             issues.Add(new ValidationIssue(
                 path,
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "ObjFlags preserves hexBinary '{0}', which does not fit in 32 bits. CiA 311 reserves bits 3..31.",
-                    obj.ObjFlagsLexical),
+                    lexical),
                 ValidationIssueCodes.XddObjFlagsExceedsUInt32));
             return;
         }
 
-        if ((obj.ObjFlags & ~DefinedObjFlagsMask) == 0)
+        if ((flags & ~DefinedObjFlagsMask) == 0)
             return;
 
         issues.Add(new ValidationIssue(
@@ -189,7 +209,7 @@ internal static class XmlWriteRules
             string.Format(
                 CultureInfo.InvariantCulture,
                 "ObjFlags 0x{0:X} sets reserved bits 3..31. CiA 311 defines bits 0, 1, and 2; bits 3..31 are reserved.",
-                obj.ObjFlags),
+                flags),
             ValidationIssueCodes.XddObjFlagsReservedBits));
     }
 }

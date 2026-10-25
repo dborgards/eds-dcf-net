@@ -50,8 +50,8 @@ internal static class XddPreservedContentWriter
     /// Adds copies of <paramref name="kept"/> to <paramref name="parent"/> and orders all children
     /// by their position in <paramref name="order"/>; an element the schema does not list goes last,
     /// and elements of the same position keep their order. A kept element whose local name is in
-    /// <paramref name="replaces"/> replaces the generated children of that name (the writer only
-    /// generates them as a default).
+    /// <paramref name="replaces"/> replaces only a generated child with the same qualified name
+    /// (the writer only generates them as a default); foreign-namespace lookalikes stay preserved.
     /// </summary>
     internal static void MergeElements(XElement parent, IEnumerable<XElement> kept, string[] order, params string[] replaces)
     {
@@ -59,15 +59,52 @@ internal static class XddPreservedContentWriter
         if (copies.Count == 0)
             return;
 
-        var replaced = new HashSet<string>(
-            copies.Select(element => element.Name.LocalName).Where(name => replaces.Contains(name)),
-            StringComparer.Ordinal);
+        var replaced = new HashSet<XName>(
+            copies.Select(element => element.Name).Where(name => replaces.Contains(name.LocalName)));
         var children = parent.Elements()
-            .Where(element => !replaced.Contains(element.Name.LocalName))
+            .Where(element => !replaced.Contains(element.Name))
             .Concat(copies)
             .OrderBy(element => Rank(order, element.Name.LocalName))
             .ToList();
         parent.ReplaceNodes(children);
+    }
+
+    /// <summary>
+    /// Restores comments and processing instructions before their original following element.
+    /// A node whose anchor no longer exists is appended rather than dropped.
+    /// </summary>
+    internal static void MergeNonElementNodes(XElement parent, IEnumerable<XddPreservedNode> kept)
+    {
+        foreach (var preserved in kept)
+        {
+            var copy = preserved.Clone().Node;
+            XElement? anchor;
+            if (preserved.FollowingRetainedProfileOccurrence.HasValue)
+            {
+                anchor = parent.Elements()
+                    .Where(profile => profile.Name.LocalName == "ISO15745Profile")
+                    .ElementAtOrDefault(preserved.FollowingRetainedProfileOccurrence.Value);
+            }
+            else if (preserved.FollowingProfileBodyType != null)
+            {
+                anchor = parent.Elements().LastOrDefault(profile => profile.Elements()
+                    .Where(body => body.Name.LocalName == "ProfileBody")
+                    .Select(body => body.Attribute(XddNames.Xsi + "type")?.Value.Split(':').Last())
+                    .FirstOrDefault() == preserved.FollowingProfileBodyType);
+            }
+            else
+            {
+                anchor = preserved.FollowingElementName == null
+                    ? null
+                    : parent.Elements()
+                        .Where(element => element.Name.LocalName == preserved.FollowingElementName)
+                        .ElementAtOrDefault(preserved.FollowingElementOccurrence);
+            }
+            if (anchor == null)
+                parent.Add(copy);
+            else
+                anchor.AddBeforeSelf(copy);
+        }
     }
 
     /// <summary>
