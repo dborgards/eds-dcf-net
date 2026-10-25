@@ -833,22 +833,8 @@ CompactSubObj=" + compactSubObj.ToString(CultureInfo.InvariantCulture) + @"
 [2000Value]
 " + valueEntries + "\n";
 
-    private static List<Finding> Check(string content, bool isDcf = true)
-    {
-        var path = Path.Combine(
-            Path.GetTempPath(),
-            "edsdcf-check-" + Guid.NewGuid().ToString("N") + (isDcf ? ".dcf" : ".eds"));
-        File.WriteAllText(path, content);
-        try
-        {
-            var findings = new List<Finding>();
-            var document = RawIniDocument.Parse(path, findings);
-            new RawObjectChecker(path, document, isDcf, findings).Run();
-            return findings;
-        }
-        finally
-        {
-            File.Delete(path);
-        }
-    }
+    private static List<Finding> Check(string content, bool isDcf = true) =>
+        CanOpenIniValidator.ValidateString(
+            content,
+            isDcf ? CanOpenIniFormat.Dcf : CanOpenIniFormat.Eds).ToList();
 }
