@@ -45,12 +45,12 @@ public abstract class XddXmlModel
     private protected ICollection<T> List<T>(string? path, string? name, Func<XElement, T> wrap,
         Func<T> create, params string[] order) where T : XddXmlModel
     {
-        var parent = path == null ? Element : FindPath(path);
-        IEnumerable<XElement> Items() => parent?.Elements().Where(e => name == null
+        XElement? Parent() => path == null ? Element : FindPath(path);
+        IEnumerable<XElement> Items() => Parent()?.Elements().Where(e => name == null
             ? XddXml.IsText(e.Name.LocalName) : e.Name.LocalName == name) ?? Enumerable.Empty<XElement>();
         return new XddModelCollection<T>(() => Items(), wrap, item =>
         {
-            parent ??= EnsurePath(path!);
+            var parent = Parent() ?? EnsurePath(path!);
             XddXml.Add(parent, item.Element, order);
         }, item =>
         {
@@ -77,12 +77,12 @@ public abstract class XddXmlModel
 
     private protected ICollection<string> StringList(string? path, string childName, string attribute)
     {
-        var parent = path == null ? Element : FindPath(path);
+        XElement? Parent() => path == null ? Element : FindPath(path);
         return new XddStringCollection(
-            () => parent?.Elements().Where(e => e.Name.LocalName == childName) ?? Enumerable.Empty<XElement>(),
+            () => Parent()?.Elements().Where(e => e.Name.LocalName == childName) ?? Enumerable.Empty<XElement>(),
             value =>
             {
-                parent ??= EnsurePath(path!);
+                var parent = Parent() ?? EnsurePath(path!);
                 var child = XddXml.Create(childName);
                 child.SetAttributeValue(attribute, value);
                 XddXml.Add(parent, child);
@@ -174,6 +174,7 @@ internal static class XddXml
 
     internal static void Add(XElement parent, XElement child, params string[] order)
     {
+        if (child.Parent != null) child.Remove();
         Adopt(parent, child);
         var rank = Rank(order.Length == 0 ? DefaultOrder(parent.Name.LocalName) : order, child.Name.LocalName);
         var following = parent.Elements().FirstOrDefault(e => Rank(order.Length == 0 ? DefaultOrder(parent.Name.LocalName) : order, e.Name.LocalName) > rank);
@@ -202,6 +203,9 @@ internal static class XddXml
         "characteristicsList" => new[] { "category", "characteristic" },
         "characteristic" => new[] { "characteristicName", "characteristicContent" },
         "interface" => new[] { "label", "description", "labelRef", "descriptionRef", "fileList", "rangeList", "moduleTypeList", "connectedModuleList" },
+        "LED" => new[] { "label", "description", "labelRef", "descriptionRef", "LEDstate" },
+        "LEDstate" or "picture" or "compliantWith" => new[] { "label", "description", "labelRef", "descriptionRef" },
+        "combinedState" => new[] { "label", "description", "labelRef", "descriptionRef", "LEDstateRef" },
         "moduleManagement" => new[] { "moduleInterfaceList", "interfaceList", "moduleInterface" },
         _ => Array.Empty<string>()
     };

@@ -1,4 +1,5 @@
 namespace EdsDcfNet.Models;
+using System.Xml.Linq;
 using EdsDcfNet.Validation;
 
 /// <summary>
@@ -138,18 +139,16 @@ public class ElectronicDataSheet : ICanOpenFileModel
     {
         get
         {
-            var content = XddPreserved ?? new XddPreservedContent();
             return new XddModelCollection<XddDeviceFunction>(
-                () => content.ElementsAt(XddPreservedContent.DeviceProfileBody)
-                    .Where(item => item.Name.LocalName == "DeviceFunction"),
+                () => XddPreserved?.ElementsAt(XddPreservedContent.DeviceProfileBody)
+                    .Where(item => item.Name.LocalName == "DeviceFunction") ?? Enumerable.Empty<XElement>(),
                 element => new XddDeviceFunction(element),
                 item =>
                 {
-                    XddPreserved ??= content;
                     XddXml.QualifyRoot(item.Element, true);
-                    content.AddElement(XddPreservedContent.DeviceProfileBody, item.Element);
+                    PreservedForEditing().AddElement(XddPreservedContent.DeviceProfileBody, item.Element);
                 },
-                item => content.ElementList(XddPreservedContent.DeviceProfileBody).Remove(item.Element),
+                item => XddPreserved?.ElementList(XddPreservedContent.DeviceProfileBody).Remove(item.Element) == true,
                 () => new XddDeviceFunction());
         }
     }

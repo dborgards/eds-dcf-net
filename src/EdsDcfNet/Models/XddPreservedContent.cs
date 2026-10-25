@@ -111,7 +111,7 @@ internal sealed class XddPreservedContent
         var list = ElementList(key);
         list.RemoveAll(item => item.Name.LocalName == localName);
         if (element != null)
-            list.Add(new XElement(element));
+            list.Add(element);
     }
 
     internal void AddAttribute(string key, XAttribute attribute)

@@ -313,7 +313,7 @@ public class XddTypedProfileApiTests
     [Fact]
     public void Defaults_InvalidValuesAndEnumErrors_AreDeterministic()
     {
-        var led = new XddLed();
+        var led = new XddLed { Colors = XddLedColors.Monocolor };
         led.Colors.Should().Be(XddLedColors.Monocolor);
         led.Type.Should().BeNull();
         var state = new XddLedState();
@@ -389,5 +389,138 @@ public class XddTypedProfileApiTests
         manager.Elements().Select(element => element.Name.LocalName).Should()
             .Equal("moduleManagement", "extension");
         manager.Elements().Last().Name.NamespaceName.Should().Be("urn:vendor");
+    }
+
+    [Fact]
+    public void AssignedProfileModels_RemainConnectedToEdsAndDcf()
+    {
+        var eds = CanOpenFile.Xdd.ReadFile(Fixture);
+        var manager = new XddDeviceManager();
+        var network = new XddNetworkModuleManagement();
+        eds.DeviceManager = manager;
+        eds.NetworkModuleManagement = network;
+
+        var led = new XddLed { Colors = XddLedColors.Monocolor };
+        led.Texts.Add("Run LED", "en");
+        led.States.Add(new XddLedState { Id = "run", State = XddLedVisualState.On, Color = XddLedColor.Green });
+        led.States.Single().Texts.Add("Running", "en");
+        manager.Indicators.Add(led);
+        network.Module = new XddNetworkModuleReference { ChildReference = "child1", MinimumAddress = 2 };
+
+        eds.DeviceManager!.Indicators.Single().States.Single().Id.Should().Be("run");
+        eds.NetworkModuleManagement!.Module!.ChildReference.Should().Be("child1");
+        Cia311Schema.Validate(CanOpenFile.Xdd.WriteToString(eds)).Should().BeEmpty();
+
+        var dcf = CanOpenFile.Eds.ConvertToDcf(eds, 3);
+        var dcfManager = new XddDeviceManager();
+        var dcfNetwork = new XddNetworkModuleManagement();
+        dcf.DeviceManager = dcfManager;
+        dcf.NetworkModuleManagement = dcfNetwork;
+        var dcfLed = new XddLed { Colors = XddLedColors.Monocolor };
+        dcfLed.Texts.Add("Status LED", "en");
+        dcfLed.States.Add(new XddLedState { Id = "status", State = XddLedVisualState.On, Color = XddLedColor.Green });
+        dcfLed.States.Single().Texts.Add("Active", "en");
+        dcfManager.Indicators.Add(dcfLed);
+        dcfNetwork.Module = new XddNetworkModuleReference { ChildReference = "child2", MinimumAddress = 2 };
+
+        dcf.DeviceManager!.Indicators.Should().ContainSingle();
+        dcf.NetworkModuleManagement!.Module!.ChildReference.Should().Be("child2");
+        Cia311Schema.Validate(CanOpenFile.Xdc.WriteToString(dcf)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RetainedDeviceFunctions_UseCurrentPreservedContent()
+    {
+        var eds = new ElectronicDataSheet();
+        var edsFunctions = eds.DeviceFunctions;
+        eds.DeviceManager = new XddDeviceManager();
+        eds.DeviceFunctions.Count.Should().Be(0);
+        var edsFunction = new XddDeviceFunction();
+        edsFunctions.Add(edsFunction);
+        edsFunction.CharacteristicsLists.Single().Characteristics.Single().Name.Add("Current", "en");
+
+        eds.DeviceFunctions.Single().CharacteristicsLists.Single().Characteristics.Single()
+            .Name.Items.Single().Value.Should().Be("Current");
+
+        var dcf = new DeviceConfigurationFile();
+        var dcfFunctions = dcf.DeviceFunctions;
+        dcf.NetworkModuleManagement = new XddNetworkModuleManagement();
+        dcf.DeviceFunctions.Count.Should().Be(0);
+        dcfFunctions.Add(new XddDeviceFunction());
+
+        dcf.DeviceFunctions.Should().ContainSingle();
+        dcfFunctions.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void RetainedCollections_ResolveTheirCurrentParentsForEveryOperation()
+    {
+        var eds = CanOpenFile.Xdd.ReadFile(Fixture);
+        var manager = eds.DeviceManager!;
+        var indicators = manager.Indicators;
+        var led = new XddLed { Colors = XddLedColors.Monocolor };
+        led.Texts.Add("Run LED", "en");
+        led.States.Add(new XddLedState { Id = "run", State = XddLedVisualState.On, Color = XddLedColor.Green });
+        led.States.Single().Texts.Add("Running", "en");
+        manager.Indicators.Add(led);
+        indicators.Should().ContainSingle();
+
+        var modules = manager.ModuleManagement!;
+        var interfaces = modules.Interfaces;
+        modules.Module = new XddDeviceModuleReference { ChildId = "single" };
+        interfaces.Add(new XddDeviceModuleInterface
+        {
+            Id = "if_new", SearchPath = "modules/", MaxChildren = 1,
+            UnusedSlots = false, MultipleChildren = true
+        });
+        interfaces.Single().Texts.Add("New interface", "en");
+        interfaces.Single().ModuleTypes.Add("mt_io");
+
+        interfaces.Should().ContainSingle();
+        modules.Interfaces.Single().Id.Should().Be("if_new");
+        modules.Module.Should().BeNull();
+        eds.NetworkModuleManagement!.Interfaces.Single().InterfaceReference = "if_new";
+
+        var combined = new XddCombinedState();
+        combined.Texts.Add("Combined", "en");
+        var references = combined.StateReferences;
+        combined.StateReferences.Add("run");
+        combined.StateReferences.Add("run");
+        references.Should().Equal("run", "run");
+        manager.CombinedStates.Add(combined);
+        Cia311Schema.Validate(CanOpenFile.Xdd.WriteToString(eds)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TextAddedAfterChildren_PreservesSchemaOrderForAllTextBearingModels()
+    {
+        var eds = CanOpenFile.Xdd.ReadFile(Fixture);
+        var led = new XddLed { Colors = XddLedColors.Monocolor };
+        var state = new XddLedState { Id = "run", State = XddLedVisualState.On, Color = XddLedColor.Green };
+        led.States.Add(state);
+        led.Texts.Add("Run LED", "en");
+        state.Texts.Add("Running", "en");
+        eds.DeviceManager!.Indicators.Add(led);
+
+        var combined = new XddCombinedState();
+        combined.StateReferences.Add("run");
+        combined.StateReferences.Add("run");
+        combined.Texts.Add("Combined", "en");
+        eds.DeviceManager.CombinedStates.Add(combined);
+
+        var picture = new XddPicture { Uri = "run.png" };
+        eds.DeviceFunctions.Single().Pictures.Add(picture);
+        picture.Texts.Add("Picture", "en");
+        var standard = new XddStandardCompliance { Name = "CiA 311" };
+        eds.DeviceFunctions.Single().Standards.Add(standard);
+        standard.Texts.Add("Standard", "en");
+
+        var written = CanOpenFile.Xdd.WriteToString(eds);
+        Cia311Schema.Validate(written).Should().BeEmpty(written);
+        var xml = XDocument.Parse(written);
+        xml.Descendants(Co + "LED").Single().Elements().Select(element => element.Name.LocalName)
+            .Should().Equal("label", "LEDstate");
+        xml.Descendants(Co + "combinedState").Single().Elements().Select(element => element.Name.LocalName)
+            .Should().Equal("label", "LEDstateRef", "LEDstateRef");
     }
 }
