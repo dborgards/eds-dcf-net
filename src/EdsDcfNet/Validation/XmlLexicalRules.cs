@@ -9,6 +9,8 @@ using EdsDcfNet.Parsers;
 /// <summary>Lexical XSD checks for model values emitted by the XDD/XDC writers.</summary>
 internal static class XmlLexicalRules
 {
+    private static readonly char[] XmlWhitespace = { ' ', '\t', '\r', '\n' };
+
     private static readonly HashSet<string> AccessValues = new(StringComparer.Ordinal)
     {
         "const", "read", "write", "readWrite", "readWriteInput", "readWriteOutput", "noAccess",
@@ -341,7 +343,7 @@ internal static class XmlLexicalRules
     {
         if (string.IsNullOrEmpty(value))
             return;
-        var tokens = value!.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        var tokens = value!.Split(XmlWhitespace, StringSplitOptions.RemoveEmptyEntries);
         if (tokens.Length == 0)
         {
             AddIssue(path, value, "xsd:NMTOKENS", issues);
@@ -366,7 +368,7 @@ internal static class XmlLexicalRules
             return;
         var comparison = ReferenceEquals(allowed, SimpleTypeNames)
             ? value
-            : string.Join(" ", value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+            : string.Join(" ", value.Split(XmlWhitespace, StringSplitOptions.RemoveEmptyEntries));
         if (!allowed.Contains(comparison))
             AddIssue(path, value, "one of " + string.Join(", ", allowed), issues);
     }

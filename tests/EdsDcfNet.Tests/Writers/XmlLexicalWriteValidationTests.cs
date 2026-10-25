@@ -172,6 +172,22 @@ public class XmlLexicalWriteValidationTests
     }
 
     [Fact]
+    public void ValidatedWrite_NonXmlUnicodeWhitespaceInTokenValues_IsReported()
+    {
+        var eds = ValidEds();
+        eds.ApplicationProcess = CompleteApplicationProcess();
+        var parameter = eds.ApplicationProcess.ParameterList[0];
+        parameter.Access = "\u00A0read\u00A0";
+        parameter.AccessList = "read\u00A0write";
+
+        var paths = Validate(eds).Where(issue => issue.Code == ValidationIssueCodes.XddLexicalValueInvalid)
+            .Select(issue => issue.Path);
+
+        paths.Should().Contain("ApplicationProcess.ParameterList[0].Access");
+        paths.Should().Contain("ApplicationProcess.ParameterList[0].AccessList");
+    }
+
+    [Fact]
     public void ValidatedWrite_OptionalEmptyValuesOmittedByWriter_AreAccepted()
     {
         var eds = ValidEds();
