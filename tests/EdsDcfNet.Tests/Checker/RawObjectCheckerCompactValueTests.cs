@@ -775,6 +775,45 @@ CompactSubObj=2
         findings.Should().NotContain(f => f.Code == "VAL008");
     }
 
+    [Fact]
+    public void Check_CompactPdoMappingValue_IsResolvedFromValueSection()
+    {
+        // Arrange — [1A00Value] overrides the compact template. Key 1 maps the
+        // missing object 0x3000; NrOfEntries and the hex-looking key are skipped.
+        const string content = DeviceInfo + @"
+[DeviceComissioning]
+NodeID=1
+
+[MandatoryObjects]
+SupportedObjects=1
+1=0x1A00
+
+[1A00]
+ParameterName=TPDO1 mapping
+ObjectType=0x8
+DataType=0x0007
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+CompactSubObj=2
+
+[1A00Value]
+NrOfEntries=1
+0x2=0x20000108
+1=0x30000020
+";
+
+        // Act
+        var findings = Check(content);
+
+        // Assert
+        findings.Should().Contain(f =>
+            f.Code == "PDO001" &&
+            f.Section == "1A00Value" &&
+            f.Key == "1");
+        findings.Should().NotContain(f => f.Code == "PDO001" && f.Key != "1");
+    }
+
     private static string ExpandedDcf(bool compactSubObjZero, string valueEntries, bool includeSub1 = true)
     {
         var subNumber = includeSub1 ? 2 : 1;

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using EdsDcfNet.Exceptions;
+using EdsDcfNet.Models;
 using EdsDcfNet.Utilities;
 using Finding = EdsDcfNet.Validation.IniValidationIssue;
 using Severity = EdsDcfNet.Validation.IniValidationSeverity;
@@ -742,7 +743,7 @@ internal sealed class RawObjectChecker
         foreach (var entry in valueSection.Entries.Values.OrderBy(e => e.Line))
         {
             _cancellationToken.ThrowIfCancellationRequested();
-            if (!TryParseCompactListSubIndex(entry.Key, out var subIndex) ||
+            if (!SectionEntryKeys.TryParseCompactListSubIndex(entry.Key, out var subIndex) ||
                 string.IsNullOrWhiteSpace(entry.Value))
             {
                 continue;
@@ -808,7 +809,7 @@ internal sealed class RawObjectChecker
         foreach (var entry in valueSection.Entries.Values.OrderBy(e => e.Line))
         {
             _cancellationToken.ThrowIfCancellationRequested();
-            if (!TryParseCompactListSubIndex(entry.Key, out var subIndex) ||
+            if (!SectionEntryKeys.TryParseCompactListSubIndex(entry.Key, out var subIndex) ||
                 string.IsNullOrWhiteSpace(entry.Value))
             {
                 continue;
@@ -1289,7 +1290,7 @@ internal sealed class RawObjectChecker
             {
                 foreach (var candidate in valueSection.Entries.Values)
                 {
-                    if (!TryParseCompactListSubIndex(candidate.Key, out var keySub) || keySub != subIndex ||
+                    if (!SectionEntryKeys.TryParseCompactListSubIndex(candidate.Key, out var keySub) || keySub != subIndex ||
                         string.IsNullOrWhiteSpace(candidate.Value))
                     {
                         continue;
@@ -1496,15 +1497,6 @@ internal sealed class RawObjectChecker
     private static bool? ParseFlag(string? value) =>
         value is not null && TryParseInt(value, out var flag) && flag is 0 or 1 ? flag == 1 : null;
 
-    /// <summary>
-    /// Parses a compact-list key as a decimal sub-index in the CiA 306 range 1..254.
-    /// Matches the reader: <c>NrOfEntries</c>, hex keys, and sub-index 0xFF are ignored.
-    /// </summary>
-    private static bool TryParseCompactListSubIndex(string key, out byte subIndex) =>
-        byte.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out subIndex)
-        && subIndex >= 1
-        && subIndex <= 254;
-
     private static bool TryParseInt(string value, out int result)
     {
         try
@@ -1656,7 +1648,7 @@ internal sealed class RawObjectChecker
             // Name and ObjectLinks without a parent stay in AdditionalSections.
             // Value and Denotation do not: IsKnownSection drops them with no [40].
             var requiresParent = candidate.Suffix is "Name" or "ObjectLinks";
-            if (!IsHexDigits(prefix) ||
+            if (!HexDigits.IsHexDigitsOnly(prefix) ||
                 !TryParseObjectIndex(prefix, out index) ||
                 (requiresParent && !_objects.ContainsKey(index)) ||
                 IsUnpaddedHex(prefix, index))
@@ -1670,27 +1662,6 @@ internal sealed class RawObjectChecker
         }
 
         return false;
-    }
-
-    private static bool IsHexDigits(string value)
-    {
-        if (value.Length == 0)
-        {
-            return false;
-        }
-
-        foreach (var c in value)
-        {
-            var isHexDigit = (c >= '0' && c <= '9') ||
-                             (c >= 'a' && c <= 'f') ||
-                             (c >= 'A' && c <= 'F');
-            if (!isHexDigit)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private static string UnpaddedIndex(ushort index) => index.ToString("X", CultureInfo.InvariantCulture);

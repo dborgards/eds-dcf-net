@@ -873,7 +873,7 @@ internal static class CanOpenSectionParsers
 
         var rest = suffix[6..];
         return rest.Length > 0 &&
-               IsHexDigitsOnly(rest) &&
+               HexDigits.IsHexDigitsOnly(rest) &&
                ushort.TryParse(rest, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index);
     }
 
@@ -970,7 +970,7 @@ internal static class CanOpenSectionParsers
         if (subPos < 0)
         {
             return rest.Length > 0 &&
-                   IsHexDigitsOnly(rest) &&
+                   HexDigits.IsHexDigitsOnly(rest) &&
                    ushort.TryParse(rest, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index);
         }
 
@@ -979,8 +979,8 @@ internal static class CanOpenSectionParsers
 
         var indexPart = rest[..subPos];
         var subPart = rest[(subPos + 3)..];
-        if (!IsHexDigitsOnly(indexPart) ||
-            !IsHexDigitsOnly(subPart) ||
+        if (!HexDigits.IsHexDigitsOnly(indexPart) ||
+            !HexDigits.IsHexDigitsOnly(subPart) ||
             !ushort.TryParse(indexPart, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index) ||
             !byte.TryParse(subPart, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out subIndex))
         {
@@ -1021,23 +1021,6 @@ internal static class CanOpenSectionParsers
         }
 
         suffix = sectionName[i..];
-        return true;
-    }
-
-    private static bool IsHexDigitsOnly(string value)
-    {
-        if (value.Length == 0)
-            return false;
-
-        foreach (var c in value)
-        {
-            var isHexDigit = (c >= '0' && c <= '9') ||
-                             (c >= 'a' && c <= 'f') ||
-                             (c >= 'A' && c <= 'F');
-            if (!isHexDigit)
-                return false;
-        }
-
         return true;
     }
 
