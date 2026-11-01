@@ -1,8 +1,7 @@
 namespace EdsDcfNet.Checker;
 
 using System.Globalization;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Text;
 using EdsDcfNet.Validation;
 using Finding = EdsDcfNet.Validation.IniValidationIssue;
 using Severity = EdsDcfNet.Validation.IniValidationSeverity;
@@ -24,15 +23,21 @@ public static class Program
 
         Usage:
           edsdcf-check [options] <file|directory>...
+          edsdcf-check --list-rules [--format text|json]
 
         Directories are searched recursively for *.eds and *.dcf files.
 
         Options:
-          --json                 Print findings as JSON instead of text.
-          -q, --quiet            Only print errors (hide warnings).
-          --warnings-as-errors   Exit with code 1 when warnings are found.
-          --no-library           Skip the EdsDcfNet reader/model validation pass.
-          -h, --help             Show this help.
+          --format <text|json|sarif>   Report format (default text).
+          --json                       Same as --format json.
+          -o, --output <file>          Write the report to a file instead of stdout.
+          --severity <ID>=<level>      Set a rule to error, warning or none (repeatable).
+          --config <file>              JSON file with severity overrides and path globs.
+          --list-rules                 Print every rule with its default severity.
+          -q, --quiet                  Only report errors (hide warnings).
+          --warnings-as-errors         Exit with code 1 when warnings are found.
+          --no-library                 Skip the EdsDcfNet reader/model validation pass.
+          -h, --help                   Show this help.
 
         Exit codes: 0 = valid, 1 = errors found, 2 = usage or I/O problem.
         An unreadable file or directory is reported and skipped; the rest is still checked.
@@ -41,17 +46,46 @@ public static class Program
 
     public static int Main(string[] args)
     {
-        var json = false;
+        var format = "text";
+        string? output = null;
+        string? configPath = null;
+        var severities = new List<string>();
+        var listRules = false;
         var quiet = false;
         var warningsAsErrors = false;
         var runLibrary = true;
         var inputs = new List<string>();
 
-        foreach (var arg in args)
+        for (var i = 0; i < args.Length; i++)
         {
+            var arg = args[i];
             switch (arg)
             {
-                case "--json": json = true; break;
+                case "--json": format = "json"; break;
+                case "--format" or "-o" or "--output" or "--severity" or "--config":
+                    if (i + 1 >= args.Length)
+                    {
+                        return UsageError("Option '" + arg + "' needs a value.");
+                    }
+
+                    var value = args[++i];
+                    switch (arg)
+                    {
+                        case "--format":
+                            if (value is not ("text" or "json" or "sarif"))
+                            {
+                                return UsageError("Unknown format '" + value + "'. Use text, json or sarif.");
+                            }
+
+                            format = value;
+                            break;
+                        case "--severity": severities.Add(value); break;
+                        case "--config": configPath = value; break;
+                        default: output = value; break;
+                    }
+
+                    break;
+                case "--list-rules": listRules = true; break;
                 case "-q" or "--quiet": quiet = true; break;
                 case "--warnings-as-errors": warningsAsErrors = true; break;
                 case "--no-library": runLibrary = false; break;
@@ -61,9 +95,7 @@ public static class Program
                 default:
                     if (arg.StartsWith('-'))
                     {
-                        Console.Error.WriteLine("Unknown option '" + arg + "'.");
-                        Console.Error.WriteLine(Usage);
-                        return 2;
+                        return UsageError("Unknown option '" + arg + "'.");
                     }
 
                     inputs.Add(arg);
@@ -71,9 +103,29 @@ public static class Program
             }
         }
 
+        if (listRules)
+        {
+            return Emit(output, writer => Reports.WriteRules(writer, format == "json"));
+        }
+
         if (inputs.Count == 0)
         {
             Console.Error.WriteLine(Usage);
+            return 2;
+        }
+
+        CheckerConfig config;
+        try
+        {
+            config = configPath is null ? new CheckerConfig() : CheckerConfig.Load(configPath, File.ReadAllText(configPath));
+            foreach (var severity in severities)
+            {
+                config.AddCommandLineOverride(severity);
+            }
+        }
+        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine((configPath is null ? "Invalid --severity: " : "Invalid config '" + configPath + "': ") + ex.Message);
             return 2;
         }
 
@@ -102,7 +154,7 @@ public static class Program
             }
         }
 
-        var results = new List<(string File, List<Finding> Findings)>();
+        var results = new List<FileResult>();
         var skipped = 0;
         foreach (var file in files)
         {
@@ -113,9 +165,14 @@ public static class Program
                 continue;
             }
 
+            if (config.IsExcluded(file))
+            {
+                continue;
+            }
+
             try
             {
-                results.Add((file, CheckFile(file, runLibrary)));
+                results.Add(new FileResult(file, CheckFile(file, config.OptionsFor(file, runLibrary))));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -134,14 +191,15 @@ public static class Program
         }
 
         var minimum = quiet ? Severity.Error : Severity.Warning;
-        if (json)
+        var written = Emit(output, writer =>
         {
-            PrintJson(results, minimum);
-        }
-        else
-        {
-            PrintText(results, minimum);
-        }
+            switch (format)
+            {
+                case "json": Reports.WriteJson(writer, results, minimum); break;
+                case "sarif": Reports.WriteSarif(writer, results, minimum, Directory.GetCurrentDirectory()); break;
+                default: Reports.WriteText(writer, results, minimum, color: output is null && !Console.IsOutputRedirected); break;
+            }
+        });
 
         var all = results.SelectMany(r => r.Findings).ToList();
         var failed = all.Any(f => f.Severity == Severity.Error) ||
@@ -152,7 +210,7 @@ public static class Program
             return 2;
         }
 
-        return failed ? 1 : 0;
+        return written != 0 ? written : failed ? 1 : 0;
     }
 
     /// <summary>
@@ -232,88 +290,49 @@ public static class Program
         }
     }
 
-    public static List<Finding> CheckFile(string file, bool runLibrary)
-    {
-        var options = new CanOpenIniValidationOptions
+    public static List<Finding> CheckFile(string file, bool runLibrary) =>
+        CheckFile(file, new CanOpenIniValidationOptions
         {
             IncludeReaderDiagnostics = runLibrary,
             IncludeModelValidation = runLibrary,
-        };
+        });
 
-        return CanOpenIniValidator.ValidateFile(
+    public static List<Finding> CheckFile(string file, CanOpenIniValidationOptions options) =>
+        CanOpenIniValidator.ValidateFile(
             file,
             IsDcf(file) ? CanOpenIniFormat.Dcf : CanOpenIniFormat.Eds,
             options).ToList();
-    }
 
     private static bool IsEds(string file) => file.EndsWith(".eds", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsDcf(string file) => file.EndsWith(".dcf", StringComparison.OrdinalIgnoreCase);
 
-    private static void PrintText(List<(string File, List<Finding> Findings)> results, Severity minimum)
+    private static int UsageError(string message)
     {
-        int totalErrors = 0, totalWarnings = 0;
-
-        foreach (var (file, findings) in results)
-        {
-            var errors = findings.Count(f => f.Severity == Severity.Error);
-            var warnings = findings.Count(f => f.Severity == Severity.Warning);
-            totalErrors += errors;
-            totalWarnings += warnings;
-
-            Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
-                "{0}: {1} ({2} error(s), {3} warning(s))",
-                file, errors == 0 ? "OK" : "INVALID", errors, warnings));
-
-            foreach (var finding in findings.Where(f => f.Severity >= minimum))
-            {
-                WriteColored("  " + finding.ToDisplayString(), finding.Severity);
-            }
-
-            Console.WriteLine();
-        }
-
-        Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
-            "Checked {0} file(s): {1} error(s), {2} warning(s).", results.Count, totalErrors, totalWarnings));
+        Console.Error.WriteLine(message);
+        Console.Error.WriteLine(Usage);
+        return 2;
     }
 
-    private static void WriteColored(string line, Severity severity)
+    /// <summary>Writes a report to stdout or, with <paramref name="output"/>, to a UTF-8 file. Returns 2 on an I/O error.</summary>
+    private static int Emit(string? output, Action<TextWriter> write)
     {
-        var previous = Console.ForegroundColor;
-        if (!Console.IsOutputRedirected)
+        if (output is null)
         {
-            Console.ForegroundColor = severity switch
-            {
-                Severity.Error => ConsoleColor.Red,
-                Severity.Warning => ConsoleColor.Yellow,
-                _ => previous,
-            };
+            write(Console.Out);
+            return 0;
         }
 
-        Console.WriteLine(line);
-        Console.ForegroundColor = previous;
-    }
-
-    private static void PrintJson(List<(string File, List<Finding> Findings)> results, Severity minimum)
-    {
-        var payload = results.Select(r => new
+        try
         {
-            file = r.File,
-            valid = r.Findings.All(f => f.Severity != Severity.Error),
-            errors = r.Findings.Count(f => f.Severity == Severity.Error),
-            warnings = r.Findings.Count(f => f.Severity == Severity.Warning),
-            findings = r.Findings.Where(f => f.Severity >= minimum),
-        });
-
-        var options = new JsonSerializerOptions
+            using var writer = new StreamWriter(output, append: false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            write(writer);
+            return 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            WriteIndented = true,
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
-        };
-
-        Console.WriteLine(JsonSerializer.Serialize(payload, options));
+            Console.Error.WriteLine("Cannot write '" + output + "': " + ex.Message);
+            return 2;
+        }
     }
 }
