@@ -17,12 +17,18 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
+    <PackageReference Include="JsonSchema.Net" Version="9.6.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageReference Include="xunit.v3.mtp-off" Version="4.0.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- SARIF 2.1.0 schema (json.schemastore.org) and the expected reports. -->
+    <None Include="Schemas\**;Snapshots\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

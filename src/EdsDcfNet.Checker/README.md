@@ -26,19 +26,62 @@ Install it as a .NET tool (it runs on .NET 10 or newer):
 dotnet tool install --global EdsDcfNet.Checker
 edsdcf-check device.eds
 edsdcf-check --quiet path/to/folder
-edsdcf-check --json device.dcf > report.json
+edsdcf-check --format json --output report.json device.dcf
+edsdcf-check --format sarif --output edsdcf.sarif devices/
+edsdcf-check --list-rules
 ```
 
 From a clone of the repository: `dotnet run --project src/EdsDcfNet.Checker -- device.eds`.
 
 | Option | Meaning |
 |---|---|
-| `--json` | JSON output instead of text |
-| `-q`, `--quiet` | Only print errors |
+| `--format text\|json\|sarif` | Report format, default `text` |
+| `--json` | Same as `--format json` |
+| `-o`, `--output <file>` | Write the report to a file (UTF-8, no BOM) instead of stdout |
+| `--severity <ID>=error\|warning\|none` | Change or turn off a rule; repeatable, wins over `--config` |
+| `--config <file>` | JSON file with severity overrides and path globs (see below) |
+| `--list-rules` | Print every rule with its default severity and CiA reference (`--format json` for JSON) |
+| `-q`, `--quiet` | Only report errors |
 | `--warnings-as-errors` | Exit code 1 also for warnings |
 | `--no-library` | Skip the EdsDcfNet reader/validator pass |
 
-Exit codes: `0` valid, `1` errors found, `2` usage or I/O problem. Exit code `2` is also used when every given file is skipped because it is not `.eds` or `.dcf`. An unreadable file or inaccessible directory is reported on stderr and skipped (never silently); the remaining files are still checked, and exit code `2` is returned at the end (it takes precedence over `1`).
+Exit codes: `0` valid, `1` errors found (after overrides), `2` usage or I/O problem. Exit code `2` is also used when every given file is skipped because it is not `.eds` or `.dcf`. An unreadable file or inaccessible directory is reported on stderr and skipped (never silently); the remaining files are still checked, and exit code `2` is returned at the end (it takes precedence over `1`). Unknown rule ids in `--severity` or `--config` are a usage error, so a typo never turns a rule off silently.
+
+### Config file
+
+```jsonc
+{
+  "severity": { "VAL005": "none", "INI003": "error" },
+  "exclude": [ "vendor/**" ],
+  "overrides": [
+    { "files": [ "legacy/*.eds" ], "severity": { "OBJ010": "warning" } }
+  ]
+}
+```
+
+Globs match the path relative to the config file directory, with `/` as separator and
+case-insensitive: `*` stays within one folder, `**` spans folders, `?` is one character. Files
+outside that directory are matched by their full path. Later entries win: `severity`, then each
+matching override in order, then `--severity`. Comments and trailing commas are allowed.
+
+### SARIF and GitHub code scanning
+
+`--format sarif` writes a SARIF 2.1.0 log: every catalog rule as a rule descriptor, each finding
+with the file and line as physical location and `[Section]Key` as logical location. Paths below
+the working directory are written as relative URIs, so run the tool from the repository root. The upload job needs
+`permissions: security-events: write`.
+
+```yaml
+- run: dotnet tool install --global EdsDcfNet.Checker
+- run: edsdcf-check --format sarif --output edsdcf.sarif devices/
+  continue-on-error: true
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: edsdcf.sarif
+    category: edsdcf-check
+```
+
+### Text output
 
 Example output:
 
