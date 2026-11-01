@@ -386,6 +386,10 @@ var options = new CanOpenIniValidationOptions
 var issues = CanOpenIniValidator.ValidateFile("device.eds", CanOpenIniFormat.Eds, options);
 ```
 
+Set `IncludeReaderDiagnostics` and `IncludeModelValidation` on the options to also load the
+file with the EdsDcfNet reader and run `CanOpenModelValidator`. Their findings keep their own
+codes (for example `INVALID_NODE_ID`); see the property docs for the `LIB` fallback codes.
+
 ### Working with Nodelist Projects (CPJ)
 
 ```csharp
