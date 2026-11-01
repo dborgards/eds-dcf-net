@@ -1,5 +1,7 @@
 namespace EdsDcfNet.Validation;
 
+using EdsDcfNet.Diagnostics;
+
 /// <summary>
 /// Validates EDS and DCF source text directly, retaining source lines and reporting all
 /// detectable problems instead of stopping at the first reader error.
@@ -23,13 +25,10 @@ public static class CanOpenIniValidator
         string? sourceName = null,
         CancellationToken cancellationToken = default)
     {
-        ThrowIfNull(text);
-
-        using var reader = new StringReader(text);
-        return Validate(reader, sourceName ?? "<memory>", format, null, cancellationToken);
+        return ValidateString(text, format, sourceName, CanOpenIniValidationOptions.Default, cancellationToken);
     }
 
-    /// <summary>Validates EDS or DCF source text with severity overrides.</summary>
+    /// <summary>Validates EDS or DCF source text with severity overrides and optional reader and model passes.</summary>
     /// <param name="text">Complete INI source text.</param>
     /// <param name="format">INI dialect to validate.</param>
     /// <param name="sourceName">Name included in each issue; <see langword="null"/> uses <c>&lt;memory&gt;</c>.</param>
@@ -47,7 +46,15 @@ public static class CanOpenIniValidator
         ThrowIfNull(options);
 
         using var reader = new StringReader(text);
-        return Validate(reader, sourceName ?? "<memory>", format, options, cancellationToken);
+        return Validate(
+            reader,
+            sourceName ?? "<memory>",
+            format,
+            options,
+            () => format == CanOpenIniFormat.Dcf
+                ? LibraryPass.Dcf(CanOpenFile.Dcf.ReadStringWithDiagnostics(text))
+                : LibraryPass.Eds(CanOpenFile.Eds.ReadStringWithDiagnostics(text)),
+            cancellationToken);
     }
 
     /// <summary>Validates an EDS or DCF file without stopping at the first invalid entry.</summary>
@@ -60,13 +67,10 @@ public static class CanOpenIniValidator
         CanOpenIniFormat format,
         CancellationToken cancellationToken = default)
     {
-        ThrowIfNull(filePath);
-
-        using var reader = File.OpenText(filePath);
-        return Validate(reader, filePath, format, null, cancellationToken);
+        return ValidateFile(filePath, format, CanOpenIniValidationOptions.Default, cancellationToken);
     }
 
-    /// <summary>Validates an EDS or DCF file with severity overrides.</summary>
+    /// <summary>Validates an EDS or DCF file with severity overrides and optional reader and model passes.</summary>
     /// <param name="filePath">Path of the file to read.</param>
     /// <param name="format">INI dialect to validate; it is not inferred from the extension.</param>
     /// <param name="options">Severity overrides and other validation options.</param>
@@ -82,14 +86,23 @@ public static class CanOpenIniValidator
         ThrowIfNull(options);
 
         using var reader = File.OpenText(filePath);
-        return Validate(reader, filePath, format, options, cancellationToken);
+        return Validate(
+            reader,
+            filePath,
+            format,
+            options,
+            () => format == CanOpenIniFormat.Dcf
+                ? LibraryPass.Dcf(CanOpenFile.Dcf.ReadFileWithDiagnostics(filePath))
+                : LibraryPass.Eds(CanOpenFile.Eds.ReadFileWithDiagnostics(filePath)),
+            cancellationToken);
     }
 
     private static List<IniValidationIssue> Validate(
         TextReader reader,
         string sourceName,
         CanOpenIniFormat format,
-        CanOpenIniValidationOptions? options,
+        CanOpenIniValidationOptions options,
+        Func<(IReadOnlyList<ParseDiagnostic>, Func<IReadOnlyList<ValidationIssue>>)> libraryRead,
         CancellationToken cancellationToken)
     {
         if (format is not (CanOpenIniFormat.Eds or CanOpenIniFormat.Dcf))
@@ -102,8 +115,14 @@ public static class CanOpenIniValidator
         new RawObjectChecker(sourceName, document, isDcf, findings, cancellationToken).Run();
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (options.IncludeReaderDiagnostics || options.IncludeModelValidation)
+        {
+            LibraryPass.Run(libraryRead, sourceName, options, findings);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
         IEnumerable<IniValidationIssue> result = findings;
-        if (options?.SeverityOverrides is { Count: > 0 } overrides)
+        if (options.SeverityOverrides is { Count: > 0 } overrides)
         {
             result = ApplyOverrides(findings, overrides);
         }
