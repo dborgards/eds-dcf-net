@@ -208,6 +208,18 @@ public sealed class CliOptionTests : IDisposable
     }
 
     [Fact]
+    public void Main_InvalidSeverityWithValidConfig_NamesTheOption()
+    {
+        var file = Write("clean.eds", Samples.CleanEds);
+        var config = Write("c.json", "{}");
+
+        var (exitCode, _, stderr) = Cli.Run("--config", config, "--severity", "NOPE01=error", file);
+
+        exitCode.Should().Be(2);
+        stderr.Should().Contain("Invalid --severity: Unknown rule 'NOPE01'").And.NotContain("Invalid config");
+    }
+
+    [Fact]
     public void Main_ListRules_PrintsCatalog()
     {
         var (exitCode, stdout, _) = Cli.Run("--list-rules");

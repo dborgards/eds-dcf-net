@@ -118,14 +118,23 @@ public static class Program
         try
         {
             config = configPath is null ? new CheckerConfig() : CheckerConfig.Load(configPath, File.ReadAllText(configPath));
+        }
+        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine("Invalid config '" + configPath + "': " + ex.Message);
+            return 2;
+        }
+
+        try
+        {
             foreach (var severity in severities)
             {
                 config.AddCommandLineOverride(severity);
             }
         }
-        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
+        catch (FormatException ex)
         {
-            Console.Error.WriteLine((configPath is null ? "Invalid --severity: " : "Invalid config '" + configPath + "': ") + ex.Message);
+            Console.Error.WriteLine("Invalid --severity: " + ex.Message);
             return 2;
         }
 
