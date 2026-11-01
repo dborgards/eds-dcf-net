@@ -203,3 +203,95 @@ Introduce a lightweight generic interface `IFileReader<TModel>` with shared read
 - (+) No behavior change and no forced coupling of CPJ parsing to EDS/DCF internals.
 - (-) Introduces one additional public abstraction to maintain.
 - (-) Writer abstraction is intentionally left unchanged for now and can be addressed separately if needed.
+
+---
+
+## ADR-9: Validation Rules Stay in the Core Package; the Checker Ships as a dotnet Tool
+
+Status: **Accepted** (2026-11-01), implemented in #682–#688. Refs #644 (review findings E-1, E-2, T5;
+plan decision E6).
+
+### Context
+
+The rule engine already lived in the core assembly `EdsDcfNet` under `EdsDcfNet.Validation`
+(`CanOpenModelValidator` for model rules, `CanOpenIniValidator` for raw EDS/DCF source rules,
+`IniWriteRules` / `XmlWriteRules` for the write path). `edsdcf-check` was a thin CLI in `examples/`,
+excluded from coverage, with its tests inside the library test project. Open points were duplicated
+INI helpers (rest of E-2), no rule catalog, library codes hidden behind `LIB001`/`LIB003`, and a
+release pipeline that published exactly one package.
+
+### Decision
+
+1. The shared rules stay in the core package `EdsDcfNet`, namespace `EdsDcfNet.Validation`. There is no
+   separate validation package.
+2. Core has a public rule catalog (`CanOpenValidationRuleCatalog`: id, default severity, title, CiA
+   reference) and per-rule severity overrides in `CanOpenIniValidationOptions`. Both are additive.
+3. The checker lives in `src/EdsDcfNet.Checker` and is packed as a dotnet tool from that project
+   (`PackAsTool`, `net10.0`, `RollForward=Major`). It uses only the public `EdsDcfNet.Validation` API.
+4. The tool is released in lockstep with the library: same version, packed and pushed in the same
+   release run, bundling the core assembly of the same build.
+5. `StrictParsing` stays a reader mode. Reader diagnostics keep their `ParseDiagnostic.Code` as the
+   rule id in INI validation results; `LIB` codes are only fallbacks.
+
+Dependency direction: `EdsDcfNet.Checker` → `EdsDcfNet`, never the reverse.
+
+### Rationale
+
+- The public types in `EdsDcfNet.Validation` shipped in 1.16.0. Moving them to another assembly would
+  be breaking, and type forwarding cannot help because core would have to reference the new package.
+- The writers and `ValidateBeforeWrite` need the model and write rules in core anyway.
+- The raw rules mirror reader behaviour and use internals; one assembly avoids `InternalsVisibleTo`
+  between packages and new public helpers, which would recreate E-2.
+- The rules add no dependencies, so a separate package would isolate nothing.
+
+### Consequences
+
+- (+) No breaking change; one rule set for library users, the write guard and the CLI.
+- (+) CI users install the tool with one command and get text, JSON or SARIF output.
+- (-) The release scripts pack and push two packages (CONTRIBUTING "Two packages, one version").
+- (-) `fix(checker)` commits bump the shared version.
+- (-) The checker code is under the coverage gate (its own test project).
+- (-) Three severity enums remain (TD-10); unifying them is binary-breaking and waits for 2.0 (#691).
+
+### Alternatives Considered
+
+- **Separate validation package:** rejected for the reasons above. Revisit only if the rules ever need
+  heavy dependencies.
+- **Rules only in the CLI:** rejected; that was the state behind E-1/E-2.
+- **Tool with its own engine (variant A alone):** superseded by #675.
+
+### Layout
+
+```
+src/EdsDcfNet/Validation/              rules, catalog, options (public API)
+src/EdsDcfNet/Validation/Ini/          raw INI rules (internal)
+src/EdsDcfNet.Checker/                 CLI, packed as the edsdcf-check dotnet tool (net10.0)
+tests/EdsDcfNet.Tests/Validation/      rule tests (net10.0 + net48)
+tests/EdsDcfNet.Checker.Tests/         CLI tests: args, exit codes, output snapshots, tool package
+```
+
+There is no public rule registration interface. The rules work on the internal `RawIniDocument`, and a
+plugin surface would freeze it.
+
+### CLI Contract
+
+- **Formats:** `--format text|json|sarif`, `--json` kept as an alias; `--output <file>`.
+- **Rules:** `--severity <ID>=error|warning|none`, `--config <file>` (severity map, `exclude` globs,
+  per-glob `overrides`), `--list-rules`. Unknown rule ids are a usage error.
+- **Exit codes:** 0 = clean, 1 = error-level findings after overrides, 2 = usage/I/O problem or nothing
+  checked. 2 wins over 1.
+- **SARIF 2.1.0:** every catalog rule as a rule descriptor; each finding with file and line as the
+  physical location and `[Section]Key` as the logical location.
+
+### Settled Questions
+
+- **Package id and command:** `EdsDcfNet.Checker` / `edsdcf-check`.
+- **Runtime:** `net10.0` with `RollForward=Major`.
+- **Model issues:** `ObjectDictionary.*` model issues stay suppressed in the INI validation results,
+  because the raw rules report the same problems with line numbers.
+- **XDD/XDC:** out of scope for the tool; the CiA 311 XSD must not ship in a package (plan E8).
+- **SBOM:** the tool has no SBOM of its own; its only non-framework content is the bundled
+  `EdsDcfNet.dll`, which the release SBOM describes.
+- **`IncludeReaderDiagnostics` / `IncludeModelValidation`:** default `false` in the library, so
+  `CanOpenIniValidationOptions.Default` equals the behaviour without options; the CLI turns both on
+  unless `--no-library` is given.

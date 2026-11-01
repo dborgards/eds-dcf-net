@@ -59,10 +59,15 @@ graph LR
 | `Models/`             | Domain models representing the structure of CANopen description/configuration data |
 | `Utilities/`          | Helper functions for type conversion and shared UTF-8 file I/O (`ValueConverter`, `TextFileIo`) |
 | `Diagnostics/`        | Parse-diagnostics channel: `ParseDiagnostic` records plus the call-scoped `AsyncLocal` sink used by the `Read*WithDiagnostics` entry points |
-| `Validation/`         | Model validation (`CanOpenModelValidator`, `ValidationIssue`, opt-in rule sets via `CanOpenValidationOptions`); optional write guard via `CanOpenWriteOptions.ValidateBeforeWrite` |
+| `Validation/`         | Model validation (`CanOpenModelValidator`, `ValidationIssue`, opt-in rule sets via `CanOpenValidationOptions`); optional write guard via `CanOpenWriteOptions.ValidateBeforeWrite`; line-aware EDS/DCF source validation (`CanOpenIniValidator`, rules in `Validation/Ini/`) with the public rule catalog `CanOpenValidationRuleCatalog` and severity overrides (`CanOpenIniValidationOptions`) |
 | Metadata constants    | `CanOpenDataType` / `CanOpenObjectType`: CiA 301 constants, bit lengths, signedness — single source of truth for `CanOpenValueConverter` widths |
 | `Extensions/`         | Extension methods for convenient ObjectDictionary access                           |
 | `Exceptions/`         | Specific exception types for parse and write errors                                |
+
+Outside the library assembly, `src/EdsDcfNet.Checker` builds the `edsdcf-check` command-line tool
+(NuGet package `EdsDcfNet.Checker`, a .NET tool). It depends only on the public
+`EdsDcfNet.Validation` API, adds argument handling, directory sweeps, config files and text/JSON/SARIF
+reports, and is released in lockstep with the library (ADR-9). The dependency never points the other way.
 
 ## 5.2 Level 2: Detailed Building Blocks
 
