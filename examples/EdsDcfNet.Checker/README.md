@@ -12,8 +12,11 @@ It combines two passes:
    a file are reported with their line numbers. Values are checked with
    `CanOpenValueConverter` against the entry's `DataType`.
 2. **Library pass** — loads the file with `CanOpenFile.Eds/Dcf.ReadFileWithDiagnostics` and
-   runs `CanOpenModelValidator`. Reader diagnostics are reported as `LIB001`, a reader abort as
-   `LIB002`, remaining model-validator issues as `LIB003`.
+   runs `CanOpenModelValidator` (`CanOpenIniValidationOptions.IncludeReaderDiagnostics` and
+   `IncludeModelValidation`). Reader diagnostics keep their own code (for example
+   `INVALID_NODE_ID`), a reader abort is `LIB002`. Model issues use their code, or `LIB003`
+   when they have none; `ObjectDictionary.*` model issues are left out because the raw pass
+   covers them with line numbers.
 
 ## Usage
 
@@ -94,4 +97,7 @@ device.eds: INVALID (4 error(s), 0 warning(s))
 | DCF001 | warning | DCF without configured `NodeID` |
 | DCF002 | error | DCF `NodeID` outside 1..127 |
 | DCF003 | warning | DCF has both `[DeviceComissioning]` and `[DeviceCommissioning]`; the normative single-`m` section is read, the other is ignored (like `DcfReader`) |
-| LIB001–003 | | EdsDcfNet reader diagnostics / reader abort / model validator |
+| `INI_*`, `INVALID_*`, … | warning | EdsDcfNet reader diagnostics, reported with their `ParseDiagnosticCodes` code |
+| LIB001 | warning | Reader diagnostic without a code (fallback) |
+| LIB002 | error | EdsDcfNet reader aborted |
+| LIB003 | error | Model validation issue without a code |

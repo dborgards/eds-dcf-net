@@ -234,24 +234,16 @@ public static class Program
 
     public static List<Finding> CheckFile(string file, bool runLibrary)
     {
-        var findings = new List<Finding>();
-        var isDcf = IsDcf(file);
-
-        findings.AddRange(CanOpenIniValidator.ValidateFile(
-            file,
-            isDcf ? CanOpenIniFormat.Dcf : CanOpenIniFormat.Eds));
-
-        if (runLibrary)
+        var options = new CanOpenIniValidationOptions
         {
-            LibraryChecker.Run(file, isDcf, findings);
-        }
+            IncludeReaderDiagnostics = runLibrary,
+            IncludeModelValidation = runLibrary,
+        };
 
-        return findings
-            .Distinct()
-            .OrderBy(f => f.Line ?? 0)
-            .ThenByDescending(f => f.Severity)
-            .ThenBy(f => f.Code, StringComparer.Ordinal)
-            .ToList();
+        return CanOpenIniValidator.ValidateFile(
+            file,
+            IsDcf(file) ? CanOpenIniFormat.Dcf : CanOpenIniFormat.Eds,
+            options).ToList();
     }
 
     private static bool IsEds(string file) => file.EndsWith(".eds", StringComparison.OrdinalIgnoreCase);
