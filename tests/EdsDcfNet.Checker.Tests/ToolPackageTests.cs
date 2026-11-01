@@ -1,6 +1,7 @@
 namespace EdsDcfNet.Checker.Tests;
 
 using System.Diagnostics;
+using System.Reflection;
 using AwesomeAssertions;
 using Xunit;
 
@@ -39,6 +40,7 @@ public sealed class ToolPackageTests : IDisposable
             .ExitCode.Should().Be(0);
         var package = Directory.GetFiles(packages, "EdsDcfNet.Checker.*.nupkg").Should().ContainSingle().Subject;
         var version = Path.GetFileNameWithoutExtension(package)["EdsDcfNet.Checker.".Length..];
+        version.Should().Be(LibraryVersion(), "the tool is released in lockstep with EdsDcfNet");
 
         // Only the local source, so a published package with the same version is never used.
         File.WriteAllText(config,
@@ -52,6 +54,23 @@ public sealed class ToolPackageTests : IDisposable
         help.ExitCode.Should().Be(0);
         help.Output.Should().Contain("edsdcf-check - validate CiA 306 EDS/DCF files");
     }
+
+    [Fact]
+    public void ToolProject_HasTheLibraryVersion()
+    {
+        var root = FindRepoRoot(new DirectoryInfo(AppContext.BaseDirectory));
+
+        ProjectVersion(Path.Combine(root, "src", "EdsDcfNet.Checker", "EdsDcfNet.Checker.csproj"))
+            .Should().Be(ProjectVersion(Path.Combine(root, "src", "EdsDcfNet", "EdsDcfNet.csproj")))
+            .And.Be(LibraryVersion());
+    }
+
+    private static string LibraryVersion() =>
+        typeof(EdsDcfNet.Validation.CanOpenIniValidator).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
+
+    private static string ProjectVersion(string project) =>
+        System.Xml.Linq.XDocument.Load(project).Descendants("Version").Single().Value.Trim();
 
     private static (int ExitCode, string Output) Run(string fileName, params string[] arguments)
     {
