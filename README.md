@@ -390,6 +390,23 @@ Set `IncludeReaderDiagnostics` and `IncludeModelValidation` on the options to al
 file with the EdsDcfNet reader and run `CanOpenModelValidator`. Their findings keep their own
 codes (for example `INVALID_NODE_ID`); see the property docs for the `LIB` fallback codes.
 
+### Command-line checker (`edsdcf-check`)
+
+The same rules are available as a .NET tool for scripts and CI pipelines (requires .NET 10 or newer):
+
+```bash
+dotnet tool install --global EdsDcfNet.Checker
+edsdcf-check devices/                                   # text report, exit code 1 on errors
+edsdcf-check --format sarif --output edsdcf.sarif devices/
+edsdcf-check --list-rules                               # the rule catalog
+```
+
+It supports JSON and SARIF 2.1.0 output, `--severity <ID>=error|warning|none`, a JSON config file
+with path globs, and stable exit codes (0 valid, 1 errors, 2 usage or I/O problem). The tool is
+released with the same version as the library. See the
+[tool README](src/EdsDcfNet.Checker/README.md) for all options, the config format, the rule table
+and a GitHub code scanning example.
+
 ### Working with Nodelist Projects (CPJ)
 
 ```csharp
@@ -697,13 +714,18 @@ Baseline scenario definitions and artifact locations are documented in:
 ```
 eds-dcf-net/
 ├── src/
-│   └── EdsDcfNet/              # Main library
-│       ├── Models/             # Data models
-│       ├── Parsers/            # EDS/DCF/CPJ/XDD/XDC parsers
-│       ├── Writers/            # EDS/DCF/CPJ/XDD/XDC writers
-│       ├── Utilities/          # Helper classes
-│       ├── Exceptions/         # Custom exceptions
-│       └── Extensions/         # Extension methods
+│   ├── EdsDcfNet/              # Main library
+│   │   ├── Models/             # Data models
+│   │   ├── Parsers/            # EDS/DCF/CPJ/XDD/XDC parsers
+│   │   ├── Writers/            # EDS/DCF/CPJ/XDD/XDC writers
+│   │   ├── Utilities/          # Helper classes
+│   │   ├── Exceptions/         # Custom exceptions
+│   │   ├── Validation/         # Model and EDS/DCF source validation, rule catalog
+│   │   └── Extensions/         # Extension methods
+│   └── EdsDcfNet.Checker/      # edsdcf-check .NET tool
+├── tests/
+│   ├── EdsDcfNet.Tests/        # Library tests (net10.0 + net48)
+│   └── EdsDcfNet.Checker.Tests/ # edsdcf-check tests
 ├── benchmarks/
 │   └── EdsDcfNet.Benchmarks/   # BenchmarkDotNet throughput/memory benchmarks
 ├── examples/
