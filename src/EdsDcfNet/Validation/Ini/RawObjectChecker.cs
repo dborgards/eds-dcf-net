@@ -1656,7 +1656,7 @@ internal sealed class RawObjectChecker
             // Name and ObjectLinks without a parent stay in AdditionalSections.
             // Value and Denotation do not: IsKnownSection drops them with no [40].
             var requiresParent = candidate.Suffix is "Name" or "ObjectLinks";
-            if (!IsHexDigits(prefix) ||
+            if (!HexDigits.IsHexDigitsOnly(prefix) ||
                 !TryParseObjectIndex(prefix, out index) ||
                 (requiresParent && !_objects.ContainsKey(index)) ||
                 IsUnpaddedHex(prefix, index))
@@ -1670,27 +1670,6 @@ internal sealed class RawObjectChecker
         }
 
         return false;
-    }
-
-    private static bool IsHexDigits(string value)
-    {
-        if (value.Length == 0)
-        {
-            return false;
-        }
-
-        foreach (var c in value)
-        {
-            var isHexDigit = (c >= '0' && c <= '9') ||
-                             (c >= 'a' && c <= 'f') ||
-                             (c >= 'A' && c <= 'F');
-            if (!isHexDigit)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private static string UnpaddedIndex(ushort index) => index.ToString("X", CultureInfo.InvariantCulture);
