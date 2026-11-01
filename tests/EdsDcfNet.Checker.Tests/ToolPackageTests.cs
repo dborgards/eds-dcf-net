@@ -35,7 +35,7 @@ public sealed class ToolPackageTests : IDisposable
         var dotnet = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") is { Length: > 0 } host ? host : "dotnet";
 
         // Act
-        Run(dotnet, "pack", project, "--configuration", configuration, "--no-build", "--output", packages)
+        Run(dotnet, "pack", project, "--configuration", configuration, "--no-build", "--disable-build-servers", "--output", packages)
             .ExitCode.Should().Be(0);
         var package = Directory.GetFiles(packages, "EdsDcfNet.Checker.*.nupkg").Should().ContainSingle().Subject;
         var version = Path.GetFileNameWithoutExtension(package)["EdsDcfNet.Checker.".Length..];
@@ -69,10 +69,14 @@ public sealed class ToolPackageTests : IDisposable
         start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
         start.Environment["DOTNET_NOLOGO"] = "1";
 
+        // MSBuild nodes and the build server outlive the command and keep the output pipes open.
+        start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
+        start.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
+
         using var process = Process.Start(start)!;
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(Timeout))
+        if (!process.WaitForExit(Timeout) || !Task.WaitAll(new Task[] { stdout, stderr }, Timeout))
         {
             process.Kill(entireProcessTree: true);
             throw new TimeoutException(fileName + " did not finish within " + Timeout + ".");
