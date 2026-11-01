@@ -911,7 +911,7 @@ public abstract class CanOpenReaderBase
         foreach (var entry in section)
         {
             // Rejects NrOfEntries and any other non sub-index key.
-            if (!TryParseCompactListSubIndex(entry.Key, out var subIndex))
+            if (!SectionEntryKeys.TryParseCompactListSubIndex(entry.Key, out var subIndex))
                 continue;
 
             if (string.IsNullOrEmpty(entry.Value))
@@ -923,13 +923,6 @@ public abstract class CanOpenReaderBase
             }
         }
     }
-
-    /// <summary>
-    /// Parses a compact list key as a decimal sub-index in the CiA 306 range 1..254.
-    /// Reserved sub-index <c>0xFF</c> and non-numeric keys are rejected.
-    /// </summary>
-    private static bool TryParseCompactListSubIndex(string key, out byte subIndex)
-        => SectionEntryKeys.TryParseCompactListSubIndex(key, out subIndex);
 
     /// <summary>CiA 301 / CiA 306 UNSIGNED8 data-type index.</summary>
     private const ushort Unsigned8DataType = 0x0005;
