@@ -16,6 +16,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EdsDcfNet.TestHost", "tests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EdsDcfNet.Checker", "src\EdsDcfNet.Checker\EdsDcfNet.Checker.csproj", "{761FDCE8-3B19-4926-9363-5013D4F254FC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EdsDcfNet.Checker.Tests", "tests\EdsDcfNet.Checker.Tests\EdsDcfNet.Checker.Tests.csproj", "{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -98,6 +100,18 @@ Global
 		{761FDCE8-3B19-4926-9363-5013D4F254FC}.Release|x64.Build.0 = Release|Any CPU
 		{761FDCE8-3B19-4926-9363-5013D4F254FC}.Release|x86.ActiveCfg = Release|Any CPU
 		{761FDCE8-3B19-4926-9363-5013D4F254FC}.Release|x86.Build.0 = Release|Any CPU
+		{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}.Debug|x64.Build.0 = Debug|Any CPU
+		{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}.Debug|x86.Build.0 = Debug|Any CPU
+		{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}.Release|x64.ActiveCfg = Release|Any CPU
+		{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}.Release|x64.Build.0 = Release|Any CPU
+		{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}.Release|x86.ActiveCfg = Release|Any CPU
+		{9B432E51-1D61-4DAD-BCF7-643EED46C1F3}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,4 +1,4 @@
-namespace EdsDcfNet.Tests.Checker;
+namespace EdsDcfNet.Tests.IniValidation;
 
 using EdsDcfNet.Diagnostics;
 using EdsDcfNet.Validation;
