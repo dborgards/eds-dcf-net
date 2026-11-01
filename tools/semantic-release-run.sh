@@ -166,6 +166,7 @@ release_artifact_names() {
   printf '%s\n' \
     "EdsDcfNet.${version}.nupkg" \
     "EdsDcfNet.${version}.snupkg" \
+    "EdsDcfNet.Checker.${version}.nupkg" \
     "bom.cdx.json" \
     "sbom.spdx.json"
 }
@@ -717,6 +718,7 @@ verify_last_release() {
     # release's SPDX SBOM. Absent beats wrong — the SBOMs are best-effort.
     rm -f "packages/EdsDcfNet.${version}.nupkg" \
       "packages/EdsDcfNet.${version}.snupkg" \
+      "packages/EdsDcfNet.Checker.${version}.nupkg" \
       packages/bom.cdx.json \
       packages/sbom.spdx.json
     return 0

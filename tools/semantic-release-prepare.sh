@@ -24,12 +24,14 @@ if [[ "$branch_name" == "main" ]]; then
   mv "$tmp_file" CHANGELOG.md
 fi
 
-csproj_file="src/EdsDcfNet/EdsDcfNet.csproj"
-csproj_tmp_file="$(mktemp)"
-awk -v version="$next_version" '
-  {
-    gsub(/<Version>[^<]*<\/Version>/, "<Version>" version "</Version>")
-    print
-  }
-' "$csproj_file" > "$csproj_tmp_file"
-mv "$csproj_tmp_file" "$csproj_file"
+# The checker tool ships in lockstep with the library: same version, same release.
+for csproj_file in src/EdsDcfNet/EdsDcfNet.csproj src/EdsDcfNet.Checker/EdsDcfNet.Checker.csproj; do
+  csproj_tmp_file="$(mktemp)"
+  awk -v version="$next_version" '
+    {
+      gsub(/<Version>[^<]*<\/Version>/, "<Version>" version "</Version>")
+      print
+    }
+  ' "$csproj_file" > "$csproj_tmp_file"
+  mv "$csproj_tmp_file" "$csproj_file"
+done
