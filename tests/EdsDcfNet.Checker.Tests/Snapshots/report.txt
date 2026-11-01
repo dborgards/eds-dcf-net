@@ -1,0 +1,10 @@
+devices/clean.eds: OK (0 error(s), 0 warning(s))
+
+devices/findings.eds: INVALID (3 error(s), 2 warning(s))
+  devices/findings.eds:99: warning INI003 [Comments] Lines=0: Duplicate key; previous value '0' on line 98 is overridden.
+  devices/findings.eds:101: error LST003 [2000]: Object is not listed in [MandatoryObjects], [OptionalObjects] or [ManufacturerObjects]; EdsDcfNet and other list-driven tools ignore it.
+  devices/findings.eds:106: error VAL001 [2000] DefaultValue=1000: Value does not fit UNSIGNED8 (0..255).
+  devices/findings.eds:109: error LST003 [2001]: Object is not listed in [MandatoryObjects], [OptionalObjects] or [ManufacturerObjects]; EdsDcfNet and other list-driven tools ignore it.
+  devices/findings.eds:114: warning VAL005 [2001] DefaultValue=010: Leading zero makes this an octal literal (= 8 decimal). Use '10' or '0x8' if decimal was intended.
+
+Checked 2 file(s): 3 error(s), 2 warning(s).
