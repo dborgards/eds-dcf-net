@@ -13,104 +13,7 @@ public sealed class ProgramTests : IDisposable
     private const string WarningOnly = CleanEds + "\n[Comments]\nLines=0\nLines=0\n";
     private const string WithError = "[DeviceComissioning]\nNodeID=200\n";
 
-    private const string CleanEds = """
-        [FileInfo]
-        FileName=a.eds
-        FileVersion=1
-        FileRevision=0
-        EDSVersion=4.0
-        Description=Sample
-        CreationTime=10:00AM
-        CreationDate=01-01-2026
-        CreatedBy=Me
-        ModificationTime=10:00AM
-        ModificationDate=01-01-2026
-        ModifiedBy=Me
-
-        [DeviceInfo]
-        VendorName=Vendor
-        VendorNumber=0x10
-        ProductName=Product
-        ProductNumber=0x20
-        RevisionNumber=0x30
-        OrderCode=OC
-        BaudRate_10=0
-        BaudRate_20=0
-        BaudRate_50=0
-        BaudRate_125=0
-        BaudRate_250=1
-        BaudRate_500=0
-        BaudRate_800=0
-        BaudRate_1000=0
-        SimpleBootUpMaster=0
-        SimpleBootUpSlave=1
-        Granularity=8
-        DynamicChannelsSupported=0
-        GroupMessaging=0
-        NrOfRXPDO=0
-        NrOfTXPDO=0
-        LSS_Supported=0
-
-        [MandatoryObjects]
-        SupportedObjects=3
-        1=0x1000
-        2=0x1001
-        3=0x1018
-
-        [1000]
-        ParameterName=Device type
-        ObjectType=0x7
-        DataType=0x0007
-        AccessType=ro
-        DefaultValue=0
-        PDOMapping=0
-
-        [1001]
-        ParameterName=Error register
-        ObjectType=0x7
-        DataType=0x0005
-        AccessType=ro
-        DefaultValue=0
-        PDOMapping=0
-
-        [1018]
-        ParameterName=Identity
-        ObjectType=0x9
-        SubNumber=4
-
-        [1018sub0]
-        ParameterName=Highest sub-index
-        ObjectType=0x7
-        DataType=0x0005
-        AccessType=ro
-        DefaultValue=3
-        PDOMapping=0
-
-        [1018sub1]
-        ParameterName=Vendor-ID
-        ObjectType=0x7
-        DataType=0x0007
-        AccessType=ro
-        DefaultValue=0x10
-        PDOMapping=0
-
-        [1018sub2]
-        ParameterName=Product code
-        ObjectType=0x7
-        DataType=0x0007
-        AccessType=ro
-        DefaultValue=0x20
-        PDOMapping=0
-
-        [1018sub3]
-        ParameterName=Revision number
-        ObjectType=0x7
-        DataType=0x0007
-        AccessType=ro
-        DefaultValue=0x30
-        PDOMapping=0
-
-        """;
+    private const string CleanEds = Samples.CleanEds;
 
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "edsdcf-cli-" + Guid.NewGuid().ToString("N"));
 
@@ -276,23 +179,5 @@ public sealed class ProgramTests : IDisposable
         return path;
     }
 
-    private static (int ExitCode, string Stdout, string Stderr) Run(params string[] args)
-    {
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-        using var stdout = new StringWriter();
-        using var stderr = new StringWriter();
-        try
-        {
-            Console.SetOut(stdout);
-            Console.SetError(stderr);
-            var exitCode = Program.Main(args);
-            return (exitCode, stdout.ToString(), stderr.ToString());
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-        }
-    }
+    private static (int ExitCode, string Stdout, string Stderr) Run(params string[] args) => Cli.Run(args);
 }
