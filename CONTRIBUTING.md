@@ -215,7 +215,7 @@ the fixture.
 
 Complete this checklist for every new or changed validation rule. The PR template
 links here, and `ObjectListKeptEntriesValidationTests` plus
-`CheckerSweepAndSectionTests` provide the reference patterns.
+`CanOpenIniValidatorSectionTests` provide the reference patterns.
 
 - [ ] **Supported model states:** test null, empty, missing, and partially populated
       stores/objects that the public model permits. A null store means no entries;

@@ -1,6 +1,6 @@
 # edsdcf-check — EDS/DCF validity checker
 
-Command-line example that validates CiA 306 **EDS** and **DCF** files (INI format only —
+Command-line tool that validates CiA 306 **EDS** and **DCF** files (INI format only —
 XDD/XDC are out of scope) and prints every problem with file, line, section, key and value.
 
 Rules follow CiA 306-1 v1.4 ("If not otherwise specified, all sections and entries in this
@@ -20,11 +20,16 @@ It combines two passes:
 
 ## Usage
 
+Install it as a .NET tool (it runs on .NET 10 or newer):
+
 ```bash
-dotnet run --project examples/EdsDcfNet.Checker -- device.eds
-dotnet run --project examples/EdsDcfNet.Checker -- --quiet path/to/folder
-dotnet run --project examples/EdsDcfNet.Checker -- --json device.dcf > report.json
+dotnet tool install --global EdsDcfNet.Checker
+edsdcf-check device.eds
+edsdcf-check --quiet path/to/folder
+edsdcf-check --json device.dcf > report.json
 ```
+
+From a clone of the repository: `dotnet run --project src/EdsDcfNet.Checker -- device.eds`.
 
 | Option | Meaning |
 |---|---|

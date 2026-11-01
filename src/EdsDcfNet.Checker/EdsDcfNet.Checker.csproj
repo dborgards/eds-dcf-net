@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>edsdcf-check</AssemblyName>
+    <RootNamespace>EdsDcfNet.Checker</RootNamespace>
+    <!-- Runs on the newest installed runtime when .NET 10 is not present. -->
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>edsdcf-check</ToolCommandName>
+    <PackageId>EdsDcfNet.Checker</PackageId>
+    <!-- Released in lockstep with EdsDcfNet: same version, bundles the core assembly of the same build. -->
+    <Version>1.17.0-beta.1</Version>
+    <Authors>Dietmar Borgards</Authors>
+    <Description>edsdcf-check: command-line validator for CiA 306 EDS and DCF files, built on the EdsDcfNet rule catalog.</Description>
+    <PackageTags>CANopen;EDS;DCF;CiA;DS306;validation;dotnet-tool</PackageTags>
+    <RepositoryUrl>https://github.com/dborgards/eds-dcf-net</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../EdsDcfNet/EdsDcfNet.csproj" />
+  </ItemGroup>
+
+</Project>

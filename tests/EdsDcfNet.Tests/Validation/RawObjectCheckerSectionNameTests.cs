@@ -1,7 +1,6 @@
-namespace EdsDcfNet.Tests.Checker;
+namespace EdsDcfNet.Tests.IniValidation;
 
 using EdsDcfNet;
-using EdsDcfNet.Checker;
 using AwesomeAssertions;
 using Xunit;
 
