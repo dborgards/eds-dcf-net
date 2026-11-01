@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.17.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0...v1.17.0-beta.1) (2026-11-01)
+
+### ✨ Features
+
+* add public validation rule catalog for INI rules ([ac5f35f](https://github.com/dborgards/eds-dcf-net/commit/ac5f35fef9afd4d4b911014989175d44b65c32a5))
+* add severity overrides to CanOpenIniValidator ([ce60f4b](https://github.com/dborgards/eds-dcf-net/commit/ce60f4bf6d79afd40d8d10e69c61414d1eac37b1))
+
+### 📚 Documentation
+
+* describe rule catalog and severity overrides ([be0ab54](https://github.com/dborgards/eds-dcf-net/commit/be0ab54241644ee8ace7c96287bfeda26d469452))
+
 ## [1.16.0](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0...v1.16.0) (2026-10-25)
 
 ### ✨ Features
