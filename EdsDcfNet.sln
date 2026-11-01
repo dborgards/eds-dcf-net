@@ -14,7 +14,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EdsDcfNet.Benchmarks", "ben
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EdsDcfNet.TestHost", "tests\EdsDcfNet.TestHost\EdsDcfNet.TestHost.csproj", "{B4C4D4AC-E79A-488D-980F-9CB1CC9AE6D8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EdsDcfNet.Checker", "examples\EdsDcfNet.Checker\EdsDcfNet.Checker.csproj", "{761FDCE8-3B19-4926-9363-5013D4F254FC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EdsDcfNet.Checker", "src\EdsDcfNet.Checker\EdsDcfNet.Checker.csproj", "{761FDCE8-3B19-4926-9363-5013D4F254FC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
