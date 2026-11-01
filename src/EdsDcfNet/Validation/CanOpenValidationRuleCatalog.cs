@@ -1,11 +1,18 @@
 namespace EdsDcfNet.Validation;
 
 using System.Diagnostics.CodeAnalysis;
+using EdsDcfNet.Diagnostics;
 
 /// <summary>
 /// Lists every rule <see cref="CanOpenIniValidator"/> can report, with its default severity,
 /// a short title and the CiA reference it follows.
 /// </summary>
+/// <remarks>
+/// Besides the raw-source rules, the catalog lists the EDS/DCF reader codes
+/// (<see cref="ParseDiagnosticCodes"/>) and the <c>LIB</c> fallback codes that
+/// <see cref="CanOpenIniValidationOptions.IncludeReaderDiagnostics"/> and
+/// <see cref="CanOpenIniValidationOptions.IncludeModelValidation"/> report.
+/// </remarks>
 public static class CanOpenValidationRuleCatalog
 {
     private const IniValidationSeverity Error = IniValidationSeverity.Error;
@@ -77,6 +84,50 @@ public static class CanOpenValidationRuleCatalog
         Rule("DCF001", Warning, "DCF without configured NodeID", Commissioning),
         Rule("DCF002", Error, "DCF NodeID is outside 1..127", Commissioning),
         Rule("DCF003", Warning, "DCF has both [DeviceComissioning] and [DeviceCommissioning]", Commissioning),
+
+        Rule("LIB001", Warning, "Reader diagnostic without a code", null),
+        Rule("LIB002", Error, "The EdsDcfNet reader aborted", null),
+        Rule("LIB003", Error, "Model validation issue without a code", null),
+
+        Rule(ParseDiagnosticCodes.IniDuplicateKey, Warning, "Reader: duplicate key, the last value is kept", null),
+        Rule(ParseDiagnosticCodes.IniMalformedSectionHeader, Warning, "Reader: malformed section header is ignored with its keys", null),
+        Rule(ParseDiagnosticCodes.IniMissingEquals, Warning, "Reader: line without Key=Value is ignored", null),
+        Rule(ParseDiagnosticCodes.IniDuplicateSection, Warning, "Reader: repeated section is merged into the first one", null),
+        Rule(ParseDiagnosticCodes.IniDecodedAsIso88591, Warning, "Reader: file is not valid UTF-8 and was decoded as ISO-8859-1", null),
+        Rule(ParseDiagnosticCodes.InvalidEncodedBytes, Warning, "Reader: bytes are not valid in the requested encoding", null),
+        Rule(ParseDiagnosticCodes.IniInvalidDummyUsageKey, Warning, "Reader: invalid DummyUsage key is ignored", null),
+        Rule(ParseDiagnosticCodes.IniUnlistedObjectSection, Warning, "Reader: object section is not listed in an object list and is not loaded", ObjectLists),
+        Rule(ParseDiagnosticCodes.IniUnlistedModuleSection, Warning, "Reader: module section of a module that is not parsed", null),
+        Rule(ParseDiagnosticCodes.IniOrphanCompanionSection, Warning, "Reader: companion section of a listed object without object section", null),
+        Rule(ParseDiagnosticCodes.IniOrphanSubObjectSection, Warning, "Reader: sub-index section is not loaded as a sub-object", null),
+        Rule(ParseDiagnosticCodes.IniVersionMajorMinor, Warning, "Reader: FileVersion/FileRevision in major.minor form, the major part is used", null),
+        Rule(ParseDiagnosticCodes.IniObjectKeyNotSupported, Warning, "Reader: key not supported for the ObjectType", ObjectKeys),
+        Rule(ParseDiagnosticCodes.UnknownBooleanToken, Warning, "Reader: unknown boolean value", null),
+        Rule(ParseDiagnosticCodes.UnknownAccessTypeToken, Warning, "Reader: unknown AccessType, read as ro", null),
+        Rule(ParseDiagnosticCodes.InvalidObjectType, Warning, "Reader: malformed ObjectType, read as VAR", ObjectKeys),
+        Rule(ParseDiagnosticCodes.InvalidDataType, Warning, "Reader: malformed DataType", ObjectKeys),
+        Rule(ParseDiagnosticCodes.InvalidSubNumber, Warning, "Reader: malformed SubNumber is ignored", ObjectKeys),
+        Rule(ParseDiagnosticCodes.InvalidCompactSubObj, Warning, "Reader: malformed CompactSubObj is ignored", ObjectKeys),
+        Rule(ParseDiagnosticCodes.InvalidObjFlags, Warning, "Reader: malformed ObjFlags, read as 0", "CiA 306-1 Table 8"),
+        Rule(ParseDiagnosticCodes.IniObjFlagsReservedBits, Warning, "Reader: ObjFlags sets reserved bits 2..31", "CiA 306-1 Table 8"),
+        Rule(ParseDiagnosticCodes.IniObjectListCountMismatch, Warning, "Reader: SupportedObjects disagrees with the numbered entries", ObjectListEntries),
+        Rule(ParseDiagnosticCodes.InvalidModuleObjExtend, Warning, "Reader: malformed module ObjExtend is ignored", null),
+        Rule(ParseDiagnosticCodes.InvalidObjectListCount, Warning, "Reader: malformed object list count, read as 0", ObjectListEntries),
+        Rule(ParseDiagnosticCodes.InvalidObjectIndex, Warning, "Reader: malformed object list index is skipped", ObjectListEntries),
+        Rule(ParseDiagnosticCodes.InvalidDynamicChannelPpOffset, Warning, "Reader: malformed DynamicChannels PPOffset", null),
+        Rule(ParseDiagnosticCodes.IniDuplicateDeviceCommissioning, Warning, "Reader: both [DeviceComissioning] and [DeviceCommissioning] are present", Commissioning),
+        Rule(ParseDiagnosticCodes.InvalidNodeId, Warning, "Reader: malformed or out-of-range NodeID", Commissioning),
+        Rule(ParseDiagnosticCodes.InvalidBaudrate, Warning, "Reader: malformed Baudrate, read as 250", Commissioning),
+        Rule(ParseDiagnosticCodes.InvalidNetNumber, Warning, "Reader: malformed NetNumber, read as 0", Commissioning),
+        Rule(ParseDiagnosticCodes.InvalidLssSerialNumber, Warning, "Reader: malformed LSS_SerialNumber is ignored", Commissioning),
+        Rule(ParseDiagnosticCodes.InvalidDeviceInfoNumber, Warning, "Reader: malformed numeric DeviceInfo entry", "CiA 306-1 Table 2"),
+        Rule(ParseDiagnosticCodes.InvalidDynamicChannelCount, Warning, "Reader: malformed DynamicChannels NrOfSeg, read as 0", null),
+        Rule(ParseDiagnosticCodes.InvalidCommentLineCount, Warning, "Reader: malformed Comments Lines, read as 0", "CiA 306-1 Table 9"),
+        Rule(ParseDiagnosticCodes.InvalidCompactListCount, Warning, "Reader: malformed NrOfEntries of a compact list", null),
+        Rule(ParseDiagnosticCodes.InvalidToolCount, Warning, "Reader: malformed Tools Items, read as 0", null),
+        Rule(ParseDiagnosticCodes.InvalidModuleCount, Warning, "Reader: malformed module NrOfEntries, read as 0", null),
+        Rule(ParseDiagnosticCodes.InvalidModuleVersion, Warning, "Reader: malformed module ProductVersion/ProductRevision", "CiA 306-1 Table 14"),
+        Rule(ParseDiagnosticCodes.InvalidDynamicChannelType, Warning, "Reader: malformed DynamicChannels Type, read as 0", null),
     };
 
     private static readonly Dictionary<string, ValidationRule> ById =
