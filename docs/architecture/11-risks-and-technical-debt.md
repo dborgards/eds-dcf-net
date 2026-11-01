@@ -119,3 +119,12 @@
 | **Impact**       | Performance regression comparisons remain manual and require equivalent hardware and runtime conditions. |
 | **Priority**     | Low.                                                                        |
 | **Status**       | Baseline resolved: measured values were recorded on 2026-10-24. An optional manual or scheduled CI hook remains possible, but must not turn machine-specific timings into unstable PR gates. |
+
+### TD-10: Three Severity Enums
+
+| Aspect           | Description                                                                 |
+|------------------|-----------------------------------------------------------------------------|
+| **Description**  | Reader, model and INI validation use three enums with different members and order: `ParseSeverity` (Info, Warning, Error), `ValidationSeverity` (Error, Warning) and `IniValidationSeverity` (Warning, Error). The INI validator maps reader `Info`/`Warning` to `IniValidationSeverity.Warning`. |
+| **Impact**       | Callers map between enums; per-rule overrides exist only for `CanOpenIniValidator`, not for the write path. |
+| **Priority**     | Medium.                                                                     |
+| **Status**       | Open; unifying them is binary-breaking and is listed for the next major (#691). See ADR-9. |
