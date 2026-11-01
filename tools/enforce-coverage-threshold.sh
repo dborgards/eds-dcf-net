@@ -20,8 +20,9 @@
 #   run. CI creates that directory with mktemp under $RUNNER_TEMP, outside
 #   the checkout. Files in the working tree are not inputs: a force-added
 #   coverage.cobertura.xml, a leftover TestResults run, or a report written
-#   beside EdsDcfNet.Checker. The checker assembly is also marked
-#   ExcludeFromCodeCoverage, so its lines are not part of the library report.
+#   beside EdsDcfNet.Checker. The checker tool is measured by its own test
+#   project (tests/EdsDcfNet.Checker.Tests), which excludes the EdsDcfNet
+#   assembly so the library is not counted twice.
 #
 # Environment:
 #   COVERAGE_MIN_PERCENT  Minimum allowed percent (default: 95.0)

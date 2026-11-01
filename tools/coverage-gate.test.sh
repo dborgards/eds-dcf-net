@@ -168,13 +168,13 @@ fi
 # search) would count. .gitignore ignores the reports; git add -f is the
 # force-add a pull request can do.
 mkdir -p "$checkout/tests/EdsDcfNet.Tests/TestResults/library" \
-  "$checkout/examples/EdsDcfNet.Checker/bin/Release/net10.0"
+  "$checkout/src/EdsDcfNet.Checker/bin/Release/net10.0"
 printf 'coverage*.xml\n' >"$checkout/.gitignore"
 write_report "$checkout/tests/EdsDcfNet.Tests/TestResults/library/net10/coverage.cobertura.xml" 900 1000
 write_report "$checkout/tests/EdsDcfNet.Tests/TestResults/library/net48/coverage.cobertura.xml" 940 1000
 write_report "$checkout/coverage.cobertura.xml" 1000000 1000000
 write_report "$checkout/tests/EdsDcfNet.Tests/TestResults/committed-high-counters/coverage.cobertura.xml" 1000000 1000000
-write_report "$checkout/examples/EdsDcfNet.Checker/bin/Release/net10.0/coverage.cobertura.xml" 1000000 1000000
+write_report "$checkout/src/EdsDcfNet.Checker/bin/Release/net10.0/coverage.cobertura.xml" 1000000 1000000
 git -C "$checkout" init -q
 # The breaking-intent runner has no user.name or user.email. These values
 # belong to this throwaway repository only; they do not change global config.
