@@ -506,6 +506,27 @@ Releases are fully automated via semantic-release:
 
 Maintainers decide when to promote `develop` → `main`.
 
+### Two packages, one version
+
+Every release publishes two NuGet packages with the same version:
+
+| Package | Project | Content |
+|---|---|---|
+| `EdsDcfNet` | `src/EdsDcfNet` | The library |
+| `EdsDcfNet.Checker` | `src/EdsDcfNet.Checker` | The `edsdcf-check` .NET tool, bundling the `EdsDcfNet.dll` of the same build |
+
+- `tools/semantic-release-prepare.sh` writes the next version into `<Version>` of both
+  projects; the release commit carries both (`src/**/*.csproj`).
+- `tools/semantic-release-publish.sh` packs both before it pushes anything, then pushes
+  `EdsDcfNet` first and the tool second. A missing package fails the release. Both
+  packages end up in `packages/` and are attached to the GitHub release.
+- Never bump one `<Version>` by hand without the other; `ToolPackageTests` fails when they differ.
+- The tool has no SBOM of its own. Its only non-framework dependency is the bundled
+  `EdsDcfNet` assembly, which the release SBOM (`bom.cdx.json`, `sbom.spdx.json`) already describes.
+- The release repair in `tools/semantic-release-run.sh` still decides completeness by the
+  `EdsDcfNet` package. Tags from before the tool existed have no tool project and publish
+  the library only.
+
 After the stable release workflow on `main` has **completed successfully**, merge `main`
 back into `develop` with a regular merge commit, not squash or rebase. This back-merge
 brings the generated `CHANGELOG.md` and package version forward and makes the stable tag
