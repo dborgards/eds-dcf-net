@@ -590,7 +590,26 @@ silent — collection happens only through the `CanOpenFile` entry points.
 
 `CanOpenFileOptions` (read) and `CanOpenWriteOptions` (write) are intentionally
 small, shared across all formats, and hold only cross-format concerns
-(`MaxInputSize`, `StrictParsing`, and pre-write `ValidateBeforeWrite`).
+(`MaxInputSize`, `StrictParsing`, and the write options below).
+
+Pre-write validation in `CanOpenWriteOptions`:
+
+| Property | Meaning |
+|---|---|
+| `ValidateBeforeWrite` | Validate the model and throw `ModelValidationException` instead of writing when issues are found. Default `false`. |
+| `ValidationOptions` | Rules for that validation (`null` = `CanOpenValidationOptions.Default`). Ignored unless `ValidateBeforeWrite` is set. CPJ uses no `CanOpenValidationOptions` today; XDD/XDC ignore the INI-only text rules (`RequireIso646`, `CheckLineLength`). |
+| `AllowWarnings` | Let issues with `ValidationSeverity.Warning` pass; only errors block the write, and the exception lists the errors only. Default `false`. Ignored unless `ValidateBeforeWrite` is set. |
+
+```csharp
+// Enforce the error rules, but write an EDS with non-ASCII names anyway.
+var options = new CanOpenWriteOptions
+{
+    ValidateBeforeWrite = true,
+    ValidationOptions = new CanOpenValidationOptions { RequireIso646 = true, CheckLineLength = true },
+    AllowWarnings = true,
+};
+CanOpenFile.Eds.WriteFile(eds, "device.eds", options);
+```
 
 When a genuinely **format-specific** option becomes necessary (for example XDD
 XML formatting, INI section ordering, or CPJ network defaults), the agreed
