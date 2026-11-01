@@ -370,6 +370,22 @@ var memoryIssues = CanOpenIniValidator.ValidateString(
 Each issue contains its stable rule code, severity, source name, optional line, section,
 key and raw value. `ToDisplayString()` produces a compiler-style diagnostic.
 
+`CanOpenValidationRuleCatalog.All` lists every rule code with its default severity, title and
+CiA reference. Severities can be changed per rule; `null` turns a rule off:
+
+```csharp
+var options = new CanOpenIniValidationOptions
+{
+    SeverityOverrides = new Dictionary<string, IniValidationSeverity?>
+    {
+        ["VAL005"] = IniValidationSeverity.Error, // octal literals fail the file
+        ["LST007"] = null,                        // ignore wrong object list
+    },
+};
+
+var issues = CanOpenIniValidator.ValidateFile("device.eds", CanOpenIniFormat.Eds, options);
+```
+
 ### Working with Nodelist Projects (CPJ)
 
 ```csharp
