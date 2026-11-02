@@ -807,28 +807,26 @@ internal static class CanOpenSectionParsers
         string sectionName,
         byte subIndex)
     {
+        var objectType = LenientIniNumber.ParseByte(
+            sections,
+            sectionName,
+            "ObjectType",
+            FixedObjectTypeOrVar(sections, sectionName),
+            fallback: CanOpenObjectType.Var,
+            code: ParseDiagnosticCodes.InvalidObjectType,
+            coercedTo: CanOpenObjectType.VarLiteral,
+            fallbackDescription: LenientIniNumber.TreatAsVar);
+        var dataType = CanOpenReaderBase.ReadSubIndexDataType(
+            sections,
+            sectionName,
+            objectType,
+            out var suppliedDefault);
+
         var subObj = new CanOpenSubObject
         {
             SubIndex = subIndex,
             ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = LenientIniNumber.ParseByte(
-                sections,
-                sectionName,
-                "ObjectType",
-                FixedObjectTypeOrVar(sections, sectionName),
-                fallback: CanOpenObjectType.Var,
-                code: ParseDiagnosticCodes.InvalidObjectType,
-                coercedTo: CanOpenObjectType.VarLiteral,
-                fallbackDescription: LenientIniNumber.TreatAsVar),
-            DataType = LenientIniNumber.ParseUInt16(
-                sections,
-                sectionName,
-                "DataType",
-                IniParser.GetValue(sections, sectionName, "DataType", "0"),
-                fallback: 0,
-                code: ParseDiagnosticCodes.InvalidDataType,
-                coercedTo: "0",
-                fallbackDescription: LenientIniNumber.TreatAsZero),
+            ObjectType = objectType,
             AccessType = IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"),
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
@@ -844,6 +842,7 @@ internal static class CanOpenSectionParsers
             Denotation = IniParser.GetValue(sections, sectionName, "Denotation"),
             ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd")
         };
+        subObj.SetDataTypeFromSection(dataType, suppliedDefault);
 
         // As for [xxxxsubx]: a reported "n" key is not kept, so it is not written back.
         CanOpenReaderBase.ReportNotSupportedSubObjectKeys(sections, sectionName, subObj.ObjectType);

@@ -125,6 +125,7 @@ public static class ObjectDictionaryExtensions
 
         // Sub-objects store a missing DataType as 0 (see ParseSubObject default), unlike
         // top-level objects which leave DataType null when the field is omitted.
+        // ApplyDomainDataTypeDefault is the exception: a DOMAIN sub-index then exposes 0x000F.
         if (subObj!.DataType == 0)
         {
             throw new InvalidOperationException(
@@ -194,6 +195,7 @@ public static class ObjectDictionaryExtensions
 
         // Sub-objects store a missing DataType as 0 (see ParseSubObject default), unlike
         // top-level objects which leave DataType null when the field is omitted.
+        // ApplyDomainDataTypeDefault is the exception: a DOMAIN sub-index then exposes 0x000F.
         if (subObj.DataType == 0)
         {
             throw new InvalidOperationException(

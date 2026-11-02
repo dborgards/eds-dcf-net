@@ -9,9 +9,11 @@ using EdsDcfNet.Exceptions;
 /// <threadsafety>
 /// The built-in instances exposed through <see cref="CanOpenFile"/>'s format entry points are
 /// safe to call concurrently: they hold only immutable delegates and construct a fresh
-/// reader/writer per call, and strict-mode and encoding state are scoped per call via
+/// reader/writer per call, and strict-mode, domain-default, and encoding state are scoped per call via
 /// <see cref="AsyncLocal{T}"/>, so concurrent calls with different
-/// <see cref="CanOpenFileOptions.StrictParsing"/> or <see cref="CanOpenFileOptions.Encoding"/>
+/// <see cref="CanOpenFileOptions.StrictParsing"/>,
+/// <see cref="CanOpenFileOptions.ApplyDomainDataTypeDefault"/>, or
+/// <see cref="CanOpenFileOptions.Encoding"/>
 /// values do not interfere. This guarantee does
 /// <b>not</b> extend automatically to subclasses or custom delegates — supplied delegates and
 /// overrides must not capture mutable shared state. The models passed to and returned from
@@ -424,15 +426,19 @@ public class FormatCanOpenOperations<TModel>
     {
         private readonly IDisposable _encoding;
         private readonly IDisposable _strict;
+        private readonly IDisposable _domainDataType;
 
         internal ReadScopes(CanOpenFileOptions? options)
         {
             _encoding = Parsers.FileEncodingScope.EnterRead(CanOpenFileOptions.ResolveEncoding(options));
             _strict = Parsers.StrictParsingScope.Enter(CanOpenFileOptions.ResolveStrictParsing(options));
+            _domainDataType = Parsers.DomainDataTypeDefaultScope.Enter(
+                CanOpenFileOptions.ResolveApplyDomainDataTypeDefault(options));
         }
 
         public void Dispose()
         {
+            _domainDataType.Dispose();
             _strict.Dispose();
             _encoding.Dispose();
         }

@@ -64,6 +64,38 @@ number (for example `vendor-r7`, `1.0`, `256`, or an empty value) is kept in
 derived. A plain decimal such as `010` sets only `FileVersion` and is written back
 normalised (`10`). EDS and DCF writers always use `FileVersion`.
 
+### DOMAIN sub-index DataType
+
+Set `CanOpenFileOptions.ApplyDomainDataTypeDefault = true` to apply the CiA 306-1
+Table 7 replacement for a DOMAIN sub-index. The default is `false`.
+
+A DOMAIN sub-index is a `[xxxxsubx]` or `[MxFixedxxxxsubx]` section whose own
+`ObjectType` is `0x2`. When that section omits `DataType`, or the entry is empty
+after the INI parser trims it (including a whitespace-only entry), the sub-index's
+`DataType` becomes `0x000F`. A missing `ObjectType` stays VAR and is not affected.
+A value that is still non-empty after trimming, including `0` and a malformed token,
+is kept. DOMAIN object sections already expose `0x000F` through the nullable
+`CanOpenObject.DataType` and do not use this flag.
+
+`CanOpenSubObject.DataType` is a `ushort`, so a missing entry and an explicit `0`
+cannot be told apart on the property. The flag is off by default so existing
+callers keep reading `0`. The reader remembers a value it filled in. Writing the
+model back omits `DataType` while the sub-index is still DOMAIN and `DataType`
+is still that value, so the key is not added. Assigning `DataType`, including
+assigning `0x000F`, writes the key. A sub-index created in code has no filled-in
+default, so its `DataType` is written.
+
+XDD, XDC, and CPJ ignore the flag: Table 7 describes EDS/DCF sections, and a
+missing XDD/XDC `dataType` stays `0`, the same value as with the flag off.
+`[MxSubExtxxxx]` is an object description, not a sub-index, and is unchanged.
+Direct `*Reader` calls do not take `CanOpenFileOptions` and stay on the default.
+
+```csharp
+var eds = CanOpenFile.Eds.ReadFile(
+    "device.eds",
+    new CanOpenFileOptions { ApplyDomainDataTypeDefault = true });
+```
+
 ### Input encoding
 
 `CanOpenFileOptions.Encoding` controls how file and stream bytes are decoded. By default,

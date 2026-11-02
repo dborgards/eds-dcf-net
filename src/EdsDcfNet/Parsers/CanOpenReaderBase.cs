@@ -673,6 +673,39 @@ public abstract class CanOpenReaderBase
     }
 
     /// <summary>
+    /// CiA 306-1 Table 7 <c>DataType</c> of a sub-index section. A missing entry stays <c>0</c>
+    /// unless <see cref="DomainDataTypeDefaultScope"/> is enabled and <paramref name="objectType"/>
+    /// is DOMAIN, in which case a missing or empty entry becomes DOMAIN (<c>0x000F</c>) and
+    /// <paramref name="suppliedDefault"/> tells the caller to remember that for the writer.
+    /// A non-empty entry, malformed or not, is parsed and not replaced.
+    /// </summary>
+    internal static ushort ReadSubIndexDataType(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        byte objectType,
+        out bool suppliedDefault)
+    {
+        suppliedDefault = false;
+        if (DomainDataTypeDefaultScope.IsEnabled
+            && objectType == CanOpenObjectType.Domain
+            && string.IsNullOrEmpty(IniParser.GetValue(sections, sectionName, "DataType")))
+        {
+            suppliedDefault = true;
+            return CanOpenDataType.Domain;
+        }
+
+        return LenientIniNumber.ParseUInt16(
+            sections,
+            sectionName,
+            "DataType",
+            IniParser.GetValue(sections, sectionName, "DataType", "0"),
+            fallback: 0,
+            code: Diagnostics.ParseDiagnosticCodes.InvalidDataType,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
+    }
+
+    /// <summary>
     /// Raw <c>ObjectType</c> text of a section. CiA 306-1 Table 7 NOTE 1: a missing key and an
     /// empty value both equal VAR (0x7), so an empty value must not reach the integer parser,
     /// which reads it as 0x0.
@@ -953,28 +986,22 @@ public abstract class CanOpenReaderBase
         if (!IniParser.HasSection(sections, sectionName))
             return null;
 
+        var objectType = LenientIniNumber.ParseByte(
+            sections,
+            sectionName,
+            "ObjectType",
+            ObjectTypeText(sections, sectionName),
+            fallback: CanOpenObjectType.Var,
+            code: Diagnostics.ParseDiagnosticCodes.InvalidObjectType,
+            coercedTo: CanOpenObjectType.VarLiteral,
+            fallbackDescription: LenientIniNumber.TreatAsVar);
+        var dataType = ReadSubIndexDataType(sections, sectionName, objectType, out var suppliedDefault);
+
         var subObj = new CanOpenSubObject
         {
             SubIndex = subIndex,
             ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = LenientIniNumber.ParseByte(
-                sections,
-                sectionName,
-                "ObjectType",
-                ObjectTypeText(sections, sectionName),
-                fallback: CanOpenObjectType.Var,
-                code: Diagnostics.ParseDiagnosticCodes.InvalidObjectType,
-                coercedTo: CanOpenObjectType.VarLiteral,
-                fallbackDescription: LenientIniNumber.TreatAsVar),
-            DataType = LenientIniNumber.ParseUInt16(
-                sections,
-                sectionName,
-                "DataType",
-                IniParser.GetValue(sections, sectionName, "DataType", "0"),
-                fallback: 0,
-                code: Diagnostics.ParseDiagnosticCodes.InvalidDataType,
-                coercedTo: "0",
-                fallbackDescription: LenientIniNumber.TreatAsZero),
+            ObjectType = objectType,
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
             HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
@@ -986,6 +1013,7 @@ public abstract class CanOpenReaderBase
             SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping"),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
         };
+        subObj.SetDataTypeFromSection(dataType, suppliedDefault);
 
         subObj.SetAccessTypeFromProfile(
             IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"));

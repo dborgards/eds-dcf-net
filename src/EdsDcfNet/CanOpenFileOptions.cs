@@ -56,7 +56,8 @@ public sealed class CanOpenFileOptions
     /// Malformed EDS/DCF numeric keys on objects and sub-objects:
     /// <c>ObjectType</c> (default: VAR / <c>0x7</c>),
     /// object <c>DataType</c> (default: left unset),
-    /// sub-object <c>DataType</c> (default: <c>0</c>),
+    /// sub-object <c>DataType</c> (default: <c>0</c>, or <c>0x000F</c> for a DOMAIN
+    /// sub-index when <see cref="ApplyDomainDataTypeDefault"/> is set),
     /// <c>SubNumber</c> and <c>CompactSubObj</c> (default: left unset),
     /// and <c>ObjFlags</c> (default: <c>0</c>).
     /// Object-list counts (<c>SupportedObjects</c>, <c>ObjectLinks</c>, module <c>NrOfEntries</c>)
@@ -182,6 +183,48 @@ public sealed class CanOpenFileOptions
     public bool StrictParsing { get; init; }
 
     /// <summary>
+    /// When <see langword="true"/>, a DOMAIN sub-index whose <c>DataType</c> entry is
+    /// missing or empty exposes <c>0x000F</c> (DOMAIN) on
+    /// <see cref="Models.CanOpenSubObject.DataType"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Default is <see langword="false"/>. <see cref="Models.CanOpenSubObject.DataType"/> is a
+    /// <see cref="ushort"/>, so a missing entry and an explicit <c>0</c> are the same value
+    /// today. Applying CiA 306-1 Table 7 unconditionally would change what existing callers
+    /// read, so the replacement stays opt-in on 1.x. A DOMAIN <em>object</em> already receives
+    /// <c>0x000F</c> because <see cref="Models.CanOpenObject.DataType"/> is nullable; this flag
+    /// does not change object sections.
+    /// </para>
+    /// <para>
+    /// A DOMAIN sub-index is a sub-index section whose own <c>ObjectType</c> is DOMAIN
+    /// (<c>0x2</c>): <c>[xxxxsubx]</c> and <c>[MxFixedxxxxsubx]</c>. A missing or empty
+    /// <c>ObjectType</c> is VAR (Table 7 NOTE 1) and is left unchanged. The INI parser trims
+    /// the entry first, so an empty <c>DataType</c> and a whitespace-only one are the same
+    /// omission as a missing key. A value that is still non-empty after trimming, including
+    /// a malformed one and an explicit <c>0</c>, is parsed and not replaced.
+    /// </para>
+    /// <para>
+    /// The reader remembers that it supplied <c>0x000F</c>. EDS and DCF writers omit
+    /// <c>DataType</c> again while the sub-index is still DOMAIN and
+    /// <see cref="Models.CanOpenSubObject.DataType"/> still equals that supplied value, so a
+    /// round trip does not insert the key. Assigning
+    /// <see cref="Models.CanOpenSubObject.DataType"/> — including assigning <c>0x000F</c> —
+    /// clears that memory and the key is written. A model built in code has no supplied
+    /// default, so its <c>DataType</c> is written.
+    /// </para>
+    /// <para>
+    /// XDD, XDC, and CPJ ignore this option. CiA 306-1 Table 7 describes EDS/DCF sections;
+    /// a missing XDD/XDC <c>dataType</c> stays <c>0</c>, the same value as with the flag off.
+    /// <c>[MxSubExtxxxx]</c> is an object description, not a sub-index section, and is unchanged.
+    /// Direct <c>*Reader</c> APIs do not take <see cref="CanOpenFileOptions"/> and stay on the
+    /// default. Enforced for reads through <see cref="CanOpenFile"/> format entry points and
+    /// legacy facade overloads that accept this options type.
+    /// </para>
+    /// </remarks>
+    public bool ApplyDomainDataTypeDefault { get; init; }
+
+    /// <summary>
     /// Gets the encoding used to decode EDS, DCF, CPJ, XDD, and XDC bytes.
     /// </summary>
     /// <remarks>
@@ -223,6 +266,9 @@ public sealed class CanOpenFileOptions
 
     internal static bool ResolveStrictParsing(CanOpenFileOptions? options)
         => options?.StrictParsing ?? false;
+
+    internal static bool ResolveApplyDomainDataTypeDefault(CanOpenFileOptions? options)
+        => options?.ApplyDomainDataTypeDefault ?? false;
 
     internal static Encoding? ResolveEncoding(CanOpenFileOptions? options)
         => options?.Encoding;

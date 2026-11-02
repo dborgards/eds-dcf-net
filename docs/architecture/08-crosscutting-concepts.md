@@ -291,7 +291,7 @@ The public entry points are safe for concurrent use; models are not:
   multiple threads or async flows simultaneously. The operation objects are
   stateless singletons that construct a fresh reader/writer per call; strict-mode
   and diagnostics state is scoped per call via `AsyncLocal` (`StrictParsingScope`,
-  `ParseDiagnosticScope`).
+  `DomainDataTypeDefaultScope`, `ParseDiagnosticScope`).
 - **Caller-owned inputs need caller care.** Each concurrent call must use its own
   `Stream`, and file-based calls must target distinct paths.
 - **Models are not thread-safe.** `ElectronicDataSheet`, `DeviceConfigurationFile`,
