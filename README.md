@@ -193,7 +193,8 @@ legacy static `Read*` / `Write*` overloads:
 | XDD | `CanOpenFile.Xdd` | `CanOpenFile.Xdd.ReadFile("device.xdd")` |
 | XDC | `CanOpenFile.Xdc` | `CanOpenFile.Xdc.ReadFile("device.xdc")` |
 
-These entry points accept `CanOpenFileOptions` (`MaxInputSize`, `StrictParsing`)
+These entry points accept `CanOpenFileOptions` (`MaxInputSize`, `StrictParsing`,
+`ApplyDomainDataTypeDefault`)
 and `CanOpenWriteOptions` (pre-write validation) in one place. Legacy facade
 `Read*` / `Write*` overloads (path, stream, string, sync, async, and options-taking
 variants) remain for backward compatibility and are marked `[Obsolete]` (advisory);
@@ -518,8 +519,9 @@ as a thin shim (prefer `Eds.ConvertToDcf`). `Validate*` is unchanged.
 ### Read options
 
 Reads are limited to **10 MiB** by default. `CanOpenFileOptions` lets trusted callers
-raise `MaxInputSize` or enable `StrictParsing` to throw on malformed tokens instead of
-coercing them:
+raise `MaxInputSize`, enable `StrictParsing` to throw on malformed tokens instead of
+coercing them, or set `ApplyDomainDataTypeDefault` so a DOMAIN sub-index with no
+`DataType` exposes `0x000F` (off by default; EDS/DCF only):
 
 ```csharp
 var options = new CanOpenFileOptions
@@ -569,9 +571,9 @@ silent — collection happens only through the `CanOpenFile` entry points.
   `.Cpj` / `.Xdd` / `.Xdc` and their `Read*` / `Write*` / `Validate` operations
   may be called from multiple threads or async flows simultaneously. The
   operation objects behind them are stateless singletons whose delegates
-  construct a fresh reader/writer per call, and `StrictParsing` state is scoped
-  per call via `AsyncLocal`, so concurrent calls with different options do not
-  interfere. This contract is guarded by a concurrency test
+  construct a fresh reader/writer per call, and `StrictParsing` and
+  `ApplyDomainDataTypeDefault` state are scoped per call via `AsyncLocal`, so
+  concurrent calls with different options do not interfere. This contract is guarded by a concurrency test
   (`tests/EdsDcfNet.Tests/Integration/ThreadSafetyTests.cs`).
 - **Models are not thread-safe.** `ElectronicDataSheet`, `DeviceConfigurationFile`,
   `NodelistProject`, `ObjectDictionary`, etc. are plain mutable objects. Do not
@@ -590,7 +592,10 @@ silent — collection happens only through the `CanOpenFile` entry points.
 
 `CanOpenFileOptions` (read) and `CanOpenWriteOptions` (write) are intentionally
 small, shared across all formats, and hold only cross-format concerns
-(`MaxInputSize`, `StrictParsing`, and the write options below).
+(`MaxInputSize`, `StrictParsing`, `ApplyDomainDataTypeDefault`, and the write options below).
+`ApplyDomainDataTypeDefault` is accepted on every format and changes only EDS/DCF
+sub-index sections; XDD, XDC, and CPJ ignore it. See the
+[options guide](docs/options.md#domain-sub-index-datatype).
 
 Pre-write validation in `CanOpenWriteOptions`:
 

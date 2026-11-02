@@ -317,7 +317,67 @@ public class CanOpenSubObject
     /// <summary>
     /// Data type index.
     /// </summary>
-    public ushort DataType { get; set; }
+    /// <remarks>
+    /// <para>
+    /// EDS/DCF sub-index sections store a missing <c>DataType</c> as <c>0</c>.
+    /// When <see cref="CanOpenFileOptions.ApplyDomainDataTypeDefault"/> is set, a DOMAIN
+    /// sub-index (<c>ObjectType</c> <c>0x2</c>) with a missing or empty <c>DataType</c>
+    /// exposes <c>0x000F</c> instead. The EDS/DCF writers omit the key again while that
+    /// supplied value is still in place and the sub-index is still DOMAIN.
+    /// </para>
+    /// <para>
+    /// Assigning this property, including assigning <c>0x000F</c>, marks the value as
+    /// explicit. The writers then emit <c>DataType</c>. A sub-index constructed in code
+    /// has no supplied default, so its <c>DataType</c> is written.
+    /// </para>
+    /// </remarks>
+    public ushort DataType
+    {
+        get => _dataType;
+        set
+        {
+            _dataType = value;
+            DataTypeDefaultBaseline = null;
+        }
+    }
+
+    private ushort _dataType;
+
+    /// <summary>
+    /// Value the reader stored because the sub-index section omitted <c>DataType</c>
+    /// under <see cref="CanOpenFileOptions.ApplyDomainDataTypeDefault"/>.
+    /// The INI writers omit <c>DataType</c> while <see cref="DataType"/> still equals
+    /// this value and <see cref="ObjectType"/> is still DOMAIN. Assigning
+    /// <see cref="DataType"/> clears it.
+    /// </summary>
+    internal ushort? DataTypeDefaultBaseline { get; set; }
+
+    /// <summary>
+    /// Stores a sub-index <c>DataType</c> from an EDS/DCF section without marking an
+    /// assignment. <paramref name="suppliedDefault"/> is set only when the reader
+    /// filled in the CiA 306-1 Table 7 DOMAIN default.
+    /// </summary>
+    internal void SetDataTypeFromSection(ushort value, bool suppliedDefault)
+    {
+        _dataType = value;
+        DataTypeDefaultBaseline = suppliedDefault ? value : null;
+    }
+
+    /// <summary>
+    /// <see langword="true"/> when the EDS/DCF writer should omit <c>DataType</c>
+    /// because the reader supplied the Table 7 DOMAIN default and the sub-index
+    /// still has that value and object type.
+    /// </summary>
+    internal bool OmitsSuppliedDomainDataType()
+    {
+        if (DataTypeDefaultBaseline is not ushort baseline)
+            return false;
+
+        if (baseline != _dataType)
+            return false;
+
+        return ObjectType == CanOpenObjectType.Domain;
+    }
 
     /// <summary>
     /// Access type.
