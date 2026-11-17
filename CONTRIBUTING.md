@@ -135,7 +135,10 @@ while the core library project additionally pins the analyzer package version vi
 
 ## .NET SDK policy
 
-- SDK resolution is pinned in [`global.json`](global.json).
+- SDK resolution is pinned in [`global.json`](global.json) (currently the
+  .NET 11 SDK). The projects keep targeting `net10.0` and `netstandard2.0`, so
+  running the `net10.0` tests also needs the .NET 10 runtime installed; CI
+  installs it next to the pinned SDK.
 - CI resolves the .NET SDK from that file and runs on `windows-latest` so
   `EdsDcfNet.Tests` can execute both `net10.0` and `net48` (the latter binds
   the `netstandard2.0` library asset).

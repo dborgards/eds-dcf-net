@@ -771,8 +771,8 @@ unsigned assembly should see the [1.13.0 migration note](docs/migration.md#stron
 
 **For building this repository (library, tests, examples):**
 
-- .NET SDK 10.0 or higher
-- C# 14 (`LangVersion latest`, as provided by the .NET 10 SDK)
+- .NET SDK 11.0 (pinned in `global.json`), plus the .NET 10 runtime to run the `net10.0` tests
+- C# 15 (`LangVersion latest`, as provided by the .NET 11 SDK)
 
 ## License
 

@@ -79,9 +79,12 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
-          # SDK 10 from global.json builds the library and runs net10.0 tests;
+          # SDK 11 from global.json builds every project. The projects still target
+          # net10.0, so the 10.0 line is installed as well: it provides the .NET 10
+          # runtime that runs the net10.0 tests (global.json keeps SDK 11 selected).
           # net48 (preinstalled on windows-latest) exercises the netstandard2.0 asset.
           global-json-file: global.json
+          dotnet-version: '10.0.x'
 
       - name: Install dependencies
         run: npm ci

@@ -52,7 +52,7 @@ An **example console application** (`examples/EdsDcfNet.Examples/`) demonstrates
 
 | Category | Technology |
 |---|---|
-| **Language** | C# 14 (`LangVersion latest` in `Directory.Build.props`, SDK pinned to 10.0.x by `global.json`) |
+| **Language** | C# 15 (`LangVersion latest` in `Directory.Build.props`, SDK pinned to 11.0.x by `global.json`) |
 | **Frameworks** | .NET Standard 2.0, .NET 10.0 |
 | **Build system** | MSBuild via .NET SDK |
 | **Architecture** | Facade (format entry points) → Parsers → Models → Writers |

@@ -28,6 +28,17 @@ else
   echo ".NET SDK ${DOTNET_VERSION} already present in ${DOTNET_INSTALL_DIR}."
 fi
 
+# The projects target net10.0 while global.json may pin a newer SDK major, which
+# ships only its own runtime. Install the .NET 10 runtime too so tests can run.
+TEST_RUNTIME_CHANNEL="10.0"
+if ! "$DOTNET_INSTALL_DIR/dotnet" --list-runtimes 2>/dev/null | grep -q "^Microsoft.NETCore.App ${TEST_RUNTIME_CHANNEL}\\."; then
+  echo "Installing .NET runtime ${TEST_RUNTIME_CHANNEL} into ${DOTNET_INSTALL_DIR} ..."
+  curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+  chmod +x /tmp/dotnet-install.sh
+  /tmp/dotnet-install.sh --runtime dotnet --channel "$TEST_RUNTIME_CHANNEL" --install-dir "$DOTNET_INSTALL_DIR"
+  rm -f /tmp/dotnet-install.sh
+fi
+
 export DOTNET_ROOT="$DOTNET_INSTALL_DIR"
 export PATH="$DOTNET_INSTALL_DIR:$PATH"
 
