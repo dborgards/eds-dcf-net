@@ -98,7 +98,7 @@ public class CanOpenValidationRuleCatalogTests
     private static string FindRepoRoot()
     {
         var current = new DirectoryInfo(TestOutputDirectory.Value);
-        while (current != null && !File.Exists(Path.Combine(current.FullName, "EdsDcfNet.sln")))
+        while (current != null && !File.Exists(Path.Combine(current.FullName, "EdsDcfNet.slnx")))
         {
             current = current.Parent;
         }

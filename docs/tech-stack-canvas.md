@@ -147,5 +147,5 @@ retained non-obsolete shim, and `Validate*` / `EnsureValid*` live directly on `C
 | **Branching strategy** | `main` (stable) · `develop` (beta) · feature branches |
 | **Release automation** | semantic-release with commit-analyzer, changelog, exec, git, github plugins |
 | **Documentation** | ARC42 architecture docs (12 chapters), CiA format notes in README |
-| **IDE support** | Visual Studio 2017+ (.sln), VS Code |
+| **IDE support** | Visual Studio 2022 with slnx support, VS Code |
 | **AI assistants** | CLAUDE.md, `.github/copilot-instructions.md` |

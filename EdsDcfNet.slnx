@@ -1,0 +1,16 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/EdsDcfNet.Benchmarks/EdsDcfNet.Benchmarks.csproj" />
+  </Folder>
+  <Project Path="examples/EdsDcfNet.Examples/EdsDcfNet.Examples.csproj" />
+  <Project Path="src/EdsDcfNet.Checker/EdsDcfNet.Checker.csproj" />
+  <Project Path="src/EdsDcfNet/EdsDcfNet.csproj" />
+  <Project Path="tests/EdsDcfNet.Checker.Tests/EdsDcfNet.Checker.Tests.csproj" />
+  <Project Path="tests/EdsDcfNet.TestHost/EdsDcfNet.TestHost.csproj" />
+  <Project Path="tests/EdsDcfNet.Tests/EdsDcfNet.Tests.csproj" />
+</Solution>

@@ -110,7 +110,7 @@ public sealed class ToolPackageTests : IDisposable
     {
         for (var current = start; current is not null; current = current.Parent)
         {
-            if (File.Exists(Path.Combine(current.FullName, "EdsDcfNet.sln")))
+            if (File.Exists(Path.Combine(current.FullName, "EdsDcfNet.slnx")))
             {
                 return current.FullName;
             }

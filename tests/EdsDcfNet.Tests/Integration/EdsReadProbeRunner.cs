@@ -218,7 +218,7 @@ internal static class EdsReadProbeRunner
         var current = new DirectoryInfo(TestOutputDirectory.Value);
         while (current != null)
         {
-            if (File.Exists(Path.Combine(current.FullName, "EdsDcfNet.sln")))
+            if (File.Exists(Path.Combine(current.FullName, "EdsDcfNet.slnx")))
             {
                 return current.FullName;
             }
