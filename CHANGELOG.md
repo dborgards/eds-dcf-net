@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.17.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.17.0-beta.1...v1.17.0-beta.2) (2026-11-26)
+
+### ✨ Features
+
+* **checker:** add SARIF output, --format/--output, severity overrides, config file and --list-rules ([431cff0](https://github.com/dborgards/eds-dcf-net/commit/431cff0a64ca62983890d5f96262352b7cc2571d))
+* let warnings pass a validated write (CanOpenWriteOptions.AllowWarnings) ([60550ac](https://github.com/dborgards/eds-dcf-net/commit/60550ac6cc6850b70e2432cbf07e72d4f2117d29))
+* opt-in CiA 306 DataType default for DOMAIN sub-indexes ([d2dbb56](https://github.com/dborgards/eds-dcf-net/commit/d2dbb56c8657d1dadc42dcc19868e0b2c29b2bfb))
+* report reader and model codes in INI validation results ([b0f5f88](https://github.com/dborgards/eds-dcf-net/commit/b0f5f88cd3ca2717e5fa1268f146385d1249ba8b))
+
+### 🐛 Bug Fixes
+
+* **checker:** report --severity errors as such when --config is set ([d8d48ea](https://github.com/dborgards/eds-dcf-net/commit/d8d48ea209c73993b2284bb79ca0e68ecbbd5618))
+
+### 📚 Documentation
+
+* add ADR-9 and update the building block view and technical debt ([3f51ef9](https://github.com/dborgards/eds-dcf-net/commit/3f51ef957b426ac909f0f82b09e3fcb32224c7dd))
+* add an edsdcf-check section to the README ([f218d0f](https://github.com/dborgards/eds-dcf-net/commit/f218d0f929cc819138acc3ea82f5f7a6407bcc21))
+* **checker:** document formats, config file and the upload-sarif setup ([232ee7f](https://github.com/dborgards/eds-dcf-net/commit/232ee7f1acc83c74ffc624778f8fc539a00550d5))
+* describe the two-package release ([dfef4e0](https://github.com/dborgards/eds-dcf-net/commit/dfef4e0edb0db3101eb23f264a2db4559598ff5d))
+* list the pre-write validation options in the README ([ab95721](https://github.com/dborgards/eds-dcf-net/commit/ab95721ea463fc0db93c7a0dcfffd7197002e0b4))
+* mention reader and model pass options ([f5b67c5](https://github.com/dborgards/eds-dcf-net/commit/f5b67c5b7e8139de55ff58aad798bc81c50b7747))
+
 ## [1.17.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0...v1.17.0-beta.1) (2026-11-01)
 
 ### ✨ Features
