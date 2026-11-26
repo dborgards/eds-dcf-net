@@ -262,6 +262,38 @@ public class SpecDefaultValueTests
     }
 
     [Fact]
+    public void ReadString_EmptyEdsVersion_IsKeptAndWrittenBack()
+    {
+        // Arrange: a present but empty EDSVersion is not a missing entry
+        // (Table 1 footnote a only covers a missing key).
+        var content = string.Join("\n", "[FileInfo]", "FileName=t.eds", "EDSVersion=", "[DeviceInfo]", "VendorName=Test");
+
+        // Act
+        var eds = CanOpenFile.Eds.ReadString(content);
+        var written = CanOpenFile.Eds.WriteToString(eds);
+
+        // Assert
+        eds.FileInfo.EdsVersion.Should().BeEmpty();
+        SectionValue(written, "FileInfo", "EDSVersion").Should().BeEmpty();
+        CanOpenFile.Eds.ReadString(written).FileInfo.EdsVersion.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ValidateString_EmptyEdsVersion_ReportsMnd002()
+    {
+        // Arrange: MandatoryFieldsChecker treats a blank EDSVersion like a missing one (MND002),
+        // not a malformed X.Y value (MND003).
+        var content = string.Join("\n", "[FileInfo]", "FileName=t.eds", "EDSVersion=", "[DeviceInfo]", "VendorName=Test");
+
+        // Act
+        var issues = CanOpenIniValidator.ValidateString(content, CanOpenIniFormat.Eds);
+
+        // Assert
+        issues.Should().Contain(i => i.Code == "MND002" && i.Key == "EDSVersion");
+        issues.Should().NotContain(i => i.Code == "MND003" && i.Key == "EDSVersion");
+    }
+
+    [Fact]
     public void Constructor_NewFileInfo_DefaultsToFourPointZeroForWrittenFiles()
     {
         // Arrange / Act: files written by this library use 4.0 ("shall use 4.0").
