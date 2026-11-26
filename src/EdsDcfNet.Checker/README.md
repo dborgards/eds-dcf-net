@@ -68,7 +68,10 @@ matching override in order, then `--severity`. Comments and trailing commas are 
 
 `--format sarif` writes a SARIF 2.1.0 log: every catalog rule as a rule descriptor, each finding
 with the file and line as physical location and `[Section]Key` as logical location. Paths below
-the working directory are written as relative URIs, so run the tool from the repository root. The upload job needs
+the working directory are written as relative URIs, so run the tool from the repository root;
+files outside it get absolute `file:` URIs. `--output` only chooses where the report is written
+and does not change how those URIs are resolved; consumers should resolve relative paths against
+the repository root. The upload job needs
 `permissions: security-events: write`.
 
 ```yaml
