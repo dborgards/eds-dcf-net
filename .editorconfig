@@ -38,9 +38,6 @@ trim_trailing_whitespace = false
 [tests/EdsDcfNet.Tests/Integration/CanOpenFileTests.cs]
 dotnet_diagnostic.CS0618.severity = none
 
-[tests/EdsDcfNet.Tests/Integration/FormatCanOpenOperationsAsyncValidationTests.cs]
-dotnet_diagnostic.CS0618.severity = none
-
 [tests/EdsDcfNet.Tests/Integration/CanOpenFileLegacyFacadeTests.cs]
 dotnet_diagnostic.CS0618.severity = none
 
