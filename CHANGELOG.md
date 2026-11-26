@@ -1,9 +1,11 @@
 # Changelog
 
-## [1.17.0-beta.2](https://github.com/dborgards/eds-dcf-net/compare/v1.17.0-beta.1...v1.17.0-beta.2) (2026-11-26)
+## [1.17.0](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0...v1.17.0) (2026-11-26)
 
 ### ✨ Features
 
+* add public validation rule catalog for INI rules ([ac5f35f](https://github.com/dborgards/eds-dcf-net/commit/ac5f35fef9afd4d4b911014989175d44b65c32a5))
+* add severity overrides to CanOpenIniValidator ([ce60f4b](https://github.com/dborgards/eds-dcf-net/commit/ce60f4bf6d79afd40d8d10e69c61414d1eac37b1))
 * **checker:** add SARIF output, --format/--output, severity overrides, config file and --list-rules ([431cff0](https://github.com/dborgards/eds-dcf-net/commit/431cff0a64ca62983890d5f96262352b7cc2571d))
 * let warnings pass a validated write (CanOpenWriteOptions.AllowWarnings) ([60550ac](https://github.com/dborgards/eds-dcf-net/commit/60550ac6cc6850b70e2432cbf07e72d4f2117d29))
 * opt-in CiA 306 DataType default for DOMAIN sub-indexes ([d2dbb56](https://github.com/dborgards/eds-dcf-net/commit/d2dbb56c8657d1dadc42dcc19868e0b2c29b2bfb))
@@ -18,20 +20,13 @@
 * add ADR-9 and update the building block view and technical debt ([3f51ef9](https://github.com/dborgards/eds-dcf-net/commit/3f51ef957b426ac909f0f82b09e3fcb32224c7dd))
 * add an edsdcf-check section to the README ([f218d0f](https://github.com/dborgards/eds-dcf-net/commit/f218d0f929cc819138acc3ea82f5f7a6407bcc21))
 * **checker:** document formats, config file and the upload-sarif setup ([232ee7f](https://github.com/dborgards/eds-dcf-net/commit/232ee7f1acc83c74ffc624778f8fc539a00550d5))
+* clarify SARIF artifact paths with --output ([#709](https://github.com/dborgards/eds-dcf-net/issues/709)) ([c8b87af](https://github.com/dborgards/eds-dcf-net/commit/c8b87af1cbb2c2801c00cd91b24e5bbebc747514))
+* close 1.17 documentation gaps ([#708](https://github.com/dborgards/eds-dcf-net/issues/708)) ([f7de0ba](https://github.com/dborgards/eds-dcf-net/commit/f7de0babed614972940d2e80d215aff5dae99881))
+* describe rule catalog and severity overrides ([be0ab54](https://github.com/dborgards/eds-dcf-net/commit/be0ab54241644ee8ace7c96287bfeda26d469452))
 * describe the two-package release ([dfef4e0](https://github.com/dborgards/eds-dcf-net/commit/dfef4e0edb0db3101eb23f264a2db4559598ff5d))
 * list the pre-write validation options in the README ([ab95721](https://github.com/dborgards/eds-dcf-net/commit/ab95721ea463fc0db93c7a0dcfffd7197002e0b4))
 * mention reader and model pass options ([f5b67c5](https://github.com/dborgards/eds-dcf-net/commit/f5b67c5b7e8139de55ff58aad798bc81c50b7747))
-
-## [1.17.0-beta.1](https://github.com/dborgards/eds-dcf-net/compare/v1.16.0...v1.17.0-beta.1) (2026-11-01)
-
-### ✨ Features
-
-* add public validation rule catalog for INI rules ([ac5f35f](https://github.com/dborgards/eds-dcf-net/commit/ac5f35fef9afd4d4b911014989175d44b65c32a5))
-* add severity overrides to CanOpenIniValidator ([ce60f4b](https://github.com/dborgards/eds-dcf-net/commit/ce60f4bf6d79afd40d8d10e69c61414d1eac37b1))
-
-### 📚 Documentation
-
-* describe rule catalog and severity overrides ([be0ab54](https://github.com/dborgards/eds-dcf-net/commit/be0ab54241644ee8ace7c96287bfeda26d469452))
+* update tech stack canvas to SDK 11 ([#704](https://github.com/dborgards/eds-dcf-net/issues/704)) ([f1b94cc](https://github.com/dborgards/eds-dcf-net/commit/f1b94cc1e642e714525fbb4111b15c76213db8d4))
 
 ## [1.16.0](https://github.com/dborgards/eds-dcf-net/compare/v1.15.0...v1.16.0) (2026-10-25)
 
