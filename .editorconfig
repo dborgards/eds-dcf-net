@@ -35,9 +35,6 @@ trim_trailing_whitespace = false
 
 # Obsolete CanOpenFile facade / parser-shim compat suites (#426).
 # New tests must use CanOpenFile.{Eds|Dcf|Cpj|Xdd|Xdc}; do not expand this list casually.
-[tests/EdsDcfNet.Tests/Integration/CanOpenFileTests.cs]
-dotnet_diagnostic.CS0618.severity = none
-
 [tests/EdsDcfNet.Tests/Integration/CanOpenFileLegacyFacadeTests.cs]
 dotnet_diagnostic.CS0618.severity = none
 
