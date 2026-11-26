@@ -2,7 +2,7 @@
 
 ## 7.1 Infrastructure
 
-EdsDcfNet is a pure library without its own runtime infrastructure. Distribution is via NuGet package.
+EdsDcfNet is a pure library without its own runtime infrastructure. Distribution is via two NuGet packages, published in lockstep: the `EdsDcfNet` library and the `EdsDcfNet.Checker` .NET tool (`edsdcf-check`).
 
 ```mermaid
 graph TB
@@ -17,7 +17,7 @@ graph TB
     end
 
     subgraph Distribution ["Distribution"]
-        NuGet["NuGet.org<br/>EdsDcfNet"]
+        NuGet["NuGet.org<br/>EdsDcfNet<br/>EdsDcfNet.Checker"]
         GHR["GitHub Releases<br/>+ .nupkg Assets"]
     end
 
@@ -25,6 +25,7 @@ graph TB
         App1[".NET Framework 4.6.1+<br/>Application"]
         App2[".NET 8/10<br/>Application"]
         App3["Unity / Xamarin<br/>Application"]
+        Cli["edsdcf-check<br/>.NET tool"]
     end
 
     Dev -->|git push| GH
@@ -35,6 +36,7 @@ graph TB
     NuGet -->|dotnet add package| App1
     NuGet -->|dotnet add package| App2
     NuGet -->|dotnet add package| App3
+    NuGet -->|dotnet tool install| Cli
 
     style Dev fill:#4A90D9,color:#fff
     style GH fill:#333,color:#fff
@@ -46,7 +48,7 @@ graph TB
 
 ## 7.2 NuGet Package Structure
 
-The NuGet package contains two target frameworks:
+The library package contains two target frameworks:
 
 ```
 EdsDcfNet.<version>.nupkg
@@ -61,6 +63,17 @@ EdsDcfNet.<version>.nupkg
 └── EdsDcfNet.nuspec
 
 EdsDcfNet.<version>.snupkg        (Symbol package for Source Link)
+```
+
+The checker is a separate .NET tool package, targeted at net10.0 and published at the same version as the library:
+
+```
+EdsDcfNet.Checker.<version>.nupkg
+├── tools/
+│   └── net10.0/any/
+│       └── edsdcf-check.dll     (command: edsdcf-check)
+├── README.md
+└── EdsDcfNet.Checker.nuspec
 ```
 
 ## 7.3 CI/CD Pipeline

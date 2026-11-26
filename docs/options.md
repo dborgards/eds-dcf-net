@@ -170,6 +170,19 @@ The write throws `ModelValidationException` when validation finds issues. The sa
 works on every format entry point. Async write methods await validation and honor the
 write call's `CancellationToken`; synchronous writes keep synchronous validation.
 
+By default every issue blocks the write. Set `AllowWarnings` so issues with
+`ValidationSeverity.Warning` pass; only errors block the write, and the exception lists
+the errors only. `AllowWarnings` has no effect unless `ValidateBeforeWrite` is set (as it
+is on `CanOpenWriteOptions.Validated`):
+
+```csharp
+CanOpenFile.Dcf.WriteFile(dcf, "updated.dcf", new CanOpenWriteOptions
+{
+    ValidateBeforeWrite = true,
+    AllowWarnings = true,
+});
+```
+
 A validated EDS or DCF write also applies INI-specific rules: `ObjFlags` bits 2..31 are
 reserved (CiA 306-1 Table 8; XDD/XDC also define bit 2), comment lines are at most 249
 characters (248 in a module's `[MxComments]`), and `ParamRefd`, `UploadFile`, and

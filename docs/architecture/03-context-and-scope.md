@@ -45,7 +45,7 @@ C4Context
 | **CPJ files**        | Input/Output: CiA 306-3 nodelist projects describing network topologies. Can be read, created, and written. |
 | **XDD files**        | Input/Output: XML device descriptions per CiA 311. Can be read and written. |
 | **XDC files**        | Input/Output: XML device configurations per CiA 311. Can be read and written. |
-| **NuGet consumers**  | The library is distributed as a NuGet package and used through the public API (`CanOpenFile`). |
+| **NuGet consumers**  | The library is the `EdsDcfNet` NuGet package and is used through the public API (`CanOpenFile`). The `EdsDcfNet.Checker` package installs the `edsdcf-check` .NET tool, which uses only the public Validation API. |
 
 ## 3.2 Technical Context
 
@@ -53,15 +53,20 @@ C4Context
 C4Context
     title Technical Context -- EdsDcfNet
 
-    System(edsdcfnet, "EdsDcfNet", "NuGet package (netstandard2.0 / net10.0)")
+    System(edsdcfnet, "EdsDcfNet", "NuGet library (netstandard2.0 / net10.0)")
+    System(checker, "edsdcf-check", "EdsDcfNet.Checker .NET tool (net10.0)")
 
     System_Ext(filesystem, "File System", "EDS/DCF/CPJ (INI) and XDD/XDC (XML) files")
-    System_Ext(dotnet_host, ".NET Host Application", "Any .NET application referencing the NuGet package")
+    System_Ext(dotnet_host, ".NET Host Application", "Any .NET application referencing the library or the tool")
     System_Ext(nuget, "NuGet.org", "Package distribution")
 
     Rel(dotnet_host, edsdcfnet, "References via NuGet / ProjectReference")
+    Rel(dotnet_host, checker, "dotnet tool install (optional)")
+    Rel(checker, edsdcfnet, "Uses the public Validation API")
     Rel(edsdcfnet, filesystem, "Reads/Writes files (System.IO)")
+    Rel(checker, filesystem, "Reads files, writes reports")
     Rel(edsdcfnet, nuget, "Published to")
+    Rel(checker, nuget, "Published to")
 ```
 
 ### Technical Interfaces
@@ -70,4 +75,4 @@ C4Context
 |------------------------|------------------------------------------------|--------------------------------------------------------------------------|
 | **File system**        | System.IO (UTF-8 read/write, no BOM on write)  | Reading/writing EDS/DCF/CPJ (INI) and XDD/XDC (XML) as UTF-8 text (without BOM on writes) |
 | **String API**         | In-memory UTF-16 strings                       | `Read*FromString` / `Write*ToString` variants for EDS/DCF/CPJ/XDD/XDC in scenarios without file system access |
-| **NuGet package**      | `.nupkg` + `.snupkg`                           | Distribution via nuget.org with Source Link                              |
+| **NuGet packages**     | `.nupkg` + `.snupkg`                           | `EdsDcfNet` (library, netstandard2.0 / net10.0) and `EdsDcfNet.Checker` (dotnet tool, net10.0, command `edsdcf-check`) are published to nuget.org in lockstep, with Source Link |
