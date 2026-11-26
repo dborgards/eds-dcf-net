@@ -1,7 +1,6 @@
-namespace EdsDcfNet.Tests.Checker;
+namespace EdsDcfNet.Tests.IniValidation;
 
 using EdsDcfNet;
-using EdsDcfNet.Checker;
 using AwesomeAssertions;
 using Xunit;
 
@@ -1406,6 +1405,40 @@ PDOMapping=0
             f.Section == sectionName &&
             f.Message.Contains(readerName, StringComparison.Ordinal));
         findings.Should().NotContain(f => f.Code == "OBJ011" && f.Section == "1000");
+    }
+
+    [Theory]
+    [InlineData("10000Value")]
+    [InlineData("000010000Name")]
+    [InlineData("G040Value")]
+    public void Check_AuxiliarySectionWithoutValidIndexPrefix_DoesNotReportObj011(string sectionName)
+    {
+        // Arrange — the prefix is either not hex or does not fit an object index.
+        var content = @"
+[DeviceComissioning]
+NodeID=1
+
+[OptionalObjects]
+SupportedObjects=1
+1=0x1000
+
+[1000]
+ParameterName=DeviceType
+ObjectType=0x7
+DataType=0x0007
+AccessType=ro
+DefaultValue=0
+PDOMapping=0
+
+[" + sectionName + @"]
+1=7
+";
+
+        // Act
+        var findings = Check(content, isDcf: true);
+
+        // Assert
+        findings.Should().NotContain(f => f.Code == "OBJ011");
     }
 
     [Fact]

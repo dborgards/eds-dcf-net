@@ -1,0 +1,1156 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "edsdcf-check",
+          "version": "<version>",
+          "informationUri": "https://github.com/dborgards/eds-dcf-net",
+          "rules": [
+            {
+              "id": "INI001",
+              "shortDescription": {
+                "text": "Malformed section header or line without Key=Value"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 clause 6.2"
+              }
+            },
+            {
+              "id": "INI002",
+              "shortDescription": {
+                "text": "Duplicate section, including two spellings of the same object or sub-index"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 clause 6.2"
+              }
+            },
+            {
+              "id": "INI003",
+              "shortDescription": {
+                "text": "Duplicate key within a section"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 clause 6.2"
+              }
+            },
+            {
+              "id": "INI004",
+              "shortDescription": {
+                "text": "Entry outside of any section"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 clause 6.2"
+              }
+            },
+            {
+              "id": "OBJ001",
+              "shortDescription": {
+                "text": "ObjectType is not a number or not a CiA 306 object code"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "OBJ002",
+              "shortDescription": {
+                "text": "DataType is not a number"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "OBJ003",
+              "shortDescription": {
+                "text": "DataType is not a basic type or not defined by a DEFTYPE/DEFSTRUCT"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "OBJ004",
+              "shortDescription": {
+                "text": "DataType is missing"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "OBJ005",
+              "shortDescription": {
+                "text": "AccessType is missing or not ro/wo/rw/rwr/rww/const"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "OBJ006",
+              "shortDescription": {
+                "text": "SubNumber or CompactSubObj does not match the sub-index sections"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 clause 6.6.3.2"
+              }
+            },
+            {
+              "id": "OBJ007",
+              "shortDescription": {
+                "text": "Sub-index 0 value does not match the highest defined sub-index"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 6"
+              }
+            },
+            {
+              "id": "OBJ008",
+              "shortDescription": {
+                "text": "Sub-index section without parent object section"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "OBJ009",
+              "shortDescription": {
+                "text": "SubNumber/CompactSubObj is not UNSIGNED8 or PDOMapping is not 0/1"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "OBJ010",
+              "shortDescription": {
+                "text": "ParameterName is missing or longer than 241 characters"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "OBJ011",
+              "shortDescription": {
+                "text": "Zero-padded section name that the reader does not probe"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "VAL001",
+              "shortDescription": {
+                "text": "Value is invalid or out of range for the data type"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "VAL002",
+              "shortDescription": {
+                "text": "LowLimit is greater than HighLimit"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "VAL003",
+              "shortDescription": {
+                "text": "DefaultValue is outside LowLimit..HighLimit"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "VAL004",
+              "shortDescription": {
+                "text": "ParameterValue is outside LowLimit..HighLimit"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "VAL005",
+              "shortDescription": {
+                "text": "Leading zero makes the value an octal literal"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "VAL006",
+              "shortDescription": {
+                "text": "Limits on a non-numeric data type"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "VAL007",
+              "shortDescription": {
+                "text": "Hex literal for REAL32/REAL64"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "VAL008",
+              "shortDescription": {
+                "text": "DCF compact value entry that the reader discards"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "FRM001",
+              "shortDescription": {
+                "text": "Invalid $NODEID formula or operand"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 clause 6.3"
+              }
+            },
+            {
+              "id": "FRM002",
+              "shortDescription": {
+                "text": "$NODEID is not at the beginning of the formula"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 clause 6.3"
+              }
+            },
+            {
+              "id": "FRM003",
+              "shortDescription": {
+                "text": "$NODEID formula on a non-integer data type"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 clause 6.3"
+              }
+            },
+            {
+              "id": "FRM004",
+              "shortDescription": {
+                "text": "Formula result out of range"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 clause 6.3"
+              }
+            },
+            {
+              "id": "FRM005",
+              "shortDescription": {
+                "text": "Subtraction in a $NODEID formula is not CiA 306 syntax"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 clause 6.3"
+              }
+            },
+            {
+              "id": "STD001",
+              "shortDescription": {
+                "text": "Well-known CiA 301 entry has the wrong DataType"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 301"
+              }
+            },
+            {
+              "id": "LST001",
+              "shortDescription": {
+                "text": "SupportedObjects is missing or does not match the number of entries"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 5"
+              }
+            },
+            {
+              "id": "LST002",
+              "shortDescription": {
+                "text": "Object list references a missing section"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 4"
+              }
+            },
+            {
+              "id": "LST003",
+              "shortDescription": {
+                "text": "Object section is not listed in any object list"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 4"
+              }
+            },
+            {
+              "id": "LST004",
+              "shortDescription": {
+                "text": "Object is listed more than once"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 4"
+              }
+            },
+            {
+              "id": "LST005",
+              "shortDescription": {
+                "text": "Mandatory object 1000h/1001h/1018h is missing or in the wrong list"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 4"
+              }
+            },
+            {
+              "id": "LST006",
+              "shortDescription": {
+                "text": "Invalid object list entry"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 5"
+              }
+            },
+            {
+              "id": "LST007",
+              "shortDescription": {
+                "text": "Object is listed in the wrong object list"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 4"
+              }
+            },
+            {
+              "id": "PDO001",
+              "shortDescription": {
+                "text": "PDO mapping references a missing object or an invalid dummy type"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 301"
+              }
+            },
+            {
+              "id": "PDO002",
+              "shortDescription": {
+                "text": "Mapped object is not PDO-mappable or has the wrong access direction"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 301"
+              }
+            },
+            {
+              "id": "PDO003",
+              "shortDescription": {
+                "text": "Mapping length does not match the mapped data type"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 301"
+              }
+            },
+            {
+              "id": "PDO004",
+              "shortDescription": {
+                "text": "PDO maps more than 64 bits"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 301"
+              }
+            },
+            {
+              "id": "MND001",
+              "shortDescription": {
+                "text": "Mandatory section is missing"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Tables 1, 2, 4 and 12"
+              }
+            },
+            {
+              "id": "MND002",
+              "shortDescription": {
+                "text": "Mandatory FileInfo/DeviceInfo/DeviceComissioning entry is missing or empty"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Tables 1, 2 and 12"
+              }
+            },
+            {
+              "id": "MND003",
+              "shortDescription": {
+                "text": "Entry value has the wrong type or format"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Tables 1, 2 and 12"
+              }
+            },
+            {
+              "id": "MND004",
+              "shortDescription": {
+                "text": "No supported baud rate is set"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 2"
+              }
+            },
+            {
+              "id": "MND005",
+              "shortDescription": {
+                "text": "DeviceInfo disagrees with the object dictionary"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 2"
+              }
+            },
+            {
+              "id": "DCF001",
+              "shortDescription": {
+                "text": "DCF without configured NodeID"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 12"
+              }
+            },
+            {
+              "id": "DCF002",
+              "shortDescription": {
+                "text": "DCF NodeID is outside 1..127"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 12"
+              }
+            },
+            {
+              "id": "DCF003",
+              "shortDescription": {
+                "text": "DCF has both [DeviceComissioning] and [DeviceCommissioning]"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 12"
+              }
+            },
+            {
+              "id": "LIB001",
+              "shortDescription": {
+                "text": "Reader diagnostic without a code"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "LIB002",
+              "shortDescription": {
+                "text": "The EdsDcfNet reader aborted"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "LIB003",
+              "shortDescription": {
+                "text": "Model validation issue without a code"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "INI_DUPLICATE_KEY",
+              "shortDescription": {
+                "text": "Reader: duplicate key, the last value is kept"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INI_MALFORMED_SECTION_HEADER",
+              "shortDescription": {
+                "text": "Reader: malformed section header is ignored with its keys"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INI_MISSING_EQUALS",
+              "shortDescription": {
+                "text": "Reader: line without Key=Value is ignored"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INI_DUPLICATE_SECTION",
+              "shortDescription": {
+                "text": "Reader: repeated section is merged into the first one"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INI_DECODED_AS_ISO_8859_1",
+              "shortDescription": {
+                "text": "Reader: file is not valid UTF-8 and was decoded as ISO-8859-1"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INVALID_ENCODED_BYTES",
+              "shortDescription": {
+                "text": "Reader: bytes are not valid in the requested encoding"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INI_INVALID_DUMMY_USAGE_KEY",
+              "shortDescription": {
+                "text": "Reader: invalid DummyUsage key is ignored"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INI_UNLISTED_OBJECT_SECTION",
+              "shortDescription": {
+                "text": "Reader: object section is not listed in an object list and is not loaded"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 4"
+              }
+            },
+            {
+              "id": "INI_UNLISTED_MODULE_SECTION",
+              "shortDescription": {
+                "text": "Reader: module section of a module that is not parsed"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INI_ORPHAN_COMPANION_SECTION",
+              "shortDescription": {
+                "text": "Reader: companion section of a listed object without object section"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INI_ORPHAN_SUB_OBJECT_SECTION",
+              "shortDescription": {
+                "text": "Reader: sub-index section is not loaded as a sub-object"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INI_VERSION_MAJOR_MINOR",
+              "shortDescription": {
+                "text": "Reader: FileVersion/FileRevision in major.minor form, the major part is used"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INI_OBJECT_KEY_NOT_SUPPORTED",
+              "shortDescription": {
+                "text": "Reader: key not supported for the ObjectType"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "UNKNOWN_BOOLEAN_TOKEN",
+              "shortDescription": {
+                "text": "Reader: unknown boolean value"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "UNKNOWN_ACCESS_TYPE_TOKEN",
+              "shortDescription": {
+                "text": "Reader: unknown AccessType, read as ro"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INVALID_OBJECT_TYPE",
+              "shortDescription": {
+                "text": "Reader: malformed ObjectType, read as VAR"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "INVALID_DATA_TYPE",
+              "shortDescription": {
+                "text": "Reader: malformed DataType"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "INVALID_SUB_NUMBER",
+              "shortDescription": {
+                "text": "Reader: malformed SubNumber is ignored"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "INVALID_COMPACT_SUB_OBJ",
+              "shortDescription": {
+                "text": "Reader: malformed CompactSubObj is ignored"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 7"
+              }
+            },
+            {
+              "id": "INVALID_OBJ_FLAGS",
+              "shortDescription": {
+                "text": "Reader: malformed ObjFlags, read as 0"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 8"
+              }
+            },
+            {
+              "id": "INI_OBJ_FLAGS_RESERVED_BITS",
+              "shortDescription": {
+                "text": "Reader: ObjFlags sets reserved bits 2..31"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 8"
+              }
+            },
+            {
+              "id": "INI_OBJECT_LIST_COUNT_MISMATCH",
+              "shortDescription": {
+                "text": "Reader: SupportedObjects disagrees with the numbered entries"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 5"
+              }
+            },
+            {
+              "id": "INVALID_MODULE_OBJ_EXTEND",
+              "shortDescription": {
+                "text": "Reader: malformed module ObjExtend is ignored"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INVALID_OBJECT_LIST_COUNT",
+              "shortDescription": {
+                "text": "Reader: malformed object list count, read as 0"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 5"
+              }
+            },
+            {
+              "id": "INVALID_OBJECT_INDEX",
+              "shortDescription": {
+                "text": "Reader: malformed object list index is skipped"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 5"
+              }
+            },
+            {
+              "id": "INVALID_DYNAMIC_CHANNEL_PPOFFSET",
+              "shortDescription": {
+                "text": "Reader: malformed DynamicChannels PPOffset"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INI_DUPLICATE_DEVICE_COMMISSIONING",
+              "shortDescription": {
+                "text": "Reader: both [DeviceComissioning] and [DeviceCommissioning] are present"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 12"
+              }
+            },
+            {
+              "id": "INVALID_NODE_ID",
+              "shortDescription": {
+                "text": "Reader: malformed or out-of-range NodeID"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 12"
+              }
+            },
+            {
+              "id": "INVALID_BAUDRATE",
+              "shortDescription": {
+                "text": "Reader: malformed Baudrate, read as 250"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 12"
+              }
+            },
+            {
+              "id": "INVALID_NET_NUMBER",
+              "shortDescription": {
+                "text": "Reader: malformed NetNumber, read as 0"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 12"
+              }
+            },
+            {
+              "id": "INVALID_LSS_SERIAL_NUMBER",
+              "shortDescription": {
+                "text": "Reader: malformed LSS_SerialNumber is ignored"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 12"
+              }
+            },
+            {
+              "id": "INVALID_DEVICE_INFO_NUMBER",
+              "shortDescription": {
+                "text": "Reader: malformed numeric DeviceInfo entry"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 2"
+              }
+            },
+            {
+              "id": "INVALID_DYNAMIC_CHANNEL_COUNT",
+              "shortDescription": {
+                "text": "Reader: malformed DynamicChannels NrOfSeg, read as 0"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INVALID_COMMENT_LINE_COUNT",
+              "shortDescription": {
+                "text": "Reader: malformed Comments Lines, read as 0"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 9"
+              }
+            },
+            {
+              "id": "INVALID_COMPACT_LIST_COUNT",
+              "shortDescription": {
+                "text": "Reader: malformed NrOfEntries of a compact list"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INVALID_TOOL_COUNT",
+              "shortDescription": {
+                "text": "Reader: malformed Tools Items, read as 0"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INVALID_MODULE_COUNT",
+              "shortDescription": {
+                "text": "Reader: malformed module NrOfEntries, read as 0"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "INVALID_MODULE_VERSION",
+              "shortDescription": {
+                "text": "Reader: malformed module ProductVersion/ProductRevision"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "specReference": "CiA 306-1 Table 14"
+              }
+            },
+            {
+              "id": "INVALID_DYNAMIC_CHANNEL_TYPE",
+              "shortDescription": {
+                "text": "Reader: malformed DynamicChannels Type, read as 0"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "INI003",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Duplicate key; previous value '0' on line 98 is overridden."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "devices/findings.eds"
+                },
+                "region": {
+                  "startLine": 99
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "Lines",
+                  "fullyQualifiedName": "[Comments]Lines",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "LST003",
+          "ruleIndex": 31,
+          "level": "error",
+          "message": {
+            "text": "Object is not listed in [MandatoryObjects], [OptionalObjects] or [ManufacturerObjects]; EdsDcfNet and other list-driven tools ignore it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "devices/findings.eds"
+                },
+                "region": {
+                  "startLine": 101
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "2000",
+                  "fullyQualifiedName": "[2000]",
+                  "kind": "object"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "VAL001",
+          "ruleIndex": 15,
+          "level": "error",
+          "message": {
+            "text": "Value does not fit UNSIGNED8 (0..255)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "devices/findings.eds"
+                },
+                "region": {
+                  "startLine": 106
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "DefaultValue",
+                  "fullyQualifiedName": "[2000]DefaultValue",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "LST003",
+          "ruleIndex": 31,
+          "level": "error",
+          "message": {
+            "text": "Object is not listed in [MandatoryObjects], [OptionalObjects] or [ManufacturerObjects]; EdsDcfNet and other list-driven tools ignore it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "devices/findings.eds"
+                },
+                "region": {
+                  "startLine": 109
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "2001",
+                  "fullyQualifiedName": "[2001]",
+                  "kind": "object"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "VAL005",
+          "ruleIndex": 19,
+          "level": "warning",
+          "message": {
+            "text": "Leading zero makes this an octal literal (= 8 decimal). Use '10' or '0x8' if decimal was intended."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "devices/findings.eds"
+                },
+                "region": {
+                  "startLine": 114
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "DefaultValue",
+                  "fullyQualifiedName": "[2001]DefaultValue",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

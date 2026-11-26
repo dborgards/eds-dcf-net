@@ -52,7 +52,7 @@ An **example console application** (`examples/EdsDcfNet.Examples/`) demonstrates
 
 | Category | Technology |
 |---|---|
-| **Language** | C# 14 (`LangVersion latest` in `Directory.Build.props`, SDK pinned to 10.0.x by `global.json`) |
+| **Language** | C# 15 (`LangVersion latest` in `Directory.Build.props`, SDK pinned to 11.0.x by `global.json`) |
 | **Frameworks** | .NET Standard 2.0, .NET 10.0 |
 | **Build system** | MSBuild via .NET SDK |
 | **Architecture** | Facade (format entry points) → Parsers → Models → Writers |
@@ -147,5 +147,5 @@ retained non-obsolete shim, and `Validate*` / `EnsureValid*` live directly on `C
 | **Branching strategy** | `main` (stable) · `develop` (beta) · feature branches |
 | **Release automation** | semantic-release with commit-analyzer, changelog, exec, git, github plugins |
 | **Documentation** | ARC42 architecture docs (12 chapters), CiA format notes in README |
-| **IDE support** | Visual Studio 2017+ (.sln), VS Code |
+| **IDE support** | Visual Studio 2022 with slnx support, VS Code |
 | **AI assistants** | CLAUDE.md, `.github/copilot-instructions.md` |

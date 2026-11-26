@@ -570,7 +570,8 @@ public abstract class IniWriterBase
         WriteKeyValue(sb, "ParameterName", subObj.ParameterName);
         WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(subObj.ObjectType));
 
-        if (IsWritten("DataType"))
+        // A reader-supplied Table 7 DOMAIN default is omitted again while it is unchanged.
+        if (IsWritten("DataType") && !subObj.OmitsSuppliedDomainDataType())
         {
             WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(subObj.DataType));
         }
@@ -1197,7 +1198,8 @@ public abstract class IniWriterBase
         WriteKeyValue(sb, "ParameterName", subObj.ParameterName);
         WriteKeyValue(sb, "ObjectType", ValueConverter.FormatInteger(subObj.ObjectType));
 
-        if (IsWritten("DataType"))
+        // Same omission as WriteSubObject: a filled-in DOMAIN default is not written back.
+        if (IsWritten("DataType") && !subObj.OmitsSuppliedDomainDataType())
         {
             WriteKeyValue(sb, "DataType", ValueConverter.FormatInteger(subObj.DataType));
         }

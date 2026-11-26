@@ -78,26 +78,47 @@ generate_spdx_sbom() {
 # Use -p: (not /p:): Git Bash on Windows converts bare /p:... args via MSYS
 # path munging, which turns the property into a second "project" and fails with
 # MSB1008 after the release workflow moved to windows-latest.
-dotnet pack src/EdsDcfNet/EdsDcfNet.csproj \
-  --configuration Release \
-  --no-restore \
-  --output ./packages \
-  -p:PackageVersion="${next_version}"
+pack() {
+  dotnet pack "$1" \
+    --configuration Release \
+    --no-restore \
+    --output ./packages \
+    -p:PackageVersion="${next_version}"
+}
 
 # Push an explicit package path. A quoted "./packages/*.nupkg" glob is not
 # expanded by the Windows NuGet CLI (unlike Linux), so push fails with
 # "File does not exist (./packages/*.nupkg)" even after a successful pack.
 # Adjacent .snupkg symbols are published with the .nupkg automatically.
-nupkg="./packages/EdsDcfNet.${next_version}.nupkg"
-if [[ ! -f "$nupkg" ]]; then
-  echo "Expected package not found: ${nupkg}" >&2
-  exit 1
+push() {
+  local nupkg="./packages/$1.${next_version}.nupkg"
+  if [[ ! -f "$nupkg" ]]; then
+    echo "Expected package not found: ${nupkg}" >&2
+    exit 1
+  fi
+
+  dotnet nuget push "$nupkg" \
+    --api-key "${NUGET_API_KEY}" \
+    --source https://api.nuget.org/v3/index.json \
+    --skip-duplicate
+}
+
+# The edsdcf-check tool is released in lockstep with the library and bundles the
+# core assembly of the same build. Both are packed before anything is pushed, so
+# a failing tool pack never leaves a library-only release behind. The library is
+# pushed first. Tags from before the tool existed (a repair run packs the tag's
+# tree) have no tool project and publish the library only.
+tool_project="src/EdsDcfNet.Checker/EdsDcfNet.Checker.csproj"
+
+pack src/EdsDcfNet/EdsDcfNet.csproj
+if [[ -f "$tool_project" ]]; then
+  pack "$tool_project"
 fi
 
-dotnet nuget push "$nupkg" \
-  --api-key "${NUGET_API_KEY}" \
-  --source https://api.nuget.org/v3/index.json \
-  --skip-duplicate
+push EdsDcfNet
+if [[ -f "$tool_project" ]]; then
+  push EdsDcfNet.Checker
+fi
 
 best_effort "CycloneDX SBOM generation" generate_cyclonedx_sbom
 best_effort "SPDX SBOM generation" generate_spdx_sbom

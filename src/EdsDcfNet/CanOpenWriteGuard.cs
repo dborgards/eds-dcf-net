@@ -20,7 +20,7 @@ internal static class CanOpenWriteGuard
         if (!ShouldValidateBeforeWrite(options))
             return;
 
-        ValidateKnownModel(model, options!.ValidationOptions, formatRules);
+        ValidateKnownModel(model, options!.ValidationOptions, formatRules, options.AllowWarnings);
     }
 
     internal static Task EnsureValidForWriteAsync<T>(
@@ -38,7 +38,7 @@ internal static class CanOpenWriteGuard
         if (!ShouldValidateBeforeWrite(options))
             return Task.CompletedTask;
 
-        return ValidateKnownModelAsync(model, options!.ValidationOptions, formatRules, cancellationToken);
+        return ValidateKnownModelAsync(model, options!.ValidationOptions, formatRules, options.AllowWarnings, cancellationToken);
     }
 
     internal static void EnsureValidForXmlWrite<T>(
@@ -49,7 +49,7 @@ internal static class CanOpenWriteGuard
         if (!ShouldValidateBeforeWrite(options))
             return;
 
-        ValidateKnownModel(model, XmlValidationOptions(options!.ValidationOptions), formatRules);
+        ValidateKnownModel(model, XmlValidationOptions(options!.ValidationOptions), formatRules, options.AllowWarnings);
     }
 
     internal static Task EnsureValidForXmlWriteAsync<T>(
@@ -65,6 +65,7 @@ internal static class CanOpenWriteGuard
             model,
             XmlValidationOptions(options!.ValidationOptions),
             formatRules,
+            options.AllowWarnings,
             cancellationToken);
     }
 
@@ -88,35 +89,38 @@ internal static class CanOpenWriteGuard
     private static void ValidateKnownModel<T>(
         T model,
         CanOpenValidationOptions? validationOptions,
-        Action<object, List<ValidationIssue>>? formatRules)
+        Action<object, List<ValidationIssue>>? formatRules,
+        bool allowWarnings)
     {
         ThrowIfNull(model, nameof(model));
 
         var shared = ValidateShared(model!, validationOptions);
-        ApplyFormatRules(model!, shared, formatRules);
+        ApplyFormatRules(model!, shared, formatRules, allowWarnings);
     }
 
     private static Task ValidateKnownModelAsync<T>(
         T model,
         CanOpenValidationOptions? validationOptions,
         Action<object, List<ValidationIssue>>? formatRules,
+        bool allowWarnings,
         CancellationToken cancellationToken)
     {
         ThrowIfNull(model, nameof(model));
         EnsureSupportedModel(model);
 
-        return ValidateAndApplyAsync(model, validationOptions, formatRules, cancellationToken);
+        return ValidateAndApplyAsync(model, validationOptions, formatRules, allowWarnings, cancellationToken);
     }
 
     private static async Task ValidateAndApplyAsync<T>(
         T model,
         CanOpenValidationOptions? validationOptions,
         Action<object, List<ValidationIssue>>? formatRules,
+        bool allowWarnings,
         CancellationToken cancellationToken)
     {
         var shared = await ValidateSharedAsync(model!, validationOptions, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
-        ApplyFormatRules(model!, shared, formatRules);
+        ApplyFormatRules(model!, shared, formatRules, allowWarnings);
     }
 
     private static IReadOnlyList<ValidationIssue> ValidateShared<T>(T model, CanOpenValidationOptions? options)
@@ -151,10 +155,16 @@ internal static class CanOpenWriteGuard
     private static void ApplyFormatRules(
         object model,
         IReadOnlyList<ValidationIssue> shared,
-        Action<object, List<ValidationIssue>>? formatRules)
+        Action<object, List<ValidationIssue>>? formatRules,
+        bool allowWarnings)
     {
         var issues = new List<ValidationIssue>(shared);
         formatRules?.Invoke(model, issues);
+
+        // With AllowWarnings only errors block the write, and the exception lists just those.
+        if (allowWarnings)
+            issues.RemoveAll(issue => issue.Severity == ValidationSeverity.Warning);
+
         if (issues.Count > 0)
             throw new ModelValidationException(issues);
     }

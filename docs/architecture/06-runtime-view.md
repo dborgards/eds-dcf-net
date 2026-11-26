@@ -94,7 +94,7 @@ sequenceDiagram
     opt CanOpenWriteOptions.ValidateBeforeWrite
         CF->>V: Validate(eds)
         V-->>CF: IReadOnlyList~ValidationIssue~
-        note over CF: throws ModelValidationException<br/>when any issue is found
+        note over CF: throws ModelValidationException<br/>when issues are found<br/>(errors only if AllowWarnings is set)
     end
     CF->>EW: new EdsWriter()
     CF->>EW: WriteFile(eds, filePath) / WriteFileAsync(eds, filePath, ct)

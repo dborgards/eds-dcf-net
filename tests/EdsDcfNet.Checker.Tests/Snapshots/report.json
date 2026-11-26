@@ -1,0 +1,63 @@
+[
+  {
+    "file": "devices/clean.eds",
+    "valid": true,
+    "errors": 0,
+    "warnings": 0,
+    "findings": []
+  },
+  {
+    "file": "devices/findings.eds",
+    "valid": false,
+    "errors": 3,
+    "warnings": 2,
+    "findings": [
+      {
+        "severity": "warning",
+        "code": "INI003",
+        "file": "devices/findings.eds",
+        "line": 99,
+        "section": "Comments",
+        "key": "Lines",
+        "value": "0",
+        "message": "Duplicate key; previous value '0' on line 98 is overridden."
+      },
+      {
+        "severity": "error",
+        "code": "LST003",
+        "file": "devices/findings.eds",
+        "line": 101,
+        "section": "2000",
+        "message": "Object is not listed in [MandatoryObjects], [OptionalObjects] or [ManufacturerObjects]; EdsDcfNet and other list-driven tools ignore it."
+      },
+      {
+        "severity": "error",
+        "code": "VAL001",
+        "file": "devices/findings.eds",
+        "line": 106,
+        "section": "2000",
+        "key": "DefaultValue",
+        "value": "1000",
+        "message": "Value does not fit UNSIGNED8 (0..255)."
+      },
+      {
+        "severity": "error",
+        "code": "LST003",
+        "file": "devices/findings.eds",
+        "line": 109,
+        "section": "2001",
+        "message": "Object is not listed in [MandatoryObjects], [OptionalObjects] or [ManufacturerObjects]; EdsDcfNet and other list-driven tools ignore it."
+      },
+      {
+        "severity": "warning",
+        "code": "VAL005",
+        "file": "devices/findings.eds",
+        "line": 114,
+        "section": "2001",
+        "key": "DefaultValue",
+        "value": "010",
+        "message": "Leading zero makes this an octal literal (= 8 decimal). Use '10' or '0x8' if decimal was intended."
+      }
+    ]
+  }
+]

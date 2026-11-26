@@ -157,47 +157,49 @@ public class FormatCanOpenOperationsAsyncValidationTests
 
     private static class EdsFormatDelegates
     {
+        private static CanOpenFileOptions Limit(long maxInputSize) => new() { MaxInputSize = maxInputSize };
+
         internal static ElectronicDataSheet ReadFile(string filePath, long maxInputSize) =>
-            CanOpenFile.ReadEds(filePath, maxInputSize);
+            CanOpenFile.Eds.ReadFile(filePath, Limit(maxInputSize));
 
         internal static Task<ElectronicDataSheet> ReadFileAsync(
             string filePath,
             long maxInputSize,
             CancellationToken cancellationToken) =>
-            CanOpenFile.ReadEdsAsync(filePath, maxInputSize, cancellationToken);
+            CanOpenFile.Eds.ReadFileAsync(filePath, Limit(maxInputSize), cancellationToken);
 
         internal static ElectronicDataSheet ReadString(string content, long maxInputSize) =>
-            CanOpenFile.ReadEdsFromString(content, maxInputSize);
+            CanOpenFile.Eds.ReadString(content, Limit(maxInputSize));
 
         internal static ElectronicDataSheet ReadStream(Stream stream, long maxInputSize) =>
-            CanOpenFile.ReadEds(stream, maxInputSize);
+            CanOpenFile.Eds.ReadStream(stream, Limit(maxInputSize));
 
         internal static Task<ElectronicDataSheet> ReadStreamAsync(
             Stream stream,
             long maxInputSize,
             CancellationToken cancellationToken) =>
-            CanOpenFile.ReadEdsAsync(stream, maxInputSize, cancellationToken);
+            CanOpenFile.Eds.ReadStreamAsync(stream, Limit(maxInputSize), cancellationToken);
 
         internal static void WriteFile(ElectronicDataSheet model, string filePath) =>
-            CanOpenFile.WriteEds(model, filePath);
+            CanOpenFile.Eds.WriteFile(model, filePath);
 
         internal static void WriteStream(ElectronicDataSheet model, Stream stream) =>
-            CanOpenFile.WriteEds(model, stream);
+            CanOpenFile.Eds.WriteStream(model, stream);
 
         internal static Task WriteFileAsync(
             ElectronicDataSheet model,
             string filePath,
             CancellationToken cancellationToken) =>
-            CanOpenFile.WriteEdsAsync(model, filePath, cancellationToken);
+            CanOpenFile.Eds.WriteFileAsync(model, filePath, cancellationToken);
 
         internal static Task WriteStreamAsync(
             ElectronicDataSheet model,
             Stream stream,
             CancellationToken cancellationToken) =>
-            CanOpenFile.WriteEdsAsync(model, stream, cancellationToken);
+            CanOpenFile.Eds.WriteStreamAsync(model, stream, cancellationToken);
 
         internal static string WriteToString(ElectronicDataSheet model) =>
-            CanOpenFile.WriteEdsToString(model);
+            CanOpenFile.Eds.WriteToString(model);
     }
 
     /// <summary>

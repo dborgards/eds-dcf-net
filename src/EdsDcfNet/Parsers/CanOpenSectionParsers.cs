@@ -807,28 +807,26 @@ internal static class CanOpenSectionParsers
         string sectionName,
         byte subIndex)
     {
+        var objectType = LenientIniNumber.ParseByte(
+            sections,
+            sectionName,
+            "ObjectType",
+            FixedObjectTypeOrVar(sections, sectionName),
+            fallback: CanOpenObjectType.Var,
+            code: ParseDiagnosticCodes.InvalidObjectType,
+            coercedTo: CanOpenObjectType.VarLiteral,
+            fallbackDescription: LenientIniNumber.TreatAsVar);
+        var dataType = CanOpenReaderBase.ReadSubIndexDataType(
+            sections,
+            sectionName,
+            objectType,
+            out var suppliedDefault);
+
         var subObj = new CanOpenSubObject
         {
             SubIndex = subIndex,
             ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = LenientIniNumber.ParseByte(
-                sections,
-                sectionName,
-                "ObjectType",
-                FixedObjectTypeOrVar(sections, sectionName),
-                fallback: CanOpenObjectType.Var,
-                code: ParseDiagnosticCodes.InvalidObjectType,
-                coercedTo: CanOpenObjectType.VarLiteral,
-                fallbackDescription: LenientIniNumber.TreatAsVar),
-            DataType = LenientIniNumber.ParseUInt16(
-                sections,
-                sectionName,
-                "DataType",
-                IniParser.GetValue(sections, sectionName, "DataType", "0"),
-                fallback: 0,
-                code: ParseDiagnosticCodes.InvalidDataType,
-                coercedTo: "0",
-                fallbackDescription: LenientIniNumber.TreatAsZero),
+            ObjectType = objectType,
             AccessType = IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"),
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
@@ -844,6 +842,7 @@ internal static class CanOpenSectionParsers
             Denotation = IniParser.GetValue(sections, sectionName, "Denotation"),
             ParamRefd = IniParser.GetValue(sections, sectionName, "ParamRefd")
         };
+        subObj.SetDataTypeFromSection(dataType, suppliedDefault);
 
         // As for [xxxxsubx]: a reported "n" key is not kept, so it is not written back.
         CanOpenReaderBase.ReportNotSupportedSubObjectKeys(sections, sectionName, subObj.ObjectType);
@@ -873,7 +872,7 @@ internal static class CanOpenSectionParsers
 
         var rest = suffix[6..];
         return rest.Length > 0 &&
-               IsHexDigitsOnly(rest) &&
+               HexDigits.IsHexDigitsOnly(rest) &&
                ushort.TryParse(rest, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index);
     }
 
@@ -970,7 +969,7 @@ internal static class CanOpenSectionParsers
         if (subPos < 0)
         {
             return rest.Length > 0 &&
-                   IsHexDigitsOnly(rest) &&
+                   HexDigits.IsHexDigitsOnly(rest) &&
                    ushort.TryParse(rest, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index);
         }
 
@@ -979,8 +978,8 @@ internal static class CanOpenSectionParsers
 
         var indexPart = rest[..subPos];
         var subPart = rest[(subPos + 3)..];
-        if (!IsHexDigitsOnly(indexPart) ||
-            !IsHexDigitsOnly(subPart) ||
+        if (!HexDigits.IsHexDigitsOnly(indexPart) ||
+            !HexDigits.IsHexDigitsOnly(subPart) ||
             !ushort.TryParse(indexPart, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out index) ||
             !byte.TryParse(subPart, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out subIndex))
         {
@@ -1021,23 +1020,6 @@ internal static class CanOpenSectionParsers
         }
 
         suffix = sectionName[i..];
-        return true;
-    }
-
-    private static bool IsHexDigitsOnly(string value)
-    {
-        if (value.Length == 0)
-            return false;
-
-        foreach (var c in value)
-        {
-            var isHexDigit = (c >= '0' && c <= '9') ||
-                             (c >= 'a' && c <= 'f') ||
-                             (c >= 'A' && c <= 'F');
-            if (!isHexDigit)
-                return false;
-        }
-
         return true;
     }
 

@@ -237,7 +237,7 @@ public abstract class CanOpenReaderBase
     {
         if (sectionName.Length > suffix.Length &&
             sectionName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
-            IsHexDigitsOnly(sectionName[..^suffix.Length]))
+            HexDigits.IsHexDigitsOnly(sectionName[..^suffix.Length]))
         {
             return TryParseHexPrefixedSection(sectionName, suffix, out index);
         }
@@ -673,6 +673,39 @@ public abstract class CanOpenReaderBase
     }
 
     /// <summary>
+    /// CiA 306-1 Table 7 <c>DataType</c> of a sub-index section. A missing entry stays <c>0</c>
+    /// unless <see cref="DomainDataTypeDefaultScope"/> is enabled and <paramref name="objectType"/>
+    /// is DOMAIN, in which case a missing or empty entry becomes DOMAIN (<c>0x000F</c>) and
+    /// <paramref name="suppliedDefault"/> tells the caller to remember that for the writer.
+    /// A non-empty entry, malformed or not, is parsed and not replaced.
+    /// </summary>
+    internal static ushort ReadSubIndexDataType(
+        Dictionary<string, Dictionary<string, string>> sections,
+        string sectionName,
+        byte objectType,
+        out bool suppliedDefault)
+    {
+        suppliedDefault = false;
+        if (DomainDataTypeDefaultScope.IsEnabled
+            && objectType == CanOpenObjectType.Domain
+            && string.IsNullOrEmpty(IniParser.GetValue(sections, sectionName, "DataType")))
+        {
+            suppliedDefault = true;
+            return CanOpenDataType.Domain;
+        }
+
+        return LenientIniNumber.ParseUInt16(
+            sections,
+            sectionName,
+            "DataType",
+            IniParser.GetValue(sections, sectionName, "DataType", "0"),
+            fallback: 0,
+            code: Diagnostics.ParseDiagnosticCodes.InvalidDataType,
+            coercedTo: "0",
+            fallbackDescription: LenientIniNumber.TreatAsZero);
+    }
+
+    /// <summary>
     /// Raw <c>ObjectType</c> text of a section. CiA 306-1 Table 7 NOTE 1: a missing key and an
     /// empty value both equal VAR (0x7), so an empty value must not reach the integer parser,
     /// which reads it as 0x0.
@@ -911,7 +944,7 @@ public abstract class CanOpenReaderBase
         foreach (var entry in section)
         {
             // Rejects NrOfEntries and any other non sub-index key.
-            if (!TryParseCompactListSubIndex(entry.Key, out var subIndex))
+            if (!SectionEntryKeys.TryParseCompactListSubIndex(entry.Key, out var subIndex))
                 continue;
 
             if (string.IsNullOrEmpty(entry.Value))
@@ -923,13 +956,6 @@ public abstract class CanOpenReaderBase
             }
         }
     }
-
-    /// <summary>
-    /// Parses a compact list key as a decimal sub-index in the CiA 306 range 1..254.
-    /// Reserved sub-index <c>0xFF</c> and non-numeric keys are rejected.
-    /// </summary>
-    private static bool TryParseCompactListSubIndex(string key, out byte subIndex)
-        => SectionEntryKeys.TryParseCompactListSubIndex(key, out subIndex);
 
     /// <summary>CiA 301 / CiA 306 UNSIGNED8 data-type index.</summary>
     private const ushort Unsigned8DataType = 0x0005;
@@ -960,28 +986,22 @@ public abstract class CanOpenReaderBase
         if (!IniParser.HasSection(sections, sectionName))
             return null;
 
+        var objectType = LenientIniNumber.ParseByte(
+            sections,
+            sectionName,
+            "ObjectType",
+            ObjectTypeText(sections, sectionName),
+            fallback: CanOpenObjectType.Var,
+            code: Diagnostics.ParseDiagnosticCodes.InvalidObjectType,
+            coercedTo: CanOpenObjectType.VarLiteral,
+            fallbackDescription: LenientIniNumber.TreatAsVar);
+        var dataType = ReadSubIndexDataType(sections, sectionName, objectType, out var suppliedDefault);
+
         var subObj = new CanOpenSubObject
         {
             SubIndex = subIndex,
             ParameterName = IniParser.GetValue(sections, sectionName, "ParameterName"),
-            ObjectType = LenientIniNumber.ParseByte(
-                sections,
-                sectionName,
-                "ObjectType",
-                ObjectTypeText(sections, sectionName),
-                fallback: CanOpenObjectType.Var,
-                code: Diagnostics.ParseDiagnosticCodes.InvalidObjectType,
-                coercedTo: CanOpenObjectType.VarLiteral,
-                fallbackDescription: LenientIniNumber.TreatAsVar),
-            DataType = LenientIniNumber.ParseUInt16(
-                sections,
-                sectionName,
-                "DataType",
-                IniParser.GetValue(sections, sectionName, "DataType", "0"),
-                fallback: 0,
-                code: Diagnostics.ParseDiagnosticCodes.InvalidDataType,
-                coercedTo: "0",
-                fallbackDescription: LenientIniNumber.TreatAsZero),
+            ObjectType = objectType,
             DefaultValue = IniParser.GetValue(sections, sectionName, "DefaultValue"),
             LowLimit = IniParser.GetValue(sections, sectionName, "LowLimit"),
             HighLimit = IniParser.GetValue(sections, sectionName, "HighLimit"),
@@ -993,6 +1013,7 @@ public abstract class CanOpenReaderBase
             SrdoMapping = IniKeyTokens.ParseBoolean(sections, sectionName, "SRDOMapping"),
             InvertedSrad = IniParser.GetValue(sections, sectionName, "InvertedSRAD")
         };
+        subObj.SetDataTypeFromSection(dataType, suppliedDefault);
 
         subObj.SetAccessTypeFromProfile(
             IniKeyTokens.ParseAccessType(sections, sectionName, "AccessType"));
@@ -1179,7 +1200,7 @@ public abstract class CanOpenReaderBase
         // AllowHexSpecifier (not HexNumber): reject whitespace so names like
         // "[1000sub 1]" are preserved in AdditionalSections rather than treated as known.
         // Also reject an optional 0x prefix by requiring hex digits only first.
-        if (!IsHexDigitsOnly(prefix) || !IsHexDigitsOnly(suffix))
+        if (!HexDigits.IsHexDigitsOnly(prefix) || !HexDigits.IsHexDigitsOnly(suffix))
             return false;
 
         return ushort.TryParse(prefix, NumberStyles.AllowHexSpecifier,
@@ -1196,24 +1217,6 @@ public abstract class CanOpenReaderBase
     /// </summary>
     private static bool TryParseObjectIndexSectionName(string sectionName, out ushort index)
         => ushort.TryParse(sectionName, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out index);
-
-    /// <summary>
-    /// Returns <see langword="true"/> when <paramref name="value"/> is non-empty and
-    /// consists solely of hexadecimal digits (no whitespace, no <c>0x</c> prefix).
-    /// </summary>
-    private static bool IsHexDigitsOnly(string value)
-    {
-        foreach (var c in value)
-        {
-            var isHexDigit = (c >= '0' && c <= '9') ||
-                             (c >= 'a' && c <= 'f') ||
-                             (c >= 'A' && c <= 'F');
-            if (!isHexDigit)
-                return false;
-        }
-
-        return value.Length > 0;
-    }
 
     /// <summary>
     /// Checks if a section name has a valid hex object index prefix followed by the given suffix.

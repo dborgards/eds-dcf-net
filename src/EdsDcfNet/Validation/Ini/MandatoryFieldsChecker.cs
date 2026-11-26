@@ -326,7 +326,7 @@ internal sealed class MandatoryFieldsChecker
             // fall through: either a tooling major/minor form, or a literal the reader cannot load
         }
 
-        if (TrySplitToolingMajorMinor(entry.Value, out var majorText))
+        if (ValueConverter.TrySplitMajorMinorDecimal(entry.Value.Trim(), out var majorText))
         {
             try
             {
@@ -343,72 +343,6 @@ internal sealed class MandatoryFieldsChecker
         }
 
         Add(Severity.Error, "MND003", section, entry, key, key + " must be a decimal UNSIGNED8 number (0..255).");
-    }
-
-    /// <summary>
-    /// Matches <c>ValueConverter.TrySplitMajorMinorDecimal</c>: one <c>.</c> or <c>,</c>
-    /// between two non-empty ASCII digit runs. Hex prefixes are numeric literals, not versions.
-    /// </summary>
-    private static bool TrySplitToolingMajorMinor(string value, out string major)
-    {
-        major = string.Empty;
-        value = value.Trim();
-
-        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var separatorIndex = -1;
-        for (var i = 0; i < value.Length; i++)
-        {
-            var c = value[i];
-            if (c != '.' && c != ',')
-            {
-                continue;
-            }
-
-            if (separatorIndex >= 0)
-            {
-                return false;
-            }
-
-            separatorIndex = i;
-        }
-
-        if (separatorIndex <= 0 || separatorIndex >= value.Length - 1)
-        {
-            return false;
-        }
-
-        var majorPart = value[..separatorIndex].Trim();
-        var minorPart = value[(separatorIndex + 1)..].Trim();
-        if (majorPart.Length == 0 || minorPart.Length == 0)
-        {
-            return false;
-        }
-
-        if (!IsAllAsciiDigits(majorPart) || !IsAllAsciiDigits(minorPart))
-        {
-            return false;
-        }
-
-        major = majorPart;
-        return true;
-    }
-
-    private static bool IsAllAsciiDigits(string value)
-    {
-        for (var i = 0; i < value.Length; i++)
-        {
-            var c = value[i];
-            if (c < '0' || c > '9')
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private ulong? RequireUnsigned(RawSection section, string key, int bits)

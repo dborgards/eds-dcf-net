@@ -39,6 +39,15 @@ public sealed class CanOpenWriteOptions
     public Validation.CanOpenValidationOptions? ValidationOptions { get; init; }
 
     /// <summary>
+    /// When <see langword="true"/>, validation issues with
+    /// <see cref="Validation.ValidationSeverity.Warning"/> do not block the write; only errors throw
+    /// <see cref="Exceptions.ModelValidationException"/>, and its issues list the errors only.
+    /// Default is <see langword="false"/>: any issue throws, as in previous releases.
+    /// Has no effect unless <see cref="ValidateBeforeWrite"/> is <see langword="true"/>.
+    /// </summary>
+    public bool AllowWarnings { get; init; }
+
+    /// <summary>
     /// Gets the encoding used for byte output of every format (EDS, DCF, CPJ, XDD, and XDC).
     /// </summary>
     /// <remarks>

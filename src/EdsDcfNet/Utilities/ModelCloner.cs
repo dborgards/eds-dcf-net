@@ -157,6 +157,7 @@ internal static class ModelCloner
         };
 
         clone.CopyAccessTypeStateFrom(source);
+        clone.DataTypeDefaultBaseline = source.DataTypeDefaultBaseline;
         CopyRemainingEntries(source.RemainingEntries, clone.RemainingEntries);
         return clone;
     }

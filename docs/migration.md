@@ -49,7 +49,8 @@ var xdd = CanOpenFile.Xdd.ReadFile(
 
 ## Pre-write validation
 
-Use `CanOpenWriteOptions.Validated` on the format entry point write methods. See
+Use `CanOpenWriteOptions.Validated` on the format entry point write methods. To let
+warnings pass and fail the write only on errors, also set `AllowWarnings`. See
 [Read, write, and validation options](options.md#validated-writes).
 
 ## EDS-to-DCF conversion

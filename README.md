@@ -37,10 +37,10 @@ sub-objects, object lists, data types, access rights, defaults, and configured v
 
 ✅ **Documented CiA 306 / CiA 311 Subset** - EDS, DCF and CPJ follow CiA 306-1 v1.4.0 and CiA 306-3
 (lenient or strict reader, writer, validator). XDD and XDC follow CiA 311 v1.1.0: output is checked in the
-test suite against the CiA 311 XML schema, and, within the two profiles the library reads, XML elements
-and attributes the model does not cover are preserved on round-trip. This is not a full-conformance claim.
-The exact scope and the known limitations (additional profiles, comments and processing instructions
-between modelled elements) are listed in
+test suite against the CiA 311 XML schema, and XML elements and attributes the model does not cover are
+preserved on round-trip, including additional `ISO15745Profile` elements in the container. This is not a
+full-conformance claim. The exact scope and the remaining limitations (comments and processing
+instructions inside the rebuilt object list) are listed in
 [arc42 section 8.4](docs/architecture/08-crosscutting-concepts.md#84-round-trip-fidelity).
 
 ## Quick Start
@@ -193,7 +193,8 @@ legacy static `Read*` / `Write*` overloads:
 | XDD | `CanOpenFile.Xdd` | `CanOpenFile.Xdd.ReadFile("device.xdd")` |
 | XDC | `CanOpenFile.Xdc` | `CanOpenFile.Xdc.ReadFile("device.xdc")` |
 
-These entry points accept `CanOpenFileOptions` (`MaxInputSize`, `StrictParsing`)
+These entry points accept `CanOpenFileOptions` (`MaxInputSize`, `StrictParsing`,
+`ApplyDomainDataTypeDefault`)
 and `CanOpenWriteOptions` (pre-write validation) in one place. Legacy facade
 `Read*` / `Write*` overloads (path, stream, string, sync, async, and options-taking
 variants) remain for backward compatibility and are marked `[Obsolete]` (advisory);
@@ -370,6 +371,43 @@ var memoryIssues = CanOpenIniValidator.ValidateString(
 Each issue contains its stable rule code, severity, source name, optional line, section,
 key and raw value. `ToDisplayString()` produces a compiler-style diagnostic.
 
+`CanOpenValidationRuleCatalog.All` lists every rule code with its default severity, title and
+CiA reference. Severities can be changed per rule; `null` turns a rule off:
+
+```csharp
+var options = new CanOpenIniValidationOptions
+{
+    SeverityOverrides = new Dictionary<string, IniValidationSeverity?>
+    {
+        ["VAL005"] = IniValidationSeverity.Error, // octal literals fail the file
+        ["LST007"] = null,                        // ignore wrong object list
+    },
+};
+
+var issues = CanOpenIniValidator.ValidateFile("device.eds", CanOpenIniFormat.Eds, options);
+```
+
+Set `IncludeReaderDiagnostics` and `IncludeModelValidation` on the options to also load the
+file with the EdsDcfNet reader and run `CanOpenModelValidator`. Their findings keep their own
+codes (for example `INVALID_NODE_ID`); see the property docs for the `LIB` fallback codes.
+
+### Command-line checker (`edsdcf-check`)
+
+The same rules are available as a .NET tool for scripts and CI pipelines (requires .NET 10 or newer):
+
+```bash
+dotnet tool install --global EdsDcfNet.Checker
+edsdcf-check devices/                                   # text report, exit code 1 on errors
+edsdcf-check --format sarif --output edsdcf.sarif devices/
+edsdcf-check --list-rules                               # the rule catalog
+```
+
+It supports JSON and SARIF 2.1.0 output, `--severity <ID>=error|warning|none`, a JSON config file
+with path globs, and stable exit codes (0 valid, 1 errors, 2 usage or I/O problem). The tool is
+released with the same version as the library. See the
+[tool README](src/EdsDcfNet.Checker/README.md) for all options, the config format, the rule table
+and a GitHub code scanning example.
+
 ### Working with Nodelist Projects (CPJ)
 
 ```csharp
@@ -481,8 +519,9 @@ as a thin shim (prefer `Eds.ConvertToDcf`). `Validate*` is unchanged.
 ### Read options
 
 Reads are limited to **10 MiB** by default. `CanOpenFileOptions` lets trusted callers
-raise `MaxInputSize` or enable `StrictParsing` to throw on malformed tokens instead of
-coercing them:
+raise `MaxInputSize`, enable `StrictParsing` to throw on malformed tokens instead of
+coercing them, or set `ApplyDomainDataTypeDefault` so a DOMAIN sub-index with no
+`DataType` exposes `0x000F` (off by default; EDS/DCF only):
 
 ```csharp
 var options = new CanOpenFileOptions
@@ -532,9 +571,9 @@ silent — collection happens only through the `CanOpenFile` entry points.
   `.Cpj` / `.Xdd` / `.Xdc` and their `Read*` / `Write*` / `Validate` operations
   may be called from multiple threads or async flows simultaneously. The
   operation objects behind them are stateless singletons whose delegates
-  construct a fresh reader/writer per call, and `StrictParsing` state is scoped
-  per call via `AsyncLocal`, so concurrent calls with different options do not
-  interfere. This contract is guarded by a concurrency test
+  construct a fresh reader/writer per call, and `StrictParsing` and
+  `ApplyDomainDataTypeDefault` state are scoped per call via `AsyncLocal`, so
+  concurrent calls with different options do not interfere. This contract is guarded by a concurrency test
   (`tests/EdsDcfNet.Tests/Integration/ThreadSafetyTests.cs`).
 - **Models are not thread-safe.** `ElectronicDataSheet`, `DeviceConfigurationFile`,
   `NodelistProject`, `ObjectDictionary`, etc. are plain mutable objects. Do not
@@ -553,7 +592,29 @@ silent — collection happens only through the `CanOpenFile` entry points.
 
 `CanOpenFileOptions` (read) and `CanOpenWriteOptions` (write) are intentionally
 small, shared across all formats, and hold only cross-format concerns
-(`MaxInputSize`, `StrictParsing`, and pre-write `ValidateBeforeWrite`).
+(`MaxInputSize`, `StrictParsing`, `ApplyDomainDataTypeDefault`, and the write options below).
+`ApplyDomainDataTypeDefault` is accepted on every format and changes only EDS/DCF
+sub-index sections; XDD, XDC, and CPJ ignore it. See the
+[options guide](docs/options.md#domain-sub-index-datatype).
+
+Pre-write validation in `CanOpenWriteOptions`:
+
+| Property | Meaning |
+|---|---|
+| `ValidateBeforeWrite` | Validate the model and throw `ModelValidationException` instead of writing when issues are found. Default `false`. |
+| `ValidationOptions` | Rules for that validation (`null` = `CanOpenValidationOptions.Default`). Ignored unless `ValidateBeforeWrite` is set. CPJ uses no `CanOpenValidationOptions` today; XDD/XDC ignore the INI-only text rules (`RequireIso646`, `CheckLineLength`). |
+| `AllowWarnings` | Let issues with `ValidationSeverity.Warning` pass; only errors block the write, and the exception lists the errors only. Default `false`. Ignored unless `ValidateBeforeWrite` is set. |
+
+```csharp
+// Enforce the error rules, but write an EDS with non-ASCII names anyway.
+var options = new CanOpenWriteOptions
+{
+    ValidateBeforeWrite = true,
+    ValidationOptions = new CanOpenValidationOptions { RequireIso646 = true, CheckLineLength = true },
+    AllowWarnings = true,
+};
+CanOpenFile.Eds.WriteFile(eds, "device.eds", options);
+```
 
 When a genuinely **format-specific** option becomes necessary (for example XDD
 XML formatting, INI section ordering, or CPJ network defaults), the agreed
@@ -677,13 +738,18 @@ Baseline scenario definitions and artifact locations are documented in:
 ```
 eds-dcf-net/
 ├── src/
-│   └── EdsDcfNet/              # Main library
-│       ├── Models/             # Data models
-│       ├── Parsers/            # EDS/DCF/CPJ/XDD/XDC parsers
-│       ├── Writers/            # EDS/DCF/CPJ/XDD/XDC writers
-│       ├── Utilities/          # Helper classes
-│       ├── Exceptions/         # Custom exceptions
-│       └── Extensions/         # Extension methods
+│   ├── EdsDcfNet/              # Main library
+│   │   ├── Models/             # Data models
+│   │   ├── Parsers/            # EDS/DCF/CPJ/XDD/XDC parsers
+│   │   ├── Writers/            # EDS/DCF/CPJ/XDD/XDC writers
+│   │   ├── Utilities/          # Helper classes
+│   │   ├── Exceptions/         # Custom exceptions
+│   │   ├── Validation/         # Model and EDS/DCF source validation, rule catalog
+│   │   └── Extensions/         # Extension methods
+│   └── EdsDcfNet.Checker/      # edsdcf-check .NET tool
+├── tests/
+│   ├── EdsDcfNet.Tests/        # Library tests (net10.0 + net48)
+│   └── EdsDcfNet.Checker.Tests/ # edsdcf-check tests
 ├── benchmarks/
 │   └── EdsDcfNet.Benchmarks/   # BenchmarkDotNet throughput/memory benchmarks
 ├── examples/
@@ -705,8 +771,8 @@ unsigned assembly should see the [1.13.0 migration note](docs/migration.md#stron
 
 **For building this repository (library, tests, examples):**
 
-- .NET SDK 10.0 or higher
-- C# 14 (`LangVersion latest`, as provided by the .NET 10 SDK)
+- .NET SDK 11.0 or higher
+- C# (`LangVersion latest`, as provided by the .NET 11 SDK)
 
 ## License
 

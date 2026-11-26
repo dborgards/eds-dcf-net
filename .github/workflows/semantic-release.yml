@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   # Releases on the same channel must not overlap. semantic-release pushes the
@@ -74,12 +75,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '24.22.x'
+          node-version: '26.13.x'
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          # SDK 10 from global.json builds the library and runs net10.0 tests;
+          # SDK 11 from global.json builds the library and runs net10.0 tests;
           # net48 (preinstalled on windows-latest) exercises the netstandard2.0 asset.
           global-json-file: global.json
 
@@ -138,11 +139,19 @@ jobs:
           # must not prevent an otherwise verified release from publishing.
           fail_ci_if_error: false
 
+      # Temporary API key, valid about an hour. Request it in this job
+      # immediately before publish, including the incomplete-release repair.
+      - name: NuGet login
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: dborgards
+
       - name: Semantic Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GIT_CREDENTIALS: x-access-token:${{ secrets.RELEASE_TOKEN }}
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
           GIT_AUTHOR_NAME: semantic-release-bot
           GIT_AUTHOR_EMAIL: ${{ vars.SEMANTIC_RELEASE_BOT_EMAIL }}
           GIT_COMMITTER_NAME: semantic-release-bot

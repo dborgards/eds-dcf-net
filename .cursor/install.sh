@@ -38,5 +38,5 @@ fi
 
 echo "Using $(dotnet --version) SDK."
 
-dotnet restore EdsDcfNet.sln
-dotnet build EdsDcfNet.sln -c Release --no-restore
+dotnet restore EdsDcfNet.slnx
+dotnet build EdsDcfNet.slnx -c Release --no-restore
