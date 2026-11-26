@@ -47,6 +47,9 @@ dotnet_diagnostic.CS0618.severity = none
 [tests/EdsDcfNet.Tests/Integration/FormatCanOpenOperationsAsyncValidationTests.cs]
 dotnet_diagnostic.CS0618.severity = none
 
+[tests/EdsDcfNet.Tests/Integration/CanOpenFileLegacyFacadeTests.cs]
+dotnet_diagnostic.CS0618.severity = none
+
 [tests/EdsDcfNet.Tests/Parsers/CanOpenReaderBaseCompatTests.cs]
 dotnet_diagnostic.CS0618.severity = none
 
