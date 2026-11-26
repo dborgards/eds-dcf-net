@@ -102,16 +102,24 @@ Tests for CiA 311 XML writers:
 ### Integration Tests
 
 #### Integration/CanOpenFileTests.cs
-Tests for the `CanOpenFile` API:
-- ReadEds and ReadEdsFromString
-- WriteEds and WriteEdsToString
-- ReadDcf and ReadDcfFromString
-- WriteDcf and WriteDcfToString
-- EdsToDcf conversion with commissioning parameters
+Tests for the `CanOpenFile` API, through the `CanOpenFile.{Eds|Dcf|Cpj|Xdd|Xdc}` entry points:
+- Eds.ReadFile and Eds.ReadString
+- Eds.WriteFile and Eds.WriteToString
+- Dcf.ReadFile and Dcf.ReadString
+- Dcf.WriteFile and Dcf.WriteToString
+- Eds.ConvertToDcf with commissioning parameters
 - Round-trip tests (EDS → DCF → String → DCF)
 - Data preservation through conversions
 
 Clone and mapping tests should pair each clone mutation with an immediate source assertion. For complex graphs, cover at least one representative nested object, collection element, scalar field, and reference/list field so shallow copy regressions are visible in review.
+
+#### Integration/CanOpenFileLegacyFacadeTests.cs
+The only suite that calls the obsolete `CanOpenFile.Read*`/`Write*`/`EdsToDcf` overloads:
+- Calls every obsolete overload next to the entry-point member it forwards to and expects the same output or the same exception
+- Uses a too-small size limit, a canceled token and non-default write options so dropped arguments show up
+- Fails when an obsolete overload is added without a case here
+
+Behaviour tests belong in the other suites and use the entry points.
 
 #### Integration/CanOpenFileAsyncTests.cs
 Tests for async `CanOpenFile` file I/O APIs:
