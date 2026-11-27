@@ -147,7 +147,7 @@ This project uses a **develop → main** integration model:
    Merge it with **squash** (or rebase), never a merge commit; the develop ruleset
    enforces this (see `CONTRIBUTING.md` § "Merge strategy"). The squash commit
    message must be a valid Conventional Commit, because semantic-release analyzes it.
-3. On merge to `develop`, semantic-release publishes a `beta` pre-release to NuGet automatically.
+3. To publish a `beta` pre-release, run the Semantic Release workflow on `develop` (manual `workflow_dispatch`).
 4. When ready for a stable release, open a PR from `develop` → `main`.
    **Important:** merge this PR with a **regular merge commit** (not squash, not rebase).
    Squash-merging collapses all individual `fix:`/`feat:` commits into one commit whose
@@ -155,7 +155,7 @@ This project uses a **develop → main** integration model:
    silently skipped. See `.releaserc.json` and
    `tools/semantic-release-analyze-commits.sh` for the orphaned-prerelease
    fallback that partially mitigates this, but a regular merge remains the correct approach.
-5. On merge to `main`, semantic-release publishes the stable release to NuGet.
+5. After the merge, run the Semantic Release workflow on `main` to publish the stable release to NuGet.
 
 ### CI Behaviour
 
@@ -164,14 +164,14 @@ This project uses a **develop → main** integration model:
   is not built (open a draft PR or use `workflow_dispatch`). A newer push to
   a PR cancels that PR's run in progress.
 - **PR targeting `develop` or `main`** → `build.yml` runs (build + test as gate).
-- **Push to `develop`** → `build.yml` runs as well (alongside `semantic-release.yml`).
+- **Push to `develop` or `main`** → `build.yml` runs (build + test + coverage upload).
 - **Documentation-only PR into `develop`** (root `*.md`, `docs/**`,
   `.github/*.md`, `LICENSE*`) → the `changes` job detects it; build, tests,
   coverage and ApiCompat steps are skipped via `if:`, while `build` and
   `coverage/threshold` still report success. No workflow-level `paths-ignore`
   (it would leave required checks unreported). PRs into `main` always run in full.
-- **Merge to `develop`** → `semantic-release.yml` runs (build + test + beta pre-release).
-- **Merge to `main`** → `semantic-release.yml` runs (build + test + stable release).
+- **Manual run on `develop`** → `semantic-release.yml`: `verify` (build + test) then `release` (beta pre-release, `release` environment).
+- **Manual run on `main`** → `semantic-release.yml`: `verify` (build + test) then `release` (stable release, `release` environment).
 - **Test TFMs:** `EdsDcfNet.Tests` / `EdsDcfNet.TestHost` multi-target `net10.0`
   and `net48`. The `net48` host runs against the library’s `netstandard2.0`
   asset so `#else` runtime paths are executed in CI (not only compile-checked).

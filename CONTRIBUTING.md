@@ -499,12 +499,21 @@ Paste into the PR description when deprecating public API:
 
 ## Release process
 
-Releases are fully automated via semantic-release:
+Releases are driven by semantic-release and started by hand: **Actions → Semantic
+Release → Run workflow**, on the branch to release. A merge alone publishes nothing.
 
-- **Beta pre-release**: merge a PR into `develop` → semantic-release publishes `X.Y.Z-beta.N` to NuGet.
-- **Stable release**: merge `develop` into `main` (open a PR from `develop` → `main`) → semantic-release publishes `X.Y.Z` to NuGet and creates a GitHub release.
+- **Beta pre-release**: run the workflow on `develop` → semantic-release publishes `X.Y.Z-beta.N` to NuGet.
+- **Stable release**: merge `develop` into `main` (open a PR from `develop` → `main`), then run the workflow on `main` → semantic-release publishes `X.Y.Z` to NuGet and creates a GitHub release.
 
-Maintainers decide when to promote `develop` → `main`.
+Maintainers decide when to release and when to promote `develop` → `main`.
+
+The workflow has two jobs. `verify` builds, tests and runs the coverage gate with
+read-only permissions and no publishing secret. `release` needs `verify`, runs in the
+`release` environment (deployment branches `main` and `develop` only, holding
+`RELEASE_TOKEN`), and is the only job with `contents: write` and `id-token: write`
+for NuGet Trusted Publishing. It installs the release tooling with
+`npm ci --ignore-scripts` and restores in locked mode before semantic-release packs.
+Both jobs refuse to run on any other branch.
 
 ### Two packages, one version
 
@@ -527,7 +536,7 @@ Every release publishes two NuGet packages with the same version:
   `EdsDcfNet` package. Tags from before the tool existed have no tool project and publish
   the library only.
 
-After the stable release workflow on `main` has **completed successfully**, merge `main`
+After the stable release workflow run on `main` has **completed successfully**, merge `main`
 back into `develop` with a regular merge commit, not squash or rebase. This back-merge
 brings the generated `CHANGELOG.md` and package version forward and makes the stable tag
 reachable from `develop`. Waiting for completion is required: an earlier back-merge can
@@ -602,6 +611,10 @@ Both branches are protected by repository rulesets (verify with
 | `main` | Yes | `build`; `codecov/patch` (Codecov app) | Yes |
 | `develop` | Yes | `build`; `coverage/threshold` (GitHub Actions) | Yes |
 
+Both rulesets require one approving review, dismiss approvals when new commits
+are pushed, and require the most recent push to be approved by someone other
+than its author. Repository admins can bypass through a pull request merge.
+
 Allowed merge methods per ruleset:
 
 | Branch | Allowed merge methods |
@@ -611,7 +624,7 @@ Allowed merge methods per ruleset:
 
 Both rulesets also block deletion and non-fast-forward pushes, require
 the branch to be up to date before merging (strict status checks), require all
-review threads to be resolved (no approving review is required), and gate on
+review threads to be resolved, and gate on
 CodeQL results and code quality. Changes reach both branches only through PRs.
 
 `coverage/threshold` is the commit status from the line-coverage gate in
