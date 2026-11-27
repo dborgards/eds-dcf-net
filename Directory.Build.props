@@ -18,4 +18,28 @@
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'EdsDcfNet'">
     <AnalysisMode>Recommended</AnalysisMode>
   </PropertyGroup>
+
+  <PropertyGroup Label="Versioning">
+    <!--
+      No project file carries a version. The build only ever receives one:
+
+        * release  -> tools/semantic-release-publish.sh packs with -p:Version=X.Y.Z, the number
+                      semantic-release derived from the conventional commits;
+        * anything else (CI, a plain `dotnet build`, an IDE) -> VersionPrefix below.
+
+      The restore never sees a release version. NuGet records the version of a referenced
+      project in packages.lock.json (EdsDcfNet.Checker.Tests -> EdsDcfNet.Checker -> EdsDcfNet).
+      A version committed per release would leave the lock files stale after every release,
+      and the next ordinary restore would rewrite them in whatever change happens to come
+      next. The release restores first and passes the version only to the pack, which runs
+      with no restore.
+    -->
+    <VersionPrefix>0.0.0</VersionPrefix>
+  </PropertyGroup>
+
+  <PropertyGroup Label="NuGet restore">
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+  </PropertyGroup>
+
 </Project>

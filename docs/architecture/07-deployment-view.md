@@ -30,7 +30,7 @@ graph TB
 
     Dev -->|git push| GH
     GH -->|Push to feature branch| Build
-    GH -->|Push to main/develop| Release
+    GH -->|Manual run on main/develop| Release
     Release -->|dotnet pack + push| NuGet
     Release -->|Create GitHub Release| GHR
     NuGet -->|dotnet add package| App1
@@ -81,15 +81,15 @@ EdsDcfNet.Checker.<version>.nupkg
 ```mermaid
 flowchart LR
     subgraph Trigger ["Trigger"]
-        Push["Push to main, develop"]
+        Push["Manual run on main, develop<br/>(workflow_dispatch)"]
     end
 
     subgraph Pipeline ["GitHub Actions: Semantic Release"]
-        Checkout["Checkout"]
-        Setup[".NET + Node.js Setup"]
-        Restore["dotnet restore"]
-        BuildStep["dotnet build"]
-        Test["dotnet test<br/>+ Codecov Upload"]
+        Checkout["verify: checkout, .NET setup,<br/>dotnet restore --locked-mode"]
+        Setup["verify: dotnet build"]
+        Restore["verify: dotnet test<br/>+ coverage gate + Codecov upload"]
+        BuildStep["release job<br/>(environment: release,<br/>id-token: write)"]
+        Test["npm ci --ignore-scripts<br/>+ NuGet login (OIDC)"]
         SR["semantic-release"]
     end
 
@@ -97,7 +97,7 @@ flowchart LR
         Analyze["commit-analyzer<br/><i>Determine release type</i>"]
         Notes["release-notes-generator<br/><i>Generate changelog</i>"]
         CL["changelog<br/><i>Update CHANGELOG.md</i>"]
-        Exec["exec<br/><i>Set version in .csproj<br/>dotnet pack + push</i>"]
+        Exec["exec<br/><i>dotnet pack -p:Version<br/>+ push</i>"]
         Git["git<br/><i>Version commit</i>"]
         GHRelease["github<br/><i>GitHub Release</i>"]
     end

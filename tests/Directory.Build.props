@@ -1,0 +1,12 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!--
+      Windows restore of net48 injects an implicit win-x86 RID, which NU1004s a lock file
+      written on Linux. Pin it during restore only so the lock file matches on every OS,
+      without changing the net48 build output path used by Windows CI tests.
+    -->
+    <RuntimeIdentifiers Condition="'$(TargetFramework)' == 'net48' AND '$(MSBuildRestoreSessionId)' != ''">win-x86</RuntimeIdentifiers>
+  </PropertyGroup>
+</Project>

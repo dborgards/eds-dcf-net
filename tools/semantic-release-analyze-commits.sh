@@ -38,6 +38,9 @@ if git merge-base --is-ancestor "$beta_sha" HEAD; then
   exit 0
 fi
 
+# Release commits carry CHANGELOG.md only. Beta tags from before the version
+# moved out of the project files also rewrote <Version> in src/**/*.csproj, so
+# those files stay excluded for them.
 if ! git diff --quiet HEAD "$beta_sha" -- . ':(exclude)CHANGELOG.md' ':(exclude)src/**/*.csproj'; then
   echo "Skipping orphaned prerelease fallback: HEAD does not match ${latest_beta} outside release artifacts." >&2
   exit 0

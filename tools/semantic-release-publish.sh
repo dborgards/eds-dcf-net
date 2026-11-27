@@ -78,12 +78,23 @@ generate_spdx_sbom() {
 # Use -p: (not /p:): Git Bash on Windows converts bare /p:... args via MSYS
 # path munging, which turns the property into a second "project" and fails with
 # MSB1008 after the release workflow moved to windows-latest.
+#
+# -p:Version, not -p:PackageVersion: the project files carry no version, so the
+# assemblies (AssemblyVersion, FileVersion, InformationalVersion, and with it
+# `edsdcf-check --version` and the SARIF tool version) are stamped by this pack.
+# It is a global property, so the bundled EdsDcfNet build of the tool pack gets
+# it too.
+#
+# --no-restore is required, not an optimisation. The restore ran in locked mode
+# before semantic-release, at VersionPrefix 0.0.0, which is what the committed
+# packages.lock.json files record for referenced projects. A restore that saw
+# this version would record a different one.
 pack() {
   dotnet pack "$1" \
     --configuration Release \
     --no-restore \
     --output ./packages \
-    -p:PackageVersion="${next_version}"
+    -p:Version="${next_version}"
 }
 
 # Push an explicit package path. A quoted "./packages/*.nupkg" glob is not

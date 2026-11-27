@@ -56,21 +56,28 @@ public sealed class ToolPackageTests : IDisposable
     }
 
     [Fact]
-    public void ToolProject_HasTheLibraryVersion()
+    public void ToolAssembly_HasTheLibraryVersion() =>
+        Reports.ToolVersion.Should().Be(LibraryVersion(), "the tool is released in lockstep with EdsDcfNet");
+
+    // The version comes from the build (VersionPrefix in Directory.Build.props, -p:Version at
+    // release). A version in either project file would be picked up by restore and written
+    // into packages.lock.json, and the two packages could drift apart again.
+    [Theory]
+    [InlineData("EdsDcfNet", "EdsDcfNet.csproj")]
+    [InlineData("EdsDcfNet.Checker", "EdsDcfNet.Checker.csproj")]
+    public void Project_DoesNotSetAVersion(string directory, string file)
     {
         var root = FindRepoRoot(new DirectoryInfo(AppContext.BaseDirectory));
+        var project = System.Xml.Linq.XDocument.Load(Path.Combine(root, "src", directory, file));
 
-        ProjectVersion(Path.Combine(root, "src", "EdsDcfNet.Checker", "EdsDcfNet.Checker.csproj"))
-            .Should().Be(ProjectVersion(Path.Combine(root, "src", "EdsDcfNet", "EdsDcfNet.csproj")))
-            .And.Be(LibraryVersion());
+        project.Descendants()
+            .Select(element => element.Name.LocalName)
+            .Should().NotContain(new[] { "Version", "VersionPrefix", "VersionSuffix", "PackageVersion" });
     }
 
     private static string LibraryVersion() =>
         typeof(EdsDcfNet.Validation.CanOpenIniValidator).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
-
-    private static string ProjectVersion(string project) =>
-        System.Xml.Linq.XDocument.Load(project).Descendants("Version").Single().Value.Trim();
 
     private static (int ExitCode, string Output) Run(string fileName, params string[] arguments)
     {

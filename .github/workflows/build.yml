@@ -16,12 +16,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
-  # push is limited to develop. Branches with an open PR are built by the
-  # pull_request trigger, so a push to a PR branch no longer runs twice.
-  # main is built by semantic-release.yml. A branch without a PR is not built
-  # on push; open a (draft) PR or use workflow_dispatch to get a run.
+  # push is limited to develop and main. Branches with an open PR are built by
+  # the pull_request trigger, so a push to a PR branch no longer runs twice.
+  # main is built here since semantic-release.yml became manual; the push also
+  # uploads main's coverage, which Codecov compares release PRs against. A
+  # branch without a PR is not built on push; open a (draft) PR or use
+  # workflow_dispatch to get a run.
   push:
-    branches: [ develop ]
+    branches: [ develop, main ]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -86,6 +88,7 @@ jobs:
         PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         PUSH_BEFORE: ${{ github.event.before }}
         PUSH_AFTER: ${{ github.sha }}
+        PUSH_REF: ${{ github.ref }}
       run: |
         docs_only=false
         range=""
@@ -93,7 +96,7 @@ jobs:
           # Three-dot: changes since the merge base, like the PR's file list;
           # --no-renames lists a rename's source path as well as its target.
           range="${PR_BASE_SHA}...${PR_HEAD_SHA}"
-        elif [[ "$EVENT_NAME" == "push" && -n "$PUSH_BEFORE" && "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]]; then
+        elif [[ "$EVENT_NAME" == "push" && "$PUSH_REF" == "refs/heads/develop" && -n "$PUSH_BEFORE" && "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]]; then
           range="${PUSH_BEFORE}...${PUSH_AFTER}"
         fi
 
@@ -152,7 +155,7 @@ jobs:
 
     - name: Restore dependencies
       if: needs.changes.outputs.docs_only != 'true'
-      run: dotnet restore
+      run: dotnet restore --locked-mode
 
     - name: Build
       if: needs.changes.outputs.docs_only != 'true'
@@ -201,7 +204,7 @@ jobs:
       run: bash tools/enforce-coverage-threshold.sh "${{ steps.test.outputs.results_directory }}"
 
     - name: Upload coverage reports to Codecov
-      if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
+      if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
       uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -218,7 +221,7 @@ jobs:
     # (avoids a pending required check).
     # A documentation-only change posts success here instead of running the gate.
     - name: Post coverage/threshold status
-      if: always() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
+      if: always() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
       continue-on-error: true
       shell: bash
       env:
@@ -251,7 +254,7 @@ jobs:
   # Guards the lockfile against package.json/package-lock.json drift.
   #
   # npm runs nowhere else in this workflow: the only `npm ci` is in
-  # semantic-release.yml, which fires *after* a merge to develop. Renovate npm
+  # semantic-release.yml, which runs only when a release is started. Renovate npm
   # PRs therefore stay green while breaking the release run — twice now, both
   # times because a lockfile update dropped the overridden undici node instead
   # of updating it (#502/#506, #515/#519). This job reproduces that exact step
@@ -286,7 +289,7 @@ jobs:
     # Same command as semantic-release.yml. Fails on any package.json /
     # package-lock.json mismatch (npm error code EUSAGE).
     - name: Verify package-lock.json is in sync
-      run: npm ci
+      run: npm ci --ignore-scripts
 
   # Fixture check for the jq program embedded in the apicompat job below.
   # That program is the opt-in for an announced Major bump; a loosened
@@ -377,6 +380,13 @@ jobs:
         ref: ${{ github.event.pull_request.base.sha }}
         path: base-branch
 
+    # actions/checkout only allows a path under the workspace, but a nested
+    # checkout inherits the head Directory.Packages.props (NU1008 when the base
+    # still has Version on PackageReference). Move it out after checkout.
+    - name: Move PR base checkout out of the workspace
+      if: needs.changes.outputs.docs_only != 'true'
+      run: mv base-branch "${{ runner.temp }}/base-branch"
+
     - name: Setup .NET (PR head)
       if: needs.changes.outputs.docs_only != 'true'
       uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
@@ -384,8 +394,8 @@ jobs:
         global-json-file: global.json
 
     # dotnet resolves the SDK from the nearest global.json to the invoked
-    # working directory, so building base-branch/ with `working-directory:`
-    # below picks up base-branch/global.json — which may pin an older SDK
+    # working directory, so building the base checkout with `working-directory:`
+    # below picks up that tree's global.json — which may pin an older SDK
     # feature band than the PR head (e.g. a PR that bumps global.json
     # itself). rollForward: latestPatch cannot cross feature bands, so that
     # older SDK must be installed too, or the base build fails outright and
@@ -394,16 +404,25 @@ jobs:
       if: needs.changes.outputs.docs_only != 'true'
       uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
       with:
-        global-json-file: base-branch/global.json
+        global-json-file: ${{ runner.temp }}/base-branch/global.json
 
+    - name: Restore library (PR head)
+      if: needs.changes.outputs.docs_only != 'true'
+      run: dotnet restore src/EdsDcfNet/EdsDcfNet.csproj --locked-mode
+
+    # Both sides are built at the same version. The assembly version is stamped
+    # at release time only (VersionPrefix 0.0.0 otherwise), so a base branch
+    # that still has <Version> in its csproj would fail CP0003 against a 0.0.0
+    # head. CP0003 stays on for what matters here: name, culture and the
+    # strong-name public key token.
     - name: Build library (PR head)
       if: needs.changes.outputs.docs_only != 'true'
-      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
+      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release --no-restore -p:Version=0.0.0
 
     - name: Build library (PR base branch)
       if: needs.changes.outputs.docs_only != 'true'
-      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
-      working-directory: base-branch
+      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release -p:Version=0.0.0
+      working-directory: ${{ runner.temp }}/base-branch
 
     - name: Install ApiCompat tool
       if: needs.changes.outputs.docs_only != 'true'
@@ -488,7 +507,7 @@ jobs:
       if: needs.changes.outputs.docs_only != 'true'
       run: |
         set +e
-        bash tools/apicompat-check.sh src/EdsDcfNet/bin/Release base-branch/src/EdsDcfNet/bin/Release "$RUNNER_TEMP/apicompat"
+        bash tools/apicompat-check.sh src/EdsDcfNet/bin/Release "$RUNNER_TEMP/base-branch/src/EdsDcfNet/bin/Release" "$RUNNER_TEMP/apicompat"
         rc=$?
         set -e
         # rc 2 is an infrastructure failure — fail the step normally.

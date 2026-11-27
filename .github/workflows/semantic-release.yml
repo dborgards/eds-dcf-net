@@ -3,16 +3,18 @@ name: Semantic Release
 env:
   COVERAGE_MIN_PERCENT: "95.0"
 
+# Started by hand only (Actions → Semantic Release → Run workflow) on `develop`
+# for a beta pre-release or on `main` for a stable release. A push no longer
+# publishes: merging is not the same decision as releasing, and a workflow that
+# runs on every push to a channel branch puts the publishing credentials within
+# reach of whoever can merge.
 on:
-  push:
-    branches:
-      - main
-      - develop
   workflow_dispatch:
 
+# Nothing by default. Only the `release` job gets write access and the OIDC
+# grant, and only after `verify` has passed on the same commit.
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 concurrency:
   # Releases on the same channel must not overlap. semantic-release pushes the
@@ -46,36 +48,41 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  verify:
     # windows-latest is required so the net48 test host can bind and execute the
     # library's netstandard2.0 asset before publishing (net10.0 runs on the same job).
     #
-    # The release commit is pushed with RELEASE_TOKEN, which starts workflows.
-    # [skip ci] used to suppress this re-entry and, with it, every pull_request
-    # workflow headed by that commit (develop→main gates included). Skip only
-    # the release-commit push. That skip does not keep the run out of the
-    # concurrency group — see the noop group above. workflow_dispatch still
-    # runs. github.actor is the token owner, not semantic-release-bot — that
-    # name is the git committer — so this matches the message and committer,
-    # as relay-release-status does.
+    # Build, test and the coverage gate run here, without the OIDC grant and
+    # without RELEASE_TOKEN: this is where the code under release and its test
+    # dependencies execute.
+    #
+    # The release-commit guard predates the manual trigger. It is kept so that a
+    # push trigger added later cannot re-enter on the release commit (see the
+    # noop concurrency group above).
     if: >-
       !(github.event_name == 'push' &&
         github.event.head_commit &&
         startsWith(github.event.head_commit.message, 'chore(release):') &&
         github.event.head_commit.committer.name == 'semantic-release-bot')
     runs-on: windows-latest
+    permissions:
+      contents: read
 
     steps:
+      - name: Refuse to run off main or develop
+        if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop'
+        shell: bash
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          echo "::error title=Wrong branch::Releases run from main or develop only. This run is on ${REF}."
+          exit 1
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
-        with:
-          node-version: '26.13.x'
 
       - name: Setup .NET
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
@@ -84,11 +91,8 @@ jobs:
           # net48 (preinstalled on windows-latest) exercises the netstandard2.0 asset.
           global-json-file: global.json
 
-      - name: Install dependencies
-        run: npm ci
-
       - name: Restore .NET dependencies
-        run: dotnet restore
+        run: dotnet restore --locked-mode
 
       - name: Build
         env:
@@ -138,6 +142,48 @@ jobs:
           # The local coverage gate above is blocking. A Codecov service outage
           # must not prevent an otherwise verified release from publishing.
           fail_ci_if_error: false
+
+  release:
+    needs: verify
+    # The guard belongs on the job that holds the credentials, not only upstream.
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    # Same runner as before: the pack in tools/semantic-release-publish.sh and the
+    # repair paths in tools/semantic-release-run.sh are written for Windows.
+    runs-on: windows-latest
+    # The `release` environment deploys from main and develop only and holds
+    # RELEASE_TOKEN. Its name is also in the OIDC token, so the nuget.org
+    # Trusted Publishing policy can be bound to it.
+    environment: release
+    permissions:
+      contents: write   # GitHub release and its assets (GH_TOKEN)
+      id-token: write   # OIDC token for NuGet Trusted Publishing
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '26.13.x'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
+        with:
+          global-json-file: global.json
+
+      # --ignore-scripts: no package lifecycle script runs inside the OIDC grant.
+      # The release tooling has no install scripts of its own.
+      - name: Install release tooling
+        run: npm ci --ignore-scripts
+
+      # The pack in tools/semantic-release-publish.sh runs with --no-restore.
+      # Locked mode keeps it to the packages verify just built and tested.
+      - name: Restore .NET dependencies
+        run: dotnet restore --locked-mode
 
       # Temporary API key, valid about an hour. Request it in this job
       # immediately before publish, including the incomplete-release repair.

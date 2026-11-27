@@ -96,7 +96,8 @@ expected_ifs = {
         "relay-release-status": "github.event_name == 'workflow_run'",
     },
     root / ".github/workflows/semantic-release.yml": {
-        "release": release_job_if,
+        "verify": release_job_if,
+        "release": "github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'",
     },
 }
 
