@@ -410,13 +410,18 @@ jobs:
       if: needs.changes.outputs.docs_only != 'true'
       run: dotnet restore src/EdsDcfNet/EdsDcfNet.csproj --locked-mode
 
+    # Both sides are built at the same version. The assembly version is stamped
+    # at release time only (VersionPrefix 0.0.0 otherwise), so a base branch
+    # that still has <Version> in its csproj would fail CP0003 against a 0.0.0
+    # head. CP0003 stays on for what matters here: name, culture and the
+    # strong-name public key token.
     - name: Build library (PR head)
       if: needs.changes.outputs.docs_only != 'true'
-      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release --no-restore
+      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release --no-restore -p:Version=0.0.0
 
     - name: Build library (PR base branch)
       if: needs.changes.outputs.docs_only != 'true'
-      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
+      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release -p:Version=0.0.0
       working-directory: ${{ runner.temp }}/base-branch
 
     - name: Install ApiCompat tool
