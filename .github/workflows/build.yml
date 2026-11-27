@@ -375,9 +375,14 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{ github.event.pull_request.base.sha }}
-        # Outside the PR-head workspace so MSBuild does not walk up into the head
-        # Directory.Packages.props (NU1008 when the base still has Version on PackageReference).
-        path: ${{ runner.temp }}/base-branch
+        path: base-branch
+
+    # actions/checkout only allows a path under the workspace, but a nested
+    # checkout inherits the head Directory.Packages.props (NU1008 when the base
+    # still has Version on PackageReference). Move it out after checkout.
+    - name: Move PR base checkout out of the workspace
+      if: needs.changes.outputs.docs_only != 'true'
+      run: mv base-branch "${{ runner.temp }}/base-branch"
 
     - name: Setup .NET (PR head)
       if: needs.changes.outputs.docs_only != 'true'

@@ -1,4 +1,6 @@
 <Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
   <PropertyGroup>
     <!--
       Windows restore of net48 injects an implicit win-x86 RID, which NU1004s a lock file
