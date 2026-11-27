@@ -13,8 +13,8 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>edsdcf-check</ToolCommandName>
     <PackageId>EdsDcfNet.Checker</PackageId>
-    <!-- Released in lockstep with EdsDcfNet: same version, bundles the core assembly of the same build. -->
-    <Version>1.17.0</Version>
+    <!-- Released in lockstep with EdsDcfNet: same version (passed to both packs by
+         tools/semantic-release-publish.sh), bundles the core assembly of the same build. -->
     <Authors>Dietmar Borgards</Authors>
     <Description>edsdcf-check: command-line validator for CiA 306 EDS and DCF files, built on the EdsDcfNet rule catalog.</Description>
     <PackageTags>CANopen;EDS;DCF;CiA;DS306;validation;dotnet-tool</PackageTags>
