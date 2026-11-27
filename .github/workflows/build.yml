@@ -204,7 +204,7 @@ jobs:
       run: bash tools/enforce-coverage-threshold.sh "${{ steps.test.outputs.results_directory }}"
 
     - name: Upload coverage reports to Codecov
-      if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
+      if: always() && steps.coverage_gate.outputs.coverage_files != '' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
       uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -221,7 +221,7 @@ jobs:
     # (avoids a pending required check).
     # A documentation-only change posts success here instead of running the gate.
     - name: Post coverage/threshold status
-      if: always() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
+      if: always() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
       continue-on-error: true
       shell: bash
       env:
@@ -254,7 +254,7 @@ jobs:
   # Guards the lockfile against package.json/package-lock.json drift.
   #
   # npm runs nowhere else in this workflow: the only `npm ci` is in
-  # semantic-release.yml, which fires *after* a merge to develop. Renovate npm
+  # semantic-release.yml, which runs only when a release is started. Renovate npm
   # PRs therefore stay green while breaking the release run — twice now, both
   # times because a lockfile update dropped the overridden undici node instead
   # of updating it (#502/#506, #515/#519). This job reproduces that exact step
@@ -289,7 +289,7 @@ jobs:
     # Same command as semantic-release.yml. Fails on any package.json /
     # package-lock.json mismatch (npm error code EUSAGE).
     - name: Verify package-lock.json is in sync
-      run: npm ci
+      run: npm ci --ignore-scripts
 
   # Fixture check for the jq program embedded in the apicompat job below.
   # That program is the opt-in for an announced Major bump; a loosened
