@@ -406,7 +406,7 @@ complete_release_publish() {
       else
         rm -f global.json
       fi
-      dotnet restore
+      dotnet restore --locked-mode
       bash "${repo_root}/tools/semantic-release-publish.sh" "$version"
     )
     # Unlock packages before copy. The pack subshell already disabled node reuse;

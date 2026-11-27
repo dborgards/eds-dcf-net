@@ -152,7 +152,7 @@ jobs:
 
     - name: Restore dependencies
       if: needs.changes.outputs.docs_only != 'true'
-      run: dotnet restore
+      run: dotnet restore --locked-mode
 
     - name: Build
       if: needs.changes.outputs.docs_only != 'true'
@@ -396,9 +396,13 @@ jobs:
       with:
         global-json-file: base-branch/global.json
 
+    - name: Restore library (PR head)
+      if: needs.changes.outputs.docs_only != 'true'
+      run: dotnet restore src/EdsDcfNet/EdsDcfNet.csproj --locked-mode
+
     - name: Build library (PR head)
       if: needs.changes.outputs.docs_only != 'true'
-      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
+      run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release --no-restore
 
     - name: Build library (PR base branch)
       if: needs.changes.outputs.docs_only != 'true'
