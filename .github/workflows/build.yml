@@ -375,7 +375,9 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{ github.event.pull_request.base.sha }}
-        path: base-branch
+        # Outside the PR-head workspace so MSBuild does not walk up into the head
+        # Directory.Packages.props (NU1008 when the base still has Version on PackageReference).
+        path: ${{ runner.temp }}/base-branch
 
     - name: Setup .NET (PR head)
       if: needs.changes.outputs.docs_only != 'true'
@@ -384,8 +386,8 @@ jobs:
         global-json-file: global.json
 
     # dotnet resolves the SDK from the nearest global.json to the invoked
-    # working directory, so building base-branch/ with `working-directory:`
-    # below picks up base-branch/global.json — which may pin an older SDK
+    # working directory, so building the base checkout with `working-directory:`
+    # below picks up that tree's global.json — which may pin an older SDK
     # feature band than the PR head (e.g. a PR that bumps global.json
     # itself). rollForward: latestPatch cannot cross feature bands, so that
     # older SDK must be installed too, or the base build fails outright and
@@ -394,7 +396,7 @@ jobs:
       if: needs.changes.outputs.docs_only != 'true'
       uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
       with:
-        global-json-file: base-branch/global.json
+        global-json-file: ${{ runner.temp }}/base-branch/global.json
 
     - name: Restore library (PR head)
       if: needs.changes.outputs.docs_only != 'true'
@@ -407,7 +409,7 @@ jobs:
     - name: Build library (PR base branch)
       if: needs.changes.outputs.docs_only != 'true'
       run: dotnet build src/EdsDcfNet/EdsDcfNet.csproj --configuration Release
-      working-directory: base-branch
+      working-directory: ${{ runner.temp }}/base-branch
 
     - name: Install ApiCompat tool
       if: needs.changes.outputs.docs_only != 'true'
@@ -492,7 +494,7 @@ jobs:
       if: needs.changes.outputs.docs_only != 'true'
       run: |
         set +e
-        bash tools/apicompat-check.sh src/EdsDcfNet/bin/Release base-branch/src/EdsDcfNet/bin/Release "$RUNNER_TEMP/apicompat"
+        bash tools/apicompat-check.sh src/EdsDcfNet/bin/Release "$RUNNER_TEMP/base-branch/src/EdsDcfNet/bin/Release" "$RUNNER_TEMP/apicompat"
         rc=$?
         set -e
         # rc 2 is an infrastructure failure — fail the step normally.
