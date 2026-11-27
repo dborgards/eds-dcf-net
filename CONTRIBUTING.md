@@ -524,12 +524,16 @@ Every release publishes two NuGet packages with the same version:
 | `EdsDcfNet` | `src/EdsDcfNet` | The library |
 | `EdsDcfNet.Checker` | `src/EdsDcfNet.Checker` | The `edsdcf-check` .NET tool, bundling the `EdsDcfNet.dll` of the same build |
 
-- `tools/semantic-release-prepare.sh` writes the next version into `<Version>` of both
-  projects; the release commit carries both (`src/**/*.csproj`).
+- Neither project file carries a version. `Directory.Build.props` sets `VersionPrefix`
+  `0.0.0`, and `tools/semantic-release-publish.sh` passes the release version to both packs
+  (`-p:Version`, with `--no-restore`). The release commit carries `CHANGELOG.md` only.
 - `tools/semantic-release-publish.sh` packs both before it pushes anything, then pushes
   `EdsDcfNet` first and the tool second. A missing package fails the release. Both
   packages end up in `packages/` and are attached to the GitHub release.
-- Never bump one `<Version>` by hand without the other; `ToolPackageTests` fails when they differ.
+- Do not add a `<Version>` to either project. NuGet records the version of a referenced
+  project in `packages.lock.json`, so a committed version goes stale in the lock files with
+  every release. `ToolPackageTests` fails when a project file sets one, or when the tool and
+  library assemblies carry different versions.
 - The tool has no SBOM of its own. Its only non-framework dependency is the bundled
   `EdsDcfNet` assembly, which the release SBOM (`bom.cdx.json`, `sbom.spdx.json`) already describes.
 - The release repair in `tools/semantic-release-run.sh` still decides completeness by the
@@ -538,7 +542,7 @@ Every release publishes two NuGet packages with the same version:
 
 After the stable release workflow run on `main` has **completed successfully**, merge `main`
 back into `develop` with a regular merge commit, not squash or rebase. This back-merge
-brings the generated `CHANGELOG.md` and package version forward and makes the stable tag
+brings the generated `CHANGELOG.md` forward and makes the stable tag
 reachable from `develop`. Waiting for completion is required: an earlier back-merge can
 make the develop verification inspect a stable release that is still being published.
 Do not open a new feature PR from the back-merge branch; merge it directly as release
