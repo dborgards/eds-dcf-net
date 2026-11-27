@@ -79,8 +79,7 @@
       "@semantic-release/git",
       {
         "assets": [
-          "CHANGELOG.md",
-          "src/**/*.csproj"
+          "CHANGELOG.md"
         ],
         "message": "chore(release): ${nextRelease.version}"
       }

@@ -24,14 +24,8 @@ if [[ "$branch_name" == "main" ]]; then
   mv "$tmp_file" CHANGELOG.md
 fi
 
-# The checker tool ships in lockstep with the library: same version, same release.
-for csproj_file in src/EdsDcfNet/EdsDcfNet.csproj src/EdsDcfNet.Checker/EdsDcfNet.Checker.csproj; do
-  csproj_tmp_file="$(mktemp)"
-  awk -v version="$next_version" '
-    {
-      gsub(/<Version>[^<]*<\/Version>/, "<Version>" version "</Version>")
-      print
-    }
-  ' "$csproj_file" > "$csproj_tmp_file"
-  mv "$csproj_tmp_file" "$csproj_file"
-done
+# No project file carries a version (Directory.Build.props, VersionPrefix 0.0.0):
+# tools/semantic-release-publish.sh passes it to the pack. Rewriting a csproj here
+# would change the version the next restore sees, and packages.lock.json records
+# the version of every referenced project, so the release commit would leave the
+# committed lock files stale.
