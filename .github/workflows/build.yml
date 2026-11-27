@@ -16,12 +16,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
-  # push is limited to develop. Branches with an open PR are built by the
-  # pull_request trigger, so a push to a PR branch no longer runs twice.
-  # main is built by semantic-release.yml. A branch without a PR is not built
-  # on push; open a (draft) PR or use workflow_dispatch to get a run.
+  # push is limited to develop and main. Branches with an open PR are built by
+  # the pull_request trigger, so a push to a PR branch no longer runs twice.
+  # main is built here since semantic-release.yml became manual; the push also
+  # uploads main's coverage, which Codecov compares release PRs against. A
+  # branch without a PR is not built on push; open a (draft) PR or use
+  # workflow_dispatch to get a run.
   push:
-    branches: [ develop ]
+    branches: [ develop, main ]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -86,6 +88,7 @@ jobs:
         PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         PUSH_BEFORE: ${{ github.event.before }}
         PUSH_AFTER: ${{ github.sha }}
+        PUSH_REF: ${{ github.ref }}
       run: |
         docs_only=false
         range=""
@@ -93,7 +96,7 @@ jobs:
           # Three-dot: changes since the merge base, like the PR's file list;
           # --no-renames lists a rename's source path as well as its target.
           range="${PR_BASE_SHA}...${PR_HEAD_SHA}"
-        elif [[ "$EVENT_NAME" == "push" && -n "$PUSH_BEFORE" && "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]]; then
+        elif [[ "$EVENT_NAME" == "push" && "$PUSH_REF" == "refs/heads/develop" && -n "$PUSH_BEFORE" && "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]]; then
           range="${PUSH_BEFORE}...${PUSH_AFTER}"
         fi
 
