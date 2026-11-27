@@ -162,7 +162,7 @@
       "edsdcfnet.checker": {
         "type": "Project",
         "dependencies": {
-          "EdsDcfNet": "[1.17.0, )"
+          "EdsDcfNet": "[0.0.0, )"
         }
       }
     }

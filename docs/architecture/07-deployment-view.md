@@ -97,7 +97,7 @@ flowchart LR
         Analyze["commit-analyzer<br/><i>Determine release type</i>"]
         Notes["release-notes-generator<br/><i>Generate changelog</i>"]
         CL["changelog<br/><i>Update CHANGELOG.md</i>"]
-        Exec["exec<br/><i>Set version in .csproj<br/>dotnet pack + push</i>"]
+        Exec["exec<br/><i>dotnet pack -p:Version<br/>+ push</i>"]
         Git["git<br/><i>Version commit</i>"]
         GHRelease["github<br/><i>GitHub Release</i>"]
     end

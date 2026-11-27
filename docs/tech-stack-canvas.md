@@ -27,7 +27,7 @@
 - **Target platforms:** netstandard2.0 + net10.0 (covers .NET Framework 4.6.1 through .NET 10)
 - **External dependencies:** 0 (core library)
 - **Object Dictionary address space:** 0x1000–0x5FFF (CANopen standard)
-- **Current version:** Branch-specific; see `src/EdsDcfNet/EdsDcfNet.csproj` (managed by semantic-release)
+- **Current version:** The latest `v*` tag / GitHub release; set by semantic-release at pack time (project files build as `0.0.0`)
 - **File formats:** 5 (`.eds`, `.dcf`, `.cpj`, `.xdd`, `.xdc`)
 
 ### Major Quality Attributes
